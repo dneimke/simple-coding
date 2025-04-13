@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Field Hockey Event Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- Existing Styles (Standard CSS) --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+            padding: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            body {
+                padding: 2rem;
+            }
+        }
+
+        .event-button {
+            color: #ffffff;
+            font-weight: 700;
+            border-radius: 0.375rem;
+            border-width: 1px;
+            border-style: solid;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition-property: all;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+            transform-origin: center;
+            font-size: 0.75rem;
+            line-height: 1rem;
+            cursor: pointer;
+        }
+
+        @media (min-width: 640px) {
+            .event-button {
+                font-size: 0.875rem;
+                line-height: 1.25rem;
+            }
+        }
+
+        .event-button:hover {
+            transform: scale(1.03);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .event-button:active {
+            transform: scale(0.98);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            filter: brightness(0.95);
+        }
+
+        .event-button:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+        }
+
+        .event-button[data-event] {
+            padding: 0.5rem 1rem;
+        }
+
+        /* Keep button padding */
+        .btn-blue {
+            background-image: linear-gradient(to bottom, #3b82f6, #2563eb);
+            border-color: #1d4ed8;
+        }
+
+        .btn-blue:hover {
+            background-image: linear-gradient(to bottom, #2563eb, #1d4ed8);
+        }
+
+        .btn-blue:focus {
+            box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #3b82f6, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-red {
+            background-image: linear-gradient(to bottom, #ef4444, #dc2626);
+            border-color: #b91c1c;
+        }
+
+        .btn-red:hover {
+            background-image: linear-gradient(to bottom, #dc2626, #b91c1c);
+        }
+
+        .btn-red:focus {
+            box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #ef4444, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-green {
+            background-image: linear-gradient(to bottom, #22c55e, #16a34a);
+            border-color: #15803d;
+        }
+
+        .btn-green:hover {
+            background-image: linear-gradient(to bottom, #16a34a, #15803d);
+        }
+
+        .btn-green:focus {
+            box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #22c55e, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-yellow {
+            background-image: linear-gradient(to bottom, #facc15, #eab308);
+            border-color: #ca8a04;
+            color: #000000;
+        }
+
+        .btn-yellow:hover {
+            background-image: linear-gradient(to bottom, #eab308, #ca8a04);
+        }
+
+        .btn-yellow:focus {
+            box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #eab308, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-gray {
+            background-image: linear-gradient(to bottom, #6b7280, #4b5563);
+            border-color: #374151;
+        }
+
+        .btn-gray:hover {
+            background-image: linear-gradient(to bottom, #4b5563, #374151);
+        }
+
+        .btn-gray:focus {
+            box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #6b7280, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .event-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-image: none;
+            background-color: #9ca3af;
+            border-color: #6b7280;
+            transform: scale(1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            filter: brightness(1);
+        }
+
+        .event-button:disabled:hover {
+            background-image: none;
+        }
+
+        .event-log-item {
+            border-bottom-width: 1px;
+            border-color: #e5e7eb;
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+
+        /* --- MODIFIED STYLES --- */
+        .button-grid {
+            display: grid;
+            gap: 0.25rem;
+            /* Reduced gap between buttons */
+            /* Removed margin-bottom */
+        }
+
+        .group-container {
+            border-width: 1px;
+            border-color: #d1d5db;
+            padding: 0.5rem;
+            /* Reduced padding within group */
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            margin-bottom: 1rem;
+            /* Reduced margin between groups */
+        }
+
+        /* --- END MODIFIED STYLES --- */
+
+        .tab-button {
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            text-align: center;
+            border-bottom-width: 2px;
+            transition-property: color, border-color;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+            border-color: transparent;
+            color: #6b7280;
+            cursor: pointer;
+        }
+
+        .tab-button:hover {
+            color: #374151;
+            border-color: #d1d5db;
+        }
+
+        .tab-button-active {
+            border-color: #3b82f6;
+            color: #2563eb;
+        }
+
+        .tab-button-active:hover {
+            border-color: #3b82f6;
+            color: #2563eb;
+        }
+
+        .tab-content {
+            margin-top: 1rem;
+            overflow-y: auto;
+            background-color: #f9fafb;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border-width: 1px;
+            border-color: #e5e7eb;
+        }
+
+        .xml-output-container {
+            height: 22rem;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            background-color: #ffffff;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            border: 1px solid #d1d5db;
+        }
+
+        .xml-output {
+            white-space: pre;
+            font-family: monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #333;
+        }
+
+        .xml-tag {
+            color: #007bff;
+        }
+
+        .xml-element {
+            color: #dc3545;
+        }
+
+        .xml-text {
+            color: #28a745;
+        }
+
+        #config-view textarea {
+            width: 100%;
+            min-height: 400px;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+
+        .config-message {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+
+        .config-success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .config-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        #video-drop-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            background-color: #f9fafb;
+            margin-bottom: 1rem;
+            color: #6b7280;
+        }
+
+        #video-drop-zone.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        #videoPlayer {
+            width: 100%;
+            max-height: 60vh;
+            background-color: #000;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        #timelineContainer {
+            background-color: #1f2937;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            position: relative;
+            min-height: 150px;
+        }
+
+        .timeline-row {
+            display: flex;
+            align-items: center;
+            height: 2.5rem;
+            border-bottom: 1px solid #4b5563;
+            position: relative;
+        }
+
+        .timeline-row:last-child {
+            border-bottom: none;
+        }
+
+        .timeline-label {
+            color: #d1d5db;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding-right: 1rem;
+            white-space: nowrap;
+            width: 120px;
+            flex-shrink: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .timeline-track {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            min-width: 500px;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s ease-in-out;
+        }
+
+        .timeline-marker:hover {
+            transform: translateY(-50%) scale(1.5);
+        }
+
+        #timelineMessage {
+            color: #9ca3af;
+            text-align: center;
+            padding: 1rem;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl">
+
+        <nav class="mb-6 pb-2 border-b border-gray-200 flex space-x-4">
+            <button id="navTracker" class="text-blue-600 hover:text-blue-800 font-medium">Tracker</button>
+            <button id="navConfig" class="text-gray-600 hover:text-gray-800 font-medium">Configure</button>
+            <button id="navTimeline" class="text-gray-600 hover:text-gray-800 font-medium">Timeline</button>
+        </nav>
+
+        <div id="tracker-view">
+            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Field Hockey Event Tracker</h1>
+            <div class="flex flex-col sm:flex-row justify-center items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
+                <div id="timer" class="text-4xl font-mono font-bold bg-gray-800 text-white px-6 py-2 rounded-lg shadow">
+                    00:00</div>
+                <button id="startStopButton" class="event-button btn-green px-6 py-3 text-lg">Start Game</button>
+                <button id="resetButton" class="event-button btn-red px-6 py-3 text-lg">Reset</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div id="button-column-left">
+                    <div id="left-button-groups-container"></div>
+                </div>
+                <div id="button-column-right">
+                    <div id="right-button-groups-container"></div>
+                    <div class="group-container mt-6">
+                        <h2 class="text-xl font-semibold mb-1 text-gray-700">Event Log</h2>
+                        <div class="border-b border-gray-200">
+                            <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                                <button id="tabButtonList" class="tab-button tab-button-active" data-tab="listView">List
+                                    View</button>
+                                <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
+                            </nav>
+                        </div>
+                        <div>
+                            <div id="listView" class="tab-content">
+                                <p class="text-gray-500 text-center">No events recorded yet.</p>
+                            </div>
+                            <div id="xmlView" class="tab-content hidden">
+                                <div class="xml-output-container">
+                                    <div class="xml-output">
+                                        <p class="text-gray-500 text-center">No events recorded yet.</p>
+                                    </div>
+                                </div>
+                                <button id="copyXmlButton" class="event-button btn-blue w-full py-2">Copy XML</button>
+                            </div>
+                        </div>
+                        <button id="clearLogButton" class="event-button btn-yellow mt-4 w-full py-2.5 px-5">Clear
+                            Log</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="config-view" class="hidden">
+            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure Event Buttons</h1>
+            <p class="mb-4 text-gray-600">
+                Edit the JSON below to define the button layout. Each column ('leftColumn', 'rightColumn') contains an
+                array of groups. Each group has an optional 'gridCols' (e.g., "grid-cols-4") and an array of 'buttons'.
+                Each button needs an 'event' (unique identifier), 'text' (display label), and 'color' ('btn-blue',
+                'btn-red', 'btn-green', 'btn-yellow', 'btn-gray').
+            </p>
+            <div class="mb-4"> <textarea id="configJsonInput"></textarea> </div>
+            <div id="configMessage" class="config-message hidden"></div>
+            <div class="flex space-x-4">
+                <button id="saveConfigButton" class="event-button btn-green px-6 py-2">Save Configuration</button>
+                <button id="loadDefaultConfigButton" class="event-button btn-gray px-6 py-2">Load Default</button>
+            </div>
+            <p class="mt-4 text-sm text-gray-500">Configuration is saved in your browser's local storage. Changes will
+                be applied after saving and navigating back to the Tracker.</p>
+        </div>
+        <div id="timeline-view" class="hidden">
+            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Timeline View</h1>
+            <div id="video-loader" class="mb-6">
+                <div id="video-drop-zone">
+                    <p>Drag & drop a video file here, or click the button below.</p>
+                </div>
+                <label for="videoFile" class="event-button btn-blue inline-block cursor-pointer px-5 py-2"> Add Local
+                    Video </label>
+                <input type="file" id="videoFile" accept="video/*" class="hidden">
+                <span id="videoFileName" class="ml-4 text-gray-600">No file selected.</span>
+            </div>
+            <video id="videoPlayer" controls> Your browser does not support the video tag. </video>
+            <div id="timelineContainer">
+                <div id="timelineMessage">Load a video and record events to see the timeline.</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // --- Constants & Config ---
+        const LOCAL_STORAGE_KEY = 'fieldHockeyConfig_v1';
+        const DEFAULT_CONFIG = { /* ... (as before) ... */
+            leftColumn: [{ gridCols: "grid-cols-2", buttons: [{ event: "OUTLET", text: "OUTLET", color: "btn-blue" }, { event: "PRESS", text: "PRESS", color: "btn-blue" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "DEF 25 ENTRY", text: "DEF 25 ENTRY", color: "btn-red" }, { event: "DEF CIRC ENTRY", text: "DEF CIRC ENTRY", color: "btn-red" }, { event: "SHOT AG", text: "SHOT AG", color: "btn-red" }, { event: "GOAL AG", text: "GOAL AG", color: "btn-red" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "ATT 25 ENTRY", text: "ATT 25 ENTRY", color: "btn-green" }, { event: "ATT CIRC ENTRY", text: "ATT CIRC ENTRY", color: "btn-green" }, { event: "SHOT FOR", text: "SHOT FOR", color: "btn-green" }, { event: "GOAL FOR", text: "GOAL FOR", color: "btn-green" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "APC", text: "APC", color: "btn-blue" }, { event: "DPC", text: "DPC", color: "btn-blue" }, { event: "STROKE", text: "STROKE", color: "btn-blue" }, { event: "1V1", text: "1V1", color: "btn-blue" }] }, { gridCols: "grid-cols-5", buttons: [{ event: "3 PASS", text: "3 PASS", color: "btn-yellow" }, { event: "TACKLE", text: "TACKLE", color: "btn-yellow" }, { event: "DEF", text: "DEF", color: "btn-yellow" }, { event: "MF", text: "MF", color: "btn-yellow" }, { event: "ATT", text: "ATT", color: "btn-yellow" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "OVERHEAD FOR", text: "OVERHEAD FOR", color: "btn-blue" }, { event: "OVERHEAD AG", text: "OVERHEAD AG", color: "btn-blue" }, { event: "CIRC-DEF", text: "CIRC-DEF", color: "btn-blue" }, { event: "CLOSE-BASE", text: "CLOSE-BASE", color: "btn-blue" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "P1", text: "P1", color: "btn-blue" }, { event: "P2", text: "P2", color: "btn-blue" }, { event: "P3", text: "P3", color: "btn-blue" }, { event: "P4", text: "P4", color: "btn-blue" }] }, { gridCols: "grid-cols-3", buttons: [{ event: "CARD", text: "CARD", color: "btn-green" }, { event: "INJURY", text: "INJURY", color: "btn-green" }, { event: "WHISTLE", text: "WHISTLE", color: "btn-green" }] }],
+            rightColumn: []
+        };
+
+        // --- DOM Elements ---
+        const timerDisplay = document.getElementById('timer');
+        const startStopButton = document.getElementById('startStopButton');
+        const resetButton = document.getElementById('resetButton');
+        const clearLogButton = document.getElementById('clearLogButton');
+        const tabButtonList = document.getElementById('tabButtonList');
+        const tabButtonXml = document.getElementById('tabButtonXml');
+        const listViewPanel = document.getElementById('listView');
+        const xmlViewPanel = document.getElementById('xmlView');
+        const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
+        const copyXmlButton = document.getElementById('copyXmlButton');
+        const leftButtonGroupsContainer = document.getElementById('left-button-groups-container');
+        const rightButtonGroupsContainer = document.getElementById('right-button-groups-container');
+        const navTracker = document.getElementById('navTracker');
+        const navConfig = document.getElementById('navConfig');
+        const navTimeline = document.getElementById('navTimeline');
+        const trackerView = document.getElementById('tracker-view');
+        const configView = document.getElementById('config-view');
+        const timelineView = document.getElementById('timeline-view');
+        const configJsonInput = document.getElementById('configJsonInput');
+        const saveConfigButton = document.getElementById('saveConfigButton');
+        const loadDefaultConfigButton = document.getElementById('loadDefaultConfigButton');
+        const configMessage = document.getElementById('configMessage');
+        const videoDropZone = document.getElementById('video-drop-zone');
+        const videoFileInput = document.getElementById('videoFile');
+        const videoFileName = document.getElementById('videoFileName');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const timelineContainer = document.getElementById('timelineContainer');
+        const timelineMessage = document.getElementById('timelineMessage');
+
+        // --- State Variables ---
+        let timerInterval = null;
+        let startTime = 0;
+        let elapsedTime = 0;
+        let isRunning = false;
+        let loggedEvents = [];
+        let eventButtons = [];
+        let currentVideoURL = null;
+        let videoDuration = 0;
+
+        // --- Functions --- (Only changed enableEventButtons, copyXmlToClipboard, renderEventLog)
+
+        /** Formats milliseconds into MM:SS */
+        function formatTime(timeMs) { const totalSeconds = Math.floor(timeMs / 1000); const minutes = Math.floor(totalSeconds / 60); const seconds = totalSeconds % 60; return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; }
+        /** Updates timer display */
+        function updateTimer() { const currentTime = Date.now(); const currentElapsedTime = isRunning ? elapsedTime + (currentTime - startTime) : elapsedTime; timerDisplay.textContent = formatTime(currentElapsedTime); }
+        /** Starts the timer */
+        function startTimer() { if (isRunning) return; startTime = Date.now(); timerInterval = setInterval(updateTimer, 100); isRunning = true; startStopButton.textContent = 'Pause Game'; startStopButton.classList.remove('btn-green'); startStopButton.classList.add('btn-yellow'); startStopButton.style.color = '#000000'; enableEventButtons(true); }
+        /** Stops (pauses) the timer */
+        function stopTimer() { if (!isRunning) return; clearInterval(timerInterval); const currentTime = Date.now(); elapsedTime += (currentTime - startTime); isRunning = false; startStopButton.textContent = 'Resume Game'; startStopButton.classList.remove('btn-yellow'); startStopButton.classList.add('btn-green'); startStopButton.style.color = '#ffffff'; }
+        /** Resets timer and log */
+        function resetTimerAndLog() { stopTimer(); elapsedTime = 0; startTime = 0; timerDisplay.textContent = '00:00'; startStopButton.textContent = 'Start Game'; startStopButton.classList.remove('btn-yellow'); startStopButton.classList.add('btn-green'); startStopButton.style.color = '#ffffff'; clearEventLog(); renderEventLog(); enableEventButtons(false); }
+
+        /** Enables/disables dynamic event buttons AND Copy/Clear buttons */
+        function enableEventButtons(enable) {
+            const logIsEmpty = loggedEvents.length === 0;
+            eventButtons.forEach(button => { button.disabled = !enable; });
+            clearLogButton.disabled = logIsEmpty;
+            copyXmlButton.disabled = logIsEmpty; // Also disable copy button
+        }
+
+        /** Clears event data and updates UI */
+        function clearEventLog() { loggedEvents = []; renderEventLog(); if (!timelineView.classList.contains('hidden')) { renderTimeline(); } }
+        /** Escapes characters for XML/HTML text content */
+        function escapeXml(unsafe) { if (typeof unsafe !== 'string') return unsafe; return unsafe.replace(/[<>&'"]/g, function (c) { switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; } }); }
+
+        /** Generates plain text XML string from logged events */
+        function generatePlainXml(events) { /* ... (no change) ... */
+            let xmlString = ''; events.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); xmlString += `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>\n`; }); return xmlString.trim();
+        }
+
+        /** Renders both List and XML views */
+        function renderEventLog() {
+            const logIsEmpty = loggedEvents.length === 0;
+            // Render List View
+            listViewPanel.innerHTML = '';
+            if (logIsEmpty) { listViewPanel.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>'; }
+            else { loggedEvents.slice().reverse().forEach(logEntry => { const logItem = document.createElement('div'); logItem.className = 'event-log-item'; logItem.innerHTML = `<span class="font-medium text-gray-700">${escapeXml(logEntry.event)}</span> <span class="text-gray-500">${formatTime(logEntry.timeMs)}</span>`; listViewPanel.appendChild(logItem); }); }
+            // Render XML View (Styled HTML)
+            xmlOutputContainer.innerHTML = '';
+            if (logIsEmpty) { xmlOutputContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>'; }
+            else { let styledXmlString = ''; loggedEvents.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); styledXmlString += `<span class="xml-tag">&lt;instance&gt;</span><span class="xml-tag">&lt;ID&gt;</span><span class="xml-text">${index + 1}</span><span class="xml-tag">&lt;/ID&gt;</span><span class="xml-tag">&lt;start&gt;</span><span class="xml-text">${startSeconds}</span><span class="xml-tag">&lt;/start&gt;</span><span class="xml-tag">&lt;end&gt;</span><span class="xml-text">${endSeconds}</span><span class="xml-tag">&lt;/end&gt;</span><span class="xml-tag">&lt;code&gt;</span><span class="xml-text">${eventCode}</span><span class="xml-tag">&lt;/code&gt;</span><span class="xml-tag">&lt;/instance&gt;</span>\n`; }); xmlOutputContainer.innerHTML = styledXmlString; }
+            // Update button states
+            clearLogButton.disabled = logIsEmpty;
+            copyXmlButton.disabled = logIsEmpty;
+        }
+
+        /** Copies the plain text XML to the clipboard */
+        async function copyXmlToClipboard() { /* ... (no change) ... */
+            if (loggedEvents.length === 0) return; const plainXml = generatePlainXml(loggedEvents); const originalButtonText = copyXmlButton.textContent; try { await navigator.clipboard.writeText(plainXml); copyXmlButton.textContent = 'Copied!'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-green'); console.log('XML copied to clipboard'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-green'); copyXmlButton.classList.add('btn-blue'); }, 1500); } catch (err) { console.error('Failed to copy XML: ', err); copyXmlButton.textContent = 'Copy Failed'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-red'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-red'); copyXmlButton.classList.add('btn-blue'); }, 2000); }
+        }
+
+        /** Handles clicks on dynamic event buttons */
+        function handleEventButtonClick(e) { /* ... (no change) ... */
+            if (!isRunning && elapsedTime === 0) { /* ... */ return; } const eventName = e.target.dataset.event; const currentElapsedTimeMs = isRunning ? elapsedTime + (Date.now() - startTime) : elapsedTime; loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs }); renderEventLog(); if (!timelineView.classList.contains('hidden')) { renderTimeline(); } if (!listViewPanel.classList.contains('hidden')) { listViewPanel.scrollTop = 0; } if (!xmlViewPanel.classList.contains('hidden')) { xmlViewPanel.scrollTop = 0; }
+        }
+        /** Handles tab switching */
+        function switchTab(tabToShow) { /* ... (no change) ... */
+            const isListView = tabToShow === 'listView'; tabButtonList.classList.toggle('tab-button-active', isListView); tabButtonXml.classList.toggle('tab-button-active', !isListView); tabButtonList.classList.toggle('tab-button', !isListView); tabButtonXml.classList.toggle('tab-button', isListView); listViewPanel.classList.toggle('hidden', !isListView); xmlViewPanel.classList.toggle('hidden', isListView);
+        }
+        /** Shows/Hides Tracker, Config, or Timeline View */
+        function showView(viewToShow) { /* ... (no change) ... */
+            trackerView.classList.add('hidden'); configView.classList.add('hidden'); timelineView.classList.add('hidden'); navTracker.classList.remove('text-blue-600', 'hover:text-blue-800'); navTracker.classList.add('text-gray-600', 'hover:text-gray-800'); navConfig.classList.remove('text-blue-600', 'hover:text-blue-800'); navConfig.classList.add('text-gray-600', 'hover:text-gray-800'); navTimeline.classList.remove('text-blue-600', 'hover:text-blue-800'); navTimeline.classList.add('text-gray-600', 'hover:text-gray-800'); if (viewToShow === 'tracker') { trackerView.classList.remove('hidden'); navTracker.classList.add('text-blue-600', 'hover:text-blue-800'); navTracker.classList.remove('text-gray-600', 'hover:text-gray-800'); } else if (viewToShow === 'config') { configView.classList.remove('hidden'); navConfig.classList.add('text-blue-600', 'hover:text-blue-800'); navConfig.classList.remove('text-gray-600', 'hover:text-gray-800'); const currentConfig = loadConfig(); configJsonInput.value = JSON.stringify(currentConfig, null, 2); } else if (viewToShow === 'timeline') { timelineView.classList.remove('hidden'); navTimeline.classList.add('text-blue-600', 'hover:text-blue-800'); navTimeline.classList.remove('text-gray-600', 'hover:text-gray-800'); renderTimeline(); }
+        }
+        /** Loads configuration from localStorage or returns default */
+        function loadConfig() { /* ... (no change) ... */
+            try { const savedConfig = localStorage.getItem(LOCAL_STORAGE_KEY); if (savedConfig) { const parsed = JSON.parse(savedConfig); if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) { console.log("Loaded config from localStorage"); return parsed; } else { console.warn("Invalid config structure in localStorage, using default."); return DEFAULT_CONFIG; } } } catch (error) { console.error("Error loading or parsing config from localStorage:", error); } console.log("No valid config in localStorage, using default."); return DEFAULT_CONFIG;
+        }
+        /** Saves configuration to localStorage */
+        function saveConfig(configObject) { /* ... (no change) ... */
+            try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(configObject)); console.log("Configuration saved to localStorage."); return true; } catch (error) { console.error("Error saving config to localStorage:", error); if (error.name === 'QuotaExceededError') { alert('Error: Could not save configuration. Browser storage limit exceeded.'); } return false; }
+        }
+        /** Displays messages on the config page */
+        function showConfigMessage(message, isError = false) { /* ... (no change) ... */
+            configMessage.textContent = message; configMessage.className = 'config-message'; if (isError) { configMessage.classList.add('config-error'); } else { configMessage.classList.add('config-success'); } configMessage.classList.remove('hidden'); setTimeout(() => { configMessage.classList.add('hidden'); }, 5000);
+        }
+        /** Renders button groups and buttons based on config */
+        function renderButtons(config) { /* ... (no change) ... */
+            leftButtonGroupsContainer.innerHTML = ''; rightButtonGroupsContainer.innerHTML = ''; const renderColumn = (columnData, targetElement) => { if (!Array.isArray(columnData)) { console.error("Invalid column data in config:", columnData); return; } columnData.forEach(group => { if (!group || !Array.isArray(group.buttons)) { console.warn("Skipping invalid group in config:", group); return; } const groupContainer = document.createElement('div'); groupContainer.className = 'group-container'; const buttonGrid = document.createElement('div'); const gridColsClass = group.gridCols || 'grid-cols-4'; buttonGrid.className = `button-grid ${gridColsClass}`; group.buttons.forEach(buttonConfig => { if (!buttonConfig || !buttonConfig.event || !buttonConfig.text || !buttonConfig.color) { console.warn("Skipping invalid button config:", buttonConfig); return; } const button = document.createElement('button'); button.className = `event-button ${buttonConfig.color}`; button.style.padding = '0.5rem 1rem'; button.textContent = buttonConfig.text; button.dataset.event = buttonConfig.event; if (buttonConfig.span) { button.classList.add(buttonConfig.span); } buttonGrid.appendChild(button); }); groupContainer.appendChild(buttonGrid); targetElement.appendChild(groupContainer); }); }; renderColumn(config.leftColumn, leftButtonGroupsContainer); renderColumn(config.rightColumn, rightButtonGroupsContainer); eventButtons = document.querySelectorAll('.event-button[data-event]'); eventButtons.forEach(button => { button.removeEventListener('click', handleEventButtonClick); button.addEventListener('click', handleEventButtonClick); }); enableEventButtons(isRunning || elapsedTime > 0);
+        }
+        /** Handles video file loading */
+        function loadVideo(file) { /* ... (no change) ... */
+            if (!file || !file.type.startsWith('video/')) { alert('Please select a valid video file.'); return; } if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); } currentVideoURL = URL.createObjectURL(file); videoPlayer.src = currentVideoURL; videoFileName.textContent = file.name;
+        }
+        /** Renders the timeline visualization */
+        function renderTimeline() { /* ... (no change) ... */
+            timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); });
+        }
+        /** Handles clicks on timeline markers */
+        function handleTimelineClick(e) { /* ... (no change) ... */
+            if (e.target.classList.contains('timeline-marker')) { const seekTime = parseFloat(e.target.dataset.time); if (!isNaN(seekTime) && videoPlayer.readyState >= 1) { videoPlayer.currentTime = seekTime; } else { console.warn("Video not ready or invalid seek time:", seekTime); } }
+        }
+
+        // --- Initialization ---
+        function initApp() {
+            const currentConfig = loadConfig();
+            renderButtons(currentConfig);
+
+            // Attach listeners
+            startStopButton.addEventListener('click', () => { isRunning ? stopTimer() : startTimer(); });
+            resetButton.addEventListener('click', resetTimerAndLog);
+            clearLogButton.addEventListener('click', clearEventLog);
+            tabButtonList.addEventListener('click', () => switchTab('listView'));
+            tabButtonXml.addEventListener('click', () => switchTab('xmlView'));
+            copyXmlButton.addEventListener('click', copyXmlToClipboard); // Listener added
+            navTracker.addEventListener('click', () => showView('tracker'));
+            navConfig.addEventListener('click', () => showView('config'));
+            navTimeline.addEventListener('click', () => showView('timeline'));
+            saveConfigButton.addEventListener('click', () => { /* ... (no change) ... */
+                try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); }
+            });
+            loadDefaultConfigButton.addEventListener('click', () => { /* ... (no change) ... */
+                configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showConfigMessage("Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
+            });
+            videoFileInput.addEventListener('change', (event) => { const file = event.target.files[0]; loadVideo(file); });
+            videoDropZone.addEventListener('dragover', (event) => { event.preventDefault(); videoDropZone.classList.add('dragover'); });
+            videoDropZone.addEventListener('dragleave', () => { videoDropZone.classList.remove('dragover'); });
+            videoDropZone.addEventListener('drop', (event) => { event.preventDefault(); videoDropZone.classList.remove('dragover'); const file = event.dataTransfer.files[0]; loadVideo(file); });
+            videoPlayer.addEventListener('loadedmetadata', () => { videoDuration = videoPlayer.duration; console.log("Video duration:", videoDuration); renderTimeline(); });
+            timelineContainer.addEventListener('click', handleTimelineClick);
+
+            // Initial UI state
+            renderEventLog();
+            enableEventButtons(false);
+            switchTab('listView');
+            showView('tracker');
+        }
+
+        // --- Run Initialization ---
+        initApp();
+
+    </script>
+
+</body>
+
+</html>
