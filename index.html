@@ -7,7 +7,7 @@
     <title>Field Hockey Event Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* --- Existing Styles (Standard CSS) --- */
+        /* --- Styles (Standard CSS - unchanged) --- */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7fafc;
@@ -63,7 +63,6 @@
             padding: 0.5rem 1rem;
         }
 
-        /* Keep button padding */
         .btn-blue {
             background-image: linear-gradient(to bottom, #3b82f6, #2563eb);
             border-color: #1d4ed8;
@@ -156,26 +155,19 @@
             line-height: 1.25rem;
         }
 
-        /* --- MODIFIED STYLES --- */
         .button-grid {
             display: grid;
             gap: 0.25rem;
-            /* Reduced gap between buttons */
-            /* Removed margin-bottom */
         }
 
         .group-container {
             border-width: 1px;
             border-color: #d1d5db;
             padding: 0.5rem;
-            /* Reduced padding within group */
             border-radius: 0.5rem;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
             margin-bottom: 1rem;
-            /* Reduced margin between groups */
         }
-
-        /* --- END MODIFIED STYLES --- */
 
         .tab-button {
             padding: 0.5rem 1rem;
@@ -370,6 +362,7 @@
             <button id="navTracker" class="text-blue-600 hover:text-blue-800 font-medium">Tracker</button>
             <button id="navConfig" class="text-gray-600 hover:text-gray-800 font-medium">Configure</button>
             <button id="navTimeline" class="text-gray-600 hover:text-gray-800 font-medium">Timeline</button>
+            <button id="navLog" class="text-gray-600 hover:text-gray-800 font-medium">Log</button>
         </nav>
 
         <div id="tracker-view">
@@ -380,47 +373,18 @@
                 <button id="startStopButton" class="event-button btn-green px-6 py-3 text-lg">Start Game</button>
                 <button id="resetButton" class="event-button btn-red px-6 py-3 text-lg">Reset</button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div id="button-column-left">
-                    <div id="left-button-groups-container"></div>
-                </div>
-                <div id="button-column-right">
-                    <div id="right-button-groups-container"></div>
-                    <div class="group-container mt-6">
-                        <h2 class="text-xl font-semibold mb-1 text-gray-700">Event Log</h2>
-                        <div class="border-b border-gray-200">
-                            <nav class="-mb-px flex space-x-4" aria-label="Tabs">
-                                <button id="tabButtonList" class="tab-button tab-button-active" data-tab="listView">List
-                                    View</button>
-                                <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
-                            </nav>
-                        </div>
-                        <div>
-                            <div id="listView" class="tab-content">
-                                <p class="text-gray-500 text-center">No events recorded yet.</p>
-                            </div>
-                            <div id="xmlView" class="tab-content hidden">
-                                <div class="xml-output-container">
-                                    <div class="xml-output">
-                                        <p class="text-gray-500 text-center">No events recorded yet.</p>
-                                    </div>
-                                </div>
-                                <button id="copyXmlButton" class="event-button btn-blue w-full py-2">Copy XML</button>
-                            </div>
-                        </div>
-                        <button id="clearLogButton" class="event-button btn-yellow mt-4 w-full py-2.5 px-5">Clear
-                            Log</button>
-                    </div>
-                </div>
+
+            <div id="all-button-groups-container" class="max-w-4xl mx-auto">
             </div>
+
         </div>
         <div id="config-view" class="hidden">
             <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure Event Buttons</h1>
             <p class="mb-4 text-gray-600">
-                Edit the JSON below to define the button layout. Each column ('leftColumn', 'rightColumn') contains an
-                array of groups. Each group has an optional 'gridCols' (e.g., "grid-cols-4") and an array of 'buttons'.
-                Each button needs an 'event' (unique identifier), 'text' (display label), and 'color' ('btn-blue',
-                'btn-red', 'btn-green', 'btn-yellow', 'btn-gray').
+                Edit the JSON below to define the button layout. Buttons defined in 'leftColumn' and 'rightColumn' will
+                appear sequentially in a single column on the Tracker page. Each group has an optional 'gridCols' (e.g.,
+                "grid-cols-4") and an array of 'buttons'. Each button needs an 'event' (unique identifier), 'text'
+                (display label), and 'color' ('btn-blue', 'btn-red', 'btn-green', 'btn-yellow', 'btn-gray').
             </p>
             <div class="mb-4"> <textarea id="configJsonInput"></textarea> </div>
             <div id="configMessage" class="config-message hidden"></div>
@@ -429,7 +393,7 @@
                 <button id="loadDefaultConfigButton" class="event-button btn-gray px-6 py-2">Load Default</button>
             </div>
             <p class="mt-4 text-sm text-gray-500">Configuration is saved in your browser's local storage. Changes will
-                be applied after saving and navigating back to the Tracker.</p>
+                be applied after saving.</p>
         </div>
         <div id="timeline-view" class="hidden">
             <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Timeline View</h1>
@@ -445,6 +409,32 @@
             <video id="videoPlayer" controls> Your browser does not support the video tag. </video>
             <div id="timelineContainer">
                 <div id="timelineMessage">Load a video and record events to see the timeline.</div>
+            </div>
+        </div>
+        <div id="log-view" class="hidden">
+            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Event Log</h1>
+            <div class="group-container">
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                        <button id="tabButtonList" class="tab-button tab-button-active" data-tab="listView">List
+                            View</button>
+                        <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
+                    </nav>
+                </div>
+                <div>
+                    <div id="listView" class="tab-content">
+                        <p class="text-gray-500 text-center">No events recorded yet.</p>
+                    </div>
+                    <div id="xmlView" class="tab-content hidden">
+                        <div class="xml-output-container">
+                            <div class="xml-output">
+                                <p class="text-gray-500 text-center">No events recorded yet.</p>
+                            </div>
+                        </div>
+                        <button id="copyXmlButton" class="event-button btn-blue w-full py-2">Copy XML</button>
+                    </div>
+                </div>
+                <button id="clearLogButton" class="event-button btn-yellow mt-4 w-full py-2.5 px-5">Clear Log</button>
             </div>
         </div>
     </div>
@@ -467,14 +457,16 @@
         const xmlViewPanel = document.getElementById('xmlView');
         const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
         const copyXmlButton = document.getElementById('copyXmlButton');
-        const leftButtonGroupsContainer = document.getElementById('left-button-groups-container');
-        const rightButtonGroupsContainer = document.getElementById('right-button-groups-container');
+        // --- Updated button container reference ---
+        const allButtonGroupsContainer = document.getElementById('all-button-groups-container');
         const navTracker = document.getElementById('navTracker');
         const navConfig = document.getElementById('navConfig');
         const navTimeline = document.getElementById('navTimeline');
+        const navLog = document.getElementById('navLog');
         const trackerView = document.getElementById('tracker-view');
         const configView = document.getElementById('config-view');
         const timelineView = document.getElementById('timeline-view');
+        const logView = document.getElementById('log-view');
         const configJsonInput = document.getElementById('configJsonInput');
         const saveConfigButton = document.getElementById('saveConfigButton');
         const loadDefaultConfigButton = document.getElementById('loadDefaultConfigButton');
@@ -486,7 +478,7 @@
         const timelineContainer = document.getElementById('timelineContainer');
         const timelineMessage = document.getElementById('timelineMessage');
 
-        // --- State Variables ---
+        // --- State Variables --- (Unchanged)
         let timerInterval = null;
         let startTime = 0;
         let elapsedTime = 0;
@@ -496,98 +488,87 @@
         let currentVideoURL = null;
         let videoDuration = 0;
 
-        // --- Functions --- (Only changed enableEventButtons, copyXmlToClipboard, renderEventLog)
+        // --- Functions --- (Only renderButtons updated significantly)
 
-        /** Formats milliseconds into MM:SS */
         function formatTime(timeMs) { const totalSeconds = Math.floor(timeMs / 1000); const minutes = Math.floor(totalSeconds / 60); const seconds = totalSeconds % 60; return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; }
-        /** Updates timer display */
         function updateTimer() { const currentTime = Date.now(); const currentElapsedTime = isRunning ? elapsedTime + (currentTime - startTime) : elapsedTime; timerDisplay.textContent = formatTime(currentElapsedTime); }
-        /** Starts the timer */
         function startTimer() { if (isRunning) return; startTime = Date.now(); timerInterval = setInterval(updateTimer, 100); isRunning = true; startStopButton.textContent = 'Pause Game'; startStopButton.classList.remove('btn-green'); startStopButton.classList.add('btn-yellow'); startStopButton.style.color = '#000000'; enableEventButtons(true); }
-        /** Stops (pauses) the timer */
         function stopTimer() { if (!isRunning) return; clearInterval(timerInterval); const currentTime = Date.now(); elapsedTime += (currentTime - startTime); isRunning = false; startStopButton.textContent = 'Resume Game'; startStopButton.classList.remove('btn-yellow'); startStopButton.classList.add('btn-green'); startStopButton.style.color = '#ffffff'; }
-        /** Resets timer and log */
         function resetTimerAndLog() { stopTimer(); elapsedTime = 0; startTime = 0; timerDisplay.textContent = '00:00'; startStopButton.textContent = 'Start Game'; startStopButton.classList.remove('btn-yellow'); startStopButton.classList.add('btn-green'); startStopButton.style.color = '#ffffff'; clearEventLog(); renderEventLog(); enableEventButtons(false); }
-
-        /** Enables/disables dynamic event buttons AND Copy/Clear buttons */
-        function enableEventButtons(enable) {
-            const logIsEmpty = loggedEvents.length === 0;
-            eventButtons.forEach(button => { button.disabled = !enable; });
-            clearLogButton.disabled = logIsEmpty;
-            copyXmlButton.disabled = logIsEmpty; // Also disable copy button
-        }
-
-        /** Clears event data and updates UI */
+        function enableEventButtons(enable) { const logIsEmpty = loggedEvents.length === 0; eventButtons.forEach(button => { button.disabled = !enable; }); clearLogButton.disabled = logIsEmpty; copyXmlButton.disabled = logIsEmpty; }
         function clearEventLog() { loggedEvents = []; renderEventLog(); if (!timelineView.classList.contains('hidden')) { renderTimeline(); } }
-        /** Escapes characters for XML/HTML text content */
         function escapeXml(unsafe) { if (typeof unsafe !== 'string') return unsafe; return unsafe.replace(/[<>&'"]/g, function (c) { switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; } }); }
+        function generatePlainXml(events) { let xmlString = ''; events.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); xmlString += `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>\n`; }); return xmlString.trim(); }
+        function renderEventLog() { const logIsEmpty = loggedEvents.length === 0; listViewPanel.innerHTML = ''; if (logIsEmpty) { listViewPanel.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>'; } else { loggedEvents.slice().reverse().forEach(logEntry => { const logItem = document.createElement('div'); logItem.className = 'event-log-item'; logItem.innerHTML = `<span class="font-medium text-gray-700">${escapeXml(logEntry.event)}</span> <span class="text-gray-500">${formatTime(logEntry.timeMs)}</span>`; listViewPanel.appendChild(logItem); }); } xmlOutputContainer.innerHTML = ''; if (logIsEmpty) { xmlOutputContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>'; } else { let styledXmlString = ''; loggedEvents.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); styledXmlString += `<span class="xml-tag">&lt;instance&gt;</span><span class="xml-tag">&lt;ID&gt;</span><span class="xml-text">${index + 1}</span><span class="xml-tag">&lt;/ID&gt;</span><span class="xml-tag">&lt;start&gt;</span><span class="xml-text">${startSeconds}</span><span class="xml-tag">&lt;/start&gt;</span><span class="xml-tag">&lt;end&gt;</span><span class="xml-text">${endSeconds}</span><span class="xml-tag">&lt;/end&gt;</span><span class="xml-tag">&lt;code&gt;</span><span class="xml-text">${eventCode}</span><span class="xml-tag">&lt;/code&gt;</span><span class="xml-tag">&lt;/instance&gt;</span>\n`; }); xmlOutputContainer.innerHTML = styledXmlString; } clearLogButton.disabled = logIsEmpty; copyXmlButton.disabled = logIsEmpty; }
+        async function copyXmlToClipboard() { if (loggedEvents.length === 0) return; const plainXml = generatePlainXml(loggedEvents); const originalButtonText = copyXmlButton.textContent; try { await navigator.clipboard.writeText(plainXml); copyXmlButton.textContent = 'Copied!'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-green'); console.log('XML copied to clipboard'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-green'); copyXmlButton.classList.add('btn-blue'); }, 1500); } catch (err) { console.error('Failed to copy XML: ', err); copyXmlButton.textContent = 'Copy Failed'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-red'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-red'); copyXmlButton.classList.add('btn-blue'); }, 2000); } }
+        function handleEventButtonClick(e) { if (!isRunning && elapsedTime === 0) { console.warn("Timer not started. Event not logged."); timerDisplay.classList.add('animate-pulse'); setTimeout(() => timerDisplay.classList.remove('animate-pulse'), 1000); return; } const eventName = e.target.dataset.event; const currentElapsedTimeMs = isRunning ? elapsedTime + (Date.now() - startTime) : elapsedTime; loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs }); renderEventLog(); if (!timelineView.classList.contains('hidden')) { renderTimeline(); } /* Removed scroll logic for log view panels as they are on separate page */ }
+        function switchTab(tabToShow) { const isListView = tabToShow === 'listView'; tabButtonList.classList.toggle('tab-button-active', isListView); tabButtonXml.classList.toggle('tab-button-active', !isListView); tabButtonList.classList.toggle('tab-button', !isListView); tabButtonXml.classList.toggle('tab-button', isListView); listViewPanel.classList.toggle('hidden', !isListView); xmlViewPanel.classList.toggle('hidden', isListView); }
+        function showView(viewToShow) { trackerView.classList.add('hidden'); configView.classList.add('hidden'); timelineView.classList.add('hidden'); logView.classList.add('hidden'); const navButtons = [navTracker, navConfig, navTimeline, navLog]; navButtons.forEach(button => { button.classList.remove('text-blue-600', 'hover:text-blue-800'); button.classList.add('text-gray-600', 'hover:text-gray-800'); }); let activeView; let activeButton; if (viewToShow === 'tracker') { activeView = trackerView; activeButton = navTracker; } else if (viewToShow === 'config') { activeView = configView; activeButton = navConfig; const currentConfig = loadConfig(); configJsonInput.value = JSON.stringify(currentConfig, null, 2); } else if (viewToShow === 'timeline') { activeView = timelineView; activeButton = navTimeline; renderTimeline(); } else if (viewToShow === 'log') { activeView = logView; activeButton = navLog; renderEventLog(); } if (activeView && activeButton) { activeView.classList.remove('hidden'); activeButton.classList.add('text-blue-600', 'hover:text-blue-800'); activeButton.classList.remove('text-gray-600', 'hover:text-gray-800'); } }
+        function loadConfig() { try { const savedConfig = localStorage.getItem(LOCAL_STORAGE_KEY); if (savedConfig) { const parsed = JSON.parse(savedConfig); if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) { console.log("Loaded config from localStorage"); return parsed; } else { console.warn("Invalid config structure in localStorage, using default."); return DEFAULT_CONFIG; } } } catch (error) { console.error("Error loading or parsing config from localStorage:", error); } console.log("No valid config in localStorage, using default."); return DEFAULT_CONFIG; }
+        function saveConfig(configObject) { try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(configObject)); console.log("Configuration saved to localStorage."); return true; } catch (error) { console.error("Error saving config to localStorage:", error); if (error.name === 'QuotaExceededError') { alert('Error: Could not save configuration. Browser storage limit exceeded.'); } return false; } }
+        function showConfigMessage(message, isError = false) { configMessage.textContent = message; configMessage.className = 'config-message'; if (isError) { configMessage.classList.add('config-error'); } else { configMessage.classList.add('config-success'); } configMessage.classList.remove('hidden'); setTimeout(() => { configMessage.classList.add('hidden'); }, 5000); }
 
-        /** Generates plain text XML string from logged events */
-        function generatePlainXml(events) { /* ... (no change) ... */
-            let xmlString = ''; events.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); xmlString += `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>\n`; }); return xmlString.trim();
+        /** Renders button groups and buttons based on config into a single column */
+        function renderButtons(config) {
+            // Target the single container
+            const targetContainer = allButtonGroupsContainer;
+            targetContainer.innerHTML = ''; // Clear the single container
+
+            // Helper function to render a group (similar to previous renderColumn inner logic)
+            const renderGroup = (group) => {
+                if (!group || !Array.isArray(group.buttons)) {
+                    console.warn("Skipping invalid group in config:", group);
+                    return; // Skip invalid groups
+                }
+                const groupContainer = document.createElement('div');
+                groupContainer.className = 'group-container';
+
+                const buttonGrid = document.createElement('div');
+                const gridColsClass = group.gridCols || 'grid-cols-4'; // Default if not specified
+                buttonGrid.className = `button-grid ${gridColsClass}`;
+
+                group.buttons.forEach(buttonConfig => {
+                    if (!buttonConfig || !buttonConfig.event || !buttonConfig.text || !buttonConfig.color) {
+                        console.warn("Skipping invalid button config:", buttonConfig);
+                        return; // Skip invalid buttons
+                    }
+                    const button = document.createElement('button');
+                    button.className = `event-button ${buttonConfig.color}`;
+                    button.style.padding = '0.5rem 1rem'; // Explicit padding
+                    button.textContent = buttonConfig.text;
+                    button.dataset.event = buttonConfig.event;
+                    if (buttonConfig.span) {
+                        button.classList.add(buttonConfig.span);
+                    }
+                    buttonGrid.appendChild(button);
+                });
+
+                groupContainer.appendChild(buttonGrid);
+                targetContainer.appendChild(groupContainer); // Append to the single container
+            };
+
+            // Render groups from leftColumn first, then rightColumn
+            if (config.leftColumn && Array.isArray(config.leftColumn)) {
+                config.leftColumn.forEach(renderGroup);
+            }
+            if (config.rightColumn && Array.isArray(config.rightColumn)) {
+                config.rightColumn.forEach(renderGroup);
+            }
+
+            // Re-query buttons and attach listeners
+            eventButtons = document.querySelectorAll('.event-button[data-event]');
+            eventButtons.forEach(button => {
+                button.removeEventListener('click', handleEventButtonClick);
+                button.addEventListener('click', handleEventButtonClick);
+            });
+
+            // Ensure buttons are enabled/disabled correctly
+            enableEventButtons(isRunning || elapsedTime > 0);
         }
 
-        /** Renders both List and XML views */
-        function renderEventLog() {
-            const logIsEmpty = loggedEvents.length === 0;
-            // Render List View
-            listViewPanel.innerHTML = '';
-            if (logIsEmpty) { listViewPanel.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>'; }
-            else { loggedEvents.slice().reverse().forEach(logEntry => { const logItem = document.createElement('div'); logItem.className = 'event-log-item'; logItem.innerHTML = `<span class="font-medium text-gray-700">${escapeXml(logEntry.event)}</span> <span class="text-gray-500">${formatTime(logEntry.timeMs)}</span>`; listViewPanel.appendChild(logItem); }); }
-            // Render XML View (Styled HTML)
-            xmlOutputContainer.innerHTML = '';
-            if (logIsEmpty) { xmlOutputContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>'; }
-            else { let styledXmlString = ''; loggedEvents.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); styledXmlString += `<span class="xml-tag">&lt;instance&gt;</span><span class="xml-tag">&lt;ID&gt;</span><span class="xml-text">${index + 1}</span><span class="xml-tag">&lt;/ID&gt;</span><span class="xml-tag">&lt;start&gt;</span><span class="xml-text">${startSeconds}</span><span class="xml-tag">&lt;/start&gt;</span><span class="xml-tag">&lt;end&gt;</span><span class="xml-text">${endSeconds}</span><span class="xml-tag">&lt;/end&gt;</span><span class="xml-tag">&lt;code&gt;</span><span class="xml-text">${eventCode}</span><span class="xml-tag">&lt;/code&gt;</span><span class="xml-tag">&lt;/instance&gt;</span>\n`; }); xmlOutputContainer.innerHTML = styledXmlString; }
-            // Update button states
-            clearLogButton.disabled = logIsEmpty;
-            copyXmlButton.disabled = logIsEmpty;
-        }
-
-        /** Copies the plain text XML to the clipboard */
-        async function copyXmlToClipboard() { /* ... (no change) ... */
-            if (loggedEvents.length === 0) return; const plainXml = generatePlainXml(loggedEvents); const originalButtonText = copyXmlButton.textContent; try { await navigator.clipboard.writeText(plainXml); copyXmlButton.textContent = 'Copied!'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-green'); console.log('XML copied to clipboard'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-green'); copyXmlButton.classList.add('btn-blue'); }, 1500); } catch (err) { console.error('Failed to copy XML: ', err); copyXmlButton.textContent = 'Copy Failed'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-red'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-red'); copyXmlButton.classList.add('btn-blue'); }, 2000); }
-        }
-
-        /** Handles clicks on dynamic event buttons */
-        function handleEventButtonClick(e) { /* ... (no change) ... */
-            if (!isRunning && elapsedTime === 0) { /* ... */ return; } const eventName = e.target.dataset.event; const currentElapsedTimeMs = isRunning ? elapsedTime + (Date.now() - startTime) : elapsedTime; loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs }); renderEventLog(); if (!timelineView.classList.contains('hidden')) { renderTimeline(); } if (!listViewPanel.classList.contains('hidden')) { listViewPanel.scrollTop = 0; } if (!xmlViewPanel.classList.contains('hidden')) { xmlViewPanel.scrollTop = 0; }
-        }
-        /** Handles tab switching */
-        function switchTab(tabToShow) { /* ... (no change) ... */
-            const isListView = tabToShow === 'listView'; tabButtonList.classList.toggle('tab-button-active', isListView); tabButtonXml.classList.toggle('tab-button-active', !isListView); tabButtonList.classList.toggle('tab-button', !isListView); tabButtonXml.classList.toggle('tab-button', isListView); listViewPanel.classList.toggle('hidden', !isListView); xmlViewPanel.classList.toggle('hidden', isListView);
-        }
-        /** Shows/Hides Tracker, Config, or Timeline View */
-        function showView(viewToShow) { /* ... (no change) ... */
-            trackerView.classList.add('hidden'); configView.classList.add('hidden'); timelineView.classList.add('hidden'); navTracker.classList.remove('text-blue-600', 'hover:text-blue-800'); navTracker.classList.add('text-gray-600', 'hover:text-gray-800'); navConfig.classList.remove('text-blue-600', 'hover:text-blue-800'); navConfig.classList.add('text-gray-600', 'hover:text-gray-800'); navTimeline.classList.remove('text-blue-600', 'hover:text-blue-800'); navTimeline.classList.add('text-gray-600', 'hover:text-gray-800'); if (viewToShow === 'tracker') { trackerView.classList.remove('hidden'); navTracker.classList.add('text-blue-600', 'hover:text-blue-800'); navTracker.classList.remove('text-gray-600', 'hover:text-gray-800'); } else if (viewToShow === 'config') { configView.classList.remove('hidden'); navConfig.classList.add('text-blue-600', 'hover:text-blue-800'); navConfig.classList.remove('text-gray-600', 'hover:text-gray-800'); const currentConfig = loadConfig(); configJsonInput.value = JSON.stringify(currentConfig, null, 2); } else if (viewToShow === 'timeline') { timelineView.classList.remove('hidden'); navTimeline.classList.add('text-blue-600', 'hover:text-blue-800'); navTimeline.classList.remove('text-gray-600', 'hover:text-gray-800'); renderTimeline(); }
-        }
-        /** Loads configuration from localStorage or returns default */
-        function loadConfig() { /* ... (no change) ... */
-            try { const savedConfig = localStorage.getItem(LOCAL_STORAGE_KEY); if (savedConfig) { const parsed = JSON.parse(savedConfig); if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) { console.log("Loaded config from localStorage"); return parsed; } else { console.warn("Invalid config structure in localStorage, using default."); return DEFAULT_CONFIG; } } } catch (error) { console.error("Error loading or parsing config from localStorage:", error); } console.log("No valid config in localStorage, using default."); return DEFAULT_CONFIG;
-        }
-        /** Saves configuration to localStorage */
-        function saveConfig(configObject) { /* ... (no change) ... */
-            try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(configObject)); console.log("Configuration saved to localStorage."); return true; } catch (error) { console.error("Error saving config to localStorage:", error); if (error.name === 'QuotaExceededError') { alert('Error: Could not save configuration. Browser storage limit exceeded.'); } return false; }
-        }
-        /** Displays messages on the config page */
-        function showConfigMessage(message, isError = false) { /* ... (no change) ... */
-            configMessage.textContent = message; configMessage.className = 'config-message'; if (isError) { configMessage.classList.add('config-error'); } else { configMessage.classList.add('config-success'); } configMessage.classList.remove('hidden'); setTimeout(() => { configMessage.classList.add('hidden'); }, 5000);
-        }
-        /** Renders button groups and buttons based on config */
-        function renderButtons(config) { /* ... (no change) ... */
-            leftButtonGroupsContainer.innerHTML = ''; rightButtonGroupsContainer.innerHTML = ''; const renderColumn = (columnData, targetElement) => { if (!Array.isArray(columnData)) { console.error("Invalid column data in config:", columnData); return; } columnData.forEach(group => { if (!group || !Array.isArray(group.buttons)) { console.warn("Skipping invalid group in config:", group); return; } const groupContainer = document.createElement('div'); groupContainer.className = 'group-container'; const buttonGrid = document.createElement('div'); const gridColsClass = group.gridCols || 'grid-cols-4'; buttonGrid.className = `button-grid ${gridColsClass}`; group.buttons.forEach(buttonConfig => { if (!buttonConfig || !buttonConfig.event || !buttonConfig.text || !buttonConfig.color) { console.warn("Skipping invalid button config:", buttonConfig); return; } const button = document.createElement('button'); button.className = `event-button ${buttonConfig.color}`; button.style.padding = '0.5rem 1rem'; button.textContent = buttonConfig.text; button.dataset.event = buttonConfig.event; if (buttonConfig.span) { button.classList.add(buttonConfig.span); } buttonGrid.appendChild(button); }); groupContainer.appendChild(buttonGrid); targetElement.appendChild(groupContainer); }); }; renderColumn(config.leftColumn, leftButtonGroupsContainer); renderColumn(config.rightColumn, rightButtonGroupsContainer); eventButtons = document.querySelectorAll('.event-button[data-event]'); eventButtons.forEach(button => { button.removeEventListener('click', handleEventButtonClick); button.addEventListener('click', handleEventButtonClick); }); enableEventButtons(isRunning || elapsedTime > 0);
-        }
-        /** Handles video file loading */
-        function loadVideo(file) { /* ... (no change) ... */
-            if (!file || !file.type.startsWith('video/')) { alert('Please select a valid video file.'); return; } if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); } currentVideoURL = URL.createObjectURL(file); videoPlayer.src = currentVideoURL; videoFileName.textContent = file.name;
-        }
-        /** Renders the timeline visualization */
-        function renderTimeline() { /* ... (no change) ... */
-            timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); });
-        }
-        /** Handles clicks on timeline markers */
-        function handleTimelineClick(e) { /* ... (no change) ... */
-            if (e.target.classList.contains('timeline-marker')) { const seekTime = parseFloat(e.target.dataset.time); if (!isNaN(seekTime) && videoPlayer.readyState >= 1) { videoPlayer.currentTime = seekTime; } else { console.warn("Video not ready or invalid seek time:", seekTime); } }
-        }
+        function loadVideo(file) { if (!file || !file.type.startsWith('video/')) { alert('Please select a valid video file.'); return; } if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); } currentVideoURL = URL.createObjectURL(file); videoPlayer.src = currentVideoURL; videoFileName.textContent = file.name; }
+        function renderTimeline() { timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); }); }
+        function handleTimelineClick(e) { if (e.target.classList.contains('timeline-marker')) { const seekTime = parseFloat(e.target.dataset.time); if (!isNaN(seekTime) && videoPlayer.readyState >= 1) { videoPlayer.currentTime = seekTime; } else { console.warn("Video not ready or invalid seek time:", seekTime); } } }
 
         // --- Initialization ---
         function initApp() {
@@ -600,16 +581,14 @@
             clearLogButton.addEventListener('click', clearEventLog);
             tabButtonList.addEventListener('click', () => switchTab('listView'));
             tabButtonXml.addEventListener('click', () => switchTab('xmlView'));
-            copyXmlButton.addEventListener('click', copyXmlToClipboard); // Listener added
+            copyXmlButton.addEventListener('click', copyXmlToClipboard);
             navTracker.addEventListener('click', () => showView('tracker'));
             navConfig.addEventListener('click', () => showView('config'));
             navTimeline.addEventListener('click', () => showView('timeline'));
-            saveConfigButton.addEventListener('click', () => { /* ... (no change) ... */
-                try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); }
-            });
-            loadDefaultConfigButton.addEventListener('click', () => { /* ... (no change) ... */
-                configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showConfigMessage("Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
-            });
+            navLog.addEventListener('click', () => showView('log'));
+
+            saveConfigButton.addEventListener('click', () => { try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); } });
+            loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showConfigMessage("Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
             videoFileInput.addEventListener('change', (event) => { const file = event.target.files[0]; loadVideo(file); });
             videoDropZone.addEventListener('dragover', (event) => { event.preventDefault(); videoDropZone.classList.add('dragover'); });
             videoDropZone.addEventListener('dragleave', () => { videoDropZone.classList.remove('dragover'); });
