@@ -1,6 +1,44 @@
 # Field Hockey Event Tracker
 
-The **Field Hockey Event Tracker** is a web application designed to help users track, log, and analyze events during a field hockey game. The application provides an intuitive interface for recording events, configuring custom buttons, viewing a timeline of events, and exporting logs in XML format.
+The **Field Hockey Event Tracker** is a web application designed to allow coaches, analysts, or enthusiasts to track specific actions (like goals, circle entries, tackles, etc.) during a game using a configurable button interface. Events are timestamped against a game timer. The application also features a timeline view that synchronizes these logged events with a locally loaded video file, allowing for quick navigation to key moments in the game footage.
+
+## Features
+
+### Game Timer
+
+- Start, stop, and reset a game clock to track the elapsed time during a match.
+
+### Event Logging
+
+- Log predefined or custom events with timestamps by clicking on configurable buttons.
+
+### Configurable Buttons
+
+- Customize the layout, labels, colors, and event names of the tracker buttons via a JSON configuration page.
+- Save configurations directly in the browser's local storage for future use.
+
+### Event Log Views
+
+- **List View**: Display a chronological list of logged events and their timestamps.
+- **XML View**: View events formatted as XML, suitable for importing into other analysis tools. Includes a "Copy to Clipboard" function for easy sharing.
+
+### Timeline View
+
+- Load a local video file using drag-and-drop or file selection.
+- Visualize logged events plotted on a timeline corresponding to the video duration.
+- Click on event markers in the timeline to seek the video player to 5 seconds before the event occurred.
+
+## How to Use
+
+1. **Open**: Open the `index.html` (or the main HTML file) in your web browser.
+2. **Configure (Optional)**: Navigate to the "Configure" page to modify the button layout using the JSON editor. Save the configuration.
+3. **Track**: Navigate to the "Tracker" page. Click "Start Game" to begin the timer and log actions by clicking the event buttons.
+4. **Review Log**: Navigate to the "Log" page to view events in either List or XML format. Use the "Copy XML" button if needed.
+5. **Analyze Timeline**:
+    - Navigate to the "Timeline" page.
+    - Load a local video file using the "Add Local Video" button or by dragging the file onto the drop zone.
+    - Once the video loads, the timeline will populate with logged events.
+    - Click on event markers in the timeline to jump to the corresponding moment (event time - 5 seconds) in the video.
 
 ## Application Pages
 
