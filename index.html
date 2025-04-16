@@ -363,6 +363,7 @@
             <button id="navConfig" class="text-gray-600 hover:text-gray-800 font-medium">Configure</button>
             <button id="navTimeline" class="text-gray-600 hover:text-gray-800 font-medium">Timeline</button>
             <button id="navLog" class="text-gray-600 hover:text-gray-800 font-medium">Log</button>
+            <button id="navSavedGames" class="text-gray-600 hover:text-gray-800 font-medium">Saved Games</button>
         </nav>
 
         <div id="tracker-view">
@@ -437,6 +438,14 @@
                 <button id="clearLogButton" class="event-button btn-yellow mt-4 w-full py-2.5 px-5">Clear Log</button>
             </div>
         </div>
+
+        <!-- Move the Saved Games view to its own dedicated view -->
+        <div id="saved-games-view" class="hidden">
+            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Saved Games</h1>
+            <div id="savedGamesList" class="mb-4"></div>
+            <button id="backToTrackerButton" class="event-button btn-gray px-6 py-2">Back to Tracker</button>
+        </div>
+
     </div>
     <script>
         // --- Constants & Config ---
@@ -449,7 +458,6 @@
         // --- DOM Elements ---
         const timerDisplay = document.getElementById('timer');
         const startStopButton = document.getElementById('startStopButton');
-        const resetButton = document.getElementById('resetButton');
         const clearLogButton = document.getElementById('clearLogButton');
         const tabButtonList = document.getElementById('tabButtonList');
         const tabButtonXml = document.getElementById('tabButtonXml');
@@ -478,6 +486,9 @@
         const timelineContainer = document.getElementById('timelineContainer');
         const timelineMessage = document.getElementById('timelineMessage');
 
+        // Ensure savedGamesView is defined and initialized
+        const savedGamesView = document.getElementById('saved-games-view');
+
         // --- State Variables --- (Unchanged)
         let timerInterval = null;
         let startTime = 0;
@@ -503,7 +514,49 @@
         async function copyXmlToClipboard() { if (loggedEvents.length === 0) return; const plainXml = generatePlainXml(loggedEvents); const originalButtonText = copyXmlButton.textContent; try { await navigator.clipboard.writeText(plainXml); copyXmlButton.textContent = 'Copied!'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-green'); console.log('XML copied to clipboard'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-green'); copyXmlButton.classList.add('btn-blue'); }, 1500); } catch (err) { console.error('Failed to copy XML: ', err); copyXmlButton.textContent = 'Copy Failed'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-red'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-red'); copyXmlButton.classList.add('btn-blue'); }, 2000); } }
         function handleEventButtonClick(e) { if (!isRunning && elapsedTime === 0) { console.warn("Timer not started. Event not logged."); timerDisplay.classList.add('animate-pulse'); setTimeout(() => timerDisplay.classList.remove('animate-pulse'), 1000); return; } const eventName = e.target.dataset.event; const currentElapsedTimeMs = isRunning ? elapsedTime + (Date.now() - startTime) : elapsedTime; loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs }); renderEventLog(); if (!timelineView.classList.contains('hidden')) { renderTimeline(); } /* Removed scroll logic for log view panels as they are on separate page */ }
         function switchTab(tabToShow) { const isListView = tabToShow === 'listView'; tabButtonList.classList.toggle('tab-button-active', isListView); tabButtonXml.classList.toggle('tab-button-active', !isListView); tabButtonList.classList.toggle('tab-button', !isListView); tabButtonXml.classList.toggle('tab-button', isListView); listViewPanel.classList.toggle('hidden', !isListView); xmlViewPanel.classList.toggle('hidden', isListView); }
-        function showView(viewToShow) { trackerView.classList.add('hidden'); configView.classList.add('hidden'); timelineView.classList.add('hidden'); logView.classList.add('hidden'); const navButtons = [navTracker, navConfig, navTimeline, navLog]; navButtons.forEach(button => { button.classList.remove('text-blue-600', 'hover:text-blue-800'); button.classList.add('text-gray-600', 'hover:text-gray-800'); }); let activeView; let activeButton; if (viewToShow === 'tracker') { activeView = trackerView; activeButton = navTracker; } else if (viewToShow === 'config') { activeView = configView; activeButton = navConfig; const currentConfig = loadConfig(); configJsonInput.value = JSON.stringify(currentConfig, null, 2); } else if (viewToShow === 'timeline') { activeView = timelineView; activeButton = navTimeline; renderTimeline(); } else if (viewToShow === 'log') { activeView = logView; activeButton = navLog; renderEventLog(); } if (activeView && activeButton) { activeView.classList.remove('hidden'); activeButton.classList.add('text-blue-600', 'hover:text-blue-800'); activeButton.classList.remove('text-gray-600', 'hover:text-gray-800'); } }
+        function showView(viewToShow) {
+            trackerView.classList.add('hidden');
+            configView.classList.add('hidden');
+            timelineView.classList.add('hidden');
+            logView.classList.add('hidden');
+            savedGamesView.classList.add('hidden');
+
+            const navButtons = [navTracker, navConfig, navTimeline, navLog, navSavedGames];
+            navButtons.forEach(button => {
+                button.classList.remove('text-blue-600', 'hover:text-blue-800');
+                button.classList.add('text-gray-600', 'hover:text-gray-800');
+            });
+
+            let activeView;
+            let activeButton;
+            if (viewToShow === 'tracker') {
+                activeView = trackerView;
+                activeButton = navTracker;
+            } else if (viewToShow === 'config') {
+                activeView = configView;
+                activeButton = navConfig;
+                const currentConfig = loadConfig();
+                configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+            } else if (viewToShow === 'timeline') {
+                activeView = timelineView;
+                activeButton = navTimeline;
+                renderTimeline();
+            } else if (viewToShow === 'log') {
+                activeView = logView;
+                activeButton = navLog;
+                renderEventLog();
+            } else if (viewToShow === 'saved-games') {
+                activeView = savedGamesView;
+                activeButton = navSavedGames;
+            }
+
+            if (activeView && activeButton) {
+                activeView.classList.remove('hidden');
+                activeButton.classList.add('text-blue-600', 'hover:text-blue-800');
+                activeButton.classList.remove('text-gray-600', 'hover:text-gray-800');
+            }
+        }
+
         function loadConfig() { try { const savedConfig = localStorage.getItem(LOCAL_STORAGE_KEY); if (savedConfig) { const parsed = JSON.parse(savedConfig); if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) { console.log("Loaded config from localStorage"); return parsed; } else { console.warn("Invalid config structure in localStorage, using default."); return DEFAULT_CONFIG; } } } catch (error) { console.error("Error loading or parsing config from localStorage:", error); } console.log("No valid config in localStorage, using default."); return DEFAULT_CONFIG; }
         function saveConfig(configObject) { try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(configObject)); console.log("Configuration saved to localStorage."); return true; } catch (error) { console.error("Error saving config to localStorage:", error); if (error.name === 'QuotaExceededError') { alert('Error: Could not save configuration. Browser storage limit exceeded.'); } return false; } }
         function showConfigMessage(message, isError = false) { configMessage.textContent = message; configMessage.className = 'config-message'; if (isError) { configMessage.classList.add('config-error'); } else { configMessage.classList.add('config-success'); } configMessage.classList.remove('hidden'); setTimeout(() => { configMessage.classList.add('hidden'); }, 5000); }
@@ -577,7 +630,6 @@
 
             // Attach listeners
             startStopButton.addEventListener('click', () => { isRunning ? stopTimer() : startTimer(); });
-            resetButton.addEventListener('click', resetTimerAndLog);
             clearLogButton.addEventListener('click', clearEventLog);
             tabButtonList.addEventListener('click', () => switchTab('listView'));
             tabButtonXml.addEventListener('click', () => switchTab('xmlView'));
@@ -586,6 +638,10 @@
             navConfig.addEventListener('click', () => showView('config'));
             navTimeline.addEventListener('click', () => showView('timeline'));
             navLog.addEventListener('click', () => showView('log'));
+            navSavedGames.addEventListener('click', () => {
+                renderSavedGamesList();
+                showView('saved-games');
+            });
 
             saveConfigButton.addEventListener('click', () => { try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); } });
             loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showConfigMessage("Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
@@ -601,10 +657,182 @@
             enableEventButtons(false);
             switchTab('listView');
             showView('tracker');
+
+            // Add a game state indicator
+            const gameStateIndicator = document.createElement('div');
+            gameStateIndicator.id = 'gameStateIndicator';
+            gameStateIndicator.className = 'text-center text-lg font-bold mb-4';
+            gameStateIndicator.textContent = 'Game Status: Not Started';
+            trackerView.insertBefore(gameStateIndicator, trackerView.firstChild);
+
+            function updateGameStateIndicator() {
+                if (isRunning) {
+                    gameStateIndicator.textContent = 'Game Status: In Progress';
+                } else if (elapsedTime > 0) {
+                    gameStateIndicator.textContent = 'Game Status: Paused';
+                } else {
+                    gameStateIndicator.textContent = 'Game Status: Not Started';
+                }
+            }
+
+            startStopButton.addEventListener('click', updateGameStateIndicator);
+            resetTimerAndLog = (function (originalReset) {
+                return function () {
+                    originalReset();
+                    updateGameStateIndicator();
+                };
+            })(resetTimerAndLog);
+
+            // Add visual feedback for event buttons
+            function addVisualFeedbackToButtons() {
+                eventButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        button.classList.add('clicked');
+                        setTimeout(() => button.classList.remove('clicked'), 200);
+                    });
+                });
+            }
+
+            // Call the function after rendering buttons
+            renderButtons = (function (originalRenderButtons) {
+                return function (config) {
+                    originalRenderButtons(config);
+                    addVisualFeedbackToButtons();
+                };
+            })(renderButtons);
+
+            // Replace the Reset button with the Complete button
+            const completeButton = document.createElement('button');
+            completeButton.textContent = 'Complete';
+            completeButton.className = 'event-button btn-blue px-6 py-3 text-lg';
+
+            // Disable the Complete button initially
+            completeButton.disabled = true;
+
+            // Enable the Complete button when the game starts
+            startStopButton.addEventListener('click', () => {
+                if (!isRunning && elapsedTime === 0) {
+                    completeButton.disabled = true;
+                } else {
+                    completeButton.disabled = false;
+                }
+            });
+
+            // Add confirmation dialog for completing a game
+            completeButton.addEventListener('click', () => {
+                if (confirm('Are you sure you want to complete the game? This will reset all progress.')) {
+                    saveGameToLocalStorage();
+                    resetTimerAndLog();
+                }
+            });
+
+            const buttonContainer = document.querySelector('.flex.flex-col.sm\\:flex-row');
+            const resetButton = document.getElementById('resetButton');
+            if (resetButton) {
+                buttonContainer.replaceChild(completeButton, resetButton);
+            }
+
+            // Disable the Load Game button if there is a current session
+            function updateLoadGameButtonState() {
+                const loadGameButton = document.querySelector('.event-button.btn-gray.px-6.py-2');
+                if (loadGameButton) {
+                    loadGameButton.disabled = isRunning || elapsedTime > 0;
+                }
+            }
+
+            // Update the Load Game button state when the game starts or resets
+            startStopButton.addEventListener('click', updateLoadGameButtonState);
+            resetTimerAndLog = (function (originalReset) {
+                return function () {
+                    originalReset();
+                    updateLoadGameButtonState();
+                };
+            })(resetTimerAndLog);
+
+            // Initial state update for the Load Game button
+            updateLoadGameButtonState();
+
+            // Update visibility of the Complete button based on game status
+            function updateCompleteButtonVisibility() {
+                if (elapsedTime === 0 && !isRunning) {
+                    completeButton.style.display = 'none';
+                } else {
+                    completeButton.style.display = 'inline-block';
+                }
+            }
+
+            // Attach visibility update to relevant events
+            startStopButton.addEventListener('click', updateCompleteButtonVisibility);
+            resetTimerAndLog = (function (originalReset) {
+                return function () {
+                    originalReset();
+                    updateCompleteButtonVisibility();
+                };
+            })(resetTimerAndLog);
+
+            // Initial visibility update
+            updateCompleteButtonVisibility();
         }
 
         // --- Run Initialization ---
         initApp();
+
+        // Modify saveGameToLocalStorage to retain up to the last 5 saved games
+        function saveGameToLocalStorage() {
+            const gameData = {
+                events: loggedEvents,
+                elapsedTime: elapsedTime,
+                timestamp: new Date().toISOString()
+            };
+            try {
+                const savedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
+                savedGames.push(gameData);
+
+                // Retain only the last 5 games
+                while (savedGames.length > 5) {
+                    savedGames.shift();
+                }
+
+                localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(savedGames));
+                console.log('Game saved successfully.');
+            } catch (error) {
+                console.error('Error saving game to localStorage:', error);
+            }
+        }
+
+        // Modify loadGameFromLocalStorage to display a list of saved games
+        function renderSavedGamesList() {
+            const savedGamesList = document.getElementById('savedGamesList');
+            savedGamesList.innerHTML = '';
+
+            try {
+                const savedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
+                if (savedGames.length > 0) {
+                    savedGames.forEach((game, index) => {
+                        const gameButton = document.createElement('button');
+                        gameButton.textContent = `Game ${index + 1} - ${new Date(game.timestamp).toLocaleString()}`;
+                        gameButton.className = 'event-button btn-gray w-full mb-2';
+                        gameButton.addEventListener('click', () => {
+                            loggedEvents = game.events;
+                            elapsedTime = game.elapsedTime || 0;
+                            renderEventLog();
+                            console.log(`Game ${index + 1} loaded successfully.`);
+                            showView('tracker');
+                        });
+                        savedGamesList.appendChild(gameButton);
+                    });
+                } else {
+                    savedGamesList.innerHTML = '<p class="text-gray-500 text-center">No saved games available.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading games from localStorage:', error);
+                savedGamesList.innerHTML = '<p class="text-red-500 text-center">Failed to load saved games.</p>';
+            }
+        }
+
+        // Add back button functionality
+        const backToTrackerButton = document.getElementById('backToTrackerButton');
+        backToTrackerButton.addEventListener('click', () => showView('tracker'));
 
     </script>
 
