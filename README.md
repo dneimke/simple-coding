@@ -77,7 +77,7 @@ The Log page displays a detailed list of recorded events and provides options to
 - An **XML View** for exporting events in XML format.
 - Options to copy the XML to the clipboard or clear the log.
 
-## How to Use
+## Quick Start Guide
 
 1. Navigate to the **Tracker** page to start recording events.
 2. Use the **Configure** page to customize the event buttons.
@@ -93,3 +93,28 @@ The Log page displays a detailed list of recorded events and provides options to
 ## Images
 
 The images used in this README are located in the `images/` folder of the project.
+
+## Installation and Testing
+
+To set up the project and run tests, follow these steps:
+
+1. **Install Dependencies**:
+   - Ensure you have [Node.js](https://nodejs.org/) installed on your system.
+   - Navigate to the project directory in your terminal and run:
+
+     ```bash
+     npm install
+     ```
+
+2. **Run Tests**:
+   - To execute the test suite, run:
+
+     ```bash
+     npm test
+     ```
+
+   - This will run all the tests in the `tests/` folder using Jest.
+
+3. **Modify or Add Tests**:
+   - Test files are located in the `tests/` folder.
+   - Add new test files or modify existing ones to cover additional functionality.

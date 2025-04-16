@@ -1,0 +1,16 @@
+{
+    "name": "coding-tool",
+    "version": "1.0.0",
+    "description": "Field Hockey Event Tracker",
+    "main": "index.js",
+    "scripts": {
+        "test": "jest"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "jest": "^29.0.0"
+    },
+    "jest": {
+        "testEnvironment": "jsdom"
+    }
+}
