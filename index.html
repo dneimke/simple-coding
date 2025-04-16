@@ -387,7 +387,10 @@
                 "grid-cols-4") and an array of 'buttons'. Each button needs an 'event' (unique identifier), 'text'
                 (display label), and 'color' ('btn-blue', 'btn-red', 'btn-green', 'btn-yellow', 'btn-gray').
             </p>
-            <div class="mb-4"> <textarea id="configJsonInput"></textarea> </div>
+            <div class="mb-4">
+                <label for="configJsonInput" class="block text-gray-700 font-medium mb-2">Configuration JSON</label>
+                <textarea id="configJsonInput" placeholder="Enter your configuration JSON here"></textarea>
+            </div>
             <div id="configMessage" class="config-message hidden"></div>
             <div class="flex space-x-4">
                 <button id="saveConfigButton" class="event-button btn-green px-6 py-2">Save Configuration</button>
