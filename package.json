@@ -3,6 +3,7 @@
     "version": "1.0.0",
     "description": "Field Hockey Event Tracker",
     "main": "index.js",
+    "type": "module",
     "scripts": {
         "test": "jest"
     },
