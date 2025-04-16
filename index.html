@@ -348,6 +348,52 @@
             text-align: center;
             padding: 1rem;
         }
+
+        /* --- New Styles for Saved Games --- */
+        .saved-game-card {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: #f9fafb;
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.2s;
+        }
+
+        .saved-game-card:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .saved-game-icon {
+            flex-shrink: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            background-color: #3b82f6;
+            color: #ffffff;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+        }
+
+        .saved-game-details {
+            flex-grow: 1;
+        }
+
+        .saved-game-details h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .saved-game-details p {
+            margin: 0;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -803,7 +849,7 @@
             }
         }
 
-        // Modify loadGameFromLocalStorage to display a list of saved games
+        // Enhance Saved Games list with icons and colors
         function renderSavedGamesList() {
             const savedGamesList = document.getElementById('savedGamesList');
             savedGamesList.innerHTML = '';
@@ -812,17 +858,43 @@
                 const savedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
                 if (savedGames.length > 0) {
                     savedGames.forEach((game, index) => {
-                        const gameButton = document.createElement('button');
-                        gameButton.textContent = `Game ${index + 1} - ${new Date(game.timestamp).toLocaleString()}`;
-                        gameButton.className = 'event-button btn-gray w-full mb-2';
-                        gameButton.addEventListener('click', () => {
+                        const gameCard = document.createElement('div');
+                        gameCard.className = 'saved-game-card flex items-center p-4 mb-4 bg-gray-100 rounded-lg shadow-md hover:shadow-lg transition-shadow';
+
+                        const icon = document.createElement('div');
+                        icon.className = 'saved-game-icon flex-shrink-0 w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center mr-4';
+                        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c.828 0 1.5-.672 1.5-1.5S12.828 5 12 5s-1.5.672-1.5 1.5S11.172 8 12 8zm0 0v8m0 0H9m3 0h3" /></svg>';
+
+                        const gameDetails = document.createElement('div');
+                        gameDetails.className = 'saved-game-details flex-grow';
+
+                        const gameTitle = document.createElement('h3');
+                        gameTitle.className = 'text-lg font-bold text-gray-800';
+                        gameTitle.textContent = `Game ${index + 1}`;
+
+                        const gameTimestamp = document.createElement('p');
+                        gameTimestamp.className = 'text-sm text-gray-600';
+                        gameTimestamp.textContent = `Saved on: ${new Date(game.timestamp).toLocaleString()}`;
+
+                        gameDetails.appendChild(gameTitle);
+                        gameDetails.appendChild(gameTimestamp);
+
+                        const loadButton = document.createElement('button');
+                        loadButton.className = 'event-button btn-blue px-4 py-2 text-sm';
+                        loadButton.textContent = 'Load';
+                        loadButton.addEventListener('click', () => {
                             loggedEvents = game.events;
                             elapsedTime = game.elapsedTime || 0;
                             renderEventLog();
+                            renderTimeline(); // Populate the timeline
                             console.log(`Game ${index + 1} loaded successfully.`);
-                            showView('tracker');
+                            showView('timeline'); // Navigate to the Timeline View
                         });
-                        savedGamesList.appendChild(gameButton);
+
+                        gameCard.appendChild(icon);
+                        gameCard.appendChild(gameDetails);
+                        gameCard.appendChild(loadButton);
+                        savedGamesList.appendChild(gameCard);
                     });
                 } else {
                     savedGamesList.innerHTML = '<p class="text-gray-500 text-center">No saved games available.</p>';
