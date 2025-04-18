@@ -2,6 +2,8 @@
 
 The **Field Hockey Event Tracker** is a web application designed to allow coaches, analysts, or enthusiasts to track specific actions (like goals, circle entries, tackles, etc.) during a game using a configurable button interface. Events are timestamped against a game timer. The application also features a timeline view that synchronizes these logged events with a locally loaded video file, allowing for quick navigation to key moments in the game footage.
 
+![Tracker Page](images/coding-tool.png)
+
 ## Running the Solution Locally
 
 To run the solution locally, you can use the **Live Server** extension for Visual Studio Code. This extension provides a quick way to serve your project and view it in the browser.
