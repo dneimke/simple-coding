@@ -131,7 +131,11 @@
     </div>
     <script type="module" src="utils.js"></script>
     <script type="module">
-        import { createButton, createGameCard, copyXmlToClipboard, renderStatistics, computeGameStatistics, generatePlainXml, createLogEntry, escapeXml, formatTime, loadConfig, saveConfig } from './utils.js';
+        import {
+            createButton, createGameCard, copyXmlToClipboard, renderStatistics, computeGameStatistics, generatePlainXml, createLogEntry,
+            escapeXml, formatTime, loadConfig, saveConfig,
+            updateNavbarVisibility
+        } from './utils.js';
 
         // --- Constants & Config --- (Updated)
         const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
@@ -240,7 +244,7 @@
                 if (userConfirmed) {
                     await saveGameToLocalStorage();
                     resetTimerAndLog();
-                    updateNavbarVisibility();
+                    updateNavbarVisibility(currentGameState);
                 }
             }
         });
@@ -264,7 +268,7 @@
                 completeGameButton.style.display = 'inline-block';
             }
 
-            updateNavbarVisibility();
+            updateNavbarVisibility(currentGameState);
         }
 
         function updateTimer() {
@@ -366,7 +370,7 @@
                 button.classList.add('text-gray-400', 'hover:text-white');
             });
 
-            updateNavbarVisibility();
+            updateNavbarVisibility(currentGameState);
 
             let activeView;
             let activeButton;
@@ -638,23 +642,16 @@
             }
         }
 
-        function updateNavbarVisibility() {
-            const requiresGameButtons = document.querySelectorAll('[data-requires-game]');
-            requiresGameButtons.forEach(button => {
-                button.classList.toggle('hidden', !currentGameState.hasCurrentGame);
-            });
-        }
-
         // Update navbar visibility on game state changes
         resetTimerAndLog = (function (originalReset) {
             return function () {
                 originalReset();
-                updateNavbarVisibility();
+                updateNavbarVisibility(currentGameState);
             };
         })(resetTimerAndLog);
 
         // Initial visibility update
-        updateNavbarVisibility();
+        updateNavbarVisibility(currentGameState);
 
     </script>
 

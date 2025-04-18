@@ -200,3 +200,10 @@ export function saveConfig(configObject, configKey) {
         return false;
     }
 }
+
+export function updateNavbarVisibility(currentGameState) {
+    const requiresGameButtons = document.querySelectorAll('[data-requires-game]');
+    requiresGameButtons.forEach(button => {
+        button.classList.toggle('hidden', !currentGameState.hasCurrentGame);
+    });
+}
