@@ -160,25 +160,25 @@ export function formatTime(milliseconds) {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function loadConfig(configKey) {
+export function loadConfig(configKey, defaultConfig) {
     try {
         const savedConfig = localStorage.getItem(configKey);
         if (savedConfig) {
             const parsed = JSON.parse(savedConfig);
-            if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) {
+            if (parsed && Array.isArray(parsed.rowDefs)) {
                 console.log("Loaded config from localStorage");
                 return parsed;
             } else {
                 console.warn("Invalid config structure in localStorage, using default.");
-                return DEFAULT_CONFIG;
+                return defaultConfig;
             }
         } else {
             console.log("No config found in localStorage, using default.");
-            return DEFAULT_CONFIG;
+            return defaultConfig;
         }
     } catch (error) {
         console.error("Error loading or parsing config from localStorage:", error);
-        return DEFAULT_CONFIG;
+        return defaultConfig;
     }
 }
 
