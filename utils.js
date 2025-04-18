@@ -208,6 +208,15 @@ export function updateNavbarVisibility(currentGameState) {
     });
 }
 
+export function addVisualFeedbackToButtons(buttons) {
+    buttons.forEach(button => {
+        button.addEventListener('click', () => {
+            button.classList.add('clicked');
+            setTimeout(() => button.classList.remove('clicked'), 200);
+        });
+    });
+}
+
 export function showMessage(element, message, isError = false) {
     element.textContent = message;
     element.className = 'config-message';

@@ -132,9 +132,16 @@
     <script type="module" src="utils.js"></script>
     <script type="module">
         import {
-            createButton, createGameCard, copyXmlToClipboard, renderStatistics, computeGameStatistics, generatePlainXml, createLogEntry,
-            escapeXml, formatTime, loadConfig, saveConfig,
-            updateNavbarVisibility, showMessage, getFromLocalStorage, setToLocalStorage
+            createButton, createGameCard,
+            renderStatistics, computeGameStatistics,
+            createLogEntry,
+            copyXmlToClipboard, generatePlainXml, escapeXml,
+            formatTime,
+            loadConfig, saveConfig,
+            updateNavbarVisibility,
+            showMessage,
+            getFromLocalStorage, setToLocalStorage,
+            addVisualFeedbackToButtons
         } from './utils.js';
 
         // --- Constants & Config --- (Updated)
@@ -323,6 +330,7 @@
 
             renderEventLog();
             enableEventButtons(false);
+            updateNavbarVisibility(currentGameState);
         }
 
         function enableEventButtons(enable) {
@@ -436,21 +444,19 @@
                 targetContainer.appendChild(groupContainer);
             };
 
-            // Render groups from leftColumn first, then rightColumn
             if (config.rowDefs && Array.isArray(config.rowDefs)) {
                 config.rowDefs.forEach(renderGroup);
             }
 
-
-            // Re-query buttons and attach listeners
             eventButtons = document.querySelectorAll('.event-button[data-event]');
             eventButtons.forEach(button => {
                 button.removeEventListener('click', handleEventButtonClick);
                 button.addEventListener('click', handleEventButtonClick);
             });
 
-            // Ensure buttons are enabled/disabled correctly
+            addVisualFeedbackToButtons(eventButtons);
             enableEventButtons(currentGameState.isActive);
+
         }
 
         // --- Reusable Components ---
@@ -541,10 +547,7 @@
             copyXmlButton.disabled = logIsEmpty;
         }
 
-        // --- Initialization --- (Updated)
         function initApp() {
-            const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
-            renderButtons(currentConfig);
 
             // Attach listeners
             tabButtonList.addEventListener('click', () => switchTab('listView'));
@@ -561,7 +564,6 @@
                 renderSavedGamesList();
                 showView('saved-games');
             });
-
             saveConfigButton.addEventListener('click', () => {
                 try {
                     const jsonString = configJsonInput.value;
@@ -583,43 +585,18 @@
                     showMessage(configMessage, `Error parsing JSON: ${error.message}`, true);
                 }
             });
-
             loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
+
+            const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
 
             // Initial UI state
             renderEventLog();
+            renderButtons(currentConfig);
             enableEventButtons(false);
             switchTab('listView');
             showView('tracker');
-
-            resetTimerAndLog = (function (originalReset) {
-                return function () {
-                    originalReset();
-                    // updateGameStateIndicator();
-                };
-            })(resetTimerAndLog);
-
-            // Add visual feedback for event buttons
-            function addVisualFeedbackToButtons() {
-                eventButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        button.classList.add('clicked');
-                        setTimeout(() => button.classList.remove('clicked'), 200);
-                    });
-                });
-            }
-
-            // Call the function after rendering buttons
-            renderButtons = (function (originalRenderButtons) {
-                return function (config) {
-                    originalRenderButtons(config);
-                    addVisualFeedbackToButtons();
-                };
-            })(renderButtons);
-
         }
 
-        // --- Run Initialization
         initApp();
 
 
@@ -646,15 +623,6 @@
             }
         }
 
-        // Update navbar visibility on game state changes
-        resetTimerAndLog = (function (originalReset) {
-            return function () {
-                originalReset();
-                updateNavbarVisibility(currentGameState);
-            };
-        })(resetTimerAndLog);
-
-        // Initial visibility update
         updateNavbarVisibility(currentGameState);
 
     </script>
