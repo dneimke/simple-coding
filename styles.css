@@ -1,0 +1,331 @@
+/* --- Styles (Standard CSS - unchanged) --- */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f7fafc;
+    padding: 1rem;
+}
+
+@media (min-width: 640px) {
+    body {
+        padding: 2rem;
+    }
+}
+
+.event-button {
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 0.375rem;
+    border-width: 1px;
+    border-style: solid;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+    transform-origin: center;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    cursor: pointer;
+}
+
+@media (min-width: 640px) {
+    .event-button {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+}
+
+.event-button:hover {
+    transform: scale(1.03);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.event-button:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    filter: brightness(0.95);
+}
+
+.event-button:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
+
+.event-button[data-event] {
+    padding: 0.5rem 1rem;
+}
+
+.btn-blue {
+    background-image: linear-gradient(to bottom, #3b82f6, #2563eb);
+    border-color: #1d4ed8;
+}
+
+.btn-blue:hover {
+    background-image: linear-gradient(to bottom, #2563eb, #1d4ed8);
+}
+
+.btn-blue:focus {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #3b82f6, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-red {
+    background-image: linear-gradient(to bottom, #ef4444, #dc2626);
+    border-color: #b91c1c;
+}
+
+.btn-red:hover {
+    background-image: linear-gradient(to bottom, #dc2626, #b91c1c);
+}
+
+.btn-red:focus {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #ef4444, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-green {
+    background-image: linear-gradient(to bottom, #22c55e, #16a34a);
+    border-color: #15803d;
+}
+
+.btn-green:hover {
+    background-image: linear-gradient(to bottom, #16a34a, #15803d);
+}
+
+.btn-green:focus {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #22c55e, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-yellow {
+    background-image: linear-gradient(to bottom, #facc15, #eab308);
+    border-color: #ca8a04;
+    color: #000000;
+}
+
+.btn-yellow:hover {
+    background-image: linear-gradient(to bottom, #eab308, #ca8a04);
+}
+
+.btn-yellow:focus {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #eab308, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-gray {
+    background-image: linear-gradient(to bottom, #6b7280, #4b5563);
+    border-color: #374151;
+}
+
+.btn-gray:hover {
+    background-image: linear-gradient(to bottom, #4b5563, #374151);
+}
+
+.btn-gray:focus {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #6b7280, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.event-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-image: none;
+    background-color: #9ca3af;
+    border-color: #6b7280;
+    transform: scale(1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    filter: brightness(1);
+}
+
+.event-button:disabled:hover {
+    background-image: none;
+}
+
+.event-log-item {
+    border-bottom-width: 1px;
+    border-color: #e5e7eb;
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+.button-grid {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.group-container {
+    border-width: 1px;
+    border-color: #d1d5db;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    margin-bottom: 1rem;
+}
+
+.tab-button {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    text-align: center;
+    border-bottom-width: 2px;
+    transition-property: color, border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+    border-color: transparent;
+    color: #6b7280;
+    cursor: pointer;
+}
+
+.tab-button:hover {
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.tab-button-active {
+    border-color: #3b82f6;
+    color: #2563eb;
+}
+
+.tab-button-active:hover {
+    border-color: #3b82f6;
+    color: #2563eb;
+}
+
+.tab-content {
+    margin-top: 1rem;
+    overflow-y: auto;
+    background-color: #f9fafb;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    border-width: 1px;
+    border-color: #e5e7eb;
+}
+
+.xml-output-container {
+    height: 22rem;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    background-color: #ffffff;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid #d1d5db;
+}
+
+.xml-output {
+    white-space: pre;
+    font-family: monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: #333;
+}
+
+.xml-tag {
+    color: #007bff;
+}
+
+.xml-element {
+    color: #dc3545;
+}
+
+.xml-text {
+    color: #28a745;
+}
+
+#config-view textarea {
+    width: 100%;
+    min-height: 400px;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.config-message {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+
+.config-success {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.config-error {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+#video-drop-zone {
+    border: 2px dashed #d1d5db;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    background-color: #f9fafb;
+    margin-bottom: 1rem;
+    color: #6b7280;
+}
+
+#video-drop-zone.dragover {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+#videoPlayer {
+    width: 100%;
+    max-height: 60vh;
+    background-color: #000;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* --- New Styles for Saved Games --- */
+.saved-game-card {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: #f9fafb;
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s;
+}
+
+.saved-game-card:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.saved-game-icon {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    background-color: #3b82f6;
+    color: #ffffff;
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+}
+
+.saved-game-details {
+    flex-grow: 1;
+}
+
+.saved-game-details h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.saved-game-details p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+/* Add scrollable behavior to the List View when height exceeds 22rem */
+#listView {
+    max-height: 22rem;
+    overflow-y: auto;
+}
