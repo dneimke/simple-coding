@@ -269,8 +269,6 @@
             }
         }
 
-
-
         // --- State Management
         const currentGameState = {
             loggedEvents: [],
@@ -289,12 +287,38 @@
             },
         };
 
-        // New Game Button, Pause/Resume Button, Complete Game Button
-        createButton({
-            id: 'newGameButton',
-            text: 'Start Game',
-            className: 'event-button btn-green px-6 py-3 text-lg',
-            onClick: () => {
+        // Handle New Game, Pause/Resume, and Complete Game Button Events
+        const EventHandlers = {
+            attachEventListeners() {
+                createButton({
+                    id: 'newGameButton',
+                    text: 'Start Game',
+                    className: 'event-button btn-green px-6 py-3 text-lg',
+                    onClick: () => {
+                        this.handleNewGame()
+                    }
+                });
+
+                createButton({
+                    id: 'pauseResumeButton',
+                    text: 'Pause',
+                    className: 'event-button btn-yellow px-6 py-3 text-lg hidden',
+                    onClick: () => {
+                        this.handlePauseResume()
+                    }
+                });
+
+                createButton({
+                    id: 'completeGameButton',
+                    text: 'Complete',
+                    className: 'event-button btn-blue px-6 py-3 text-lg hidden',
+                    onClick: async () => {
+                        this.handleCompleteGame()
+                    }
+                });
+            },
+
+            handleNewGame() {
                 let game = {
                     loggedEvents: [],
                     elapsedTime: 0,
@@ -302,31 +326,21 @@
                     isActive: true,
                 };
                 initializeNewGame(game);
-            }
-        });
+            },
 
-        createButton({
-            id: 'pauseResumeButton',
-            text: 'Pause',
-            className: 'event-button btn-yellow px-6 py-3 text-lg hidden',
-            onClick: () => {
+            handlePauseResume() {
                 if (currentGameState.isRunning) {
                     pauseTimer();
                 } else {
                     startTimer();
                 }
-            }
-        });
+            },
 
-        createButton({
-            id: 'completeGameButton',
-            text: 'Complete',
-            className: 'event-button btn-blue px-6 py-3 text-lg hidden',
-            onClick: async () => {
+            handleCompleteGame() {
                 const userConfirmed = confirm('Are you sure you want to complete the game? This will reset all progress.');
                 if (userConfirmed) {
 
-                    await saveGameToLocalStorage({
+                    saveGameToLocalStorage({
                         events: currentGameState.loggedEvents,
                         elapsedTime: currentGameState.elapsedTime,
                         timestamp: new Date().toISOString()
@@ -335,8 +349,9 @@
                     resetTimerAndLog();
                     updateNavbarVisibility(currentGameState);
                 }
-            }
-        });
+            },
+        };
+
 
         // --- Functions
         function initializeNewGame(game) {
@@ -593,6 +608,7 @@
         });
 
         const eventLog = new EventLog(listViewPanel, xmlOutputContainer, copyXmlButton);
+        EventHandlers.attachEventListeners();
 
         function initApp() {
 
