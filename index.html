@@ -587,81 +587,162 @@
         const savedGamesView = document.getElementById('saved-games-view');
 
         // --- State Variables --- (Updated)
-        let timerInterval = null;
-        let startTime = 0;
-        let elapsedTime = 0;
-        let isRunning = false;
-        let loggedEvents = [];
+        const currentGameState = {
+            loggedEvents: [],
+            isRunning: false,
+            elapsedTime: 0,
+            startTime: 0,
+            timerInterval: null,
+            hasCurrentGame: false, // New property to track if there is a current game
+            get isActive() {
+                return this.isRunning || this.elapsedTime > 0;
+            }
+        };
+
+        // Update references to use currentGameState
         let eventButtons = [];
         let currentVideoURL = null;
         let videoDuration = 0;
         let gameStatistics = {}; // To store statistics for the current game
 
-        // --- Functions --- (New and Updated)
+        // --- Functions --- (Updated)
+        function renderEventLog() {
+            const listView = document.getElementById('listView');
+            const xmlView = document.getElementById('xmlView');
+            const xmlOutputContainer = xmlView.querySelector('.xml-output');
 
-        /**
-         * Compute game statistics based on logged events.
-         */
+            if (currentGameState.loggedEvents.length === 0) {
+                listView.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
+                xmlOutputContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
+                enableEventButtons(false);
+                return;
+            }
+
+            // Render List View
+            const listHtml = currentGameState.loggedEvents.map((event, index) => {
+                return `<div class="event-log-item">
+                            <span>${index + 1}. ${event.event}</span>
+                            <span>${formatTime(event.timeMs)}</span>
+                        </div>`;
+            }).join('');
+            listView.innerHTML = listHtml;
+
+            // Render XML View
+            const xmlContent = currentGameState.loggedEvents.map(event => {
+                return `<event>
+                            <name>${event.event}</name>
+                            <time>${formatTime(event.timeMs)}</time>
+                        </event>`;
+            }).join('\n');
+            xmlOutputContainer.innerHTML = `<events>${xmlContent}</events>`;
+
+            enableEventButtons(true);
+        }
+
+        function formatTime(milliseconds) {
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
         function computeGameStatistics() {
-            gameStatistics = loggedEvents.reduce((stats, event) => {
+            gameStatistics = currentGameState.loggedEvents.reduce((stats, event) => {
                 stats[event.event] = (stats[event.event] || 0) + 1;
                 return stats;
             }, {});
         }
 
-        /**
-         * Render the game statistics view.
-         */
-        function renderGameStatistics() {
-            const statsView = document.getElementById('stats-view');
-            statsView.innerHTML = ''; // Clear previous content
+        function updateTimer() {
+            const currentTime = Date.now();
+            const currentElapsedTime = currentGameState.isRunning ? currentGameState.elapsedTime + (currentTime - currentGameState.startTime) : currentGameState.elapsedTime;
+            timerDisplay.textContent = formatTime(currentElapsedTime);
+        }
 
-            if (Object.keys(gameStatistics).length === 0) {
-                statsView.innerHTML = '<p class="text-gray-500 text-center">No statistics available. Record events to see statistics.</p>';
+        function startTimer() {
+            if (currentGameState.isRunning) return;
+            currentGameState.startTime = Date.now();
+            currentGameState.timerInterval = setInterval(updateTimer, 100);
+            currentGameState.isRunning = true;
+            currentGameState.hasCurrentGame = true; // Mark as having a current game
+            startStopButton.textContent = 'Pause Game';
+            startStopButton.classList.remove('btn-green');
+            startStopButton.classList.add('btn-yellow');
+            startStopButton.style.color = '#000000';
+            enableEventButtons(true);
+        }
+
+        function stopTimer() {
+            if (!currentGameState.isRunning) return;
+            clearInterval(currentGameState.timerInterval);
+            const currentTime = Date.now();
+            currentGameState.elapsedTime += (currentTime - currentGameState.startTime);
+            currentGameState.isRunning = false;
+            startStopButton.textContent = 'Resume Game';
+            startStopButton.classList.remove('btn-yellow');
+            startStopButton.classList.add('btn-green');
+            startStopButton.style.color = '#ffffff';
+        }
+
+        function resetTimerAndLog() {
+            stopTimer();
+            currentGameState.elapsedTime = 0;
+            currentGameState.startTime = 0;
+            currentGameState.loggedEvents = [];
+            currentGameState.hasCurrentGame = false; // No current game after reset
+            timerDisplay.textContent = '00:00';
+            startStopButton.textContent = 'Start Game';
+            startStopButton.classList.remove('btn-yellow');
+            startStopButton.classList.add('btn-green');
+            startStopButton.style.color = '#ffffff';
+            clearEventLog();
+            renderEventLog();
+            enableEventButtons(false);
+        }
+
+        function enableEventButtons(enable) {
+            const logIsEmpty = currentGameState.loggedEvents.length === 0;
+            eventButtons.forEach(button => {
+                button.disabled = !enable;
+            });
+            clearLogButton.disabled = logIsEmpty;
+            copyXmlButton.disabled = logIsEmpty;
+        }
+
+        function clearEventLog() {
+            currentGameState.loggedEvents = [];
+            renderEventLog();
+            if (!timelineView.classList.contains('hidden')) {
+                renderTimeline();
+            }
+        }
+
+        function handleEventButtonClick(e) {
+            if (!currentGameState.isActive) {
+                console.warn("Timer not started. Event not logged.");
+                timerDisplay.classList.add('animate-pulse');
+                setTimeout(() => timerDisplay.classList.remove('animate-pulse'), 1000);
                 return;
             }
-
-            const statsTable = document.createElement('table');
-            statsTable.className = 'w-full text-left border-collapse';
-
-            const headerRow = document.createElement('tr');
-            headerRow.innerHTML = '<th class="border-b p-2">Event</th><th class="border-b p-2">Count</th>';
-            statsTable.appendChild(headerRow);
-
-            Object.entries(gameStatistics)
-                .sort(([eventA], [eventB]) => eventA.localeCompare(eventB))
-                .forEach(([event, count]) => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `<td class="border-b p-2">${escapeXml(event)}</td><td class="border-b p-2">${count}</td>`;
-                    statsTable.appendChild(row);
-                });
-
-            statsView.appendChild(statsTable);
+            const eventName = e.target.dataset.event;
+            const currentElapsedTimeMs = currentGameState.isRunning ? currentGameState.elapsedTime + (Date.now() - currentGameState.startTime) : currentGameState.elapsedTime;
+            currentGameState.loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs });
+            renderEventLog();
+            if (!timelineView.classList.contains('hidden')) {
+                renderTimeline();
+            }
         }
 
-        /**
-         * Show the statistics view and compute statistics if needed.
-         */
-        function showStatisticsView() {
-            computeGameStatistics();
-            renderGameStatistics();
-            showView('statistics');
+        function switchTab(tabToShow) {
+            const isListView = tabToShow === 'listView';
+            tabButtonList.classList.toggle('tab-button-active', isListView);
+            tabButtonXml.classList.toggle('tab-button-active', !isListView);
+            tabButtonList.classList.toggle('tab-button', !isListView);
+            tabButtonXml.classList.toggle('tab-button', isListView);
+            listViewPanel.classList.toggle('hidden', !isListView);
+            xmlViewPanel.classList.toggle('hidden', isListView);
         }
 
-        // --- Functions Continued --- (Unchanged)
-        function formatTime(timeMs) { const totalSeconds = Math.floor(timeMs / 1000); const minutes = Math.floor(totalSeconds / 60); const seconds = totalSeconds % 60; return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; }
-        function updateTimer() { const currentTime = Date.now(); const currentElapsedTime = isRunning ? elapsedTime + (currentTime - startTime) : elapsedTime; timerDisplay.textContent = formatTime(currentElapsedTime); }
-        function startTimer() { if (isRunning) return; startTime = Date.now(); timerInterval = setInterval(updateTimer, 100); isRunning = true; startStopButton.textContent = 'Pause Game'; startStopButton.classList.remove('btn-green'); startStopButton.classList.add('btn-yellow'); startStopButton.style.color = '#000000'; enableEventButtons(true); }
-        function stopTimer() { if (!isRunning) return; clearInterval(timerInterval); const currentTime = Date.now(); elapsedTime += (currentTime - startTime); isRunning = false; startStopButton.textContent = 'Resume Game'; startStopButton.classList.remove('btn-yellow'); startStopButton.classList.add('btn-green'); startStopButton.style.color = '#ffffff'; }
-        function resetTimerAndLog() { stopTimer(); elapsedTime = 0; startTime = 0; timerDisplay.textContent = '00:00'; startStopButton.textContent = 'Start Game'; startStopButton.classList.remove('btn-yellow'); startStopButton.classList.add('btn-green'); startStopButton.style.color = '#ffffff'; clearEventLog(); renderEventLog(); enableEventButtons(false); }
-        function enableEventButtons(enable) { const logIsEmpty = loggedEvents.length === 0; eventButtons.forEach(button => { button.disabled = !enable; }); clearLogButton.disabled = logIsEmpty; copyXmlButton.disabled = logIsEmpty; }
-        function clearEventLog() { loggedEvents = []; renderEventLog(); if (!timelineView.classList.contains('hidden')) { renderTimeline(); } }
-        function escapeXml(unsafe) { if (typeof unsafe !== 'string') return unsafe; return unsafe.replace(/[<>&'"]/g, function (c) { switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; } }); }
-        function generatePlainXml(events) { let xmlString = ''; events.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); xmlString += `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>\n`; }); return xmlString.trim(); }
-        function renderEventLog() { const logIsEmpty = loggedEvents.length === 0; listViewPanel.innerHTML = ''; if (logIsEmpty) { listViewPanel.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>'; } else { loggedEvents.slice().reverse().forEach(logEntry => { const logItem = document.createElement('div'); logItem.className = 'event-log-item'; logItem.innerHTML = `<span class="font-medium text-gray-700">${escapeXml(logEntry.event)}</span> <span class="text-gray-500">${formatTime(logEntry.timeMs)}</span>`; listViewPanel.appendChild(logItem); }); } xmlOutputContainer.innerHTML = ''; if (logIsEmpty) { xmlOutputContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>'; } else { let styledXmlString = ''; loggedEvents.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); styledXmlString += `<span class="xml-tag">&lt;instance&gt;</span><span class="xml-tag">&lt;ID&gt;</span><span class="xml-text">${index + 1}</span><span class="xml-tag">&lt;/ID&gt;</span><span class="xml-tag">&lt;start&gt;</span><span class="xml-text">${startSeconds}</span><span class="xml-tag">&lt;/start&gt;</span><span class="xml-tag">&lt;end&gt;</span><span class="xml-text">${endSeconds}</span><span class="xml-tag">&lt;/end&gt;</span><span class="xml-tag">&lt;code&gt;</span><span class="xml-text">${eventCode}</span><span class="xml-tag">&lt;/code&gt;</span><span class="xml-tag">&lt;/instance&gt;</span>\n`; }); xmlOutputContainer.innerHTML = styledXmlString; } clearLogButton.disabled = logIsEmpty; copyXmlButton.disabled = logIsEmpty; }
-        async function copyXmlToClipboard() { if (loggedEvents.length === 0) return; const plainXml = generatePlainXml(loggedEvents); const originalButtonText = copyXmlButton.textContent; try { await navigator.clipboard.writeText(plainXml); copyXmlButton.textContent = 'Copied!'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-green'); console.log('XML copied to clipboard'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-green'); copyXmlButton.classList.add('btn-blue'); }, 1500); } catch (err) { console.error('Failed to copy XML: ', err); copyXmlButton.textContent = 'Copy Failed'; copyXmlButton.classList.remove('btn-blue'); copyXmlButton.classList.add('btn-red'); setTimeout(() => { copyXmlButton.textContent = originalButtonText; copyXmlButton.classList.remove('btn-red'); copyXmlButton.classList.add('btn-blue'); }, 2000); } }
-        function handleEventButtonClick(e) { if (!isRunning && elapsedTime === 0) { console.warn("Timer not started. Event not logged."); timerDisplay.classList.add('animate-pulse'); setTimeout(() => timerDisplay.classList.remove('animate-pulse'), 1000); return; } const eventName = e.target.dataset.event; const currentElapsedTimeMs = isRunning ? elapsedTime + (Date.now() - startTime) : elapsedTime; loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs }); renderEventLog(); if (!timelineView.classList.contains('hidden')) { renderTimeline(); } /* Removed scroll logic for log view panels as they are on separate page */ }
-        function switchTab(tabToShow) { const isListView = tabToShow === 'listView'; tabButtonList.classList.toggle('tab-button-active', isListView); tabButtonXml.classList.toggle('tab-button-active', !isListView); tabButtonList.classList.toggle('tab-button', !isListView); tabButtonXml.classList.toggle('tab-button', isListView); listViewPanel.classList.toggle('hidden', !isListView); xmlViewPanel.classList.toggle('hidden', isListView); }
         function showView(viewToShow) {
             trackerView.classList.add('hidden');
             configView.classList.add('hidden');
@@ -769,11 +850,11 @@
             });
 
             // Ensure buttons are enabled/disabled correctly
-            enableEventButtons(isRunning || elapsedTime > 0);
+            enableEventButtons(currentGameState.isActive);
         }
 
         function loadVideo(file) { if (!file || !file.type.startsWith('video/')) { alert('Please select a valid video file.'); return; } if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); } currentVideoURL = URL.createObjectURL(file); videoPlayer.src = currentVideoURL; videoFileName.textContent = file.name; }
-        function renderTimeline() { timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); }); }
+        function renderTimeline() { timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (currentGameState.loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = currentGameState.loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); }); }
         function handleTimelineClick(e) { if (e.target.classList.contains('timeline-marker')) { const seekTime = parseFloat(e.target.dataset.time); if (!isNaN(seekTime) && videoPlayer.readyState >= 1) { videoPlayer.currentTime = seekTime; } else { console.warn("Video not ready or invalid seek time:", seekTime); } } }
 
         // --- Initialization --- (Updated)
@@ -782,7 +863,7 @@
             renderButtons(currentConfig);
 
             // Attach listeners
-            startStopButton.addEventListener('click', () => { isRunning ? stopTimer() : startTimer(); });
+            startStopButton.addEventListener('click', () => { currentGameState.isRunning ? stopTimer() : startTimer(); });
             clearLogButton.addEventListener('click', clearEventLog);
             tabButtonList.addEventListener('click', () => switchTab('listView'));
             tabButtonXml.addEventListener('click', () => switchTab('xmlView'));
@@ -821,10 +902,10 @@
             trackerView.insertBefore(gameStateIndicator, trackerView.firstChild);
 
             function updateGameStateIndicator() {
-                if (isRunning) {
+                if (currentGameState.isRunning) {
                     gameStateIndicator.textContent = 'Game Status: In Progress';
                     gameStateIndicator.style.display = 'block';
-                } else if (elapsedTime > 0) {
+                } else if (currentGameState.elapsedTime > 0) {
                     gameStateIndicator.textContent = 'Game Status: Paused';
                     gameStateIndicator.style.display = 'block';
                 } else {
@@ -869,7 +950,7 @@
 
             // Enable the Complete button when the game starts
             startStopButton.addEventListener('click', () => {
-                if (!isRunning && elapsedTime === 0) {
+                if (!currentGameState.isRunning && currentGameState.elapsedTime === 0) {
                     completeButton.disabled = true;
                 } else {
                     completeButton.disabled = false;
@@ -894,7 +975,7 @@
             function updateLoadGameButtonState() {
                 const loadGameButton = document.querySelector('.event-button.btn-gray.px-6.py-2');
                 if (loadGameButton) {
-                    loadGameButton.disabled = isRunning || elapsedTime > 0;
+                    loadGameButton.disabled = currentGameState.isActive;
                 }
             }
 
@@ -912,7 +993,7 @@
 
             // Update visibility of the Complete button based on game status
             function updateCompleteButtonVisibility() {
-                if (elapsedTime === 0 && !isRunning) {
+                if (currentGameState.elapsedTime === 0 && !currentGameState.isRunning) {
                     completeButton.style.display = 'none';
                 } else {
                     completeButton.style.display = 'inline-block';
@@ -938,8 +1019,8 @@
         // Modify saveGameToLocalStorage to retain up to the last 5 saved games
         function saveGameToLocalStorage() {
             const gameData = {
-                events: loggedEvents,
-                elapsedTime: elapsedTime,
+                events: currentGameState.loggedEvents,
+                elapsedTime: currentGameState.elapsedTime,
                 timestamp: new Date().toISOString()
             };
             try {
@@ -997,8 +1078,9 @@
                         loadButton.className = 'event-button btn-blue px-4 py-2 text-sm';
                         loadButton.textContent = 'Load';
                         loadButton.addEventListener('click', () => {
-                            loggedEvents = game.events;
-                            elapsedTime = game.elapsedTime || 0;
+                            currentGameState.loggedEvents = game.events;
+                            currentGameState.elapsedTime = game.elapsedTime || 0;
+                            currentGameState.hasCurrentGame = true; // Mark as having a current game
                             renderEventLog();
                             renderTimeline(); // Populate the timeline
                             console.log(`Game ${index + 1} loaded successfully.`);
@@ -1042,7 +1124,7 @@
         function updateNavbarVisibility() {
             const requiresGameButtons = document.querySelectorAll('[data-requires-game]');
             requiresGameButtons.forEach(button => {
-                button.classList.toggle('hidden', elapsedTime === 0 && !isRunning);
+                button.classList.toggle('hidden', !currentGameState.hasCurrentGame);
             });
         }
 
@@ -1057,6 +1139,78 @@
 
         // Initial visibility update
         updateNavbarVisibility();
+
+        function copyXmlToClipboard() {
+            const xmlContent = xmlOutputContainer.textContent;
+            if (!xmlContent) {
+                console.warn("No XML content to copy.");
+                return;
+            }
+            navigator.clipboard.writeText(xmlContent).then(() => {
+                console.log("XML content copied to clipboard.");
+                alert("XML content copied to clipboard.");
+            }).catch(err => {
+                console.error("Failed to copy XML content to clipboard:", err);
+                alert("Failed to copy XML content to clipboard.");
+            });
+        }
+
+        function showStatisticsView() {
+            computeGameStatistics();
+            const statsContainer = document.getElementById('statsContainer');
+            statsContainer.innerHTML = '';
+
+            if (Object.keys(gameStatistics).length === 0) {
+                statsContainer.innerHTML = '<p class="text-gray-500 text-center">No statistics available. Record some events to see statistics.</p>';
+                return;
+            }
+
+            // Sort statistics by event name
+            const sortedStatistics = Object.entries(gameStatistics).sort(([eventA], [eventB]) => eventA.localeCompare(eventB));
+
+            const table = document.createElement('table');
+            table.className = 'min-w-full bg-white border border-gray-200';
+
+            const thead = document.createElement('thead');
+            thead.className = 'bg-gray-100';
+            const headerRow = document.createElement('tr');
+
+            const eventHeader = document.createElement('th');
+            eventHeader.className = 'px-4 py-2 text-left text-sm font-medium text-gray-600 border-b';
+            eventHeader.textContent = 'Event';
+            headerRow.appendChild(eventHeader);
+
+            const countHeader = document.createElement('th');
+            countHeader.className = 'px-4 py-2 text-left text-sm font-medium text-gray-600 border-b';
+            countHeader.textContent = 'Count';
+            headerRow.appendChild(countHeader);
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            Object.entries(gameStatistics).forEach(([event, count]) => {
+                const row = document.createElement('tr');
+
+                const eventCell = document.createElement('td');
+                eventCell.className = 'px-4 py-2 text-sm text-gray-700 border-b';
+                eventCell.textContent = event;
+                row.appendChild(eventCell);
+
+                const countCell = document.createElement('td');
+                countCell.className = 'px-4 py-2 text-sm text-gray-700 border-b';
+                countCell.textContent = count;
+                row.appendChild(countCell);
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            statsContainer.appendChild(table);
+
+            showView('statistics');
+        }
 
     </script>
 
