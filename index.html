@@ -58,7 +58,7 @@
                         class="event-button btn-blue px-6 py-3 text-lg hidden">Complete</button>
                 </div>
 
-                <div id="all-button-groups-container" class="max-w-4xl mx-auto">
+                <div id="coding-buttons-container" class="max-w-4xl mx-auto">
                 </div>
 
             </div>
@@ -159,7 +159,7 @@
         const xmlViewPanel = document.getElementById('xmlView');
         const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
         const copyXmlButton = document.getElementById('copyXmlButton');
-        const allButtonGroupsContainer = document.getElementById('all-button-groups-container');
+        const codingButtonsContainer = document.getElementById('coding-buttons-container');
 
         // Navigation Elements
         const navTracker = document.getElementById('navTracker');
@@ -405,7 +405,7 @@
         /** Renders button groups and buttons based on config into a single column */
         function renderButtons(config) {
 
-            const targetContainer = allButtonGroupsContainer;
+            const targetContainer = codingButtonsContainer;
             targetContainer.innerHTML = '';
 
             const renderGroup = (group) => {
