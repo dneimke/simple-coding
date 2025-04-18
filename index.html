@@ -559,19 +559,26 @@
         const tabButtonXml = document.getElementById('tabButtonXml');
         const listViewPanel = document.getElementById('listView');
         const xmlViewPanel = document.getElementById('xmlView');
-        const statsView = document.getElementById('stats-view');
         const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
         const copyXmlButton = document.getElementById('copyXmlButton');
-        // --- Updated button container reference --- (Unchanged)
         const allButtonGroupsContainer = document.getElementById('all-button-groups-container');
+
+        // Navigation Elements
         const navTracker = document.getElementById('navTracker');
         const navConfig = document.getElementById('navConfig');
         const navTimeline = document.getElementById('navTimeline');
         const navLog = document.getElementById('navLog');
+        const navStats = document.getElementById('navStats');
+        const navSavedGames = document.getElementById('navSavedGames');
+
+        // View Elements
         const trackerView = document.getElementById('tracker-view');
         const configView = document.getElementById('config-view');
         const timelineView = document.getElementById('timeline-view');
         const logView = document.getElementById('log-view');
+        const statsView = document.getElementById('stats-view');
+        const savedGamesView = document.getElementById('saved-games-view');
+
         const configJsonInput = document.getElementById('configJsonInput');
         const saveConfigButton = document.getElementById('saveConfigButton');
         const loadDefaultConfigButton = document.getElementById('loadDefaultConfigButton');
@@ -583,10 +590,8 @@
         const timelineContainer = document.getElementById('timelineContainer');
         const timelineMessage = document.getElementById('timelineMessage');
 
-        // Ensure savedGamesView is defined and initialized (Unchanged)
-        const savedGamesView = document.getElementById('saved-games-view');
 
-        // --- State Variables --- (Updated)
+        // --- State Management
         const currentGameState = {
             loggedEvents: [],
             isRunning: false,
@@ -613,52 +618,6 @@
         let gameStatistics = {}; // To store statistics for the current game
 
         // --- Functions --- (Updated)
-        function renderEventLog() {
-            const listView = document.getElementById('listView');
-            const xmlView = document.getElementById('xmlView');
-            const xmlOutputContainer = xmlView.querySelector('.xml-output');
-
-            if (currentGameState.loggedEvents.length === 0) {
-                listView.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
-                xmlOutputContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
-                enableEventButtons(false);
-                return;
-            }
-
-            // Render List View
-            const listHtml = currentGameState.loggedEvents.map((event, index) => {
-                return `<div class="event-log-item">
-                            <span>${index + 1}. ${event.event}</span>
-                            <span>${formatTime(event.timeMs)}</span>
-                        </div>`;
-            }).join('');
-            listView.innerHTML = listHtml;
-
-            // Render XML View
-            const xmlContent = currentGameState.loggedEvents.map(event => {
-                return `<event>
-                            <name>${event.event}</name>
-                            <time>${formatTime(event.timeMs)}</time>
-                        </event>`;
-            }).join('\n');
-            xmlOutputContainer.innerHTML = `<events>${xmlContent}</events>`;
-
-            enableEventButtons(true);
-        }
-
-        function formatTime(milliseconds) {
-            const totalSeconds = Math.floor(milliseconds / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        }
-
-        function computeGameStatistics() {
-            gameStatistics = currentGameState.loggedEvents.reduce((stats, event) => {
-                stats[event.event] = (stats[event.event] || 0) + 1;
-                return stats;
-            }, {});
-        }
 
         function updateTimer() {
             const currentTime = Date.now();
@@ -668,14 +627,25 @@
 
         function startTimer() {
             if (currentGameState.isRunning) return;
+
+            if (currentGameState.elapsedTime === 0) {
+                // Starting a new game
+                currentGameState.setGameState({
+                    loggedEvents: [],
+                    elapsedTime: 0,
+                    hasCurrentGame: true,
+                });
+            }
+
             currentGameState.startTime = Date.now();
             currentGameState.timerInterval = setInterval(updateTimer, 100);
             currentGameState.isRunning = true;
-            currentGameState.hasCurrentGame = true; // Mark as having a current game
+
             startStopButton.textContent = 'Pause Game';
             startStopButton.classList.remove('btn-green');
             startStopButton.classList.add('btn-yellow');
             startStopButton.style.color = '#000000';
+
             enableEventButtons(true);
         }
 
@@ -693,15 +663,18 @@
 
         function resetTimerAndLog() {
             stopTimer();
-            currentGameState.elapsedTime = 0;
-            currentGameState.startTime = 0;
-            currentGameState.loggedEvents = [];
-            currentGameState.hasCurrentGame = false; // No current game after reset
+            currentGameState.setGameState({
+                loggedEvents: [],
+                elapsedTime: 0,
+                hasCurrentGame: false,
+            });
+
             timerDisplay.textContent = '00:00';
             startStopButton.textContent = 'Start Game';
             startStopButton.classList.remove('btn-yellow');
             startStopButton.classList.add('btn-green');
             startStopButton.style.color = '#ffffff';
+
             clearEventLog();
             renderEventLog();
             enableEventButtons(false);
@@ -764,6 +737,8 @@
                 button.classList.add('text-gray-400', 'hover:text-blue-300');
             });
 
+            updateNavbarVisibility();
+
             let activeView;
             let activeButton;
             if (viewToShow === 'tracker') {
@@ -785,6 +760,7 @@
             } else if (viewToShow === 'statistics') {
                 activeView = statsView;
                 activeButton = navStats;
+                renderStatistics();
             } else if (viewToShow === 'saved-games') {
                 activeView = savedGamesView;
                 activeButton = navSavedGames;
@@ -860,6 +836,54 @@
             enableEventButtons(currentGameState.isActive);
         }
 
+        function renderEventLog() {
+            const listView = document.getElementById('listView');
+            const xmlView = document.getElementById('xmlView');
+            const xmlOutputContainer = xmlView.querySelector('.xml-output');
+
+            if (currentGameState.loggedEvents.length === 0) {
+                listView.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
+                xmlOutputContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
+                enableEventButtons(false);
+                return;
+            }
+
+            // Render List View
+            const listHtml = currentGameState.loggedEvents.map((event, index) => {
+                return `<div class="event-log-item">
+                            <span>${index + 1}. ${event.event}</span>
+                            <span>${formatTime(event.timeMs)}</span>
+                        </div>`;
+            }).join('');
+            listView.innerHTML = listHtml;
+
+            // Render XML View
+            const xmlContent = currentGameState.loggedEvents.map(event => {
+                return `<event>
+                            <name>${event.event}</name>
+                            <time>${formatTime(event.timeMs)}</time>
+                        </event>`;
+            }).join('\n');
+            xmlOutputContainer.innerHTML = `<events>${xmlContent}</events>`;
+
+            enableEventButtons(true);
+        }
+
+        function formatTime(milliseconds) {
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function computeGameStatistics() {
+            gameStatistics = currentGameState.loggedEvents.reduce((stats, event) => {
+                stats[event.event] = (stats[event.event] || 0) + 1;
+                return stats;
+            }, {});
+        }
+
+
         function loadVideo(file) { if (!file || !file.type.startsWith('video/')) { alert('Please select a valid video file.'); return; } if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); } currentVideoURL = URL.createObjectURL(file); videoPlayer.src = currentVideoURL; videoFileName.textContent = file.name; }
         function renderTimeline() { timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (currentGameState.loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = currentGameState.loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); }); }
         function handleTimelineClick(e) { if (e.target.classList.contains('timeline-marker')) { const seekTime = parseFloat(e.target.dataset.time); if (!isNaN(seekTime) && videoPlayer.readyState >= 1) { videoPlayer.currentTime = seekTime; } else { console.warn("Video not ready or invalid seek time:", seekTime); } } }
@@ -876,7 +900,7 @@
             tabButtonXml.addEventListener('click', () => switchTab('xmlView'));
             copyXmlButton.addEventListener('click', copyXmlToClipboard);
             navTracker.addEventListener('click', () => showView('tracker'));
-            navStats.addEventListener('click', showStatisticsView);
+            navStats.addEventListener('click', () => showView('statistics'));
             navConfig.addEventListener('click', () => showView('config'));
             navTimeline.addEventListener('click', () => showView('timeline'));
             navLog.addEventListener('click', () => showView('log'));
@@ -1085,13 +1109,22 @@
                         loadButton.className = 'event-button btn-blue px-4 py-2 text-sm';
                         loadButton.textContent = 'Load';
                         loadButton.addEventListener('click', () => {
+                            if (currentGameState.isRunning) {
+                                if (confirm('A game is currently in progress. Do you want to stop it and load the saved game?')) {
+                                    stopTimer();
+                                } else {
+                                    return; // User chose not to load the saved game
+                                }
+                            }
+
                             currentGameState.setGameState({
                                 loggedEvents: game.events,
-                                elapsedTime: game.elapsedTime || 0,
+                                elapsedTime: 0,
                                 hasCurrentGame: true
                             });
+                            currentGameState.elapsedTime = game.elapsedTime || 0;
                             console.log(`Game ${index + 1} loaded successfully.`);
-                            showView('timeline'); // Navigate to the Timeline View
+                            showView('statistics'); // Navigate to the Timeline View
                         });
 
                         const deleteButton = document.createElement('button');
@@ -1162,7 +1195,7 @@
             });
         }
 
-        function showStatisticsView() {
+        function renderStatistics() {
             computeGameStatistics();
             const statsContainer = document.getElementById('statsContainer');
             statsContainer.innerHTML = '';
@@ -1216,7 +1249,7 @@
             table.appendChild(tbody);
             statsContainer.appendChild(table);
 
-            showView('statistics');
+            // showView('statistics');
         }
 
     </script>
