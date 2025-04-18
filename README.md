@@ -2,6 +2,31 @@
 
 The **Field Hockey Event Tracker** is a web application designed to allow coaches, analysts, or enthusiasts to track specific actions (like goals, circle entries, tackles, etc.) during a game using a configurable button interface. Events are timestamped against a game timer. The application also features a timeline view that synchronizes these logged events with a locally loaded video file, allowing for quick navigation to key moments in the game footage.
 
+## Running the Solution Locally
+
+To run the solution locally, you can use the **Live Server** extension for Visual Studio Code. This extension provides a quick way to serve your project and view it in the browser.
+
+### Steps to Install and Use Live Server
+
+1. **Install the Live Server Extension**:
+   - Open Visual Studio Code.
+   - Go to the Extensions view by clicking on the Extensions icon in the Activity Bar on the side of the window or pressing `Ctrl+Shift+X`.
+   - Search for "Live Server" in the Extensions Marketplace.
+   - Click "Install" to add the extension to your Visual Studio Code.
+
+2. **Open the Project**:
+   - Open the `coding-tool` folder in Visual Studio Code.
+
+3. **Start Live Server**:
+   - Right-click on the `index.html` file in the Explorer view.
+   - Select "Open with Live Server" from the context menu.
+
+4. **View in Browser**:
+   - Your default web browser will open, displaying the application.
+   - Any changes you make to the files will automatically refresh the browser.
+
+This method ensures a smooth local development experience without needing additional server setup.
+
 ## Features
 
 ### Game Timer
@@ -28,18 +53,6 @@ The **Field Hockey Event Tracker** is a web application designed to allow coache
 - Visualize logged events plotted on a timeline corresponding to the video duration.
 - Click on event markers in the timeline to seek the video player to 5 seconds before the event occurred.
 
-## How to Use
-
-1. **Open**: Open the `index.html` (or the main HTML file) in your web browser.
-2. **Configure (Optional)**: Navigate to the "Configure" page to modify the button layout using the JSON editor. Save the configuration.
-3. **Track**: Navigate to the "Tracker" page. Click "Start Game" to begin the timer and log actions by clicking the event buttons.
-4. **Review Log**: Navigate to the "Log" page to view events in either List or XML format. Use the "Copy XML" button if needed.
-5. **Analyze Timeline**:
-    - Navigate to the "Timeline" page.
-    - Load a local video file using the "Add Local Video" button or by dragging the file onto the drop zone.
-    - Once the video loads, the timeline will populate with logged events.
-    - Click on event markers in the timeline to jump to the corresponding moment (event time - 5 seconds) in the video.
-
 ## Application Pages
 
 ### 1. Tracker Page
@@ -59,16 +72,6 @@ The Configure page allows users to customize the event buttons displayed on the 
 - A JSON editor to define button groups, labels, and colors.
 - Options to save the configuration to local storage or load the default configuration.
 
-### 3. Timeline Page
-
-The Timeline page provides a visual representation of recorded events along with video playback. Features include:
-
-- Drag-and-drop functionality to load a video file.
-- A timeline view that maps events to specific timestamps in the video.
-- Interactive markers to jump to specific moments in the video.
-
-![Timeline Page](images/field-hockey-timeline.png)
-
 ### 4. Log Page
 
 The Log page displays a detailed list of recorded events and provides options to export the log in XML format. Features include:
@@ -76,45 +79,3 @@ The Log page displays a detailed list of recorded events and provides options to
 - A **List View** for a chronological display of events.
 - An **XML View** for exporting events in XML format.
 - Options to copy the XML to the clipboard or clear the log.
-
-## Quick Start Guide
-
-1. Navigate to the **Tracker** page to start recording events.
-2. Use the **Configure** page to customize the event buttons.
-3. Load a video on the **Timeline** page to analyze events alongside video playback.
-4. View and export recorded events on the **Log** page.
-
-## Technologies Used
-
-- **HTML** and **CSS** for the user interface.
-- **JavaScript** for functionality and interactivity.
-- **Tailwind CSS** for styling.
-
-## Images
-
-The images used in this README are located in the `images/` folder of the project.
-
-## Installation and Testing
-
-To set up the project and run tests, follow these steps:
-
-1. **Install Dependencies**:
-   - Ensure you have [Node.js](https://nodejs.org/) installed on your system.
-   - Navigate to the project directory in your terminal and run:
-
-     ```bash
-     npm install
-     ```
-
-2. **Run Tests**:
-   - To execute the test suite, run:
-
-     ```bash
-     npm test
-     ```
-
-   - This will run all the tests in the `tests/` folder using Jest.
-
-3. **Modify or Add Tests**:
-   - Test files are located in the `tests/` folder.
-   - Add new test files or modify existing ones to cover additional functionality.
