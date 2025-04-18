@@ -193,6 +193,44 @@
         const videoFileName = document.getElementById('videoFileName');
         const videoPlayer = document.getElementById('videoPlayer');
 
+        class Router {
+            constructor(views) {
+                this.views = views;
+            }
+
+            showView(viewToShow) {
+                // Hide all views and reset navigation button styles
+                Object.values(this.views).forEach(({ view, button }) => {
+                    view.classList.add('hidden');
+                    button.classList.remove('text-white', 'hover:text-white');
+                    button.classList.add('text-gray-400', 'hover:text-white');
+                });
+                const selectedView = this.views[viewToShow];
+                if (!selectedView) {
+                    console.error(`Invalid view: ${viewToShow}`);
+                    return;
+                }
+
+                // Show the selected view and highlight its button
+                selectedView.view.classList.remove('hidden');
+                selectedView.button.classList.add('text-white', 'hover:text-white');
+                selectedView.button.classList.remove('text-gray-400', 'hover:text-white');
+
+                // Additional logic for specific views
+                if (viewToShow === 'config') {
+                    const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
+                    configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+                } else if (viewToShow === 'log') {
+                    renderEventLog();
+                } else if (viewToShow === 'statistics') {
+                    renderStatistics('statsContainer', currentGameState);
+                } else if (viewToShow === 'saved-games') {
+                    renderSavedGamesList();
+                }
+            }
+        }
+
+
         // --- State Management
         const currentGameState = {
             loggedEvents: [],
@@ -210,6 +248,14 @@
                 renderEventLog();
             },
         };
+
+        const router = new Router({
+            tracker: { view: trackerView, button: navTracker },
+            config: { view: configView, button: navConfig },
+            log: { view: logView, button: navLog },
+            statistics: { view: statsView, button: navStats },
+            'saved-games': { view: savedGamesView, button: navSavedGames },
+        });
 
         // New Game Button, Pause/Resume Button, Complete Game Button
         createButton({
@@ -370,48 +416,6 @@
             xmlViewPanel.classList.toggle('hidden', isListView);
         }
 
-        function showView(viewToShow) {
-            const views = {
-                tracker: { view: trackerView, button: navTracker },
-                config: { view: configView, button: navConfig },
-                log: { view: logView, button: navLog },
-                statistics: { view: statsView, button: navStats },
-                'saved-games': { view: savedGamesView, button: navSavedGames },
-            };
-
-            // Hide all views and reset navigation button styles
-            Object.values(views).forEach(({ view, button }) => {
-                view.classList.add('hidden');
-                button.classList.remove('text-white', 'hover:text-white');
-                button.classList.add('text-gray-400', 'hover:text-white');
-            });
-
-            updateNavbarVisibility(currentGameState);
-
-            const selectedView = views[viewToShow];
-            if (!selectedView) {
-                console.error(`Invalid view: ${viewToShow}`);
-                return;
-            }
-
-            // Show the selected view and highlight its button
-            selectedView.view.classList.remove('hidden');
-            selectedView.button.classList.add('text-white', 'hover:text-white');
-            selectedView.button.classList.remove('text-gray-400', 'hover:text-white');
-
-            // Additional logic for specific views
-            if (viewToShow === 'config') {
-                const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
-                configJsonInput.value = JSON.stringify(currentConfig, null, 2);
-            } else if (viewToShow === 'log') {
-                renderEventLog();
-            } else if (viewToShow === 'statistics') {
-                renderStatistics('statsContainer', currentGameState);
-            } else if (viewToShow === 'saved-games') {
-                renderSavedGamesList();
-            }
-        }
-
         function renderEventButtons(currentGame, config, targetContainer) {
 
             targetContainer.innerHTML = '';
@@ -524,8 +528,8 @@
                                 });
 
                                 console.log(`Game ${index + 1} loaded successfully.`);
-                                showView('statistics');
                                 renderStatistics('statsContainer', currentGameState);
+                                router.showView('statistics');
                             },
                             onDelete: () => {
                                 if (confirm('Are you sure you want to delete this saved game?')) {
@@ -589,14 +593,16 @@
                 const xmlContent = xmlOutputContainer.textContent;
                 copyXmlToClipboard(xmlContent);
             });
-            navTracker.addEventListener('click', () => showView('tracker'));
-            navStats.addEventListener('click', () => showView('statistics'));
-            navConfig.addEventListener('click', () => showView('config'));
-            navLog.addEventListener('click', () => showView('log'));
+
+            navTracker.addEventListener('click', () => router.showView('tracker'));
+            navStats.addEventListener('click', () => router.showView('statistics'));
+            navConfig.addEventListener('click', () => router.showView('config'));
+            navLog.addEventListener('click', () => router.showView('log'));
             navSavedGames.addEventListener('click', () => {
                 renderSavedGamesList();
-                showView('saved-games');
+                router.showView('saved-games');
             });
+
             saveConfigButton.addEventListener('click', () => {
                 try {
                     const jsonString = configJsonInput.value;
@@ -627,11 +633,13 @@
             renderEventButtons(currentGameState, currentConfig, codingButtonsContainer);
             enableEventButtons(false);
             switchTab('listView');
-            showView('tracker');
+            router.showView('tracker');
             updateNavbarVisibility(currentGameState);
         }
 
         initApp();
+
+
     </script>
 
 </body>
