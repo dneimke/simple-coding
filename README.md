@@ -34,26 +34,22 @@ This method ensures a smooth local development experience without needing additi
 ### Game Timer
 
 - Start, stop, and reset a game clock to track the elapsed time during a match.
-
-### Event Logging
-
 - Log predefined or custom events with timestamps by clicking on configurable buttons.
 
-### Configurable Buttons
+### Customizable Configuration
 
 - Customize the layout, labels, colors, and event names of the tracker buttons via a JSON configuration page.
 - Save configurations directly in the browser's local storage for future use.
 
-### Event Log Views
+### Event Logs
 
 - **List View**: Display a chronological list of logged events and their timestamps.
 - **XML View**: View events formatted as XML, suitable for importing into other analysis tools. Includes a "Copy to Clipboard" function for easy sharing.
 
-### Timeline View
+### Load Saved Games
 
-- Load a local video file using drag-and-drop or file selection.
-- Visualize logged events plotted on a timeline corresponding to the video duration.
-- Click on event markers in the timeline to seek the video player to 5 seconds before the event occurred.
+- Load previously saved game logs from local storage to review past matches.
+- Clear the log to start a new game or remove old entries.
 
 ## Application Pages
 

@@ -43,6 +43,8 @@
         </nav>
 
         <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl">
+
+            <!-- Tracker View -->
             <div id="tracker-view">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Field Hockey Event Tracker
                 </h1>
@@ -60,9 +62,9 @@
 
                 <div id="coding-buttons-container" class="max-w-4xl mx-auto">
                 </div>
-
             </div>
 
+            <!-- Configuration View -->
             <div id="config-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure Event Buttons</h1>
                 <p class="mb-4 text-gray-600">
@@ -83,9 +85,10 @@
                     <button id="loadDefaultConfigButton" class="event-button btn-gray px-6 py-2">Load Default</button>
                 </div>
                 <p class="mt-4 text-sm text-gray-500">Configuration is saved in your browser's local storage. Changes
-                    will
-                    be applied after saving.</p>
+                    will be applied after saving.</p>
             </div>
+
+            <!-- Log View -->
             <div id="log-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Event Log</h1>
                 <div class="group-container">
@@ -120,7 +123,7 @@
                 </div>
             </div>
 
-            <!-- Move the Saved Games view to its own dedicated view -->
+            <!-- Saved Games View -->
             <div id="saved-games-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Saved Games</h1>
                 <div id="savedGamesList" class="mb-4"></div>
@@ -133,14 +136,14 @@
     <script type="module">
         import {
             createButton, createGameCard,
-            renderStatistics, computeGameStatistics,
+            computeGameStatistics,
             createLogEntry,
             copyXmlToClipboard, generatePlainXml, escapeXml,
             formatTime,
-            loadConfig, saveConfig,
             updateNavbarVisibility,
             showMessage,
-            getFromLocalStorage, setToLocalStorage,
+            saveGameToLocalStorage, loadSavedGames, deleteSavedGame,
+            loadConfig, saveConfig,
             addVisualFeedbackToButtons
         } from './utils.js';
 
@@ -208,7 +211,7 @@
             },
         };
 
-        // Update button creation to pass element IDs to createButton
+        // New Game Button, Pause/Resume Button, Complete Game Button
         createButton({
             id: 'newGameButton',
             text: 'Start Game',
@@ -244,15 +247,20 @@
             onClick: async () => {
                 const userConfirmed = confirm('Are you sure you want to complete the game? This will reset all progress.');
                 if (userConfirmed) {
-                    await saveGameToLocalStorage();
+
+                    await saveGameToLocalStorage({
+                        events: currentGameState.loggedEvents,
+                        elapsedTime: currentGameState.elapsedTime,
+                        timestamp: new Date().toISOString()
+                    }, LOCAL_STORAGE_KEY_GAMES);
+
                     resetTimerAndLog();
                     updateNavbarVisibility(currentGameState);
                 }
             }
         });
 
-        // --- Functions --- (Updated)
-
+        // --- Functions
         function initializeNewGame(game) {
 
             currentGameState.setGameState(game);
@@ -449,18 +457,51 @@
 
             addVisualFeedbackToButtons(eventButtons);
             enableEventButtons(currentGame.isActive);
-
         }
 
-        // --- Reusable Components ---
+        function renderStatistics(statsContainerId, currentGame) {
+            const statsContainer = document.getElementById(statsContainerId);
+            statsContainer.innerHTML = '';
 
+            let gameStatistics = computeGameStatistics(currentGame);
+
+            if (Object.keys(gameStatistics).length === 0) {
+                statsContainer.innerHTML = '<p class="text-gray-500 text-center">No statistics available.</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'min-w-full bg-white border border-gray-200';
+
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+        <tr>
+            <th class="px-4 py-2 border-b">Event</th>
+            <th class="px-4 py-2 border-b">Count</th>
+        </tr>
+    `;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            Object.entries(gameStatistics).forEach(([event, count]) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+            <td class="px-4 py-2 border-b">${event}</td>
+            <td class="px-4 py-2 border-b">${count}</td>
+        `;
+                tbody.appendChild(row);
+            });
+            table.appendChild(tbody);
+
+            statsContainer.appendChild(table);
+        }
 
         function renderSavedGamesList() {
             const savedGamesList = document.getElementById('savedGamesList');
             savedGamesList.innerHTML = '';
 
             try {
-                const savedGames = getFromLocalStorage(LOCAL_STORAGE_KEY_GAMES) || [];
+                const savedGames = loadSavedGames(LOCAL_STORAGE_KEY_GAMES);
                 if (savedGames.length > 0) {
                     savedGames.forEach((game, index) => {
                         const gameCard = createGameCard({
@@ -488,8 +529,7 @@
                             },
                             onDelete: () => {
                                 if (confirm('Are you sure you want to delete this saved game?')) {
-                                    savedGames.splice(index, 1);
-                                    setToLocalStorage(LOCAL_STORAGE_KEY_GAMES, savedGames);
+                                    deleteSavedGame(index, LOCAL_STORAGE_KEY_GAMES);
                                     renderSavedGamesList();
                                 }
                             }
@@ -588,36 +628,10 @@
             enableEventButtons(false);
             switchTab('listView');
             showView('tracker');
+            updateNavbarVisibility(currentGameState);
         }
 
         initApp();
-
-
-        function saveGameToLocalStorage() {
-            const gameData = {
-                events: currentGameState.loggedEvents,
-                elapsedTime: currentGameState.elapsedTime,
-                timestamp: new Date().toISOString()
-            };
-
-            try {
-                const savedGames = getFromLocalStorage(LOCAL_STORAGE_KEY_GAMES) || [];
-                savedGames.push(gameData);
-
-                // Retain only the last 5 games
-                while (savedGames.length > 5) {
-                    savedGames.shift();
-                }
-
-                setToLocalStorage(LOCAL_STORAGE_KEY_GAMES, savedGames);
-                console.log('Game saved successfully.');
-            } catch (error) {
-                console.error('Error saving game to localStorage:', error);
-            }
-        }
-
-        updateNavbarVisibility(currentGameState);
-
     </script>
 
 </body>

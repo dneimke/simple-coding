@@ -83,43 +83,6 @@ export function computeGameStatistics(currentGame) {
     return stats;
 }
 
-export function renderStatistics(statsContainerId, currentGame) {
-    const statsContainer = document.getElementById(statsContainerId);
-    statsContainer.innerHTML = '';
-
-    let gameStatistics = computeGameStatistics(currentGame);
-
-    if (Object.keys(gameStatistics).length === 0) {
-        statsContainer.innerHTML = '<p class="text-gray-500 text-center">No statistics available.</p>';
-        return;
-    }
-
-    const table = document.createElement('table');
-    table.className = 'min-w-full bg-white border border-gray-200';
-
-    const thead = document.createElement('thead');
-    thead.innerHTML = `
-        <tr>
-            <th class="px-4 py-2 border-b">Event</th>
-            <th class="px-4 py-2 border-b">Count</th>
-        </tr>
-    `;
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    Object.entries(gameStatistics).forEach(([event, count]) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="px-4 py-2 border-b">${event}</td>
-            <td class="px-4 py-2 border-b">${count}</td>
-        `;
-        tbody.appendChild(row);
-    });
-    table.appendChild(tbody);
-
-    statsContainer.appendChild(table);
-}
-
 export function generatePlainXml(events) {
     let xmlString = '';
     events.forEach((logEntry, index) => {
@@ -160,47 +123,6 @@ export function formatTime(milliseconds) {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function loadConfig(configKey, defaultConfig) {
-    try {
-        const savedConfig = localStorage.getItem(configKey);
-        if (savedConfig) {
-            const parsed = JSON.parse(savedConfig);
-            if (parsed && Array.isArray(parsed.rowDefs)) {
-                console.log("Loaded config from localStorage");
-                return parsed;
-            } else {
-                console.warn("Invalid config structure in localStorage, using default.");
-                return defaultConfig;
-            }
-        } else {
-            console.log("No config found in localStorage, using default.");
-            return defaultConfig;
-        }
-    } catch (error) {
-        console.error("Error loading or parsing config from localStorage:", error);
-        return defaultConfig;
-    }
-}
-
-export function saveConfig(configObject, configKey) {
-    try {
-        if (!configObject || typeof configObject !== 'object' || !Array.isArray(configObject.rowDefs)) {
-            throw new Error("Invalid configuration object structure.");
-        }
-        localStorage.setItem(configKey, JSON.stringify(configObject));
-        console.log("Configuration saved to localStorage.");
-        return true;
-    } catch (error) {
-        console.error("Error saving config to localStorage:", error);
-        if (error.name === 'QuotaExceededError') {
-            alert('Error: Could not save configuration. Browser storage limit exceeded.');
-        } else {
-            alert(`Error: ${error.message}`);
-        }
-        return false;
-    }
-}
-
 export function updateNavbarVisibility(currentGameState) {
     const requiresGameButtons = document.querySelectorAll('[data-requires-game]');
     requiresGameButtons.forEach(button => {
@@ -231,7 +153,7 @@ export function showMessage(element, message, isError = false) {
     }, 5000);
 }
 
-export function getFromLocalStorage(key) {
+function getFromLocalStorage(key) {
     try {
         const data = localStorage.getItem(key);
         return data ? JSON.parse(data) : null;
@@ -241,10 +163,89 @@ export function getFromLocalStorage(key) {
     }
 }
 
-export function setToLocalStorage(key, value) {
+function setToLocalStorage(key, value) {
     try {
         localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
         console.error(`Error setting data to localStorage for key: ${key}`, error);
+    }
+}
+
+export function loadConfig(configKey, defaultConfig) {
+    try {
+        const savedConfig = getFromLocalStorage(configKey);
+        if (savedConfig && Array.isArray(savedConfig.rowDefs)) {
+            console.log("Loaded config from localStorage");
+            return savedConfig;
+        } else {
+            console.warn("Invalid config structure in localStorage, using default.");
+            return defaultConfig;
+        }
+    } catch (error) {
+        console.error("Error loading or parsing config from localStorage:", error);
+        return defaultConfig;
+    }
+}
+
+export function saveConfig(configObject, configKey) {
+    try {
+        if (!configObject || typeof configObject !== 'object' || !Array.isArray(configObject.rowDefs)) {
+            throw new Error("Invalid configuration object structure.");
+        }
+
+        setToLocalStorage(configKey, configObject);
+        console.log("Configuration saved to localStorage.");
+        return true;
+    } catch (error) {
+        console.error("Error saving config to localStorage:", error);
+        if (error.name === 'QuotaExceededError') {
+            alert('Error: Could not save configuration. Browser storage limit exceeded.');
+        } else {
+            alert(`Error: ${error.message}`);
+        }
+        return false;
+    }
+}
+
+export function saveGameToLocalStorage(gameData, storageKey) {
+
+    try {
+        const savedGames = getFromLocalStorage(storageKey) || [];
+        savedGames.push(gameData);
+
+        // Retain only the last 5 games
+        while (savedGames.length > 5) {
+            savedGames.shift();
+        }
+
+        setToLocalStorage(storageKey, savedGames);
+        console.log('Game saved successfully.');
+    } catch (error) {
+        console.error('Error saving game to localStorage:', error);
+    }
+}
+
+export function loadSavedGames(storageKey) {
+    try {
+        const savedGames = getFromLocalStorage(storageKey);
+        return savedGames || [];
+    } catch (error) {
+        console.error('Error retrieving saved games from localStorage:', error);
+        return [];
+    }
+}
+
+export function deleteSavedGame(index, storageKey) {
+    try {
+        const savedGames = getFromLocalStorage(storageKey) || [];
+        if (index >= 0 && index < savedGames.length) {
+            savedGames.splice(index, 1);
+            setToLocalStorage(storageKey, savedGames);
+            console.log('Game deleted successfully.');
+        } else {
+            console.warn('Invalid game index for deletion.');
+        }
+    } catch (error) {
+        console.error('Error deleting game from localStorage:', error);
     }
 }
