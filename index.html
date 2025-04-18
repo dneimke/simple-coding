@@ -407,98 +407,119 @@
 
 <body class="p-4 sm:p-8">
 
-    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl">
+    <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-xl">
 
-        <nav class="mb-6 pb-2 border-b border-gray-200 flex space-x-4">
-            <button id="navTracker" class="text-blue-600 hover:text-blue-800 font-medium">Tracker</button>
-            <button id="navConfig" class="text-gray-600 hover:text-gray-800 font-medium">Configure</button>
-            <button id="navTimeline" class="text-gray-600 hover:text-gray-800 font-medium">Timeline</button>
-            <button id="navLog" class="text-gray-600 hover:text-gray-800 font-medium">Log</button>
-            <button id="navSavedGames" class="text-gray-600 hover:text-gray-800 font-medium">Saved Games</button>
+        <nav class="border-b border-gray-700 flex justify-between items-center bg-blue-950 text-white p-4">
+            <div class="flex space-x-4">
+                <button id="navTracker" class="text-gray-200 hover:text-blue-300">Tracker</button>
+                <button id="navConfig" class="text-gray-400 hover:text-blue-300 font-medium">Configure</button>
+                <button id="navTimeline" class="text-gray-400 hover:text-blue-300 font-medium">Timeline</button>
+                <button id="navLog" class="text-gray-400 hover:text-blue-300 font-medium">Log</button>
+                <button id="navSavedGames" class="text-gray-400 hover:text-blue-300 font-medium">Saved Games</button>
+            </div>
+            <a href="https://github.com/dneimke/simple-coding" target="_blank"
+                class="text-gray-200 hover:text-blue-300">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
+                    <path
+                        d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.207 11.387.6.113.793-.263.793-.587 0-.287-.012-1.243-.018-2.253-3.338.725-4.042-1.613-4.042-1.613-.546-1.387-1.333-1.756-1.333-1.756-1.09-.744.083-.729.083-.729 1.204.087 1.837 1.237 1.837 1.237 1.07 1.833 2.807 1.303 3.492.996.108-.775.42-1.303.763-1.603-2.665-.303-5.467-1.333-5.467-5.933 0-1.31.468-2.382 1.237-3.222-.123-.303-.537-1.523.117-3.176 0 0 1.01-.324 3.3 1.23a11.5 11.5 0 013.003-.403c1.02.005 2.047.137 3.003.403 2.29-1.554 3.3-1.23 3.3-1.23.654 1.653.24 2.873.117 3.176.768.84 1.236 1.912 1.236 3.222 0 4.61-2.807 5.625-5.478 5.922.432.372.816 1.102.816 2.222 0 1.606-.015 2.898-.015 3.293 0 .324.192.705.798.586C20.565 21.797 24 17.297 24 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+            </a>
         </nav>
 
-        <div id="tracker-view">
-            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Field Hockey Event Tracker</h1>
-            <div class="flex flex-col sm:flex-row justify-center items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
-                <div id="timer" class="text-4xl font-mono font-bold bg-gray-800 text-white px-6 py-2 rounded-lg shadow">
-                    00:00</div>
-                <button id="startStopButton" class="event-button btn-green px-6 py-3 text-lg">Start Game</button>
-                <button id="resetButton" class="event-button btn-red px-6 py-3 text-lg">Reset</button>
+        <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl">
+            <div id="tracker-view">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Field Hockey Event Tracker
+                </h1>
+                <div
+                    class="flex flex-col sm:flex-row justify-center items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
+                    <div id="timer"
+                        class="text-4xl font-mono font-bold bg-gray-800 text-white px-6 py-2 rounded-lg shadow">
+                        00:00</div>
+                    <button id="startStopButton" class="event-button btn-green px-6 py-3 text-lg">Start Game</button>
+                    <button id="resetButton" class="event-button btn-red px-6 py-3 text-lg">Reset</button>
+                </div>
+
+                <div id="all-button-groups-container" class="max-w-4xl mx-auto">
+                </div>
+
             </div>
 
-            <div id="all-button-groups-container" class="max-w-4xl mx-auto">
-            </div>
-
-        </div>
-        <div id="config-view" class="hidden">
-            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure Event Buttons</h1>
-            <p class="mb-4 text-gray-600">
-                Edit the JSON below to define the button layout. Buttons defined in 'leftColumn' and 'rightColumn' will
-                appear sequentially in a single column on the Tracker page. Each group has an optional 'gridCols' (e.g.,
-                "grid-cols-4") and an array of 'buttons'. Each button needs an 'event' (unique identifier), 'text'
-                (display label), and 'color' ('btn-blue', 'btn-red', 'btn-green', 'btn-yellow', 'btn-gray').
-            </p>
-            <div class="mb-4">
-                <label for="configJsonInput" class="block text-gray-700 font-medium mb-2">Configuration JSON</label>
-                <textarea id="configJsonInput" placeholder="Enter your configuration JSON here"></textarea>
-            </div>
-            <div id="configMessage" class="config-message hidden"></div>
-            <div class="flex space-x-4">
-                <button id="saveConfigButton" class="event-button btn-green px-6 py-2">Save Configuration</button>
-                <button id="loadDefaultConfigButton" class="event-button btn-gray px-6 py-2">Load Default</button>
-            </div>
-            <p class="mt-4 text-sm text-gray-500">Configuration is saved in your browser's local storage. Changes will
-                be applied after saving.</p>
-        </div>
-        <div id="timeline-view" class="hidden">
-            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Timeline View</h1>
-            <div id="video-loader" class="mb-6">
-                <div id="video-drop-zone">
-                    <p>Drag & drop a video file here, or click the button below.</p>
+            <div id="config-view" class="hidden">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure Event Buttons</h1>
+                <p class="mb-4 text-gray-600">
+                    Edit the JSON below to define the button layout. Buttons defined in 'leftColumn' and 'rightColumn'
+                    will
+                    appear sequentially in a single column on the Tracker page. Each group has an optional 'gridCols'
+                    (e.g.,
+                    "grid-cols-4") and an array of 'buttons'. Each button needs an 'event' (unique identifier), 'text'
+                    (display label), and 'color' ('btn-blue', 'btn-red', 'btn-green', 'btn-yellow', 'btn-gray').
+                </p>
+                <div class="mb-4">
+                    <label for="configJsonInput" class="block text-gray-700 font-medium mb-2">Configuration JSON</label>
+                    <textarea id="configJsonInput" placeholder="Enter your configuration JSON here"></textarea>
                 </div>
-                <label for="videoFile" class="event-button btn-blue inline-block cursor-pointer px-5 py-2"> Add Local
-                    Video </label>
-                <input type="file" id="videoFile" accept="video/*" class="hidden">
-                <span id="videoFileName" class="ml-4 text-gray-600">No file selected.</span>
-            </div>
-            <video id="videoPlayer" controls> Your browser does not support the video tag. </video>
-            <div id="timelineContainer">
-                <div id="timelineMessage">Load a video and record events to see the timeline.</div>
-            </div>
-        </div>
-        <div id="log-view" class="hidden">
-            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Event Log</h1>
-            <div class="group-container">
-                <div class="border-b border-gray-200">
-                    <nav class="-mb-px flex space-x-4" aria-label="Tabs">
-                        <button id="tabButtonList" class="tab-button tab-button-active" data-tab="listView">List
-                            View</button>
-                        <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
-                    </nav>
+                <div id="configMessage" class="config-message hidden"></div>
+                <div class="flex space-x-4">
+                    <button id="saveConfigButton" class="event-button btn-green px-6 py-2">Save Configuration</button>
+                    <button id="loadDefaultConfigButton" class="event-button btn-gray px-6 py-2">Load Default</button>
                 </div>
-                <div>
-                    <div id="listView" class="tab-content">
-                        <p class="text-gray-500 text-center">No events recorded yet.</p>
+                <p class="mt-4 text-sm text-gray-500">Configuration is saved in your browser's local storage. Changes
+                    will
+                    be applied after saving.</p>
+            </div>
+            <div id="timeline-view" class="hidden">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Timeline View</h1>
+                <div id="video-loader" class="mb-6">
+                    <div id="video-drop-zone">
+                        <p>Drag & drop a video file here, or click the button below.</p>
                     </div>
-                    <div id="xmlView" class="tab-content hidden">
-                        <div class="xml-output-container">
-                            <div class="xml-output">
-                                <p class="text-gray-500 text-center">No events recorded yet.</p>
-                            </div>
+                    <label for="videoFile" class="event-button btn-blue inline-block cursor-pointer px-5 py-2"> Add
+                        Local
+                        Video </label>
+                    <input type="file" id="videoFile" accept="video/*" class="hidden">
+                    <span id="videoFileName" class="ml-4 text-gray-600">No file selected.</span>
+                </div>
+                <video id="videoPlayer" controls> Your browser does not support the video tag. </video>
+                <div id="timelineContainer">
+                    <div id="timelineMessage">Load a video and record events to see the timeline.</div>
+                </div>
+            </div>
+            <div id="log-view" class="hidden">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Event Log</h1>
+                <div class="group-container">
+                    <div class="border-b border-gray-200">
+                        <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                            <button id="tabButtonList" class="tab-button tab-button-active" data-tab="listView">List
+                                View</button>
+                            <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
+                        </nav>
+                    </div>
+                    <div>
+                        <div id="listView" class="tab-content">
+                            <p class="text-gray-500 text-center">No events recorded yet.</p>
                         </div>
-                        <button id="copyXmlButton" class="event-button btn-blue w-full py-2">Copy XML</button>
+                        <div id="xmlView" class="tab-content hidden">
+                            <div class="xml-output-container">
+                                <div class="xml-output">
+                                    <p class="text-gray-500 text-center">No events recorded yet.</p>
+                                </div>
+                            </div>
+                            <button id="copyXmlButton" class="event-button btn-blue w-full py-2">Copy XML</button>
+                        </div>
                     </div>
+                    <button id="clearLogButton" class="event-button btn-yellow mt-4 w-full py-2.5 px-5">Clear
+                        Log</button>
                 </div>
-                <button id="clearLogButton" class="event-button btn-yellow mt-4 w-full py-2.5 px-5">Clear Log</button>
+            </div>
+
+            <!-- Move the Saved Games view to its own dedicated view -->
+            <div id="saved-games-view" class="hidden">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Saved Games</h1>
+                <div id="savedGamesList" class="mb-4"></div>
+                <button id="backToTrackerButton" class="event-button btn-gray px-6 py-2">Back to Tracker</button>
             </div>
         </div>
 
-        <!-- Move the Saved Games view to its own dedicated view -->
-        <div id="saved-games-view" class="hidden">
-            <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Saved Games</h1>
-            <div id="savedGamesList" class="mb-4"></div>
-            <button id="backToTrackerButton" class="event-button btn-gray px-6 py-2">Back to Tracker</button>
-        </div>
 
     </div>
     <script>
@@ -577,8 +598,8 @@
 
             const navButtons = [navTracker, navConfig, navTimeline, navLog, navSavedGames];
             navButtons.forEach(button => {
-                button.classList.remove('text-blue-600', 'hover:text-blue-800');
-                button.classList.add('text-gray-600', 'hover:text-gray-800');
+                button.classList.remove('text-white', 'hover:text-white');
+                button.classList.add('text-gray-400', 'hover:text-blue-300');
             });
 
             let activeView;
@@ -604,10 +625,11 @@
                 activeButton = navSavedGames;
             }
 
+            // text-white hover:text-blue-400
             if (activeView && activeButton) {
                 activeView.classList.remove('hidden');
-                activeButton.classList.add('text-blue-600', 'hover:text-blue-800');
-                activeButton.classList.remove('text-gray-600', 'hover:text-gray-800');
+                activeButton.classList.add('text-white', 'hover:text-white');
+                activeButton.classList.remove('text-gray-400', 'hover:text-blue-300');
             }
         }
 
@@ -717,15 +739,19 @@
             gameStateIndicator.id = 'gameStateIndicator';
             gameStateIndicator.className = 'text-center text-lg font-bold mb-4';
             gameStateIndicator.textContent = 'Game Status: Not Started';
+            gameStateIndicator.style.display = 'none';
             trackerView.insertBefore(gameStateIndicator, trackerView.firstChild);
 
             function updateGameStateIndicator() {
                 if (isRunning) {
                     gameStateIndicator.textContent = 'Game Status: In Progress';
+                    gameStateIndicator.style.display = 'block';
                 } else if (elapsedTime > 0) {
                     gameStateIndicator.textContent = 'Game Status: Paused';
+                    gameStateIndicator.style.display = 'block';
                 } else {
                     gameStateIndicator.textContent = 'Game Status: Not Started';
+                    gameStateIndicator.style.display = 'none';
                 }
             }
 
