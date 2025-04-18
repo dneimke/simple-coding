@@ -131,7 +131,7 @@
     </div>
     <script type="module" src="utils.js"></script>
     <script type="module">
-        import { createButton, createGameCard, copyXmlToClipboard, renderStatistics, computeGameStatistics, generatePlainXml, createLogEntry, escapeXml, formatTime } from './utils.js';
+        import { createButton, createGameCard, copyXmlToClipboard, renderStatistics, computeGameStatistics, generatePlainXml, createLogEntry, escapeXml, formatTime, loadConfig, saveConfig } from './utils.js';
 
         // --- Constants & Config --- (Updated)
         const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
@@ -376,7 +376,7 @@
             } else if (viewToShow === 'config') {
                 activeView = configView;
                 activeButton = navConfig;
-                const currentConfig = loadConfig();
+                const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG);
                 configJsonInput.value = JSON.stringify(currentConfig, null, 2);
             } else if (viewToShow === 'log') {
                 activeView = logView;
@@ -395,47 +395,6 @@
                 activeView.classList.remove('hidden');
                 activeButton.classList.add('text-white', 'hover:text-white');
                 activeButton.classList.remove('text-gray-400', 'hover:text-white');
-            }
-        }
-
-        function loadConfig() {
-            try {
-                const savedConfig = localStorage.getItem(LOCAL_STORAGE_KEY_CONFIG);
-                if (savedConfig) {
-                    const parsed = JSON.parse(savedConfig);
-                    if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) {
-                        console.log("Loaded config from localStorage");
-                        return parsed;
-                    } else {
-                        console.warn("Invalid config structure in localStorage, using default.");
-                        return DEFAULT_CONFIG;
-                    }
-                } else {
-                    console.log("No config found in localStorage, using default.");
-                    return DEFAULT_CONFIG;
-                }
-            } catch (error) {
-                console.error("Error loading or parsing config from localStorage:", error);
-                return DEFAULT_CONFIG;
-            }
-        }
-
-        function saveConfig(configObject) {
-            try {
-                if (!configObject || typeof configObject !== 'object' || !Array.isArray(configObject.leftColumn) || !Array.isArray(configObject.rightColumn)) {
-                    throw new Error("Invalid configuration object structure.");
-                }
-                localStorage.setItem(LOCAL_STORAGE_KEY_CONFIG, JSON.stringify(configObject));
-                console.log("Configuration saved to localStorage.");
-                return true;
-            } catch (error) {
-                console.error("Error saving config to localStorage:", error);
-                if (error.name === 'QuotaExceededError') {
-                    alert('Error: Could not save configuration. Browser storage limit exceeded.');
-                } else {
-                    alert(`Error: ${error.message}`);
-                }
-                return false;
             }
         }
 
@@ -597,7 +556,7 @@
 
         // --- Initialization --- (Updated)
         function initApp() {
-            const currentConfig = loadConfig();
+            const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG);
             renderButtons(currentConfig);
 
             // Attach listeners
@@ -616,7 +575,7 @@
                 showView('saved-games');
             });
 
-            saveConfigButton.addEventListener('click', () => { try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); } });
+            saveConfigButton.addEventListener('click', () => { try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); } });
             loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showConfigMessage("Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
 
             // Initial UI state

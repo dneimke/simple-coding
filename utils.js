@@ -159,3 +159,44 @@ export function formatTime(milliseconds) {
     const seconds = totalSeconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
+
+export function loadConfig(configKey) {
+    try {
+        const savedConfig = localStorage.getItem(configKey);
+        if (savedConfig) {
+            const parsed = JSON.parse(savedConfig);
+            if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) {
+                console.log("Loaded config from localStorage");
+                return parsed;
+            } else {
+                console.warn("Invalid config structure in localStorage, using default.");
+                return DEFAULT_CONFIG;
+            }
+        } else {
+            console.log("No config found in localStorage, using default.");
+            return DEFAULT_CONFIG;
+        }
+    } catch (error) {
+        console.error("Error loading or parsing config from localStorage:", error);
+        return DEFAULT_CONFIG;
+    }
+}
+
+export function saveConfig(configObject, configKey) {
+    try {
+        if (!configObject || typeof configObject !== 'object' || !Array.isArray(configObject.leftColumn) || !Array.isArray(configObject.rightColumn)) {
+            throw new Error("Invalid configuration object structure.");
+        }
+        localStorage.setItem(configKey, JSON.stringify(configObject));
+        console.log("Configuration saved to localStorage.");
+        return true;
+    } catch (error) {
+        console.error("Error saving config to localStorage:", error);
+        if (error.name === 'QuotaExceededError') {
+            alert('Error: Could not save configuration. Browser storage limit exceeded.');
+        } else {
+            alert(`Error: ${error.message}`);
+        }
+        return false;
+    }
+}
