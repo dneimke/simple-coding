@@ -447,8 +447,11 @@
                     <div id="timer"
                         class="text-4xl font-mono font-bold bg-gray-800 text-white px-6 py-2 rounded-lg shadow">
                         00:00</div>
-                    <button id="startStopButton" class="event-button btn-green px-6 py-3 text-lg">Start Game</button>
-                    <button id="resetButton" class="event-button btn-red px-6 py-3 text-lg">Reset</button>
+                    <button id="newGameButton" class="event-button btn-green px-6 py-3 text-lg">Start Game</button>
+                    <button id="pauseResumeButton"
+                        class="event-button btn-yellow px-6 py-3 text-lg hidden">Pause</button>
+                    <button id="completeGameButton"
+                        class="event-button btn-blue px-6 py-3 text-lg hidden">Complete</button>
                 </div>
 
                 <div id="all-button-groups-container" class="max-w-4xl mx-auto">
@@ -519,8 +522,6 @@
                             <button id="copyXmlButton" class="event-button btn-blue w-full py-2">Copy XML</button>
                         </div>
                     </div>
-                    <button id="clearLogButton" class="event-button btn-yellow mt-4 w-full py-2.5 px-5">Clear
-                        Log</button>
                 </div>
             </div>
 
@@ -530,14 +531,12 @@
                 <div id="statsContainer" class="overflow-x-auto">
                     <!-- Statistics table will be injected here -->
                 </div>
-                <button id="backToLogButton" class="event-button btn-gray mt-4">Back to Log</button>
             </div>
 
             <!-- Move the Saved Games view to its own dedicated view -->
             <div id="saved-games-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Saved Games</h1>
                 <div id="savedGamesList" class="mb-4"></div>
-                <button id="backToTrackerButton" class="event-button btn-gray px-6 py-2">Back to Tracker</button>
             </div>
         </div>
 
@@ -553,8 +552,10 @@
 
         // --- DOM Elements --- (Unchanged)
         const timerDisplay = document.getElementById('timer');
-        const startStopButton = document.getElementById('startStopButton');
-        const clearLogButton = document.getElementById('clearLogButton');
+        // const startStopButton = document.getElementById('startStopButton');
+        const newGameButton = document.getElementById('newGameButton');
+        const pauseResumeButton = document.getElementById('pauseResumeButton');
+        const completeGameButton = document.getElementById('completeGameButton');
         const tabButtonList = document.getElementById('tabButtonList');
         const tabButtonXml = document.getElementById('tabButtonXml');
         const listViewPanel = document.getElementById('listView');
@@ -598,14 +599,13 @@
             elapsedTime: 0,
             startTime: 0,
             timerInterval: null,
-            hasCurrentGame: false, // New property to track if there is a current game
-            get isActive() {
-                return this.isRunning || this.elapsedTime > 0;
-            },
-            setGameState({ loggedEvents = [], elapsedTime = 0, hasCurrentGame = false }) {
+            hasCurrentGame: false,
+            isActive: false,
+            setGameState({ loggedEvents = [], elapsedTime = 0, hasCurrentGame = false, isActive = false }) {
                 this.loggedEvents = loggedEvents;
                 this.elapsedTime = elapsedTime;
                 this.hasCurrentGame = hasCurrentGame;
+                this.isActive = isActive;
                 renderEventLog();
                 renderTimeline();
             },
@@ -619,6 +619,25 @@
 
         // --- Functions --- (Updated)
 
+        function initializeNewGame(game) {
+
+            currentGameState.setGameState(game);
+            timerDisplay.textContent = '00:00';
+            newGameButton.style.display = 'inline-block';
+            pauseResumeButton.style.display = 'none';
+            completeGameButton.style.display = 'none';
+
+            if (game.isActive === true) {
+                startTimer();
+
+                newGameButton.style.display = 'none';
+                pauseResumeButton.style.display = 'inline-block';
+                completeGameButton.style.display = 'inline-block';
+            }
+
+            updateNavbarVisibility();
+        }
+
         function updateTimer() {
             const currentTime = Date.now();
             const currentElapsedTime = currentGameState.isRunning ? currentGameState.elapsedTime + (currentTime - currentGameState.startTime) : currentGameState.elapsedTime;
@@ -628,41 +647,37 @@
         function startTimer() {
             if (currentGameState.isRunning) return;
 
-            if (currentGameState.elapsedTime === 0) {
-                // Starting a new game
-                currentGameState.setGameState({
-                    loggedEvents: [],
-                    elapsedTime: 0,
-                    hasCurrentGame: true,
-                });
-            }
-
             currentGameState.startTime = Date.now();
             currentGameState.timerInterval = setInterval(updateTimer, 100);
             currentGameState.isRunning = true;
 
-            startStopButton.textContent = 'Pause Game';
-            startStopButton.classList.remove('btn-green');
-            startStopButton.classList.add('btn-yellow');
-            startStopButton.style.color = '#000000';
+            pauseResumeButton.textContent = 'Pause';
+            pauseResumeButton.classList.remove('btn-green');
+            pauseResumeButton.classList.add('btn-yellow');
+            pauseResumeButton.style.color = '#000000';
 
             enableEventButtons(true);
         }
 
-        function stopTimer() {
+        function pauseTimer() {
             if (!currentGameState.isRunning) return;
+
             clearInterval(currentGameState.timerInterval);
+
             const currentTime = Date.now();
             currentGameState.elapsedTime += (currentTime - currentGameState.startTime);
             currentGameState.isRunning = false;
-            startStopButton.textContent = 'Resume Game';
-            startStopButton.classList.remove('btn-yellow');
-            startStopButton.classList.add('btn-green');
-            startStopButton.style.color = '#ffffff';
+
+            pauseResumeButton.textContent = 'Resume';
+            pauseResumeButton.classList.remove('btn-yellow');
+            pauseResumeButton.classList.add('btn-green');
+            pauseResumeButton.style.color = '#ffffff';
+
+            enableEventButtons(false);
         }
 
         function resetTimerAndLog() {
-            stopTimer();
+            pauseTimer();
             currentGameState.setGameState({
                 loggedEvents: [],
                 elapsedTime: 0,
@@ -670,12 +685,10 @@
             });
 
             timerDisplay.textContent = '00:00';
-            startStopButton.textContent = 'Start Game';
-            startStopButton.classList.remove('btn-yellow');
-            startStopButton.classList.add('btn-green');
-            startStopButton.style.color = '#ffffff';
+            newGameButton.style.display = 'inline-block';
+            pauseResumeButton.style.display = 'none';
+            completeGameButton.style.display = 'none';
 
-            clearEventLog();
             renderEventLog();
             enableEventButtons(false);
         }
@@ -685,16 +698,7 @@
             eventButtons.forEach(button => {
                 button.disabled = !enable;
             });
-            clearLogButton.disabled = logIsEmpty;
             copyXmlButton.disabled = logIsEmpty;
-        }
-
-        function clearEventLog() {
-            currentGameState.loggedEvents = [];
-            renderEventLog();
-            if (!timelineView.classList.contains('hidden')) {
-                renderTimeline();
-            }
         }
 
         function handleEventButtonClick(e) {
@@ -777,14 +781,15 @@
         function loadConfig() { try { const savedConfig = localStorage.getItem(LOCAL_STORAGE_KEY); if (savedConfig) { const parsed = JSON.parse(savedConfig); if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) { console.log("Loaded config from localStorage"); return parsed; } else { console.warn("Invalid config structure in localStorage, using default."); return DEFAULT_CONFIG; } } } catch (error) { console.error("Error loading or parsing config from localStorage:", error); } console.log("No valid config in localStorage, using default."); return DEFAULT_CONFIG; }
         function saveConfig(configObject) { try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(configObject)); console.log("Configuration saved to localStorage."); return true; } catch (error) { console.error("Error saving config to localStorage:", error); if (error.name === 'QuotaExceededError') { alert('Error: Could not save configuration. Browser storage limit exceeded.'); } return false; } }
         function showConfigMessage(message, isError = false) { configMessage.textContent = message; configMessage.className = 'config-message'; if (isError) { configMessage.classList.add('config-error'); } else { configMessage.classList.add('config-success'); } configMessage.classList.remove('hidden'); setTimeout(() => { configMessage.classList.add('hidden'); }, 5000); }
+        function escapeXml(unsafe) { if (typeof unsafe !== 'string') return unsafe; return unsafe.replace(/[<>&'"]/g, function (c) { switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; } }); }
+        function generatePlainXml(events) { let xmlString = ''; events.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); xmlString += `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>\n`; }); return xmlString.trim(); }
 
         /** Renders button groups and buttons based on config into a single column */
         function renderButtons(config) {
-            // Target the single container
-            const targetContainer = allButtonGroupsContainer;
-            targetContainer.innerHTML = ''; // Clear the single container
 
-            // Helper function to render a group (similar to previous renderColumn inner logic)
+            const targetContainer = allButtonGroupsContainer;
+            targetContainer.innerHTML = '';
+
             const renderGroup = (group) => {
                 if (!group || !Array.isArray(group.buttons)) {
                     console.warn("Skipping invalid group in config:", group);
@@ -814,7 +819,7 @@
                 });
 
                 groupContainer.appendChild(buttonGrid);
-                targetContainer.appendChild(groupContainer); // Append to the single container
+                allButtonGroupsContainer.appendChild(groupContainer);
             };
 
             // Render groups from leftColumn first, then rightColumn
@@ -836,37 +841,40 @@
             enableEventButtons(currentGameState.isActive);
         }
 
-        function renderEventLog() {
-            const listView = document.getElementById('listView');
-            const xmlView = document.getElementById('xmlView');
-            const xmlOutputContainer = xmlView.querySelector('.xml-output');
 
-            if (currentGameState.loggedEvents.length === 0) {
-                listView.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
+        function renderEventLog() {
+            loggedEvents = currentGameState.loggedEvents;
+            const logIsEmpty = loggedEvents.length === 0;
+
+            if (logIsEmpty) {
+                listViewPanel.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
                 xmlOutputContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
-                enableEventButtons(false);
                 return;
             }
 
+            listViewPanel.innerHTML = '';
+            xmlOutputContainer.innerHTML = '';
+
             // Render List View
-            const listHtml = currentGameState.loggedEvents.map((event, index) => {
-                return `<div class="event-log-item">
-                            <span>${index + 1}. ${event.event}</span>
-                            <span>${formatTime(event.timeMs)}</span>
-                        </div>`;
-            }).join('');
-            listView.innerHTML = listHtml;
+            loggedEvents.slice().reverse().forEach(logEntry => {
+                const logItem = document.createElement('div');
+                logItem.className = 'event-log-item';
+                logItem.innerHTML = `<span class="font-medium text-gray-700">${escapeXml(logEntry.event)}</span> <span class="text-gray-500">${formatTime(logEntry.timeMs)}</span>`;
+                listViewPanel.appendChild(logItem);
+            });
 
             // Render XML View
-            const xmlContent = currentGameState.loggedEvents.map(event => {
-                return `<event>
-                            <name>${event.event}</name>
-                            <time>${formatTime(event.timeMs)}</time>
-                        </event>`;
-            }).join('\n');
-            xmlOutputContainer.innerHTML = `<events>${xmlContent}</events>`;
+            let styledXmlString = '';
+            loggedEvents.forEach((logEntry, index) => {
+                const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000);
+                const startSeconds = Math.max(0, eventTimeSeconds - 5);
+                const endSeconds = eventTimeSeconds + 5;
+                const eventCode = escapeXml(logEntry.event);
+                styledXmlString += `<span class="xml-tag">&lt;instance&gt;</span><span class="xml-tag">&lt;ID&gt;</span><span class="xml-text">${index + 1}</span><span class="xml-tag">&lt;/ID&gt;</span><span class="xml-tag">&lt;start&gt;</span><span class="xml-text">${startSeconds}</span><span class="xml-tag">&lt;/start&gt;</span><span class="xml-tag">&lt;end&gt;</span><span class="xml-text">${endSeconds}</span><span class="xml-tag">&lt;/end&gt;</span><span class="xml-tag">&lt;code&gt;</span><span class="xml-text">${eventCode}</span><span class="xml-tag">&lt;/code&gt;</span><span class="xml-tag">&lt;/instance&gt;</span>\n`;
+            });
+            xmlOutputContainer.innerHTML = styledXmlString;
 
-            enableEventButtons(true);
+            copyXmlButton.disabled = logIsEmpty;
         }
 
         function formatTime(milliseconds) {
@@ -894,8 +902,6 @@
             renderButtons(currentConfig);
 
             // Attach listeners
-            startStopButton.addEventListener('click', () => { currentGameState.isRunning ? stopTimer() : startTimer(); });
-            clearLogButton.addEventListener('click', clearEventLog);
             tabButtonList.addEventListener('click', () => switchTab('listView'));
             tabButtonXml.addEventListener('click', () => switchTab('xmlView'));
             copyXmlButton.addEventListener('click', copyXmlToClipboard);
@@ -907,6 +913,35 @@
             navSavedGames.addEventListener('click', () => {
                 renderSavedGamesList();
                 showView('saved-games');
+            });
+
+            newGameButton.addEventListener('click', () => {
+                let game = {
+                    loggedEvents: [],
+                    elapsedTime: 0,
+                    hasCurrentGame: true,
+                    isActive: true,
+                };
+
+                initializeNewGame(game);
+            });
+
+            pauseResumeButton.addEventListener('click', () => {
+                if (currentGameState.isRunning) {
+                    pauseTimer();
+                } else {
+                    startTimer();
+                }
+            });
+
+            completeGameButton.addEventListener('click', () => {
+                if (confirm('Are you sure you want to complete the game? This will reset all progress.')) {
+
+                    saveGameToLocalStorage();
+                    resetTimerAndLog();
+                    updateNavbarVisibility();
+
+                }
             });
 
             saveConfigButton.addEventListener('click', () => { try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); } });
@@ -925,27 +960,27 @@
             showView('tracker');
 
             // Add a game state indicator
-            const gameStateIndicator = document.createElement('div');
-            gameStateIndicator.id = 'gameStateIndicator';
-            gameStateIndicator.className = 'text-center text-lg font-bold mb-4';
-            gameStateIndicator.textContent = 'Game Status: Not Started';
-            gameStateIndicator.style.display = 'none';
-            trackerView.insertBefore(gameStateIndicator, trackerView.firstChild);
+            // const gameStateIndicator = document.createElement('div');
+            // gameStateIndicator.id = 'gameStateIndicator';
+            // gameStateIndicator.className = 'text-center text-lg font-bold mb-4';
+            // gameStateIndicator.textContent = 'Game Status: Not Started';
+            // gameStateIndicator.style.display = 'none';
+            // trackerView.insertBefore(gameStateIndicator, trackerView.firstChild);
 
-            function updateGameStateIndicator() {
-                if (currentGameState.isRunning) {
-                    gameStateIndicator.textContent = 'Game Status: In Progress';
-                    gameStateIndicator.style.display = 'block';
-                } else if (currentGameState.elapsedTime > 0) {
-                    gameStateIndicator.textContent = 'Game Status: Paused';
-                    gameStateIndicator.style.display = 'block';
-                } else {
-                    gameStateIndicator.textContent = 'Game Status: Not Started';
-                    gameStateIndicator.style.display = 'none';
-                }
-            }
+            // function updateGameStateIndicator() {
+            //     if (currentGameState.isRunning) {
+            //         gameStateIndicator.textContent = 'Game Status: In Progress';
+            //         gameStateIndicator.style.display = 'block';
+            //     } else if (currentGameState.elapsedTime > 0) {
+            //         gameStateIndicator.textContent = 'Game Status: Paused';
+            //         gameStateIndicator.style.display = 'block';
+            //     } else {
+            //         gameStateIndicator.textContent = 'Game Status: Not Started';
+            //         gameStateIndicator.style.display = 'none';
+            //     }
+            // }
 
-            startStopButton.addEventListener('click', updateGameStateIndicator);
+            // startStopButton.addEventListener('click', updateGameStateIndicator);
             resetTimerAndLog = (function (originalReset) {
                 return function () {
                     originalReset();
@@ -971,80 +1006,10 @@
                 };
             })(renderButtons);
 
-            // Replace the Reset button with the Complete button
-            const completeButton = document.createElement('button');
-            completeButton.textContent = 'Complete';
-            completeButton.className = 'event-button btn-blue px-6 py-3 text-lg';
 
-            // Disable the Complete button initially
-            completeButton.disabled = true;
-
-            // Enable the Complete button when the game starts
-            startStopButton.addEventListener('click', () => {
-                if (!currentGameState.isRunning && currentGameState.elapsedTime === 0) {
-                    completeButton.disabled = true;
-                } else {
-                    completeButton.disabled = false;
-                }
-            });
-
-            // Add confirmation dialog for completing a game
-            completeButton.addEventListener('click', () => {
-                if (confirm('Are you sure you want to complete the game? This will reset all progress.')) {
-                    saveGameToLocalStorage();
-                    resetTimerAndLog();
-                }
-            });
-
-            const buttonContainer = document.querySelector('.flex.flex-col.sm\\:flex-row');
-            const resetButton = document.getElementById('resetButton');
-            if (resetButton) {
-                buttonContainer.replaceChild(completeButton, resetButton);
-            }
-
-            // Disable the Load Game button if there is a current session
-            function updateLoadGameButtonState() {
-                const loadGameButton = document.querySelector('.event-button.btn-gray.px-6.py-2');
-                if (loadGameButton) {
-                    loadGameButton.disabled = currentGameState.isActive;
-                }
-            }
-
-            // Update the Load Game button state when the game starts or resets
-            startStopButton.addEventListener('click', updateLoadGameButtonState);
-            resetTimerAndLog = (function (originalReset) {
-                return function () {
-                    originalReset();
-                    updateLoadGameButtonState();
-                };
-            })(resetTimerAndLog);
-
-            // Initial state update for the Load Game button
-            updateLoadGameButtonState();
-
-            // Update visibility of the Complete button based on game status
-            function updateCompleteButtonVisibility() {
-                if (currentGameState.elapsedTime === 0 && !currentGameState.isRunning) {
-                    completeButton.style.display = 'none';
-                } else {
-                    completeButton.style.display = 'inline-block';
-                }
-            }
-
-            // Attach visibility update to relevant events
-            startStopButton.addEventListener('click', updateCompleteButtonVisibility);
-            resetTimerAndLog = (function (originalReset) {
-                return function () {
-                    originalReset();
-                    updateCompleteButtonVisibility();
-                };
-            })(resetTimerAndLog);
-
-            // Initial visibility update
-            updateCompleteButtonVisibility();
         }
 
-        // --- Run Initialization --- (Unchanged)
+        // --- Run Initialization
         initApp();
 
         // Modify saveGameToLocalStorage to retain up to the last 5 saved games
@@ -1054,6 +1019,7 @@
                 elapsedTime: currentGameState.elapsedTime,
                 timestamp: new Date().toISOString()
             };
+
             try {
                 const savedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
                 savedGames.push(gameData);
@@ -1108,23 +1074,28 @@
                         const loadButton = document.createElement('button');
                         loadButton.className = 'event-button btn-blue px-4 py-2 text-sm';
                         loadButton.textContent = 'Load';
+
                         loadButton.addEventListener('click', () => {
                             if (currentGameState.isRunning) {
                                 if (confirm('A game is currently in progress. Do you want to stop it and load the saved game?')) {
-                                    stopTimer();
+                                    pauseTimer();
                                 } else {
                                     return; // User chose not to load the saved game
                                 }
                             }
 
-                            currentGameState.setGameState({
-                                loggedEvents: game.events,
+                            // loggedEvents = [], elapsedTime = 0, hasCurrentGame = false, isActive = false
+
+                            let newGame = {
+                                loggedEvents: [...game.events],
                                 elapsedTime: 0,
-                                hasCurrentGame: true
-                            });
-                            currentGameState.elapsedTime = game.elapsedTime || 0;
+                                hasCurrentGame: true,
+                                isActive: false,
+                            };
+
+                            initializeNewGame(newGame);
                             console.log(`Game ${index + 1} loaded successfully.`);
-                            showView('statistics'); // Navigate to the Timeline View
+                            showView('statistics');
                         });
 
                         const deleteButton = document.createElement('button');
@@ -1153,14 +1124,6 @@
             }
         }
 
-        // Add back button functionality
-        const backToTrackerButton = document.getElementById('backToTrackerButton');
-        backToTrackerButton.addEventListener('click', () => showView('tracker'));
-
-        // Add back to log button functionality in stats view
-        const backToLogButton = document.getElementById('backToLogButton');
-        backToLogButton.addEventListener('click', () => showView('log'));
-
         function updateNavbarVisibility() {
             const requiresGameButtons = document.querySelectorAll('[data-requires-game]');
             requiresGameButtons.forEach(button => {
@@ -1169,7 +1132,7 @@
         }
 
         // Update navbar visibility on game state changes
-        startStopButton.addEventListener('click', updateNavbarVisibility);
+        // startStopButton.addEventListener('click', updateNavbarVisibility);
         resetTimerAndLog = (function (originalReset) {
             return function () {
                 originalReset();
@@ -1248,8 +1211,6 @@
 
             table.appendChild(tbody);
             statsContainer.appendChild(table);
-
-            // showView('statistics');
         }
 
     </script>
