@@ -21,19 +21,19 @@
 
     <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-xl">
 
-        <nav class="border-b border-gray-700 flex justify-between items-center bg-blue-950 text-white p-4">
+        <nav class="border-b border-slate-700 flex justify-between items-center bg-slate-950 text-white p-4">
             <div class="flex space-x-4">
-                <button id="navTracker" class="text-gray-200 hover:text-blue-300">Tracker</button>
-                <button id="navStats" class="text-gray-400 hover:text-blue-300 font-medium hidden"
+                <button id="navTracker" class="text-gray-200 hover:text-white-300">Tracker</button>
+                <button id="navStats" class="text-gray-400 hover:text-white-300 font-medium hidden"
                     data-requires-game>Statistics</button>
-                <button id="navLog" class="text-gray-400 hover:text-blue-300 font-medium hidden"
+                <button id="navLog" class="text-gray-400 hover:text-white-300 font-medium hidden"
                     data-requires-game>Log</button>
             </div>
             <div class="flex space-x-4 items-center">
-                <button id="navSavedGames" class="text-gray-400 hover:text-blue-300 font-medium">Saved Games</button>
-                <button id="navConfig" class="text-gray-400 hover:text-blue-300 font-medium">Configure</button>
+                <button id="navSavedGames" class="text-gray-400 hover:text-white-300 font-medium">Saved Games</button>
+                <button id="navConfig" class="text-gray-400 hover:text-white-300 font-medium">Configure</button>
                 <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
-                    title="Visit the GitHub repository" class="text-gray-200 hover:text-blue-300">
+                    title="Visit the GitHub repository" class="text-gray-200 hover:text-white-300">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
                         <path
                             d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.207 11.387.6.113.793-.263.793-.587 0-.287-.012-1.243-.018-2.253-3.338.725-4.042-1.613-4.042-1.613-.546-1.387-1.333-1.756-1.333-1.756-1.09-.744.083-.729.083-.729 1.204.087 1.837 1.237 1.837 1.237 1.07 1.833 2.807 1.303 3.492.996.108-.775.42-1.303.763-1.603-2.665-.303-5.467-1.333-5.467-5.933 0-1.31.468-2.382 1.237-3.222-.123-.303-.537-1.523.117-3.176 0 0 1.01-.324 3.3 1.23a11.5 11.5 0 013.003-.403c1.02.005 2.047.137 3.003.403 2.29-1.554 3.3-1.23 3.3-1.23.654 1.653.24 2.873.117 3.176.768.84 1.236 1.912 1.236 3.222 0 4.61-2.807 5.625-5.478 5.922.432.372.816 1.102.816 2.222 0 1.606-.015 2.898-.015 3.293 0 .324.192.705.798.586C20.565 21.797 24 17.297 24 12c0-6.63-5.37-12-12-12z" />
@@ -321,7 +321,7 @@
             const navButtons = [navTracker, navStats, navLog, navSavedGames, navConfig];
             navButtons.forEach(button => {
                 button.classList.remove('text-white', 'hover:text-white');
-                button.classList.add('text-gray-400', 'hover:text-blue-300');
+                button.classList.add('text-gray-400', 'hover:text-white');
             });
 
             updateNavbarVisibility();
@@ -349,11 +349,10 @@
                 activeButton = navSavedGames;
             }
 
-            // text-white hover:text-blue-400
             if (activeView && activeButton) {
                 activeView.classList.remove('hidden');
                 activeButton.classList.add('text-white', 'hover:text-white');
-                activeButton.classList.remove('text-gray-400', 'hover:text-blue-300');
+                activeButton.classList.remove('text-gray-400', 'hover:text-white');
             }
         }
 
