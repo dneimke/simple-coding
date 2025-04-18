@@ -838,13 +838,13 @@
                 }
             });
 
-            completeGameButton.addEventListener('click', () => {
-                if (confirm('Are you sure you want to complete the game? This will reset all progress.')) {
-
-                    saveGameToLocalStorage();
+            // Refactored code to use modern JavaScript features
+            completeGameButton.addEventListener('click', async () => {
+                const userConfirmed = confirm('Are you sure you want to complete the game? This will reset all progress.');
+                if (userConfirmed) {
+                    await saveGameToLocalStorage();
                     resetTimerAndLog();
                     updateNavbarVisibility();
-
                 }
             });
 
