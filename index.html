@@ -959,28 +959,6 @@
             switchTab('listView');
             showView('tracker');
 
-            // Add a game state indicator
-            // const gameStateIndicator = document.createElement('div');
-            // gameStateIndicator.id = 'gameStateIndicator';
-            // gameStateIndicator.className = 'text-center text-lg font-bold mb-4';
-            // gameStateIndicator.textContent = 'Game Status: Not Started';
-            // gameStateIndicator.style.display = 'none';
-            // trackerView.insertBefore(gameStateIndicator, trackerView.firstChild);
-
-            // function updateGameStateIndicator() {
-            //     if (currentGameState.isRunning) {
-            //         gameStateIndicator.textContent = 'Game Status: In Progress';
-            //         gameStateIndicator.style.display = 'block';
-            //     } else if (currentGameState.elapsedTime > 0) {
-            //         gameStateIndicator.textContent = 'Game Status: Paused';
-            //         gameStateIndicator.style.display = 'block';
-            //     } else {
-            //         gameStateIndicator.textContent = 'Game Status: Not Started';
-            //         gameStateIndicator.style.display = 'none';
-            //     }
-            // }
-
-            // startStopButton.addEventListener('click', updateGameStateIndicator);
             resetTimerAndLog = (function (originalReset) {
                 return function () {
                     originalReset();
@@ -1084,16 +1062,13 @@
                                 }
                             }
 
-                            // loggedEvents = [], elapsedTime = 0, hasCurrentGame = false, isActive = false
-
-                            let newGame = {
+                            initializeNewGame({
                                 loggedEvents: [...game.events],
                                 elapsedTime: 0,
                                 hasCurrentGame: true,
                                 isActive: false,
-                            };
+                            });
 
-                            initializeNewGame(newGame);
                             console.log(`Game ${index + 1} loaded successfully.`);
                             showView('statistics');
                         });
@@ -1132,7 +1107,6 @@
         }
 
         // Update navbar visibility on game state changes
-        // startStopButton.addEventListener('click', updateNavbarVisibility);
         resetTimerAndLog = (function (originalReset) {
             return function () {
                 originalReset();
