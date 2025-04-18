@@ -689,11 +689,86 @@
             }
         }
 
-        function loadConfig() { try { const savedConfig = localStorage.getItem(LOCAL_STORAGE_KEY_CONFIG); if (savedConfig) { const parsed = JSON.parse(savedConfig); if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) { console.log("Loaded config from localStorage"); return parsed; } else { console.warn("Invalid config structure in localStorage, using default."); return DEFAULT_CONFIG; } } } catch (error) { console.error("Error loading or parsing config from localStorage:", error); } console.log("No valid config in localStorage, using default."); return DEFAULT_CONFIG; }
-        function saveConfig(configObject) { try { localStorage.setItem(LOCAL_STORAGE_KEY_CONFIG, JSON.stringify(configObject)); console.log("Configuration saved to localStorage."); return true; } catch (error) { console.error("Error saving config to localStorage:", error); if (error.name === 'QuotaExceededError') { alert('Error: Could not save configuration. Browser storage limit exceeded.'); } return false; } }
-        function showConfigMessage(message, isError = false) { configMessage.textContent = message; configMessage.className = 'config-message'; if (isError) { configMessage.classList.add('config-error'); } else { configMessage.classList.add('config-success'); } configMessage.classList.remove('hidden'); setTimeout(() => { configMessage.classList.add('hidden'); }, 5000); }
-        function escapeXml(unsafe) { if (typeof unsafe !== 'string') return unsafe; return unsafe.replace(/[<>&'"]/g, function (c) { switch (c) { case '<': return '&lt;'; case '>': return '&gt;'; case '&': return '&amp;'; case '\'': return '&apos;'; case '"': return '&quot;'; default: return c; } }); }
-        function generatePlainXml(events) { let xmlString = ''; events.forEach((logEntry, index) => { const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000); const startSeconds = Math.max(0, eventTimeSeconds - 5); const endSeconds = eventTimeSeconds + 5; const eventCode = escapeXml(logEntry.event); xmlString += `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>\n`; }); return xmlString.trim(); }
+        function loadConfig() {
+            try {
+                const savedConfig = localStorage.getItem(LOCAL_STORAGE_KEY_CONFIG);
+                if (savedConfig) {
+                    const parsed = JSON.parse(savedConfig);
+                    if (parsed && Array.isArray(parsed.leftColumn) && Array.isArray(parsed.rightColumn)) {
+                        console.log("Loaded config from localStorage");
+                        return parsed;
+                    } else {
+                        console.warn("Invalid config structure in localStorage, using default.");
+                        return DEFAULT_CONFIG;
+                    }
+                } else {
+                    console.log("No config found in localStorage, using default.");
+                    return DEFAULT_CONFIG;
+                }
+            } catch (error) {
+                console.error("Error loading or parsing config from localStorage:", error);
+                return DEFAULT_CONFIG;
+            }
+        }
+
+        function saveConfig(configObject) {
+            try {
+                if (!configObject || typeof configObject !== 'object' || !Array.isArray(configObject.leftColumn) || !Array.isArray(configObject.rightColumn)) {
+                    throw new Error("Invalid configuration object structure.");
+                }
+                localStorage.setItem(LOCAL_STORAGE_KEY_CONFIG, JSON.stringify(configObject));
+                console.log("Configuration saved to localStorage.");
+                return true;
+            } catch (error) {
+                console.error("Error saving config to localStorage:", error);
+                if (error.name === 'QuotaExceededError') {
+                    alert('Error: Could not save configuration. Browser storage limit exceeded.');
+                } else {
+                    alert(`Error: ${error.message}`);
+                }
+                return false;
+            }
+        }
+
+        function showConfigMessage(message, isError = false) {
+            configMessage.textContent = message;
+            configMessage.className = 'config-message';
+            if (isError) {
+                configMessage.classList.add('config-error');
+            } else {
+                configMessage.classList.add('config-success');
+            }
+            configMessage.classList.remove('hidden');
+            setTimeout(() => {
+                configMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        function escapeXml(unsafe) {
+            if (typeof unsafe !== 'string') return unsafe;
+            return unsafe.replace(/[<>&'"]/g, function (c) {
+                switch (c) {
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '&': return '&amp;';
+                    case '\'': return '&apos;';
+                    case '"': return '&quot;';
+                    default: return c;
+                }
+            });
+        }
+
+        function generatePlainXml(events) {
+            let xmlString = '';
+            events.forEach((logEntry, index) => {
+                const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000);
+                const startSeconds = Math.max(0, eventTimeSeconds - 5);
+                const endSeconds = eventTimeSeconds + 5;
+                const eventCode = escapeXml(logEntry.event);
+                xmlString += `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>\n`;
+            });
+            return xmlString.trim();
+        }
 
         /** Renders button groups and buttons based on config into a single column */
         function renderButtons(config) {
@@ -709,28 +784,25 @@
                 const groupContainer = document.createElement('div');
                 groupContainer.className = 'group-container';
 
-                const buttonGrid = document.createElement('div');
                 const gridColsClass = group.gridCols || 'grid-cols-4'; // Default if not specified
-                buttonGrid.className = `button-grid ${gridColsClass}`;
-
-                group.buttons.forEach(buttonConfig => {
+                const buttonGridHTML = `
+                    <div class="button-grid ${gridColsClass}">
+                        ${group.buttons.map(buttonConfig => {
                     if (!buttonConfig || !buttonConfig.event || !buttonConfig.text || !buttonConfig.color) {
                         console.warn("Skipping invalid button config:", buttonConfig);
-                        return; // Skip invalid buttons
+                        return ''; // Skip invalid buttons
                     }
-                    const button = document.createElement('button');
-                    button.className = `event-button ${buttonConfig.color}`;
-                    button.style.padding = '0.5rem 1rem'; // Explicit padding
-                    button.textContent = buttonConfig.text;
-                    button.dataset.event = buttonConfig.event;
-                    if (buttonConfig.span) {
-                        button.classList.add(buttonConfig.span);
-                    }
-                    buttonGrid.appendChild(button);
-                });
+                    return `
+                                        <button class="event-button ${buttonConfig.color}" style="padding: 0.5rem 1rem;" data-event="${buttonConfig.event}">
+                                            ${buttonConfig.text}
+                                        </button>
+                                    `;
+                }).join('')}
+                    </div>
+                `;
 
-                groupContainer.appendChild(buttonGrid);
-                allButtonGroupsContainer.appendChild(groupContainer);
+                groupContainer.innerHTML = buttonGridHTML;
+                targetContainer.appendChild(groupContainer);
             };
 
             // Render groups from leftColumn first, then rightColumn
