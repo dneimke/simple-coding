@@ -287,68 +287,6 @@
             margin-bottom: 1.5rem;
         }
 
-        #timelineContainer {
-            background-color: #1f2937;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            overflow-x: auto;
-            position: relative;
-            min-height: 150px;
-        }
-
-        .timeline-row {
-            display: flex;
-            align-items: center;
-            height: 2.5rem;
-            border-bottom: 1px solid #4b5563;
-            position: relative;
-        }
-
-        .timeline-row:last-child {
-            border-bottom: none;
-        }
-
-        .timeline-label {
-            color: #d1d5db;
-            font-size: 0.75rem;
-            font-weight: 500;
-            padding-right: 1rem;
-            white-space: nowrap;
-            width: 120px;
-            flex-shrink: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .timeline-track {
-            flex-grow: 1;
-            height: 100%;
-            position: relative;
-            min-width: 500px;
-        }
-
-        .timeline-marker {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 8px;
-            height: 8px;
-            background-color: #ef4444;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.1s ease-in-out;
-        }
-
-        .timeline-marker:hover {
-            transform: translateY(-50%) scale(1.5);
-        }
-
-        #timelineMessage {
-            color: #9ca3af;
-            text-align: center;
-            padding: 1rem;
-        }
-
         /* --- New Styles for Saved Games --- */
         .saved-game-card {
             display: flex;
@@ -422,8 +360,6 @@
                     data-requires-game>Statistics</button>
                 <button id="navLog" class="text-gray-400 hover:text-blue-300 font-medium hidden"
                     data-requires-game>Log</button>
-                <button id="navTimeline" class="text-gray-400 hover:text-blue-300 font-medium hidden"
-                    data-requires-game>Timeline</button>
             </div>
             <div class="flex space-x-4 items-center">
                 <button id="navSavedGames" class="text-gray-400 hover:text-blue-300 font-medium">Saved Games</button>
@@ -481,23 +417,6 @@
                 <p class="mt-4 text-sm text-gray-500">Configuration is saved in your browser's local storage. Changes
                     will
                     be applied after saving.</p>
-            </div>
-            <div id="timeline-view" class="hidden">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Timeline View</h1>
-                <div id="video-loader" class="mb-6">
-                    <div id="video-drop-zone">
-                        <p>Drag & drop a video file here, or click the button below.</p>
-                    </div>
-                    <label for="videoFile" class="event-button btn-blue inline-block cursor-pointer px-5 py-2"> Add
-                        Local
-                        Video </label>
-                    <input type="file" id="videoFile" accept="video/*" class="hidden">
-                    <span id="videoFileName" class="ml-4 text-gray-600">No file selected.</span>
-                </div>
-                <video id="videoPlayer" controls> Your browser does not support the video tag. </video>
-                <div id="timelineContainer">
-                    <div id="timelineMessage">Load a video and record events to see the timeline.</div>
-                </div>
             </div>
             <div id="log-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Event Log</h1>
@@ -567,7 +486,6 @@
         // Navigation Elements
         const navTracker = document.getElementById('navTracker');
         const navConfig = document.getElementById('navConfig');
-        const navTimeline = document.getElementById('navTimeline');
         const navLog = document.getElementById('navLog');
         const navStats = document.getElementById('navStats');
         const navSavedGames = document.getElementById('navSavedGames');
@@ -575,7 +493,6 @@
         // View Elements
         const trackerView = document.getElementById('tracker-view');
         const configView = document.getElementById('config-view');
-        const timelineView = document.getElementById('timeline-view');
         const logView = document.getElementById('log-view');
         const statsView = document.getElementById('stats-view');
         const savedGamesView = document.getElementById('saved-games-view');
@@ -588,8 +505,6 @@
         const videoFileInput = document.getElementById('videoFile');
         const videoFileName = document.getElementById('videoFileName');
         const videoPlayer = document.getElementById('videoPlayer');
-        const timelineContainer = document.getElementById('timelineContainer');
-        const timelineMessage = document.getElementById('timelineMessage');
 
 
         // --- State Management
@@ -607,7 +522,6 @@
                 this.hasCurrentGame = hasCurrentGame;
                 this.isActive = isActive;
                 renderEventLog();
-                renderTimeline();
             },
         };
 
@@ -712,9 +626,6 @@
             const currentElapsedTimeMs = currentGameState.isRunning ? currentGameState.elapsedTime + (Date.now() - currentGameState.startTime) : currentGameState.elapsedTime;
             currentGameState.loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs });
             renderEventLog();
-            if (!timelineView.classList.contains('hidden')) {
-                renderTimeline();
-            }
         }
 
         function switchTab(tabToShow) {
@@ -730,12 +641,11 @@
         function showView(viewToShow) {
             trackerView.classList.add('hidden');
             configView.classList.add('hidden');
-            timelineView.classList.add('hidden');
             logView.classList.add('hidden');
             statsView.classList.add('hidden');
             savedGamesView.classList.add('hidden');
 
-            const navButtons = [navTracker, navStats, navLog, navTimeline, navSavedGames, navConfig];
+            const navButtons = [navTracker, navStats, navLog, navSavedGames, navConfig];
             navButtons.forEach(button => {
                 button.classList.remove('text-white', 'hover:text-white');
                 button.classList.add('text-gray-400', 'hover:text-blue-300');
@@ -753,10 +663,6 @@
                 activeButton = navConfig;
                 const currentConfig = loadConfig();
                 configJsonInput.value = JSON.stringify(currentConfig, null, 2);
-            } else if (viewToShow === 'timeline') {
-                activeView = timelineView;
-                activeButton = navTimeline;
-                renderTimeline();
             } else if (viewToShow === 'log') {
                 activeView = logView;
                 activeButton = navLog;
@@ -893,8 +799,7 @@
 
 
         function loadVideo(file) { if (!file || !file.type.startsWith('video/')) { alert('Please select a valid video file.'); return; } if (currentVideoURL) { URL.revokeObjectURL(currentVideoURL); } currentVideoURL = URL.createObjectURL(file); videoPlayer.src = currentVideoURL; videoFileName.textContent = file.name; }
-        function renderTimeline() { timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (currentGameState.loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = currentGameState.loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); }); }
-        function handleTimelineClick(e) { if (e.target.classList.contains('timeline-marker')) { const seekTime = parseFloat(e.target.dataset.time); if (!isNaN(seekTime) && videoPlayer.readyState >= 1) { videoPlayer.currentTime = seekTime; } else { console.warn("Video not ready or invalid seek time:", seekTime); } } }
+
 
         // --- Initialization --- (Updated)
         function initApp() {
@@ -908,7 +813,6 @@
             navTracker.addEventListener('click', () => showView('tracker'));
             navStats.addEventListener('click', () => showView('statistics'));
             navConfig.addEventListener('click', () => showView('config'));
-            navTimeline.addEventListener('click', () => showView('timeline'));
             navLog.addEventListener('click', () => showView('log'));
             navSavedGames.addEventListener('click', () => {
                 renderSavedGamesList();
@@ -946,12 +850,6 @@
 
             saveConfigButton.addEventListener('click', () => { try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); } });
             loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showConfigMessage("Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
-            videoFileInput.addEventListener('change', (event) => { const file = event.target.files[0]; loadVideo(file); });
-            videoDropZone.addEventListener('dragover', (event) => { event.preventDefault(); videoDropZone.classList.add('dragover'); });
-            videoDropZone.addEventListener('dragleave', () => { videoDropZone.classList.remove('dragover'); });
-            videoDropZone.addEventListener('drop', (event) => { event.preventDefault(); videoDropZone.classList.remove('dragover'); const file = event.dataTransfer.files[0]; loadVideo(file); });
-            videoPlayer.addEventListener('loadedmetadata', () => { videoDuration = videoPlayer.duration; console.log("Video duration:", videoDuration); renderTimeline(); });
-            timelineContainer.addEventListener('click', handleTimelineClick);
 
             // Initial UI state
             renderEventLog();
@@ -962,7 +860,7 @@
             resetTimerAndLog = (function (originalReset) {
                 return function () {
                     originalReset();
-                    updateGameStateIndicator();
+                    // updateGameStateIndicator();
                 };
             })(resetTimerAndLog);
 
@@ -983,7 +881,6 @@
                     addVisualFeedbackToButtons();
                 };
             })(renderButtons);
-
 
         }
 
