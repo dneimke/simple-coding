@@ -596,7 +596,14 @@
             hasCurrentGame: false, // New property to track if there is a current game
             get isActive() {
                 return this.isRunning || this.elapsedTime > 0;
-            }
+            },
+            setGameState({ loggedEvents = [], elapsedTime = 0, hasCurrentGame = false }) {
+                this.loggedEvents = loggedEvents;
+                this.elapsedTime = elapsedTime;
+                this.hasCurrentGame = hasCurrentGame;
+                renderEventLog();
+                renderTimeline();
+            },
         };
 
         // Update references to use currentGameState
@@ -1078,11 +1085,11 @@
                         loadButton.className = 'event-button btn-blue px-4 py-2 text-sm';
                         loadButton.textContent = 'Load';
                         loadButton.addEventListener('click', () => {
-                            currentGameState.loggedEvents = game.events;
-                            currentGameState.elapsedTime = game.elapsedTime || 0;
-                            currentGameState.hasCurrentGame = true; // Mark as having a current game
-                            renderEventLog();
-                            renderTimeline(); // Populate the timeline
+                            currentGameState.setGameState({
+                                loggedEvents: game.events,
+                                elapsedTime: game.elapsedTime || 0,
+                                hasCurrentGame: true
+                            });
                             console.log(`Game ${index + 1} loaded successfully.`);
                             showView('timeline'); // Navigate to the Timeline View
                         });
