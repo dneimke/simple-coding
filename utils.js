@@ -221,3 +221,21 @@ export function showMessage(element, message, isError = false) {
         element.classList.add('hidden');
     }, 5000);
 }
+
+export function getFromLocalStorage(key) {
+    try {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : null;
+    } catch (error) {
+        console.error(`Error getting data from localStorage for key: ${key}`, error);
+        return null;
+    }
+}
+
+export function setToLocalStorage(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        console.error(`Error setting data to localStorage for key: ${key}`, error);
+    }
+}

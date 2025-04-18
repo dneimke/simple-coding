@@ -134,7 +134,7 @@
         import {
             createButton, createGameCard, copyXmlToClipboard, renderStatistics, computeGameStatistics, generatePlainXml, createLogEntry,
             escapeXml, formatTime, loadConfig, saveConfig,
-            updateNavbarVisibility, showMessage
+            updateNavbarVisibility, showMessage, getFromLocalStorage, setToLocalStorage
         } from './utils.js';
 
         // --- Constants & Config --- (Updated)
@@ -464,7 +464,7 @@
             savedGamesList.innerHTML = '';
 
             try {
-                const savedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
+                const savedGames = getFromLocalStorage(LOCAL_STORAGE_KEY_GAMES) || [];
                 if (savedGames.length > 0) {
                     savedGames.forEach((game, index) => {
                         const gameCard = createGameCard({
@@ -493,7 +493,7 @@
                             onDelete: () => {
                                 if (confirm('Are you sure you want to delete this saved game?')) {
                                     savedGames.splice(index, 1);
-                                    localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(savedGames));
+                                    setToLocalStorage(LOCAL_STORAGE_KEY_GAMES, savedGames);
                                     renderSavedGamesList();
                                 }
                             }
@@ -604,7 +604,7 @@
         // --- Run Initialization
         initApp();
 
-        // Modify saveGameToLocalStorage to retain up to the last 5 saved games
+
         function saveGameToLocalStorage() {
             const gameData = {
                 events: currentGameState.loggedEvents,
@@ -613,7 +613,7 @@
             };
 
             try {
-                const savedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
+                const savedGames = getFromLocalStorage(LOCAL_STORAGE_KEY_GAMES) || [];
                 savedGames.push(gameData);
 
                 // Retain only the last 5 games
@@ -621,7 +621,7 @@
                     savedGames.shift();
                 }
 
-                localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(savedGames));
+                setToLocalStorage(LOCAL_STORAGE_KEY_GAMES, savedGames);
                 console.log('Game saved successfully.');
             } catch (error) {
                 console.error('Error saving game to localStorage:', error);
