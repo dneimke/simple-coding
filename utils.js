@@ -207,3 +207,17 @@ export function updateNavbarVisibility(currentGameState) {
         button.classList.toggle('hidden', !currentGameState.hasCurrentGame);
     });
 }
+
+export function showMessage(element, message, isError = false) {
+    element.textContent = message;
+    element.className = 'config-message';
+    if (isError) {
+        element.classList.add('config-error');
+    } else {
+        element.classList.add('config-success');
+    }
+    element.classList.remove('hidden');
+    setTimeout(() => {
+        element.classList.add('hidden');
+    }, 5000);
+}

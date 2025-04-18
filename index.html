@@ -134,7 +134,7 @@
         import {
             createButton, createGameCard, copyXmlToClipboard, renderStatistics, computeGameStatistics, generatePlainXml, createLogEntry,
             escapeXml, formatTime, loadConfig, saveConfig,
-            updateNavbarVisibility
+            updateNavbarVisibility, showMessage
         } from './utils.js';
 
         // --- Constants & Config --- (Updated)
@@ -402,20 +402,6 @@
             }
         }
 
-        function showConfigMessage(message, isError = false) {
-            configMessage.textContent = message;
-            configMessage.className = 'config-message';
-            if (isError) {
-                configMessage.classList.add('config-error');
-            } else {
-                configMessage.classList.add('config-success');
-            }
-            configMessage.classList.remove('hidden');
-            setTimeout(() => {
-                configMessage.classList.add('hidden');
-            }, 5000);
-        }
-
         /** Renders button groups and buttons based on config into a single column */
         function renderButtons(config) {
 
@@ -579,8 +565,8 @@
                 showView('saved-games');
             });
 
-            saveConfigButton.addEventListener('click', () => { try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG)) { showConfigMessage("Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage("Failed to save configuration.", true); } } else { showConfigMessage("Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(`Error parsing JSON: ${error.message}`, true); } });
-            loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showConfigMessage("Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
+            saveConfigButton.addEventListener('click', () => { try { const jsonString = configJsonInput.value; const parsedConfig = JSON.parse(jsonString); if (parsedConfig && Array.isArray(parsedConfig.leftColumn) && Array.isArray(parsedConfig.rightColumn)) { if (saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG)) { showMessage(configMessage, "Configuration saved successfully!", false); renderButtons(parsedConfig); } else { showConfigMessage(configMessage, "Failed to save configuration.", true); } } else { showConfigMessage(configMessage, "Invalid configuration structure. Please check the JSON format.", true); } } catch (error) { console.error("Invalid JSON:", error); showConfigMessage(configMessage, `Error parsing JSON: ${error.message}`, true); } });
+            loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showConfigMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
 
             // Initial UI state
             renderEventLog();
