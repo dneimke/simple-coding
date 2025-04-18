@@ -394,6 +394,12 @@
             font-size: 0.875rem;
             color: #6b7280;
         }
+
+        /* Add scrollable behavior to the List View when height exceeds 22rem */
+        #listView {
+            max-height: 22rem;
+            overflow-y: auto;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -417,8 +423,8 @@
                 <button id="navLog" class="text-gray-400 hover:text-blue-300 font-medium">Log</button>
                 <button id="navSavedGames" class="text-gray-400 hover:text-blue-300 font-medium">Saved Games</button>
             </div>
-            <a href="https://github.com/dneimke/simple-coding" target="_blank"
-                class="text-gray-200 hover:text-blue-300">
+            <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
+                title="Visit the GitHub repository" class="text-gray-200 hover:text-blue-300">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
                     <path
                         d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.207 11.387.6.113.793-.263.793-.587 0-.287-.012-1.243-.018-2.253-3.338.725-4.042-1.613-4.042-1.613-.546-1.387-1.333-1.756-1.333-1.756-1.09-.744.083-.729.083-.729 1.204.087 1.837 1.237 1.837 1.237 1.07 1.833 2.807 1.303 3.492.996.108-.775.42-1.303.763-1.603-2.665-.303-5.467-1.333-5.467-5.933 0-1.31.468-2.382 1.237-3.222-.123-.303-.537-1.523.117-3.176 0 0 1.01-.324 3.3 1.23a11.5 11.5 0 013.003-.403c1.02.005 2.047.137 3.003.403 2.29-1.554 3.3-1.23 3.3-1.23.654 1.653.24 2.873.117 3.176.768.84 1.236 1.912 1.236 3.222 0 4.61-2.807 5.625-5.478 5.922.432.372.816 1.102.816 2.222 0 1.606-.015 2.898-.015 3.293 0 .324.192.705.798.586C20.565 21.797 24 17.297 24 12c0-6.63-5.37-12-12-12z" />
@@ -523,14 +529,14 @@
 
     </div>
     <script>
-        // --- Constants & Config ---
+        // --- Constants & Config --- (Unchanged)
         const LOCAL_STORAGE_KEY = 'fieldHockeyConfig_v1';
         const DEFAULT_CONFIG = { /* ... (as before) ... */
             leftColumn: [{ gridCols: "grid-cols-2", buttons: [{ event: "OUTLET", text: "OUTLET", color: "btn-blue" }, { event: "PRESS", text: "PRESS", color: "btn-blue" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "DEF 25 ENTRY", text: "DEF 25 ENTRY", color: "btn-red" }, { event: "DEF CIRC ENTRY", text: "DEF CIRC ENTRY", color: "btn-red" }, { event: "SHOT AG", text: "SHOT AG", color: "btn-red" }, { event: "GOAL AG", text: "GOAL AG", color: "btn-red" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "ATT 25 ENTRY", text: "ATT 25 ENTRY", color: "btn-green" }, { event: "ATT CIRC ENTRY", text: "ATT CIRC ENTRY", color: "btn-green" }, { event: "SHOT FOR", text: "SHOT FOR", color: "btn-green" }, { event: "GOAL FOR", text: "GOAL FOR", color: "btn-green" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "APC", text: "APC", color: "btn-blue" }, { event: "DPC", text: "DPC", color: "btn-blue" }, { event: "STROKE", text: "STROKE", color: "btn-blue" }, { event: "1V1", text: "1V1", color: "btn-blue" }] }, { gridCols: "grid-cols-5", buttons: [{ event: "3 PASS", text: "3 PASS", color: "btn-yellow" }, { event: "TACKLE", text: "TACKLE", color: "btn-yellow" }, { event: "DEF", text: "DEF", color: "btn-yellow" }, { event: "MF", text: "MF", color: "btn-yellow" }, { event: "ATT", text: "ATT", color: "btn-yellow" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "OVERHEAD FOR", text: "OVERHEAD FOR", color: "btn-blue" }, { event: "OVERHEAD AG", text: "OVERHEAD AG", color: "btn-blue" }, { event: "CIRC-DEF", text: "CIRC-DEF", color: "btn-blue" }, { event: "CLOSE-BASE", text: "CLOSE-BASE", color: "btn-blue" }] }, { gridCols: "grid-cols-4", buttons: [{ event: "P1", text: "P1", color: "btn-blue" }, { event: "P2", text: "P2", color: "btn-blue" }, { event: "P3", text: "P3", color: "btn-blue" }, { event: "P4", text: "P4", color: "btn-blue" }] }, { gridCols: "grid-cols-3", buttons: [{ event: "CARD", text: "CARD", color: "btn-green" }, { event: "INJURY", text: "INJURY", color: "btn-green" }, { event: "WHISTLE", text: "WHISTLE", color: "btn-green" }] }],
             rightColumn: []
         };
 
-        // --- DOM Elements ---
+        // --- DOM Elements --- (Unchanged)
         const timerDisplay = document.getElementById('timer');
         const startStopButton = document.getElementById('startStopButton');
         const clearLogButton = document.getElementById('clearLogButton');
@@ -540,7 +546,7 @@
         const xmlViewPanel = document.getElementById('xmlView');
         const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
         const copyXmlButton = document.getElementById('copyXmlButton');
-        // --- Updated button container reference ---
+        // --- Updated button container reference --- (Unchanged)
         const allButtonGroupsContainer = document.getElementById('all-button-groups-container');
         const navTracker = document.getElementById('navTracker');
         const navConfig = document.getElementById('navConfig');
@@ -561,7 +567,7 @@
         const timelineContainer = document.getElementById('timelineContainer');
         const timelineMessage = document.getElementById('timelineMessage');
 
-        // Ensure savedGamesView is defined and initialized
+        // Ensure savedGamesView is defined and initialized (Unchanged)
         const savedGamesView = document.getElementById('saved-games-view');
 
         // --- State Variables --- (Unchanged)
@@ -699,7 +705,7 @@
         function renderTimeline() { timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); }); }
         function handleTimelineClick(e) { if (e.target.classList.contains('timeline-marker')) { const seekTime = parseFloat(e.target.dataset.time); if (!isNaN(seekTime) && videoPlayer.readyState >= 1) { videoPlayer.currentTime = seekTime; } else { console.warn("Video not ready or invalid seek time:", seekTime); } } }
 
-        // --- Initialization ---
+        // --- Initialization --- (Unchanged)
         function initApp() {
             const currentConfig = loadConfig();
             renderButtons(currentConfig);
@@ -854,7 +860,7 @@
             updateCompleteButtonVisibility();
         }
 
-        // --- Run Initialization ---
+        // --- Run Initialization --- (Unchanged)
         initApp();
 
         // Modify saveGameToLocalStorage to retain up to the last 5 saved games
@@ -880,7 +886,7 @@
             }
         }
 
-        // Enhance Saved Games list with icons and colors
+        // Add a delete button to each saved game card
         function renderSavedGamesList() {
             const savedGamesList = document.getElementById('savedGamesList');
             savedGamesList.innerHTML = '';
@@ -922,9 +928,21 @@
                             showView('timeline'); // Navigate to the Timeline View
                         });
 
+                        const deleteButton = document.createElement('button');
+                        deleteButton.className = 'event-button btn-red px-4 py-2 text-sm ml-2';
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.addEventListener('click', () => {
+                            if (confirm('Are you sure you want to delete this saved game?')) {
+                                savedGames.splice(index, 1);
+                                localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(savedGames));
+                                renderSavedGamesList();
+                            }
+                        });
+
                         gameCard.appendChild(icon);
                         gameCard.appendChild(gameDetails);
                         gameCard.appendChild(loadButton);
+                        gameCard.appendChild(deleteButton);
                         savedGamesList.appendChild(gameCard);
                     });
                 } else {
