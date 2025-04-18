@@ -418,18 +418,24 @@
         <nav class="border-b border-gray-700 flex justify-between items-center bg-blue-950 text-white p-4">
             <div class="flex space-x-4">
                 <button id="navTracker" class="text-gray-200 hover:text-blue-300">Tracker</button>
-                <button id="navConfig" class="text-gray-400 hover:text-blue-300 font-medium">Configure</button>
-                <button id="navTimeline" class="text-gray-400 hover:text-blue-300 font-medium">Timeline</button>
-                <button id="navLog" class="text-gray-400 hover:text-blue-300 font-medium">Log</button>
-                <button id="navSavedGames" class="text-gray-400 hover:text-blue-300 font-medium">Saved Games</button>
+                <button id="navStats" class="text-gray-400 hover:text-blue-300 font-medium hidden"
+                    data-requires-game>Statistics</button>
+                <button id="navLog" class="text-gray-400 hover:text-blue-300 font-medium hidden"
+                    data-requires-game>Log</button>
+                <button id="navTimeline" class="text-gray-400 hover:text-blue-300 font-medium hidden"
+                    data-requires-game>Timeline</button>
             </div>
-            <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
-                title="Visit the GitHub repository" class="text-gray-200 hover:text-blue-300">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
-                    <path
-                        d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.207 11.387.6.113.793-.263.793-.587 0-.287-.012-1.243-.018-2.253-3.338.725-4.042-1.613-4.042-1.613-.546-1.387-1.333-1.756-1.333-1.756-1.09-.744.083-.729.083-.729 1.204.087 1.837 1.237 1.837 1.237 1.07 1.833 2.807 1.303 3.492.996.108-.775.42-1.303.763-1.603-2.665-.303-5.467-1.333-5.467-5.933 0-1.31.468-2.382 1.237-3.222-.123-.303-.537-1.523.117-3.176 0 0 1.01-.324 3.3 1.23a11.5 11.5 0 013.003-.403c1.02.005 2.047.137 3.003.403 2.29-1.554 3.3-1.23 3.3-1.23.654 1.653.24 2.873.117 3.176.768.84 1.236 1.912 1.236 3.222 0 4.61-2.807 5.625-5.478 5.922.432.372.816 1.102.816 2.222 0 1.606-.015 2.898-.015 3.293 0 .324.192.705.798.586C20.565 21.797 24 17.297 24 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-            </a>
+            <div class="flex space-x-4 items-center">
+                <button id="navSavedGames" class="text-gray-400 hover:text-blue-300 font-medium">Saved Games</button>
+                <button id="navConfig" class="text-gray-400 hover:text-blue-300 font-medium">Configure</button>
+                <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
+                    title="Visit the GitHub repository" class="text-gray-200 hover:text-blue-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
+                        <path
+                            d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.207 11.387.6.113.793-.263.793-.587 0-.287-.012-1.243-.018-2.253-3.338.725-4.042-1.613-4.042-1.613-.546-1.387-1.333-1.756-1.333-1.756-1.09-.744.083-.729.083-.729 1.204.087 1.837 1.237 1.837 1.237 1.07 1.833 2.807 1.303 3.492.996.108-.775.42-1.303.763-1.603-2.665-.303-5.467-1.333-5.467-5.933 0-1.31.468-2.382 1.237-3.222-.123-.303-.537-1.523.117-3.176 0 0 1.01-.324 3.3 1.23a11.5 11.5 0 013.003-.403c1.02.005 2.047.137 3.003.403 2.29-1.554 3.3-1.23 3.3-1.23.654 1.653.24 2.873.117 3.176.768.84 1.236 1.912 1.236 3.222 0 4.61-2.807 5.625-5.478 5.922.432.372.816 1.102.816 2.222 0 1.606-.015 2.898-.015 3.293 0 .324.192.705.798.586C20.565 21.797 24 17.297 24 12c0-6.63-5.37-12-12-12z" />
+                    </svg>
+                </a>
+            </div>
         </nav>
 
         <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl">
@@ -518,6 +524,15 @@
                 </div>
             </div>
 
+            <!-- New Statistics View -->
+            <div id="stats-view" class="hidden">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Game Statistics</h1>
+                <div id="statsContainer" class="overflow-x-auto">
+                    <!-- Statistics table will be injected here -->
+                </div>
+                <button id="backToLogButton" class="event-button btn-gray mt-4">Back to Log</button>
+            </div>
+
             <!-- Move the Saved Games view to its own dedicated view -->
             <div id="saved-games-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Saved Games</h1>
@@ -544,6 +559,7 @@
         const tabButtonXml = document.getElementById('tabButtonXml');
         const listViewPanel = document.getElementById('listView');
         const xmlViewPanel = document.getElementById('xmlView');
+        const statsView = document.getElementById('stats-view');
         const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
         const copyXmlButton = document.getElementById('copyXmlButton');
         // --- Updated button container reference --- (Unchanged)
@@ -570,7 +586,7 @@
         // Ensure savedGamesView is defined and initialized (Unchanged)
         const savedGamesView = document.getElementById('saved-games-view');
 
-        // --- State Variables --- (Unchanged)
+        // --- State Variables --- (Updated)
         let timerInterval = null;
         let startTime = 0;
         let elapsedTime = 0;
@@ -579,9 +595,60 @@
         let eventButtons = [];
         let currentVideoURL = null;
         let videoDuration = 0;
+        let gameStatistics = {}; // To store statistics for the current game
 
-        // --- Functions --- (Only renderButtons updated significantly)
+        // --- Functions --- (New and Updated)
 
+        /**
+         * Compute game statistics based on logged events.
+         */
+        function computeGameStatistics() {
+            gameStatistics = loggedEvents.reduce((stats, event) => {
+                stats[event.event] = (stats[event.event] || 0) + 1;
+                return stats;
+            }, {});
+        }
+
+        /**
+         * Render the game statistics view.
+         */
+        function renderGameStatistics() {
+            const statsView = document.getElementById('stats-view');
+            statsView.innerHTML = ''; // Clear previous content
+
+            if (Object.keys(gameStatistics).length === 0) {
+                statsView.innerHTML = '<p class="text-gray-500 text-center">No statistics available. Record events to see statistics.</p>';
+                return;
+            }
+
+            const statsTable = document.createElement('table');
+            statsTable.className = 'w-full text-left border-collapse';
+
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th class="border-b p-2">Event</th><th class="border-b p-2">Count</th>';
+            statsTable.appendChild(headerRow);
+
+            Object.entries(gameStatistics)
+                .sort(([eventA], [eventB]) => eventA.localeCompare(eventB))
+                .forEach(([event, count]) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td class="border-b p-2">${escapeXml(event)}</td><td class="border-b p-2">${count}</td>`;
+                    statsTable.appendChild(row);
+                });
+
+            statsView.appendChild(statsTable);
+        }
+
+        /**
+         * Show the statistics view and compute statistics if needed.
+         */
+        function showStatisticsView() {
+            computeGameStatistics();
+            renderGameStatistics();
+            showView('statistics');
+        }
+
+        // --- Functions Continued --- (Unchanged)
         function formatTime(timeMs) { const totalSeconds = Math.floor(timeMs / 1000); const minutes = Math.floor(totalSeconds / 60); const seconds = totalSeconds % 60; return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; }
         function updateTimer() { const currentTime = Date.now(); const currentElapsedTime = isRunning ? elapsedTime + (currentTime - startTime) : elapsedTime; timerDisplay.textContent = formatTime(currentElapsedTime); }
         function startTimer() { if (isRunning) return; startTime = Date.now(); timerInterval = setInterval(updateTimer, 100); isRunning = true; startStopButton.textContent = 'Pause Game'; startStopButton.classList.remove('btn-green'); startStopButton.classList.add('btn-yellow'); startStopButton.style.color = '#000000'; enableEventButtons(true); }
@@ -600,9 +667,10 @@
             configView.classList.add('hidden');
             timelineView.classList.add('hidden');
             logView.classList.add('hidden');
+            statsView.classList.add('hidden');
             savedGamesView.classList.add('hidden');
 
-            const navButtons = [navTracker, navConfig, navTimeline, navLog, navSavedGames];
+            const navButtons = [navTracker, navStats, navLog, navTimeline, navSavedGames, navConfig];
             navButtons.forEach(button => {
                 button.classList.remove('text-white', 'hover:text-white');
                 button.classList.add('text-gray-400', 'hover:text-blue-300');
@@ -626,6 +694,9 @@
                 activeView = logView;
                 activeButton = navLog;
                 renderEventLog();
+            } else if (viewToShow === 'statistics') {
+                activeView = statsView;
+                activeButton = navStats;
             } else if (viewToShow === 'saved-games') {
                 activeView = savedGamesView;
                 activeButton = navSavedGames;
@@ -705,7 +776,7 @@
         function renderTimeline() { timelineContainer.innerHTML = ''; timelineContainer.appendChild(timelineMessage); if (!videoDuration || videoDuration <= 0) { timelineMessage.textContent = 'Load a video to view timeline.'; timelineMessage.classList.remove('hidden'); return; } if (loggedEvents.length === 0) { timelineMessage.textContent = 'No events recorded yet.'; timelineMessage.classList.remove('hidden'); return; } timelineMessage.classList.add('hidden'); const eventsByType = loggedEvents.reduce((acc, event) => { if (!acc[event.event]) { acc[event.event] = []; } acc[event.event].push(event); return acc; }, {}); const sortedEventTypes = Object.keys(eventsByType).sort(); sortedEventTypes.forEach(eventType => { const row = document.createElement('div'); row.className = 'timeline-row'; const label = document.createElement('div'); label.className = 'timeline-label'; label.textContent = eventType; label.title = eventType; const track = document.createElement('div'); track.className = 'timeline-track'; eventsByType[eventType].forEach(event => { const marker = document.createElement('div'); marker.className = 'timeline-marker'; const eventTimeSeconds = event.timeMs / 1000; const seekTime = Math.max(0, eventTimeSeconds - 5); marker.dataset.time = seekTime; const positionPercent = (event.timeMs / (videoDuration * 1000)) * 100; marker.style.left = `${positionPercent}%`; marker.title = `${eventType} at ${formatTime(event.timeMs)}`; track.appendChild(marker); }); row.appendChild(label); row.appendChild(track); timelineContainer.appendChild(row); }); }
         function handleTimelineClick(e) { if (e.target.classList.contains('timeline-marker')) { const seekTime = parseFloat(e.target.dataset.time); if (!isNaN(seekTime) && videoPlayer.readyState >= 1) { videoPlayer.currentTime = seekTime; } else { console.warn("Video not ready or invalid seek time:", seekTime); } } }
 
-        // --- Initialization --- (Unchanged)
+        // --- Initialization --- (Updated)
         function initApp() {
             const currentConfig = loadConfig();
             renderButtons(currentConfig);
@@ -717,6 +788,7 @@
             tabButtonXml.addEventListener('click', () => switchTab('xmlView'));
             copyXmlButton.addEventListener('click', copyXmlToClipboard);
             navTracker.addEventListener('click', () => showView('tracker'));
+            navStats.addEventListener('click', showStatisticsView);
             navConfig.addEventListener('click', () => showView('config'));
             navTimeline.addEventListener('click', () => showView('timeline'));
             navLog.addEventListener('click', () => showView('log'));
@@ -913,8 +985,13 @@
                         gameTimestamp.className = 'text-sm text-gray-600';
                         gameTimestamp.textContent = `Saved on: ${new Date(game.timestamp).toLocaleString()}`;
 
+                        const eventCount = document.createElement('p');
+                        eventCount.className = 'text-sm text-gray-600';
+                        eventCount.textContent = `Events: ${game.events.length}`;
+
                         gameDetails.appendChild(gameTitle);
                         gameDetails.appendChild(gameTimestamp);
+                        gameDetails.appendChild(eventCount);
 
                         const loadButton = document.createElement('button');
                         loadButton.className = 'event-button btn-blue px-4 py-2 text-sm';
@@ -957,6 +1034,29 @@
         // Add back button functionality
         const backToTrackerButton = document.getElementById('backToTrackerButton');
         backToTrackerButton.addEventListener('click', () => showView('tracker'));
+
+        // Add back to log button functionality in stats view
+        const backToLogButton = document.getElementById('backToLogButton');
+        backToLogButton.addEventListener('click', () => showView('log'));
+
+        function updateNavbarVisibility() {
+            const requiresGameButtons = document.querySelectorAll('[data-requires-game]');
+            requiresGameButtons.forEach(button => {
+                button.classList.toggle('hidden', elapsedTime === 0 && !isRunning);
+            });
+        }
+
+        // Update navbar visibility on game state changes
+        startStopButton.addEventListener('click', updateNavbarVisibility);
+        resetTimerAndLog = (function (originalReset) {
+            return function () {
+                originalReset();
+                updateNavbarVisibility();
+            };
+        })(resetTimerAndLog);
+
+        // Initial visibility update
+        updateNavbarVisibility();
 
     </script>
 
