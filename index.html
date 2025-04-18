@@ -747,9 +747,124 @@
             enableEventButtons(currentGameState.isActive);
         }
 
+        // --- Reusable Components ---
+        function createButton({ text, className, onClick }) {
+            const button = document.createElement('button');
+            button.className = className;
+            button.textContent = text;
+            if (onClick) {
+                button.addEventListener('click', onClick);
+            }
+            return button;
+        }
+
+        function createGameCard({ game, index, onLoad, onDelete }) {
+            const gameCard = document.createElement('div');
+            gameCard.className = 'saved-game-card flex items-center p-4 mb-4 bg-gray-100 rounded-lg shadow-md hover:shadow-lg transition-shadow';
+
+            const icon = document.createElement('div');
+            icon.className = 'saved-game-icon flex-shrink-0 w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center mr-4';
+            icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c.828 0 1.5-.672 1.5-1.5S12.828 5 12 5s-1.5.672-1.5 1.5S11.172 8 12 8zm0 0v8m0 0H9m3 0h3" /></svg>';
+
+            const gameDetails = document.createElement('div');
+            gameDetails.className = 'saved-game-details flex-grow';
+
+            const gameTitle = document.createElement('h3');
+            gameTitle.className = 'text-lg font-bold text-gray-800';
+            gameTitle.textContent = `Game ${index + 1}`;
+
+            const gameTimestamp = document.createElement('p');
+            gameTimestamp.className = 'text-sm text-gray-600';
+            gameTimestamp.textContent = `Saved on: ${new Date(game.timestamp).toLocaleString()}`;
+
+            const eventCount = document.createElement('p');
+            eventCount.className = 'text-sm text-gray-600';
+            eventCount.textContent = `Events: ${game.events.length}`;
+
+            gameDetails.appendChild(gameTitle);
+            gameDetails.appendChild(gameTimestamp);
+            gameDetails.appendChild(eventCount);
+
+            const loadButton = createButton({
+                text: 'Load',
+                className: 'event-button btn-blue px-4 py-2 text-sm',
+                onClick: onLoad
+            });
+
+            const deleteButton = createButton({
+                text: 'Delete',
+                className: 'event-button btn-red px-4 py-2 text-sm ml-2',
+                onClick: onDelete
+            });
+
+            gameCard.appendChild(icon);
+            gameCard.appendChild(gameDetails);
+            gameCard.appendChild(loadButton);
+            gameCard.appendChild(deleteButton);
+
+            return gameCard;
+        }
+
+        function createLogEntry({ event, time }) {
+            const logItem = document.createElement('div');
+            logItem.className = 'event-log-item';
+            logItem.innerHTML = `<span class="font-medium text-gray-700">${escapeXml(event)}</span> <span class="text-gray-500">${formatTime(time)}</span>`;
+            return logItem;
+        }
+
+        // --- Refactored Functions ---
+        function renderSavedGamesList() {
+            const savedGamesList = document.getElementById('savedGamesList');
+            savedGamesList.innerHTML = '';
+
+            try {
+                const savedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
+                if (savedGames.length > 0) {
+                    savedGames.forEach((game, index) => {
+                        const gameCard = createGameCard({
+                            game,
+                            index,
+                            onLoad: () => {
+                                if (currentGameState.isRunning) {
+                                    if (confirm('A game is currently in progress. Do you want to stop it and load the saved game?')) {
+                                        pauseTimer();
+                                    } else {
+                                        return;
+                                    }
+                                }
+
+                                initializeNewGame({
+                                    loggedEvents: [...game.events],
+                                    elapsedTime: 0,
+                                    hasCurrentGame: true,
+                                    isActive: false,
+                                });
+
+                                console.log(`Game ${index + 1} loaded successfully.`);
+                                showView('statistics');
+                            },
+                            onDelete: () => {
+                                if (confirm('Are you sure you want to delete this saved game?')) {
+                                    savedGames.splice(index, 1);
+                                    localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(savedGames));
+                                    renderSavedGamesList();
+                                }
+                            }
+                        });
+
+                        savedGamesList.appendChild(gameCard);
+                    });
+                } else {
+                    savedGamesList.innerHTML = '<p class="text-gray-500 text-center">No saved games available.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading games from localStorage:', error);
+                savedGamesList.innerHTML = '<p class="text-red-500 text-center">Failed to load saved games.</p>';
+            }
+        }
 
         function renderEventLog() {
-            loggedEvents = currentGameState.loggedEvents;
+            const loggedEvents = currentGameState.loggedEvents;
             const logIsEmpty = loggedEvents.length === 0;
 
             if (logIsEmpty) {
@@ -761,15 +876,14 @@
             listViewPanel.innerHTML = '';
             xmlOutputContainer.innerHTML = '';
 
-            // Render List View
             loggedEvents.slice().reverse().forEach(logEntry => {
-                const logItem = document.createElement('div');
-                logItem.className = 'event-log-item';
-                logItem.innerHTML = `<span class="font-medium text-gray-700">${escapeXml(logEntry.event)}</span> <span class="text-gray-500">${formatTime(logEntry.timeMs)}</span>`;
+                const logItem = createLogEntry({
+                    event: logEntry.event,
+                    time: logEntry.timeMs
+                });
                 listViewPanel.appendChild(logItem);
             });
 
-            // Render XML View
             let styledXmlString = '';
             loggedEvents.forEach((logEntry, index) => {
                 const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000);
@@ -908,91 +1022,6 @@
                 console.log('Game saved successfully.');
             } catch (error) {
                 console.error('Error saving game to localStorage:', error);
-            }
-        }
-
-        // Add a delete button to each saved game card
-        function renderSavedGamesList() {
-            const savedGamesList = document.getElementById('savedGamesList');
-            savedGamesList.innerHTML = '';
-
-            try {
-                const savedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
-                if (savedGames.length > 0) {
-                    savedGames.forEach((game, index) => {
-                        const gameCard = document.createElement('div');
-                        gameCard.className = 'saved-game-card flex items-center p-4 mb-4 bg-gray-100 rounded-lg shadow-md hover:shadow-lg transition-shadow';
-
-                        const icon = document.createElement('div');
-                        icon.className = 'saved-game-icon flex-shrink-0 w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center mr-4';
-                        icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c.828 0 1.5-.672 1.5-1.5S12.828 5 12 5s-1.5.672-1.5 1.5S11.172 8 12 8zm0 0v8m0 0H9m3 0h3" /></svg>';
-
-                        const gameDetails = document.createElement('div');
-                        gameDetails.className = 'saved-game-details flex-grow';
-
-                        const gameTitle = document.createElement('h3');
-                        gameTitle.className = 'text-lg font-bold text-gray-800';
-                        gameTitle.textContent = `Game ${index + 1}`;
-
-                        const gameTimestamp = document.createElement('p');
-                        gameTimestamp.className = 'text-sm text-gray-600';
-                        gameTimestamp.textContent = `Saved on: ${new Date(game.timestamp).toLocaleString()}`;
-
-                        const eventCount = document.createElement('p');
-                        eventCount.className = 'text-sm text-gray-600';
-                        eventCount.textContent = `Events: ${game.events.length}`;
-
-                        gameDetails.appendChild(gameTitle);
-                        gameDetails.appendChild(gameTimestamp);
-                        gameDetails.appendChild(eventCount);
-
-                        const loadButton = document.createElement('button');
-                        loadButton.className = 'event-button btn-blue px-4 py-2 text-sm';
-                        loadButton.textContent = 'Load';
-
-                        loadButton.addEventListener('click', () => {
-                            if (currentGameState.isRunning) {
-                                if (confirm('A game is currently in progress. Do you want to stop it and load the saved game?')) {
-                                    pauseTimer();
-                                } else {
-                                    return; // User chose not to load the saved game
-                                }
-                            }
-
-                            initializeNewGame({
-                                loggedEvents: [...game.events],
-                                elapsedTime: 0,
-                                hasCurrentGame: true,
-                                isActive: false,
-                            });
-
-                            console.log(`Game ${index + 1} loaded successfully.`);
-                            showView('statistics');
-                        });
-
-                        const deleteButton = document.createElement('button');
-                        deleteButton.className = 'event-button btn-red px-4 py-2 text-sm ml-2';
-                        deleteButton.textContent = 'Delete';
-                        deleteButton.addEventListener('click', () => {
-                            if (confirm('Are you sure you want to delete this saved game?')) {
-                                savedGames.splice(index, 1);
-                                localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(savedGames));
-                                renderSavedGamesList();
-                            }
-                        });
-
-                        gameCard.appendChild(icon);
-                        gameCard.appendChild(gameDetails);
-                        gameCard.appendChild(loadButton);
-                        gameCard.appendChild(deleteButton);
-                        savedGamesList.appendChild(gameCard);
-                    });
-                } else {
-                    savedGamesList.innerHTML = '<p class="text-gray-500 text-center">No saved games available.</p>';
-                }
-            } catch (error) {
-                console.error('Error loading games from localStorage:', error);
-                savedGamesList.innerHTML = '<p class="text-red-500 text-center">Failed to load saved games.</p>';
             }
         }
 
