@@ -184,7 +184,7 @@ export function loadConfig(configKey, defaultConfig) {
 
 export function saveConfig(configObject, configKey) {
     try {
-        if (!configObject || typeof configObject !== 'object' || !Array.isArray(configObject.leftColumn) || !Array.isArray(configObject.rightColumn)) {
+        if (!configObject || typeof configObject !== 'object' || !Array.isArray(configObject.rowDefs)) {
             throw new Error("Invalid configuration object structure.");
         }
         localStorage.setItem(configKey, JSON.stringify(configObject));
