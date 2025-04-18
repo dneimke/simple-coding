@@ -365,47 +365,44 @@
         }
 
         function showView(viewToShow) {
-            trackerView.classList.add('hidden');
-            configView.classList.add('hidden');
-            logView.classList.add('hidden');
-            statsView.classList.add('hidden');
-            savedGamesView.classList.add('hidden');
+            const views = {
+                tracker: { view: trackerView, button: navTracker },
+                config: { view: configView, button: navConfig },
+                log: { view: logView, button: navLog },
+                statistics: { view: statsView, button: navStats },
+                'saved-games': { view: savedGamesView, button: navSavedGames },
+            };
 
-            const navButtons = [navTracker, navStats, navLog, navSavedGames, navConfig];
-            navButtons.forEach(button => {
+            // Hide all views and reset navigation button styles
+            Object.values(views).forEach(({ view, button }) => {
+                view.classList.add('hidden');
                 button.classList.remove('text-white', 'hover:text-white');
                 button.classList.add('text-gray-400', 'hover:text-white');
             });
 
             updateNavbarVisibility(currentGameState);
 
-            let activeView;
-            let activeButton;
-            if (viewToShow === 'tracker') {
-                activeView = trackerView;
-                activeButton = navTracker;
-            } else if (viewToShow === 'config') {
-                activeView = configView;
-                activeButton = navConfig;
+            const selectedView = views[viewToShow];
+            if (!selectedView) {
+                console.error(`Invalid view: ${viewToShow}`);
+                return;
+            }
+
+            // Show the selected view and highlight its button
+            selectedView.view.classList.remove('hidden');
+            selectedView.button.classList.add('text-white', 'hover:text-white');
+            selectedView.button.classList.remove('text-gray-400', 'hover:text-white');
+
+            // Additional logic for specific views
+            if (viewToShow === 'config') {
                 const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
                 configJsonInput.value = JSON.stringify(currentConfig, null, 2);
             } else if (viewToShow === 'log') {
-                activeView = logView;
-                activeButton = navLog;
                 renderEventLog();
             } else if (viewToShow === 'statistics') {
-                activeView = statsView;
-                activeButton = navStats;
                 renderStatistics('statsContainer', currentGameState);
             } else if (viewToShow === 'saved-games') {
-                activeView = savedGamesView;
-                activeButton = navSavedGames;
-            }
-
-            if (activeView && activeButton) {
-                activeView.classList.remove('hidden');
-                activeButton.classList.add('text-white', 'hover:text-white');
-                activeButton.classList.remove('text-gray-400', 'hover:text-white');
+                renderSavedGamesList();
             }
         }
 
