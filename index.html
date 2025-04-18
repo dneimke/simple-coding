@@ -247,12 +247,15 @@
                     return;
                 }
 
-                this.listContainer.innerHTML = events.map(event => `
-                    <div class="event-log-item">
-                        <span>${event.event}</span>
-                        <span>${event.timeMs}</span>
-                    </div>
-                `).join('');
+                this.listContainer.innerHTML = events.map(event => {
+                    const eventTime = new Date(event.timeMs).toISOString().substr(11, 8);
+                    return `
+                        <div class="event-log-item">
+                            <span>${event.event}</span>
+                            <span>${eventTime}</span>
+                        </div>
+                    `;
+                }).join('');
 
                 let styledXmlString = '';
                 events.forEach((logEntry, index) => {
