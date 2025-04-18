@@ -208,10 +208,6 @@
             },
         };
 
-        // Update references to use currentGameState
-        let eventButtons = [];
-
-        // Replace inline button creation with createButton function
         // Update button creation to pass element IDs to createButton
         createButton({
             id: 'newGameButton',
@@ -335,6 +331,8 @@
 
         function enableEventButtons(enable) {
             const logIsEmpty = currentGameState.loggedEvents.length === 0;
+            let eventButtons = document.querySelectorAll('.event-button[data-event]');
+
             eventButtons.forEach(button => {
                 button.disabled = !enable;
             });
@@ -406,10 +404,8 @@
             }
         }
 
-        /** Renders button groups and buttons based on config into a single column */
-        function renderButtons(config) {
+        function renderEventButtons(currentGame, config, targetContainer) {
 
-            const targetContainer = codingButtonsContainer;
             targetContainer.innerHTML = '';
 
             const renderGroup = (group) => {
@@ -445,14 +441,14 @@
                 config.rowDefs.forEach(renderGroup);
             }
 
-            eventButtons = document.querySelectorAll('.event-button[data-event]');
+            let eventButtons = document.querySelectorAll('.event-button[data-event]');
             eventButtons.forEach(button => {
                 button.removeEventListener('click', handleEventButtonClick);
                 button.addEventListener('click', handleEventButtonClick);
             });
 
             addVisualFeedbackToButtons(eventButtons);
-            enableEventButtons(currentGameState.isActive);
+            enableEventButtons(currentGame.isActive);
 
         }
 
@@ -568,7 +564,7 @@
                     if (parsedConfig && Array.isArray(parsedConfig.rowDefs)) {
                         if (saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG)) {
                             showMessage(configMessage, "Configuration saved successfully!", false);
-                            renderButtons(parsedConfig);
+                            renderEventButtons(currentGameState, parsedConfig, codingButtonsContainer);
                         } else {
                             showMessage(configMessage, "Failed to save configuration.", true);
                         }
@@ -588,7 +584,7 @@
 
             // Initial UI state
             renderEventLog();
-            renderButtons(currentConfig);
+            renderEventButtons(currentGameState, currentConfig, codingButtonsContainer);
             enableEventButtons(false);
             switchTab('listView');
             showView('tracker');
