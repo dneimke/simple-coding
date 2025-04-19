@@ -89,7 +89,9 @@ export const copyXmlToClipboard = (xmlContent) => {
 
 export const computeGameStatistics = (currentGame) => {
     return currentGame.loggedEvents.reduce((stats, event) => {
-        stats[event.event] = (stats[event.event] || 0) + 1;
+        if (event && event.event) { // Ensure event and event.event are defined
+            stats[event.event] = (stats[event.event] || 0) + 1;
+        }
         return stats;
     }, {});
 };
@@ -262,7 +264,9 @@ export function deleteSavedGame(index, storageKey) {
 export const parseXmlToEvents = (xmlContent) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
-    const events = Array.from(xmlDoc.getElementsByTagName('event')).map(node => {
+    const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
+
+    const events = eventNodes.map(node => {
         const eventName = node.getAttribute('name');
         const timeMs = node.getAttribute('timeMs');
 
@@ -303,26 +307,36 @@ export const validateXmlStructure = (xmlContent) => {
     return xmlDoc;
 };
 
+// Function to display a preview of parsed events in a modal, with an optional callback
+export const showPreview = (previewContainer, events, storageKey, callback = null) => {
 
-// // Step 4: Event Listener for File Upload
-// const importXmlButton = document.getElementById('importXmlButton');
-// const xmlFileInput = document.getElementById('xmlFileInput');
+    setupImportButtons(events, storageKey, callback);
+    previewContainer.innerHTML = events.map(event => `
+        <div class="event-preview p-4 border-b">
+            <p class="font-bold">Event: ${event.event}</p>
+            <p>Time (ms): ${event.timeMs}</p>
+        </div>
+    `).join('');
 
-// importXmlButton.addEventListener('click', () => {
-//     xmlFileInput.click();
-// });
+};
 
-// xmlFileInput.addEventListener('change', async (event) => {
-//     const file = event.target.files[0];
-//     if (file) {
-//         try {
-//             const xmlContent = await file.text();
-//             const xmlDoc = validateXmlStructure(xmlContent); // Validate XML structure
-//             const events = parseXmlToEvents(xmlDoc); // Parse validated XML
-//             showPreview(events); // Display preview of parsed events
-//         } catch (error) {
-//             console.error('Error importing XML:', error);
-//             alert(`Failed to import XML: ${error.message}`);
-//         }
-//     }
-// });
+// Function to set up the Confirm button's event listener, with an optional callback
+export const setupImportButtons = (parsedEvents, storageKey, callback = null) => {
+    const confirmButton = document.getElementById('confirmImportButton');
+    const cancelButton = document.getElementById('cancelImportButton');
+    cancelButton.onclick = () => {
+        document.getElementById('previewModal').classList.add('hidden');
+        if (callback) callback({ importedFileCount: 0 });
+        alert('Import canceled.');
+    };
+    confirmButton.onclick = () => {
+        saveGameToLocalStorage({
+            events: parsedEvents,
+            elapsedTime: 0,
+            timestamp: new Date().toISOString()
+        }, storageKey);
+        alert('XML imported successfully!');
+        document.getElementById('previewModal').classList.add('hidden');
+        if (callback) callback({ importedFileCount: 1 });
+    };
+};

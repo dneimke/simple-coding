@@ -1,4 +1,4 @@
-import { parseXmlToEvents, validateXmlStructure } from '../utils.js';
+import { parseXmlToEvents, validateXmlStructure, computeGameStatistics } from '../utils.js';
 
 // Mock DOM elements for tests
 beforeEach(() => {
@@ -58,5 +58,43 @@ describe('validateXmlStructure', () => {
         const validXml = '<game><event name="GOAL FOR" timeMs="120000" /></game>';
         const xmlDoc = validateXmlStructure(validXml);
         expect(xmlDoc).toBeInstanceOf(Document);
+    });
+});
+
+describe('computeGameStatistics', () => {
+    test('computes statistics for unique event types', () => {
+        const currentGame = { loggedEvents: [{ event: 'goal' }, { event: 'foul' }] };
+        const result = computeGameStatistics(currentGame);
+        expect(result).toEqual({ goal: 1, foul: 1 });
+    });
+
+    test('aggregates counts for repeated event types', () => {
+        const currentGame = { loggedEvents: [{ event: 'goal' }, { event: 'goal' }, { event: 'foul' }] };
+        const result = computeGameStatistics(currentGame);
+        expect(result).toEqual({ goal: 2, foul: 1 });
+    });
+
+    test('handles an empty loggedEvents array', () => {
+        const currentGame = { loggedEvents: [] };
+        const result = computeGameStatistics(currentGame);
+        expect(result).toEqual({});
+    });
+
+    test('handles a single event', () => {
+        const currentGame = { loggedEvents: [{ event: 'goal' }] };
+        const result = computeGameStatistics(currentGame);
+        expect(result).toEqual({ goal: 1 });
+    });
+
+    test('ignores events with undefined event properties', () => {
+        const currentGame = { loggedEvents: [{ event: 'goal' }, { event: undefined }, { event: 'foul' }] };
+        const result = computeGameStatistics(currentGame);
+        expect(result).toEqual({ goal: 1, foul: 1 });
+    });
+
+    test('handles a large number of events', () => {
+        const currentGame = { loggedEvents: Array(1000).fill({ event: 'goal' }) };
+        const result = computeGameStatistics(currentGame);
+        expect(result).toEqual({ goal: 1000 });
     });
 });

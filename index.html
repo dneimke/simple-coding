@@ -155,7 +155,8 @@
             showMessage,
             saveGameToLocalStorage, loadSavedGames, deleteSavedGame,
             loadConfig, saveConfig,
-            addVisualFeedbackToButtons
+            addVisualFeedbackToButtons,
+            validateXmlStructure, parseXmlToEvents, showPreview
         } from './utils.js';
 
         // --- Constants & Config --- (Updated)
@@ -182,6 +183,10 @@
         const codingButtonsContainer = document.getElementById('coding-buttons-container');
         const navContainer = document.querySelector('nav');
         const tabNavContainer = document.querySelector('#log-view nav');
+        const previewModal = document.getElementById('previewModal');
+        const previewContainer = document.getElementById('previewContainer');
+        const importXmlButton = document.getElementById('importXmlButton');
+        const xmlFileInput = document.getElementById('xmlFileInput');
 
         // Navigation Elements
         const navTracker = document.getElementById('navTracker');
@@ -491,6 +496,37 @@
             });
             loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
 
+            // Step 4: Event Listener for File Upload
+            importXmlButton.addEventListener('click', () => {
+                xmlFileInput.click();
+            });
+
+            xmlFileInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    try {
+                        const xmlContent = await file.text(); // Read the file content
+                        const xmlDoc = validateXmlStructure(xmlContent); // Validate XML structure
+                        const events = parseXmlToEvents(xmlContent); // Parse validated XML
+
+                        showPreview(previewContainer, events, LOCAL_STORAGE_KEY_GAMES, (e) => {
+                            if (e.importedFileCount > 0) {
+                                renderSavedGamesList();
+                            }
+                        });
+
+                        previewModal.classList.remove('hidden');
+                    } catch (error) {
+                        console.error('Error importing XML:', error);
+                        alert(`Failed to import XML: ${error.message}`); // Provide user feedback
+                    } finally {
+                        // Reset the file input to ensure the change event fires again
+                        xmlFileInput.value = '';
+                    }
+                }
+            });
+
+
             const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
 
             // Initial UI state
@@ -519,9 +555,19 @@
         const gameState = new GameState(timerDisplay);
         const eventButtonManager = new EventButtonManager(gameState, codingButtonsContainer);
         initApp();
-
-
     </script>
+
+    <!-- Step 5: Preview and Confirmation -->
+    <div id="previewModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4">Preview Imported Events</h2>
+            <div id="previewContainer" class="max-h-60 overflow-y-auto mb-4"></div>
+            <div class="flex justify-end">
+                <button id="confirmImportButton" class="event-button btn-green px-4 py-2 mr-2">Confirm</button>
+                <button id="cancelImportButton" class="event-button btn-red px-4 py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
 
 </body>
 
