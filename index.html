@@ -177,6 +177,8 @@
         const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
         const copyXmlButton = document.getElementById('copyXmlButton');
         const codingButtonsContainer = document.getElementById('coding-buttons-container');
+        const navContainer = document.querySelector('nav');
+        const tabNavContainer = document.querySelector('#log-view nav');
 
         // Navigation Elements
         const navTracker = document.getElementById('navTracker');
@@ -199,32 +201,23 @@
 
         // Handle New Game, Pause/Resume, and Complete Game Button Events
         const TrackerSessionControls = {
-            attachEventListeners() {
+            createControls() {
                 createButton({
                     id: 'newGameButton',
                     text: 'Start Game',
-                    className: 'event-button btn-green px-6 py-3 text-lg',
-                    onClick: () => {
-                        this.handleNewGame()
-                    }
+                    className: 'event-button btn-green px-6 py-3 text-lg'
                 });
 
                 createButton({
                     id: 'pauseResumeButton',
                     text: 'Pause',
-                    className: 'event-button btn-yellow px-6 py-3 text-lg hidden',
-                    onClick: () => {
-                        this.handlePauseResume()
-                    }
+                    className: 'event-button btn-yellow px-6 py-3 text-lg hidden'
                 });
 
                 createButton({
                     id: 'completeGameButton',
                     text: 'Complete',
-                    className: 'event-button btn-blue px-6 py-3 text-lg hidden',
-                    onClick: async () => {
-                        this.handleCompleteGame()
-                    }
+                    className: 'event-button btn-blue px-6 py-3 text-lg hidden'
                 });
             },
 
@@ -385,34 +378,92 @@
         function initApp() {
 
             // Attach listeners
-            tabButtonList.addEventListener('click', () => router.switchTab('listView'));
-            tabButtonXml.addEventListener('click', () => router.switchTab('xmlView'));
+            tabNavContainer.addEventListener('click', (event) => {
+                const button = event.target.closest('.tab-button');
+                if (!button) return; // Ignore clicks on unrelated elements
+
+                const tab = button.dataset.tab;
+                router.switchTab(tab);
+            });
+
+            // Attach a single event listener to the navigation container
+            navContainer.addEventListener('click', (event) => {
+                const { id } = event.target;
+
+                switch (id) {
+                    case 'navTracker':
+                        router.showView('tracker');
+                        break;
+                    case 'navStats':
+                        router.showView('statistics', () => {
+                            renderStatistics('statsContainer', gameState);
+                            copyXmlButton.disabled = gameState.loggedEvents.length === 0;
+                        });
+                        break;
+                    case 'navLog':
+                        router.showView('log', () => {
+                            eventLog.render(gameState.loggedEvents);
+                            copyXmlButton.disabled = gameState.loggedEvents.length === 0;
+                        });
+                        break;
+                    case 'navSavedGames':
+                        router.showView('saved-games', () => {
+                            renderSavedGamesList();
+                            copyXmlButton.disabled = gameState.loggedEvents.length === 0;
+                        });
+                        break;
+                    case 'navConfig':
+                        router.showView('config', () => {
+                            configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+                            showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
+                        });
+                        break;
+                    default:
+                        // Ignore clicks on unrelated elements
+                        break;
+                }
+            });
+
+            // Attach a single event listener to the coding-buttons-container
+            codingButtonsContainer.addEventListener('click', (event) => {
+                const button = event.target.closest('.event-button[data-event]');
+                if (!button) return; // Ignore clicks on unrelated elements
+
+                const eventName = button.dataset.event;
+                const currentElapsedTimeMs = gameState.isRunning
+                    ? gameState.elapsedTime + (Date.now() - gameState.startTime)
+                    : gameState.elapsedTime;
+
+                gameState.addEvent({ event: eventName, timeMs: currentElapsedTimeMs });
+                eventLog.render(gameState.loggedEvents);
+            });
+
+            // Attach a single event listener to the tracker-view container
+            trackerView.addEventListener('click', (event) => {
+                const { id } = event.target;
+
+                switch (id) {
+                    case 'newGameButton':
+                        TrackerSessionControls.handleNewGame();
+                        break;
+                    case 'pauseResumeButton':
+                        TrackerSessionControls.handlePauseResume();
+                        break;
+                    case 'completeGameButton':
+                        TrackerSessionControls.handleCompleteGame();
+                        break;
+                    default:
+                        // Ignore clicks on unrelated elements
+                        break;
+                }
+            });
+
+            // Special handling for the SaveToXML and CopyToClipboard buttons
+
             copyXmlButton.addEventListener('click', () => {
                 const xmlContent = xmlOutputContainer.textContent;
                 copyXmlToClipboard(xmlContent);
             });
-
-            navTracker.addEventListener('click', () => router.showView('tracker'));
-
-            navStats.addEventListener('click', () => router.showView('statistics', () => {
-                renderStatistics('statsContainer', gameState);
-                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
-            }));
-
-            navConfig.addEventListener('click', () => router.showView('config', () => {
-                configJsonInput.value = JSON.stringify(currentConfig, null, 2);
-                showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
-            }));
-
-            navLog.addEventListener('click', () => router.showView('log', () => {
-                eventLog.render(gameState.loggedEvents);
-                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
-            }));
-
-            navSavedGames.addEventListener('click', () => router.showView('saved-games', () => {
-                renderSavedGamesList();
-                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
-            }));
 
             saveConfigButton.addEventListener('click', () => {
                 try {
@@ -421,7 +472,7 @@
                     if (parsedConfig && Array.isArray(parsedConfig.rowDefs)) {
                         if (saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG)) {
                             showMessage(configMessage, "Configuration saved successfully!", false);
-                            renderEventButtons(gameState, parsedConfig, codingButtonsContainer);
+                            eventButtonManager.renderEventButtons(parsedConfig);
                         } else {
                             showMessage(configMessage, "Failed to save configuration.", true);
                         }
@@ -442,7 +493,7 @@
             // Initial UI state
             eventLog.render(gameState.loggedEvents);
             eventButtonManager.renderEventButtons(currentConfig);
-            TrackerSessionControls.attachEventListeners();
+            TrackerSessionControls.createControls();
             router.showView('tracker');
             updateNavbarVisibility(gameState.hasCurrentGame);
         }
@@ -463,7 +514,7 @@
 
         const eventLog = new EventLog(listViewPanel, xmlOutputContainer);
         const gameState = new GameState(timerDisplay);
-        const eventButtonManager = new EventButtonManager(gameState, eventLog, codingButtonsContainer);
+        const eventButtonManager = new EventButtonManager(gameState, codingButtonsContainer);
         initApp();
 
 

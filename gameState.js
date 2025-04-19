@@ -56,7 +56,7 @@ export class GameState {
                 ? this.elapsedTime + (currentTime - this.startTime)
                 : this.elapsedTime;
             this.timerDisplay.textContent = formatTime(currentElapsedTime);
-        }, 100);
+        }, 1000);
         this.isRunning = true;
     }
 }

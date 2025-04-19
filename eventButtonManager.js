@@ -1,28 +1,18 @@
 import { addVisualFeedbackToButtons, logger } from './utils.js';
 
 export class EventButtonManager {
-    constructor(gameState, eventLog, targetContainer) {
+    constructor(gameState, targetContainer) {
         this.gameState = gameState;
-        this.eventLog = eventLog;
         this.targetContainer = targetContainer;
     }
 
     enableEventButtons() {
-        const logIsEmpty = this.gameState.loggedEvents.length === 0;
         const eventButtons = document.querySelectorAll('.event-button[data-event]');
         const isRunning = this.gameState.isActive && this.gameState.isRunning;
 
         eventButtons.forEach(button => {
             button.disabled = !isRunning;
         });
-        // copyXmlButton.disabled = logIsEmpty;
-    }
-
-    handleEventButtonClick(e) {
-        const eventName = e.target.dataset.event;
-        const currentElapsedTimeMs = this.gameState.isRunning ? this.gameState.elapsedTime + (Date.now() - this.gameState.startTime) : this.gameState.elapsedTime;
-        this.gameState.addEvent({ event: eventName, timeMs: currentElapsedTimeMs });
-        this.eventLog.render(this.gameState.loggedEvents);
     }
 
     renderEventButtons(config) {
@@ -61,12 +51,7 @@ export class EventButtonManager {
             config.rowDefs.forEach(renderGroup);
         }
 
-        const eventButtons = document.querySelectorAll('.event-button[data-event]');
-        eventButtons.forEach(button => {
-            button.removeEventListener('click', this.handleEventButtonClick.bind(this));
-            button.addEventListener('click', this.handleEventButtonClick.bind(this));
-        });
-
+        const eventButtons = this.targetContainer.querySelectorAll('.event-button[data-event]');
         addVisualFeedbackToButtons(eventButtons);
         this.enableEventButtons();
     }
