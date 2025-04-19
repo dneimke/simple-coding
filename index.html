@@ -188,10 +188,7 @@
         const saveConfigButton = document.getElementById('saveConfigButton');
         const loadDefaultConfigButton = document.getElementById('loadDefaultConfigButton');
         const configMessage = document.getElementById('configMessage');
-        const videoDropZone = document.getElementById('video-drop-zone');
-        const videoFileInput = document.getElementById('videoFile');
-        const videoFileName = document.getElementById('videoFileName');
-        const videoPlayer = document.getElementById('videoPlayer');
+
 
         class Router {
             constructor(views) {
@@ -221,9 +218,9 @@
                     const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
                     configJsonInput.value = JSON.stringify(currentConfig, null, 2);
                 } else if (viewToShow === 'log') {
-                    eventLog.render(currentGameState.loggedEvents);
+                    eventLog.render(gameState.loggedEvents);
                 } else if (viewToShow === 'statistics') {
-                    renderStatistics('statsContainer', currentGameState);
+                    renderStatistics('statsContainer', gameState);
                 } else if (viewToShow === 'saved-games') {
                     renderSavedGamesList();
                 }
@@ -269,23 +266,58 @@
             }
         }
 
-        // --- State Management
-        const currentGameState = {
-            loggedEvents: [],
-            isRunning: false,
-            elapsedTime: 0,
-            startTime: 0,
-            timerInterval: null,
-            hasCurrentGame: false,
-            isActive: false,
-            setGameState({ loggedEvents = [], elapsedTime = 0, hasCurrentGame = false, isActive = false }) {
-                this.loggedEvents = loggedEvents;
-                this.elapsedTime = elapsedTime;
-                this.hasCurrentGame = hasCurrentGame;
-                this.isActive = isActive;
-                eventLog.render(loggedEvents);
-            },
-        };
+        class GameState {
+            constructor(timerDisplay) {
+                this.timerDisplay = timerDisplay;
+                this.loggedEvents = [];
+                this.isRunning = false;
+                this.elapsedTime = 0;
+                this.startTime = 0;
+                this.timerInterval = null;
+                this.hasCurrentGame = false;
+                this.isActive = false;
+            }
+
+            setGameState(newState) {
+                Object.assign(this, newState);
+                // Notify listeners or trigger re-renders if needed
+            }
+
+            clearState() {
+                this.pause();
+                this.timerDisplay.textContent = '00:00';
+                this.setGameState({
+                    loggedEvents: [],
+                    isRunning: false,
+                    elapsedTime: 0,
+                    startTime: 0,
+                    hasCurrentGame: false,
+                    isActive: false,
+                });
+            }
+
+            pause() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+                this.isRunning = false;
+
+                const currentTime = Date.now();
+                this.elapsedTime += (currentTime - this.startTime);
+            }
+
+            start() {
+                if (this.timerInterval) return;
+                this.startTime = Date.now();
+                this.timerInterval = setInterval(() => {
+                    const currentTime = Date.now();
+                    const currentElapsedTime = this.isRunning ? this.elapsedTime + (currentTime - this.startTime) : this.elapsedTime;
+                    this.timerDisplay.textContent = formatTime(currentElapsedTime);
+                }, 100);
+                this.isRunning = true;
+            }
+        }
 
         // Handle New Game, Pause/Resume, and Complete Game Button Events
         const EventHandlers = {
@@ -319,73 +351,104 @@
             },
 
             handleNewGame() {
-                let game = {
+                gameState.clearState();
+                gameState.setGameState({
                     loggedEvents: [],
+                    isRunning: false,
                     elapsedTime: 0,
+                    startTime: 0,
                     hasCurrentGame: true,
                     isActive: true,
-                };
-                initializeNewGame(game);
+                });
+
+                gameState.start();
+
+                newGameButton.style.display = 'none';
+                pauseResumeButton.style.display = 'inline-block';
+                completeGameButton.style.display = 'inline-block';
+
+                eventLog.render(gameState.loggedEvents);
+                enableEventButtons(true);
+                updateNavbarVisibility(gameState.hasCurrentGame);
             },
 
             handlePauseResume() {
-                if (currentGameState.isRunning) {
-                    pauseTimer();
+                if (gameState.isRunning) {
+                    gameState.pause();
+                    pauseResumeButton.textContent = 'Resume';
                 } else {
-                    startTimer();
+                    gameState.start();
+                    pauseResumeButton.textContent = 'Pause';
                 }
+
+                enableEventButtons(gameState.isRunning);
             },
 
             handleCompleteGame() {
                 const userConfirmed = confirm('Are you sure you want to complete the game? This will reset all progress.');
                 if (userConfirmed) {
 
+                    gameState.pause();
+
                     saveGameToLocalStorage({
-                        events: currentGameState.loggedEvents,
-                        elapsedTime: currentGameState.elapsedTime,
+                        events: gameState.loggedEvents,
+                        elapsedTime: gameState.elapsedTime,
                         timestamp: new Date().toISOString()
                     }, LOCAL_STORAGE_KEY_GAMES);
 
-                    resetTimerAndLog();
-                    updateNavbarVisibility(currentGameState);
+                    gameState.clearState();
+                    // resetTimerAndLog();
+
+                    newGameButton.style.display = 'inline-block';
+                    pauseResumeButton.style.display = 'none';
+                    completeGameButton.style.display = 'none';
+
+                    eventLog.render(gameState.loggedEvents);
+                    enableEventButtons(false);
+                    updateNavbarVisibility(gameState.hasCurrentGame);
                 }
             },
         };
 
 
         // --- Functions
-        function initializeNewGame(game) {
+        // function initializeNewGame(game) {
 
-            currentGameState.setGameState(game);
-            timerDisplay.textContent = '00:00';
+        //     gameState.resetState();
+        //     gameState.setGameState(game);
 
-            newGameButton.style.display = 'inline-block';
-            pauseResumeButton.style.display = 'none';
-            completeGameButton.style.display = 'none';
+        //     // newGameButton.style.display = 'none';
+        //     // pauseResumeButton.style.display = 'inline-block';
+        //     // completeGameButton.style.display = 'inline-block';
 
-            if (game.isActive === true) {
-                startTimer();
+        //     enableEventButtons(true);
+        //     newGameButton.style.display = 'inline-block';
+        //     pauseResumeButton.style.display = 'none';
+        //     completeGameButton.style.display = 'none';
 
-                newGameButton.style.display = 'none';
-                pauseResumeButton.style.display = 'inline-block';
-                completeGameButton.style.display = 'inline-block';
-            }
+        //     if (game.isActive === true) {
+        //         startTimer();
 
-            updateNavbarVisibility(currentGameState);
-        }
+        //         newGameButton.style.display = 'none';
+        //         pauseResumeButton.style.display = 'inline-block';
+        //         completeGameButton.style.display = 'inline-block';
+        //     }
 
-        function updateTimer() {
-            const currentTime = Date.now();
-            const currentElapsedTime = currentGameState.isRunning ? currentGameState.elapsedTime + (currentTime - currentGameState.startTime) : currentGameState.elapsedTime;
-            timerDisplay.textContent = formatTime(currentElapsedTime);
-        }
+        //     updateNavbarVisibility(gameState);
+        // }
+
+        // function updateTimer() {
+        //     const currentTime = Date.now();
+        //     const currentElapsedTime = gameState.isRunning ? gameState.elapsedTime + (currentTime - gameState.startTime) : gameState.elapsedTime;
+        //     timerDisplay.textContent = formatTime(currentElapsedTime);
+        // }
 
         function startTimer() {
-            if (currentGameState.isRunning) return;
+            // if (gameState.isRunning) return;
 
-            currentGameState.startTime = Date.now();
-            currentGameState.timerInterval = setInterval(updateTimer, 100);
-            currentGameState.isRunning = true;
+            // gameState.startTime = Date.now();
+            // gameState.timerInterval = setInterval(updateTimer, 100);
+            // gameState.isRunning = true;
 
             pauseResumeButton.textContent = 'Pause';
             pauseResumeButton.classList.remove('btn-green');
@@ -396,13 +459,13 @@
         }
 
         function pauseTimer() {
-            if (!currentGameState.isRunning) return;
+            // if (!gameState.isRunning) return;
 
-            clearInterval(currentGameState.timerInterval);
+            // clearInterval(gameState.timerInterval);
 
-            const currentTime = Date.now();
-            currentGameState.elapsedTime += (currentTime - currentGameState.startTime);
-            currentGameState.isRunning = false;
+            // const currentTime = Date.now();
+            // gameState.elapsedTime += (currentTime - gameState.startTime);
+            // gameState.isRunning = false;
 
             pauseResumeButton.textContent = 'Resume';
             pauseResumeButton.classList.remove('btn-yellow');
@@ -412,26 +475,22 @@
             enableEventButtons(false);
         }
 
-        function resetTimerAndLog() {
-            pauseTimer();
-            currentGameState.setGameState({
-                loggedEvents: [],
-                elapsedTime: 0,
-                hasCurrentGame: false,
-            });
+        // function resetTimerAndLog() {
+        //     pauseTimer();
+        //     gameState.resetState();
 
-            timerDisplay.textContent = '00:00';
-            newGameButton.style.display = 'inline-block';
-            pauseResumeButton.style.display = 'none';
-            completeGameButton.style.display = 'none';
+        //     // timerDisplay.textContent = '00:00';
+        //     newGameButton.style.display = 'inline-block';
+        //     pauseResumeButton.style.display = 'none';
+        //     completeGameButton.style.display = 'none';
 
-            eventLog.render(currentGameState.loggedEvents);
-            enableEventButtons(false);
-            updateNavbarVisibility(currentGameState);
-        }
+        //     eventLog.render(gameState.loggedEvents);
+        //     enableEventButtons(false);
+        //     updateNavbarVisibility(gameState);
+        // }
 
         function enableEventButtons(enable) {
-            const logIsEmpty = currentGameState.loggedEvents.length === 0;
+            const logIsEmpty = gameState.loggedEvents.length === 0;
             let eventButtons = document.querySelectorAll('.event-button[data-event]');
 
             eventButtons.forEach(button => {
@@ -441,16 +500,16 @@
         }
 
         function handleEventButtonClick(e) {
-            if (!currentGameState.isActive) {
+            if (!gameState.isActive) {
                 console.warn("Timer not started. Event not logged.");
                 timerDisplay.classList.add('animate-pulse');
                 setTimeout(() => timerDisplay.classList.remove('animate-pulse'), 1000);
                 return;
             }
             const eventName = e.target.dataset.event;
-            const currentElapsedTimeMs = currentGameState.isRunning ? currentGameState.elapsedTime + (Date.now() - currentGameState.startTime) : currentGameState.elapsedTime;
-            currentGameState.loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs });
-            eventLog.render(currentGameState.loggedEvents);
+            const currentElapsedTimeMs = gameState.isRunning ? gameState.elapsedTime + (Date.now() - gameState.startTime) : gameState.elapsedTime;
+            gameState.loggedEvents.push({ event: eventName, timeMs: currentElapsedTimeMs });
+            eventLog.render(gameState.loggedEvents);
         }
 
         function switchTab(tabToShow) {
@@ -559,24 +618,32 @@
                             game,
                             index,
                             onLoad: () => {
-                                if (currentGameState.isRunning) {
-                                    if (confirm('A game is currently in progress. Do you want to stop it and load the saved game?')) {
-                                        pauseTimer();
-                                    } else {
+                                if (gameState.isRunning) {
+                                    if (!confirm('A game is currently in progress. Do you want to stop it and load the saved game?')) {
                                         return;
                                     }
                                 }
 
-                                initializeNewGame({
+                                gameState.clearState();
+                                gameState.setGameState({
                                     loggedEvents: [...game.events],
                                     elapsedTime: 0,
                                     hasCurrentGame: true,
                                     isActive: false,
                                 });
 
-                                console.log(`Game ${index + 1} loaded successfully.`);
-                                renderStatistics('statsContainer', currentGameState);
+
+                                newGameButton.style.display = 'inline-block';
+                                pauseResumeButton.style.display = 'none';
+                                completeGameButton.style.display = 'none';
+
+                                renderStatistics('statsContainer', gameState);
+                                enableEventButtons(game.isActive);
+                                updateNavbarVisibility(gameState.hasCurrentGame);
                                 router.showView('statistics');
+
+                                console.log(`Game ${index + 1} loaded successfully.`);
+
                             },
                             onDelete: () => {
                                 if (confirm('Are you sure you want to delete this saved game?')) {
@@ -609,6 +676,7 @@
 
         const eventLog = new EventLog(listViewPanel, xmlOutputContainer, copyXmlButton);
         EventHandlers.attachEventListeners();
+        const gameState = new GameState(timerDisplay);
 
         function initApp() {
 
@@ -636,7 +704,7 @@
                     if (parsedConfig && Array.isArray(parsedConfig.rowDefs)) {
                         if (saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG)) {
                             showMessage(configMessage, "Configuration saved successfully!", false);
-                            renderEventButtons(currentGameState, parsedConfig, codingButtonsContainer);
+                            renderEventButtons(gameState, parsedConfig, codingButtonsContainer);
                         } else {
                             showMessage(configMessage, "Failed to save configuration.", true);
                         }
@@ -655,12 +723,12 @@
             const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
 
             // Initial UI state
-            eventLog.render(currentGameState.loggedEvents);
-            renderEventButtons(currentGameState, currentConfig, codingButtonsContainer);
+            eventLog.render(gameState.loggedEvents);
+            renderEventButtons(gameState, currentConfig, codingButtonsContainer);
             enableEventButtons(false);
             switchTab('listView');
             router.showView('tracker');
-            updateNavbarVisibility(currentGameState);
+            updateNavbarVisibility(gameState.hasCurrentGame);
         }
 
         initApp();

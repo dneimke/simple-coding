@@ -123,10 +123,10 @@ export function formatTime(milliseconds) {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function updateNavbarVisibility(currentGameState) {
+export function updateNavbarVisibility(isVisible) {
     const requiresGameButtons = document.querySelectorAll('[data-requires-game]');
     requiresGameButtons.forEach(button => {
-        button.classList.toggle('hidden', !currentGameState.hasCurrentGame);
+        button.classList.toggle('hidden', !isVisible);
     });
 }
 
