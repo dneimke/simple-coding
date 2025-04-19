@@ -1,3 +1,15 @@
+export const logger = {
+    log: (message) => {
+        console.log(message);
+    },
+    error: (message) => {
+        console.error(message);
+    },
+    warn: (message) => {
+        console.warn(message);
+    },
+};
+
 // Reusable Components
 
 export function createButton({ text, className, onClick, id = null, }) {
@@ -62,14 +74,14 @@ export function createGameCard({ game, index, onLoad, onDelete }) {
 
 export function copyXmlToClipboard(xmlContent) {
     if (!xmlContent) {
-        console.warn("No XML content to copy.");
+        logger.warn("No XML content to copy.");
         return;
     }
     navigator.clipboard.writeText(xmlContent).then(() => {
-        console.log("XML content copied to clipboard.");
+        logger.log("XML content copied to clipboard.");
         alert("XML content copied to clipboard.");
     }).catch(err => {
-        console.error("Failed to copy XML content to clipboard:", err);
+        logger.error("Failed to copy XML content to clipboard:", err);
         alert("Failed to copy XML content to clipboard.");
     });
 }
@@ -158,7 +170,7 @@ function getFromLocalStorage(key) {
         const data = localStorage.getItem(key);
         return data ? JSON.parse(data) : null;
     } catch (error) {
-        console.error(`Error getting data from localStorage for key: ${key}`, error);
+        logger.error(`Error getting data from localStorage for key: ${key}`, error);
         return null;
     }
 }
@@ -167,7 +179,7 @@ function setToLocalStorage(key, value) {
     try {
         localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-        console.error(`Error setting data to localStorage for key: ${key}`, error);
+        logger.error(`Error setting data to localStorage for key: ${key}`, error);
     }
 }
 
@@ -175,14 +187,14 @@ export function loadConfig(configKey, defaultConfig) {
     try {
         const savedConfig = getFromLocalStorage(configKey);
         if (savedConfig && Array.isArray(savedConfig.rowDefs)) {
-            console.log("Loaded config from localStorage");
+            logger.log("Loaded config from localStorage");
             return savedConfig;
         } else {
-            console.warn("Invalid config structure in localStorage, using default.");
+            logger.warn("Invalid config structure in localStorage, using default.");
             return defaultConfig;
         }
     } catch (error) {
-        console.error("Error loading or parsing config from localStorage:", error);
+        logger.error("Error loading or parsing config from localStorage:", error);
         return defaultConfig;
     }
 }
@@ -194,10 +206,10 @@ export function saveConfig(configObject, configKey) {
         }
 
         setToLocalStorage(configKey, configObject);
-        console.log("Configuration saved to localStorage.");
+        logger.log("Configuration saved to localStorage.");
         return true;
     } catch (error) {
-        console.error("Error saving config to localStorage:", error);
+        logger.error("Error saving config to localStorage:", error);
         if (error.name === 'QuotaExceededError') {
             alert('Error: Could not save configuration. Browser storage limit exceeded.');
         } else {
@@ -219,9 +231,9 @@ export function saveGameToLocalStorage(gameData, storageKey) {
         }
 
         setToLocalStorage(storageKey, savedGames);
-        console.log('Game saved successfully.');
+        logger.log('Game saved successfully.');
     } catch (error) {
-        console.error('Error saving game to localStorage:', error);
+        logger.error('Error saving game to localStorage:', error);
     }
 }
 
@@ -230,7 +242,7 @@ export function loadSavedGames(storageKey) {
         const savedGames = getFromLocalStorage(storageKey);
         return savedGames || [];
     } catch (error) {
-        console.error('Error retrieving saved games from localStorage:', error);
+        logger.error('Error retrieving saved games from localStorage:', error);
         return [];
     }
 }
@@ -241,11 +253,11 @@ export function deleteSavedGame(index, storageKey) {
         if (index >= 0 && index < savedGames.length) {
             savedGames.splice(index, 1);
             setToLocalStorage(storageKey, savedGames);
-            console.log('Game deleted successfully.');
+            logger.log('Game deleted successfully.');
         } else {
-            console.warn('Invalid game index for deletion.');
+            logger.warn('Invalid game index for deletion.');
         }
     } catch (error) {
-        console.error('Error deleting game from localStorage:', error);
+        logger.error('Error deleting game from localStorage:', error);
     }
 }

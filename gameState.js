@@ -1,4 +1,4 @@
-import { formatTime } from './utils.js';
+import { formatTime, logger } from './utils.js';
 
 export class GameState {
     constructor(timerDisplay) {
@@ -18,7 +18,7 @@ export class GameState {
 
     addEvent(event) {
         if (!this.isActive || !this.isRunning) {
-            console.warn("Timer not started. Event not logged.");
+            logger.warn("Timer not started. Event not logged.");
             return;
         }
         this.loggedEvents.push(event);

@@ -1,3 +1,5 @@
+import { logger } from './utils.js';
+
 export class Router {
     constructor(views, tabs) {
         this.views = views;
@@ -24,7 +26,7 @@ export class Router {
 
         const selectedView = this.views[viewToShow];
         if (!selectedView) {
-            console.error(`Invalid view: ${viewToShow}`);
+            logger.error(`Invalid view: ${viewToShow}`);
             return;
         }
 

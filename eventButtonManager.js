@@ -1,4 +1,4 @@
-import { addVisualFeedbackToButtons } from './utils.js';
+import { addVisualFeedbackToButtons, logger } from './utils.js';
 
 export class EventButtonManager {
     constructor(gameState, eventLog, targetContainer) {
@@ -30,7 +30,7 @@ export class EventButtonManager {
 
         const renderGroup = (group) => {
             if (!group || !Array.isArray(group.buttons)) {
-                console.warn("Skipping invalid group in config:", group);
+                logger.warn("Skipping invalid group in config:", group);
                 return; // Skip invalid groups
             }
             const groupContainer = document.createElement('div');
@@ -41,7 +41,7 @@ export class EventButtonManager {
             <div class="button-grid ${gridColsClass}">
                 ${group.buttons.map(buttonConfig => {
                 if (!buttonConfig || !buttonConfig.event || !buttonConfig.text || !buttonConfig.color) {
-                    console.warn("Skipping invalid button config:", buttonConfig);
+                    logger.warn("Skipping invalid button config:", buttonConfig);
                     return '';
                 }
                 return `
