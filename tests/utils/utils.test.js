@@ -17,22 +17,24 @@ describe('sanityTests', () => {
 });
 
 describe('parseXmlToEvents', () => {
-    test('should parse valid XML content into an array of events', () => {
+    test('should parse valid XML content into an array of events with event and timeMs', () => {
         const xmlContent = `
-      <game>
-        <event name="GOAL FOR" timeMs="120000" />
-        <event name="SHOT FOR" timeMs="180000" />
-      </game>
+      <instances>
+        <instance><ID>1</ID><start>0</start><end>10</end><code>PRESS</code></instance>
+        <instance><ID>2</ID><start>1</start><end>11</end><code>PRESS</code></instance>
+        <instance><ID>3</ID><start>2</start><end>12</end><code>OUTLET</code></instance>
+      </instances>
     `;
         const events = parseXmlToEvents(xmlContent);
         expect(events).toEqual([
-            { event: 'GOAL FOR', timeMs: 120000 },
-            { event: 'SHOT FOR', timeMs: 180000 },
+            { event: 'PRESS', timeMs: 5000 },
+            { event: 'PRESS', timeMs: 6000 },
+            { event: 'OUTLET', timeMs: 7000 },
         ]);
     });
 
-    test('should return an empty array for XML with no events', () => {
-        const xmlContent = '<game></game>';
+    test('should return an empty array for XML with no instances', () => {
+        const xmlContent = '<instances></instances>';
         const events = parseXmlToEvents(xmlContent);
         expect(events).toEqual([]);
     });
@@ -40,22 +42,22 @@ describe('parseXmlToEvents', () => {
 
 describe('validateXmlStructure', () => {
     test('should throw an error for invalid XML format', () => {
-        const invalidXml = '<game><event name="GOAL FOR" timeMs="120000"></game>';
+        const invalidXml = '<instances><instance><ID>1</ID><start>0</start><end>10</end><code>PRESS</code></instance></instances';
         expect(() => validateXmlStructure(invalidXml)).toThrow('Invalid XML format.');
     });
 
-    test('should throw an error if no events are found', () => {
-        const noEventsXml = '<game></game>';
-        expect(() => validateXmlStructure(noEventsXml)).toThrow('No events found in the XML file.');
+    test('should throw an error if no instances are found', () => {
+        const noInstancesXml = '<instances></instances>';
+        expect(() => validateXmlStructure(noInstancesXml)).toThrow('No instances found in the XML file.');
     });
 
-    test('should throw an error for invalid event data', () => {
-        const invalidEventXml = '<game><event name="GOAL FOR" /></game>';
-        expect(() => validateXmlStructure(invalidEventXml)).toThrow('Invalid event data in XML.');
+    test('should throw an error for invalid instance data', () => {
+        const invalidInstanceXml = '<instances><instance><ID>1</ID><start>0</start><end></end><code>PRESS</code></instance></instances>';
+        expect(() => validateXmlStructure(invalidInstanceXml)).toThrow('Invalid instance data in XML.');
     });
 
     test('should return the XML document for valid XML', () => {
-        const validXml = '<game><event name="GOAL FOR" timeMs="120000" /></game>';
+        const validXml = '<instances><instance><ID>1</ID><start>0</start><end>10</end><code>PRESS</code></instance></instances>';
         const xmlDoc = validateXmlStructure(validXml);
         expect(xmlDoc).toBeInstanceOf(Document);
     });

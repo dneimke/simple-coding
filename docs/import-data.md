@@ -49,27 +49,31 @@
 
 ### 2. **XML Parsing Logic**
 
-- Implement a function to parse the XML file and extract event data.
+- Implement a function to parse the XML file and extract instance data.
 
    ```javascript
    // filepath: c:\repos\github\coding-tool\utils.js
    function parseXmlToEvents(xmlContent) {
        const parser = new DOMParser();
        const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
-       const events = [];
+       const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
 
-       const eventNodes = xmlDoc.getElementsByTagName('event');
-       for (const node of eventNodes) {
-           const eventName = node.getAttribute('name');
-           const timeMs = node.getAttribute('timeMs');
+       const events = instanceNodes.map(node => {
+           const id = node.getElementsByTagName('ID')[0]?.textContent;
+           const start = node.getElementsByTagName('start')[0]?.textContent;
+           const end = node.getElementsByTagName('end')[0]?.textContent;
+           const code = node.getElementsByTagName('code')[0]?.textContent;
 
-           if (eventName && timeMs) {
-               events.push({
-                   event: eventName,
-                   timeMs: parseInt(timeMs, 10)
-               });
+           if (id && start && end && code) {
+               return {
+                   ID: parseInt(id, 10),
+                   start: parseInt(start, 10),
+                   end: parseInt(end, 10),
+                   code
+               };
            }
-       }
+           return null;
+       }).filter(Boolean);
 
        return events;
    }
@@ -89,17 +93,19 @@
            throw new Error('Invalid XML format.');
        }
 
-       const eventNodes = xmlDoc.getElementsByTagName('event');
-       if (eventNodes.length === 0) {
-           throw new Error('No events found in the XML file.');
+       const instanceNodes = xmlDoc.getElementsByTagName('instance');
+       if (instanceNodes.length === 0) {
+           throw new Error('No instances found in the XML file.');
        }
 
-       for (const node of eventNodes) {
-           const eventName = node.getAttribute('name');
-           const timeMs = node.getAttribute('timeMs');
+       for (const node of instanceNodes) {
+           const id = node.getElementsByTagName('ID')[0]?.textContent;
+           const start = node.getElementsByTagName('start')[0]?.textContent;
+           const end = node.getElementsByTagName('end')[0]?.textContent;
+           const code = node.getElementsByTagName('code')[0]?.textContent;
 
-           if (!eventName || !timeMs || isNaN(parseInt(timeMs, 10))) {
-               throw new Error('Invalid event data in XML.');
+           if (!id || !start || !end || !code) {
+               throw new Error('Invalid instance data in XML.');
            }
        }
 
@@ -215,11 +221,26 @@
 ## Example XML File Format
 
 ```xml
-<game>
-   <event name="GOAL FOR" timeMs="120000" />
-   <event name="SHOT FOR" timeMs="180000" />
-   <event name="DEF 25 ENTRY" timeMs="240000" />
-</game>
+<instances>
+   <instance>
+       <ID>1</ID>
+       <start>0</start>
+       <end>10</end>
+       <code>PRESS</code>
+   </instance>
+   <instance>
+       <ID>2</ID>
+       <start>1</start>
+       <end>11</end>
+       <code>PRESS</code>
+   </instance>
+   <instance>
+       <ID>3</ID>
+       <start>2</start>
+       <end>12</end>
+       <code>OUTLET</code>
+   </instance>
+</instances>
 ```
 
 ## Backlog of Ideas to Enhance the Import Data Feature

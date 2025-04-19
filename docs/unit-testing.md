@@ -138,7 +138,6 @@ describe('renderSavedGamesList', () => {
 
     it('should render an empty container if no saved games are provided', () => {
         renderSavedGamesList([], container);
-
         expect(container.innerHTML).toBe('');
     });
 });
@@ -150,8 +149,8 @@ describe('renderSavedGamesList', () => {
 
 Run the tests using the following command:
 
-```bash
-npm test
+```plaintext
+npx jest
 ```
 
 ---

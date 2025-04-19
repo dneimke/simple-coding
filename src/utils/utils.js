@@ -264,16 +264,20 @@ export function deleteSavedGame(index, storageKey) {
 export const parseXmlToEvents = (xmlContent) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
-    const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
+    const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
 
-    const events = eventNodes.map(node => {
-        const eventName = node.getAttribute('name');
-        const timeMs = node.getAttribute('timeMs');
+    const events = instanceNodes.map(node => {
+        const code = node.getElementsByTagName('code')[0]?.textContent;
+        const start = node.getElementsByTagName('start')[0]?.textContent;
+        const end = node.getElementsByTagName('end')[0]?.textContent;
 
-        if (eventName && timeMs) {
+        if (code && start && end) {
+            const startMs = parseInt(start, 10) * 1000;
+            const endMs = parseInt(end, 10) * 1000;
+            const eventTimeInMilliseconds = (startMs + endMs) / 2;
             return {
-                event: eventName,
-                timeMs: parseInt(timeMs, 10)
+                event: code,
+                timeMs: eventTimeInMilliseconds
             };
         }
         return null;
@@ -290,17 +294,19 @@ export const validateXmlStructure = (xmlContent) => {
         throw new Error('Invalid XML format.');
     }
 
-    const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
-    if (eventNodes.length === 0) {
-        throw new Error('No events found in the XML file.');
+    const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
+    if (instanceNodes.length === 0) {
+        throw new Error('No instances found in the XML file.');
     }
 
-    eventNodes.forEach(node => {
-        const eventName = node.getAttribute('name');
-        const timeMs = node.getAttribute('timeMs');
+    instanceNodes.forEach(node => {
+        const id = node.getElementsByTagName('ID')[0]?.textContent;
+        const start = node.getElementsByTagName('start')[0]?.textContent;
+        const end = node.getElementsByTagName('end')[0]?.textContent;
+        const code = node.getElementsByTagName('code')[0]?.textContent;
 
-        if (!eventName || !timeMs || isNaN(parseInt(timeMs, 10))) {
-            throw new Error('Invalid event data in XML.');
+        if (!id || !start || !end || !code) {
+            throw new Error('Invalid instance data in XML.');
         }
     });
 
