@@ -191,17 +191,30 @@
 
 
         class Router {
-            constructor(views) {
+            constructor(views, tabs) {
                 this.views = views;
+                this.tabs = tabs;
             }
 
-            showView(viewToShow) {
+            switchTab(tabToShow) {
+                const isListView = tabToShow === 'listView';
+                const tabConfig = this.tabs;
+                tabConfig.list.classList.toggle('tab-button-active', isListView);
+                tabConfig.xml.classList.toggle('tab-button-active', !isListView);
+                tabConfig.list.classList.toggle('tab-button', !isListView);
+                tabConfig.xml.classList.toggle('tab-button', isListView);
+                tabConfig.listView.classList.toggle('hidden', !isListView);
+                tabConfig.xmlView.classList.toggle('hidden', isListView);
+            }
+
+            showView(viewToShow, callback) {
                 // Hide all views and reset navigation button styles
                 Object.values(this.views).forEach(({ view, button }) => {
                     view.classList.add('hidden');
                     button.classList.remove('text-white', 'hover:text-white');
                     button.classList.add('text-gray-400', 'hover:text-white');
                 });
+
                 const selectedView = this.views[viewToShow];
                 if (!selectedView) {
                     console.error(`Invalid view: ${viewToShow}`);
@@ -213,16 +226,9 @@
                 selectedView.button.classList.add('text-white', 'hover:text-white');
                 selectedView.button.classList.remove('text-gray-400', 'hover:text-white');
 
-                // Additional logic for specific views
-                if (viewToShow === 'config') {
-                    const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
-                    configJsonInput.value = JSON.stringify(currentConfig, null, 2);
-                } else if (viewToShow === 'log') {
-                    eventLog.render(gameState.loggedEvents);
-                } else if (viewToShow === 'statistics') {
-                    renderStatistics('statsContainer', gameState);
-                } else if (viewToShow === 'saved-games') {
-                    renderSavedGamesList();
+                // Execute the callback if provided
+                if (typeof callback === 'function') {
+                    callback();
                 }
             }
         }
@@ -410,85 +416,6 @@
             },
         };
 
-
-        // --- Functions
-        // function initializeNewGame(game) {
-
-        //     gameState.resetState();
-        //     gameState.setGameState(game);
-
-        //     // newGameButton.style.display = 'none';
-        //     // pauseResumeButton.style.display = 'inline-block';
-        //     // completeGameButton.style.display = 'inline-block';
-
-        //     enableEventButtons(true);
-        //     newGameButton.style.display = 'inline-block';
-        //     pauseResumeButton.style.display = 'none';
-        //     completeGameButton.style.display = 'none';
-
-        //     if (game.isActive === true) {
-        //         startTimer();
-
-        //         newGameButton.style.display = 'none';
-        //         pauseResumeButton.style.display = 'inline-block';
-        //         completeGameButton.style.display = 'inline-block';
-        //     }
-
-        //     updateNavbarVisibility(gameState);
-        // }
-
-        // function updateTimer() {
-        //     const currentTime = Date.now();
-        //     const currentElapsedTime = gameState.isRunning ? gameState.elapsedTime + (currentTime - gameState.startTime) : gameState.elapsedTime;
-        //     timerDisplay.textContent = formatTime(currentElapsedTime);
-        // }
-
-        function startTimer() {
-            // if (gameState.isRunning) return;
-
-            // gameState.startTime = Date.now();
-            // gameState.timerInterval = setInterval(updateTimer, 100);
-            // gameState.isRunning = true;
-
-            pauseResumeButton.textContent = 'Pause';
-            pauseResumeButton.classList.remove('btn-green');
-            pauseResumeButton.classList.add('btn-yellow');
-            pauseResumeButton.style.color = '#000000';
-
-            enableEventButtons(true);
-        }
-
-        function pauseTimer() {
-            // if (!gameState.isRunning) return;
-
-            // clearInterval(gameState.timerInterval);
-
-            // const currentTime = Date.now();
-            // gameState.elapsedTime += (currentTime - gameState.startTime);
-            // gameState.isRunning = false;
-
-            pauseResumeButton.textContent = 'Resume';
-            pauseResumeButton.classList.remove('btn-yellow');
-            pauseResumeButton.classList.add('btn-green');
-            pauseResumeButton.style.color = '#ffffff';
-
-            enableEventButtons(false);
-        }
-
-        // function resetTimerAndLog() {
-        //     pauseTimer();
-        //     gameState.resetState();
-
-        //     // timerDisplay.textContent = '00:00';
-        //     newGameButton.style.display = 'inline-block';
-        //     pauseResumeButton.style.display = 'none';
-        //     completeGameButton.style.display = 'none';
-
-        //     eventLog.render(gameState.loggedEvents);
-        //     enableEventButtons(false);
-        //     updateNavbarVisibility(gameState);
-        // }
-
         function enableEventButtons(enable) {
             const logIsEmpty = gameState.loggedEvents.length === 0;
             let eventButtons = document.querySelectorAll('.event-button[data-event]');
@@ -512,16 +439,6 @@
             eventLog.render(gameState.loggedEvents);
         }
 
-        function switchTab(tabToShow) {
-            const isListView = tabToShow === 'listView';
-            tabButtonList.classList.toggle('tab-button-active', isListView);
-            tabButtonXml.classList.toggle('tab-button-active', !isListView);
-            tabButtonList.classList.toggle('tab-button', !isListView);
-            tabButtonXml.classList.toggle('tab-button', isListView);
-            listViewPanel.classList.toggle('hidden', !isListView);
-            xmlViewPanel.classList.toggle('hidden', isListView);
-        }
-
         function renderEventButtons(currentGame, config, targetContainer) {
 
             targetContainer.innerHTML = '';
@@ -543,10 +460,10 @@
                         return '';
                     }
                     return `
-                                        <button class="event-button ${buttonConfig.color}" style="padding: 0.5rem 1rem;" data-event="${buttonConfig.event}">
-                                            ${buttonConfig.text}
-                                        </button>
-                                    `;
+                        <button class="event-button ${buttonConfig.color}" style="padding: 0.5rem 1rem;" data-event="${buttonConfig.event}">
+                            ${buttonConfig.text}
+                        </button>
+                    `;
                 }).join('')}
                     </div>
                 `;
@@ -618,7 +535,7 @@
                             game,
                             index,
                             onLoad: () => {
-                                if (gameState.isRunning) {
+                                if (gameState.isActive) {
                                     if (!confirm('A game is currently in progress. Do you want to stop it and load the saved game?')) {
                                         return;
                                     }
@@ -665,37 +582,54 @@
         }
 
 
-
         const router = new Router({
             tracker: { view: trackerView, button: navTracker },
             config: { view: configView, button: navConfig },
             log: { view: logView, button: navLog },
             statistics: { view: statsView, button: navStats },
-            'saved-games': { view: savedGamesView, button: navSavedGames },
-        });
-
+            'saved-games': { view: savedGamesView, button: navSavedGames }
+        }
+            , {
+                list: tabButtonList,
+                xml: tabButtonXml,
+                listView: listViewPanel,
+                xmlView: xmlViewPanel
+            });
         const eventLog = new EventLog(listViewPanel, xmlOutputContainer, copyXmlButton);
-        EventHandlers.attachEventListeners();
         const gameState = new GameState(timerDisplay);
+        EventHandlers.attachEventListeners();
 
         function initApp() {
 
             // Attach listeners
-            tabButtonList.addEventListener('click', () => switchTab('listView'));
-            tabButtonXml.addEventListener('click', () => switchTab('xmlView'));
+            tabButtonList.addEventListener('click', () => router.switchTab('listView'));
+            tabButtonXml.addEventListener('click', () => router.switchTab('xmlView'));
             copyXmlButton.addEventListener('click', () => {
                 const xmlContent = xmlOutputContainer.textContent;
                 copyXmlToClipboard(xmlContent);
             });
 
             navTracker.addEventListener('click', () => router.showView('tracker'));
-            navStats.addEventListener('click', () => router.showView('statistics'));
-            navConfig.addEventListener('click', () => router.showView('config'));
-            navLog.addEventListener('click', () => router.showView('log'));
-            navSavedGames.addEventListener('click', () => {
+
+            navStats.addEventListener('click', () => router.showView('statistics', () => {
+                renderStatistics('statsContainer', gameState);
+                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
+            }));
+
+            navConfig.addEventListener('click', () => router.showView('config', () => {
+                configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+                showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
+            }));
+
+            navLog.addEventListener('click', () => router.showView('log', () => {
+                eventLog.render(gameState.loggedEvents);
+                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
+            }));
+
+            navSavedGames.addEventListener('click', () => router.showView('saved-games', () => {
                 renderSavedGamesList();
-                router.showView('saved-games');
-            });
+                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
+            }));
 
             saveConfigButton.addEventListener('click', () => {
                 try {
@@ -726,7 +660,6 @@
             eventLog.render(gameState.loggedEvents);
             renderEventButtons(gameState, currentConfig, codingButtonsContainer);
             enableEventButtons(false);
-            switchTab('listView');
             router.showView('tracker');
             updateNavbarVisibility(gameState.hasCurrentGame);
         }
