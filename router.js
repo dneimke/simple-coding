@@ -6,18 +6,20 @@ export class Router {
         this.tabs = tabs;
     }
 
-    switchTab(tabToShow) {
+    switchTab = (tabToShow) => {
         const isListView = tabToShow === 'listView';
-        const tabConfig = this.tabs;
-        tabConfig.list.classList.toggle('tab-button-active', isListView);
-        tabConfig.xml.classList.toggle('tab-button-active', !isListView);
-        tabConfig.list.classList.toggle('tab-button', !isListView);
-        tabConfig.xml.classList.toggle('tab-button', isListView);
-        tabConfig.listView.classList.toggle('hidden', !isListView);
-        tabConfig.xmlView.classList.toggle('hidden', isListView);
-    }
+        const { list, xml, listView, xmlView } = this.tabs;
 
-    showView(viewToShow, callback) {
+        list.classList.toggle('tab-button-active', isListView);
+        xml.classList.toggle('tab-button-active', !isListView);
+        list.classList.toggle('tab-button', !isListView);
+        xml.classList.toggle('tab-button', isListView);
+
+        listView.classList.toggle('hidden', !isListView);
+        xmlView.classList.toggle('hidden', isListView);
+    };
+
+    showView = (viewToShow, callback) => {
         Object.values(this.views).forEach(({ view, button }) => {
             view.classList.add('hidden');
             button.classList.remove('text-white', 'hover:text-white');
@@ -37,5 +39,5 @@ export class Router {
         if (typeof callback === 'function') {
             callback();
         }
-    }
+    };
 }

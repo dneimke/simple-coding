@@ -1,18 +1,20 @@
 export const logger = {
-    log: (message) => {
-        console.log(message);
-    },
-    error: (message) => {
-        console.error(message);
-    },
-    warn: (message) => {
-        console.warn(message);
-    },
+    log: (message) => console.log(message),
+    error: (message) => console.error(message),
+    warn: (message) => console.warn(message),
 };
+
+export const showElement = (element) => {
+    element.style.display = 'inline-block';
+}
+
+export const hideElement = (element) => {
+    element.style.display = 'none';
+}
 
 // Reusable Components
 
-export function createButton({ text, className, onClick, id = null, }) {
+export const createButton = ({ text, className, onClick, id = null }) => {
     let button = document.getElementById(id);
     if (!button) {
         button = document.createElement('button');
@@ -23,15 +25,17 @@ export function createButton({ text, className, onClick, id = null, }) {
         button.addEventListener('click', onClick);
     }
     return button;
-}
+};
 
-export function createGameCard({ game, index, onLoad, onDelete }) {
+export const createGameCard = ({ game, index, onLoad, onDelete }) => {
     const gameCard = document.createElement('div');
     gameCard.className = 'saved-game-card flex items-center p-4 mb-4 bg-gray-100 rounded-lg shadow-md hover:shadow-lg transition-shadow';
 
     const icon = document.createElement('div');
     icon.className = 'saved-game-icon flex-shrink-0 w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center mr-4';
-    icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c.828 0 1.5-.672 1.5-1.5S12.828 5 12 5s-1.5.672-1.5 1.5S11.172 8 12 8zm0 0v8m0 0H9m3 0h3" /></svg>';
+    icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c.828 0 1.5-.672 1.5-1.5S12.828 5 12 5s-1.5.672-1.5 1.5S11.172 8 12 8zm0 0v8m0 0H9m3 0h3" />
+    </svg>`;
 
     const gameDetails = document.createElement('div');
     gameDetails.className = 'saved-game-details flex-grow';
@@ -48,9 +52,7 @@ export function createGameCard({ game, index, onLoad, onDelete }) {
     eventCount.className = 'text-sm text-gray-600';
     eventCount.textContent = `Events: ${game.events.length}`;
 
-    gameDetails.appendChild(gameTitle);
-    gameDetails.appendChild(gameTimestamp);
-    gameDetails.appendChild(eventCount);
+    gameDetails.append(gameTitle, gameTimestamp, eventCount);
 
     const loadButton = createButton({
         text: 'Load',
@@ -64,48 +66,43 @@ export function createGameCard({ game, index, onLoad, onDelete }) {
         onClick: onDelete
     });
 
-    gameCard.appendChild(icon);
-    gameCard.appendChild(gameDetails);
-    gameCard.appendChild(loadButton);
-    gameCard.appendChild(deleteButton);
+    gameCard.append(icon, gameDetails, loadButton, deleteButton);
 
     return gameCard;
-}
+};
 
-export function copyXmlToClipboard(xmlContent) {
+export const copyXmlToClipboard = (xmlContent) => {
     if (!xmlContent) {
-        logger.warn("No XML content to copy.");
+        logger.warn('No XML content to copy.');
         return;
     }
-    navigator.clipboard.writeText(xmlContent).then(() => {
-        logger.log("XML content copied to clipboard.");
-        alert("XML content copied to clipboard.");
-    }).catch(err => {
-        logger.error("Failed to copy XML content to clipboard:", err);
-        alert("Failed to copy XML content to clipboard.");
-    });
-}
+    navigator.clipboard.writeText(xmlContent)
+        .then(() => {
+            logger.log('XML content copied to clipboard.');
+            alert('XML content copied to clipboard.');
+        })
+        .catch((err) => {
+            logger.error('Failed to copy XML content to clipboard:', err);
+            alert('Failed to copy XML content to clipboard.');
+        });
+};
 
-export function computeGameStatistics(currentGame) {
-    const stats = currentGame.loggedEvents.reduce((stats, event) => {
+export const computeGameStatistics = (currentGame) => {
+    return currentGame.loggedEvents.reduce((stats, event) => {
         stats[event.event] = (stats[event.event] || 0) + 1;
         return stats;
     }, {});
+};
 
-    return stats;
-}
-
-export function generatePlainXml(events) {
-    let xmlString = '';
-    events.forEach((logEntry, index) => {
+export const generatePlainXml = (events) => {
+    return events.map((logEntry, index) => {
         const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000);
         const startSeconds = Math.max(0, eventTimeSeconds - 5);
         const endSeconds = eventTimeSeconds + 5;
         const eventCode = escapeXml(logEntry.event);
-        xmlString += `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>\n`;
-    });
-    return xmlString.trim();
-}
+        return `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>`;
+    }).join('\n');
+};
 
 export function createLogEntry({ event, time }) {
     const logItem = document.createElement('div');

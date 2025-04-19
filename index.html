@@ -148,6 +148,7 @@
             formatTime,
             updateNavbarVisibility,
             logger,
+            showElement, hideElement,
             showMessage,
             saveGameToLocalStorage, loadSavedGames, deleteSavedGame,
             loadConfig, saveConfig,
@@ -240,9 +241,9 @@
 
                 gameState.start();
 
-                newGameButton.style.display = 'none';
-                pauseResumeButton.style.display = 'inline-block';
-                completeGameButton.style.display = 'inline-block';
+                hideElement(newGameButton);
+                showElement(pauseResumeButton);
+                showElement(completeGameButton);
 
                 eventLog.render(gameState.loggedEvents);
                 eventButtonManager.enableEventButtons();
@@ -275,9 +276,9 @@
 
                     gameState.clearState();
 
-                    newGameButton.style.display = 'inline-block';
-                    pauseResumeButton.style.display = 'none';
-                    completeGameButton.style.display = 'none';
+                    showElement(newGameButton);
+                    hideElement(pauseResumeButton);
+                    hideElement(completeGameButton);
 
                     eventLog.render(gameState.loggedEvents);
                     eventButtonManager.enableEventButtons();
@@ -350,9 +351,9 @@
                                     isActive: false,
                                 });
 
-                                newGameButton.style.display = 'inline-block';
-                                pauseResumeButton.style.display = 'none';
-                                completeGameButton.style.display = 'none';
+                                showElement(newGameButton);
+                                hideElement(pauseResumeButton);
+                                hideElement(completeGameButton);
 
                                 eventLog.render(gameState.loggedEvents);
                                 eventButtonManager.enableEventButtons();
