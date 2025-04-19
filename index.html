@@ -133,7 +133,13 @@
 
     </div>
     <script type="module" src="utils.js"></script>
+    <!-- <script type="module" src="main.js"></script> -->
     <script type="module">
+        import { Router } from './router.js';
+        import { GameState } from './gameState.js';
+        import { EventLog } from './eventLog.js';
+        import { EventButtonManager } from './eventButtonManager.js';
+        // import { renderStatistics, renderSavedGamesList } from './utils.js';
         import {
             createButton, createGameCard,
             computeGameStatistics,
@@ -188,224 +194,6 @@
         const saveConfigButton = document.getElementById('saveConfigButton');
         const loadDefaultConfigButton = document.getElementById('loadDefaultConfigButton');
         const configMessage = document.getElementById('configMessage');
-
-
-        class Router {
-            constructor(views, tabs) {
-                this.views = views;
-                this.tabs = tabs;
-            }
-
-            switchTab(tabToShow) {
-                const isListView = tabToShow === 'listView';
-                const tabConfig = this.tabs;
-                tabConfig.list.classList.toggle('tab-button-active', isListView);
-                tabConfig.xml.classList.toggle('tab-button-active', !isListView);
-                tabConfig.list.classList.toggle('tab-button', !isListView);
-                tabConfig.xml.classList.toggle('tab-button', isListView);
-                tabConfig.listView.classList.toggle('hidden', !isListView);
-                tabConfig.xmlView.classList.toggle('hidden', isListView);
-            }
-
-            showView(viewToShow, callback) {
-                // Hide all views and reset navigation button styles
-                Object.values(this.views).forEach(({ view, button }) => {
-                    view.classList.add('hidden');
-                    button.classList.remove('text-white', 'hover:text-white');
-                    button.classList.add('text-gray-400', 'hover:text-white');
-                });
-
-                const selectedView = this.views[viewToShow];
-                if (!selectedView) {
-                    console.error(`Invalid view: ${viewToShow}`);
-                    return;
-                }
-
-                // Show the selected view and highlight its button
-                selectedView.view.classList.remove('hidden');
-                selectedView.button.classList.add('text-white', 'hover:text-white');
-                selectedView.button.classList.remove('text-gray-400', 'hover:text-white');
-
-                // Execute the callback if provided
-                if (typeof callback === 'function') {
-                    callback();
-                }
-            }
-        }
-
-        class EventLog {
-            constructor(listContainer, xmlContainer) {
-                this.listContainer = listContainer;
-                this.xmlContainer = xmlContainer;
-            }
-
-            render(events) {
-
-                const logIsEmpty = events.length === 0;
-                copyXmlButton.disabled = logIsEmpty;
-
-                if (logIsEmpty) {
-                    this.listContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
-                    this.xmlContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
-                    return;
-                }
-
-                this.listContainer.innerHTML = events.map(event => {
-                    const eventTime = new Date(event.timeMs).toISOString().substr(11, 8);
-                    return `
-                        <div class="event-log-item">
-                            <span>${event.event}</span>
-                            <span>${eventTime}</span>
-                        </div>
-                    `;
-                }).join('');
-
-                let styledXmlString = '';
-                events.forEach((logEntry, index) => {
-                    const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000);
-                    const startSeconds = Math.max(0, eventTimeSeconds - 5);
-                    const endSeconds = eventTimeSeconds + 5;
-                    const eventCode = escapeXml(logEntry.event);
-                    styledXmlString += `<span class="xml-tag">&lt;instance&gt;</span><span class="xml-tag">&lt;ID&gt;</span><span class="xml-text">${index + 1}</span><span class="xml-tag">&lt;/ID&gt;</span><span class="xml-tag">&lt;start&gt;</span><span class="xml-text">${startSeconds}</span><span class="xml-tag">&lt;/start&gt;</span><span class="xml-tag">&lt;end&gt;</span><span class="xml-text">${endSeconds}</span><span class="xml-tag">&lt;/end&gt;</span><span class="xml-tag">&lt;code&gt;</span><span class="xml-text">${eventCode}</span><span class="xml-tag">&lt;/code&gt;</span><span class="xml-tag">&lt;/instance&gt;</span>\n`;
-                });
-                this.xmlContainer.innerHTML = styledXmlString;
-            }
-        }
-
-        class GameState {
-            constructor(timerDisplay) {
-                this.timerDisplay = timerDisplay;
-                this.loggedEvents = [];
-                this.isRunning = false;
-                this.elapsedTime = 0;
-                this.startTime = 0;
-                this.timerInterval = null;
-                this.hasCurrentGame = false;
-                this.isActive = false;
-            }
-
-            setGameState(newState) {
-                Object.assign(this, newState);
-                // Notify listeners or trigger re-renders if needed
-            }
-
-            addEvent(event) {
-
-                if (!this.isActive || !this.isRunning) {
-                    console.warn("Timer not started. Event not logged.");
-                    return;
-                }
-
-                this.loggedEvents.push(event);
-            }
-
-            clearState() {
-                this.pause();
-                this.timerDisplay.textContent = '00:00';
-                this.setGameState({
-                    loggedEvents: [],
-                    isRunning: false,
-                    elapsedTime: 0,
-                    startTime: 0,
-                    hasCurrentGame: false,
-                    isActive: false,
-                });
-            }
-
-            pause() {
-                if (this.timerInterval) {
-                    clearInterval(this.timerInterval);
-                    this.timerInterval = null;
-                }
-                this.isRunning = false;
-
-                const currentTime = Date.now();
-                this.elapsedTime += (currentTime - this.startTime);
-            }
-
-            start() {
-                if (this.timerInterval) return;
-                this.startTime = Date.now();
-                this.timerInterval = setInterval(() => {
-                    const currentTime = Date.now();
-                    const currentElapsedTime = this.isRunning ? this.elapsedTime + (currentTime - this.startTime) : this.elapsedTime;
-                    this.timerDisplay.textContent = formatTime(currentElapsedTime);
-                }, 100);
-                this.isRunning = true;
-            }
-        }
-
-        class EventButtonManager {
-            constructor(gameState, eventLog, targetContainer) {
-                this.gameState = gameState;
-                this.eventLog = eventLog;
-                this.targetContainer = targetContainer;
-            }
-
-            enableEventButtons() {
-                const logIsEmpty = this.gameState.loggedEvents.length === 0;
-                const eventButtons = document.querySelectorAll('.event-button[data-event]');
-                const isRunning = this.gameState.isActive && this.gameState.isRunning;
-
-                eventButtons.forEach(button => {
-                    button.disabled = !isRunning;
-                });
-                copyXmlButton.disabled = logIsEmpty;
-            }
-
-            handleEventButtonClick(e) {
-                const eventName = e.target.dataset.event;
-                const currentElapsedTimeMs = this.gameState.isRunning ? this.gameState.elapsedTime + (Date.now() - this.gameState.startTime) : this.gameState.elapsedTime;
-                this.gameState.addEvent({ event: eventName, timeMs: currentElapsedTimeMs });
-                this.eventLog.render(this.gameState.loggedEvents);
-            }
-
-            renderEventButtons(config) {
-                this.targetContainer.innerHTML = '';
-
-                const renderGroup = (group) => {
-                    if (!group || !Array.isArray(group.buttons)) {
-                        console.warn("Skipping invalid group in config:", group);
-                        return; // Skip invalid groups
-                    }
-                    const groupContainer = document.createElement('div');
-                    groupContainer.className = 'group-container';
-
-                    const gridColsClass = group.gridCols || 'grid-cols-4'; // Default if not specified
-                    const buttonGridHTML = `
-                    <div class="button-grid ${gridColsClass}">
-                        ${group.buttons.map(buttonConfig => {
-                        if (!buttonConfig || !buttonConfig.event || !buttonConfig.text || !buttonConfig.color) {
-                            console.warn("Skipping invalid button config:", buttonConfig);
-                            return '';
-                        }
-                        return `
-                                <button class="event-button ${buttonConfig.color}" style="padding: 0.5rem 1rem;" data-event="${buttonConfig.event}">
-                                    ${buttonConfig.text}
-                                </button>
-                            `;
-                    }).join('')}
-                    </div>
-                `;
-
-                    groupContainer.innerHTML = buttonGridHTML;
-                    this.targetContainer.appendChild(groupContainer);
-                };
-
-                if (config.rowDefs && Array.isArray(config.rowDefs)) {
-                    config.rowDefs.forEach(renderGroup);
-                }
-
-                const eventButtons = document.querySelectorAll('.event-button[data-event]');
-                eventButtons.forEach(button => {
-                    button.removeEventListener('click', this.handleEventButtonClick.bind(this));
-                    button.addEventListener('click', this.handleEventButtonClick.bind(this));
-                });
-
-                addVisualFeedbackToButtons(eventButtons);
-                this.enableEventButtons();
-            }
-        }
 
         // Handle New Game, Pause/Resume, and Complete Game Button Events
         const TrackerSessionControls = {
@@ -671,7 +459,7 @@
                 xmlView: xmlViewPanel
             });
 
-        const eventLog = new EventLog(listViewPanel, xmlOutputContainer, copyXmlButton);
+        const eventLog = new EventLog(listViewPanel, xmlOutputContainer);
         const gameState = new GameState(timerDisplay);
         const eventButtonManager = new EventButtonManager(gameState, eventLog, codingButtonsContainer);
         initApp();
