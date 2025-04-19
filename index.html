@@ -373,20 +373,20 @@
 
                     const gridColsClass = group.gridCols || 'grid-cols-4'; // Default if not specified
                     const buttonGridHTML = `
-                <div class="button-grid ${gridColsClass}">
-                    ${group.buttons.map(buttonConfig => {
+                    <div class="button-grid ${gridColsClass}">
+                        ${group.buttons.map(buttonConfig => {
                         if (!buttonConfig || !buttonConfig.event || !buttonConfig.text || !buttonConfig.color) {
                             console.warn("Skipping invalid button config:", buttonConfig);
                             return '';
                         }
                         return `
-                            <button class="event-button ${buttonConfig.color}" style="padding: 0.5rem 1rem;" data-event="${buttonConfig.event}">
-                                ${buttonConfig.text}
-                            </button>
-                        `;
+                                <button class="event-button ${buttonConfig.color}" style="padding: 0.5rem 1rem;" data-event="${buttonConfig.event}">
+                                    ${buttonConfig.text}
+                                </button>
+                            `;
                     }).join('')}
-                </div>
-            `;
+                    </div>
+                `;
 
                     groupContainer.innerHTML = buttonGridHTML;
                     this.targetContainer.appendChild(groupContainer);
@@ -403,12 +403,12 @@
                 });
 
                 addVisualFeedbackToButtons(eventButtons);
-                this.enableEventButtons(this.gameState.isActive);
+                this.enableEventButtons();
             }
         }
 
         // Handle New Game, Pause/Resume, and Complete Game Button Events
-        const EventHandlers = {
+        const TrackerSessionControls = {
             attachEventListeners() {
                 createButton({
                     id: 'newGameButton',
@@ -485,7 +485,6 @@
                     }, LOCAL_STORAGE_KEY_GAMES);
 
                     gameState.clearState();
-                    // resetTimerAndLog();
 
                     newGameButton.style.display = 'inline-block';
                     pauseResumeButton.style.display = 'none';
@@ -548,9 +547,8 @@
                             index,
                             onLoad: () => {
                                 if (gameState.isActive || gameState.isRunning) {
-                                    if (confirm('A game is currently in progress. Do you want to stop it and load the saved game?')) {
-                                        pauseTimer();
-                                    } else {
+                                    const userConfirmed = confirm('A game is currently in progress. Do you want to stop it and load the saved game?');
+                                    if (!userConfirmed) {
                                         return;
                                     }
                                 }
@@ -563,6 +561,12 @@
                                     isActive: false,
                                 });
 
+                                newGameButton.style.display = 'inline-block';
+                                pauseResumeButton.style.display = 'none';
+                                completeGameButton.style.display = 'none';
+
+                                eventLog.render(gameState.loggedEvents);
+                                eventButtonManager.enableEventButtons();
                                 renderStatistics('statsContainer', gameState);
                                 updateNavbarVisibility(gameState.hasCurrentGame);
                                 router.showView('statistics');
@@ -648,7 +652,7 @@
             // Initial UI state
             eventLog.render(gameState.loggedEvents);
             eventButtonManager.renderEventButtons(currentConfig);
-            eventButtonManager.enableEventButtons();
+            TrackerSessionControls.attachEventListeners();
             router.showView('tracker');
             updateNavbarVisibility(gameState.hasCurrentGame);
         }
@@ -670,7 +674,6 @@
         const eventLog = new EventLog(listViewPanel, xmlOutputContainer, copyXmlButton);
         const gameState = new GameState(timerDisplay);
         const eventButtonManager = new EventButtonManager(gameState, eventLog, codingButtonsContainer);
-        EventHandlers.attachEventListeners();
         initApp();
 
 
