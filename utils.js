@@ -258,3 +258,71 @@ export function deleteSavedGame(index, storageKey) {
         logger.error('Error deleting game from localStorage:', error);
     }
 }
+
+export const parseXmlToEvents = (xmlContent) => {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
+    const events = Array.from(xmlDoc.getElementsByTagName('event')).map(node => {
+        const eventName = node.getAttribute('name');
+        const timeMs = node.getAttribute('timeMs');
+
+        if (eventName && timeMs) {
+            return {
+                event: eventName,
+                timeMs: parseInt(timeMs, 10)
+            };
+        }
+        return null;
+    }).filter(Boolean);
+
+    return events;
+};
+
+export const validateXmlStructure = (xmlContent) => {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
+
+    if (xmlDoc.querySelector('parsererror')) {
+        throw new Error('Invalid XML format.');
+    }
+
+    const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
+    if (eventNodes.length === 0) {
+        throw new Error('No events found in the XML file.');
+    }
+
+    eventNodes.forEach(node => {
+        const eventName = node.getAttribute('name');
+        const timeMs = node.getAttribute('timeMs');
+
+        if (!eventName || !timeMs || isNaN(parseInt(timeMs, 10))) {
+            throw new Error('Invalid event data in XML.');
+        }
+    });
+
+    return xmlDoc;
+};
+
+
+// // Step 4: Event Listener for File Upload
+// const importXmlButton = document.getElementById('importXmlButton');
+// const xmlFileInput = document.getElementById('xmlFileInput');
+
+// importXmlButton.addEventListener('click', () => {
+//     xmlFileInput.click();
+// });
+
+// xmlFileInput.addEventListener('change', async (event) => {
+//     const file = event.target.files[0];
+//     if (file) {
+//         try {
+//             const xmlContent = await file.text();
+//             const xmlDoc = validateXmlStructure(xmlContent); // Validate XML structure
+//             const events = parseXmlToEvents(xmlDoc); // Parse validated XML
+//             showPreview(events); // Display preview of parsed events
+//         } catch (error) {
+//             console.error('Error importing XML:', error);
+//             alert(`Failed to import XML: ${error.message}`);
+//         }
+//     }
+// });

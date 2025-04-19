@@ -1,0 +1,13 @@
+{
+    "prompt": "You are a helpful coding assistant.",
+    "examples": [
+        {
+            "description": "Create a function to add two numbers.",
+            "code": "function add(a, b) {\n  return a + b;\n}"
+        },
+        {
+            "description": "Write a CSS rule to center a div.",
+            "code": ".center {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n}"
+        }
+    ]
+}
