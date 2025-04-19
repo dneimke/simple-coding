@@ -1,4 +1,4 @@
-import { addVisualFeedbackToButtons, logger } from './utils.js';
+import { addVisualFeedbackToButtons, logger } from '../utils/utils.js';
 
 export class EventButtonManager {
     constructor(gameState, targetContainer) {

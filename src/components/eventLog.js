@@ -1,4 +1,4 @@
-import { escapeXml } from './utils.js';
+import { escapeXml } from '../utils/utils.js';
 
 export class EventLog {
     constructor(listContainer, xmlContainer) {

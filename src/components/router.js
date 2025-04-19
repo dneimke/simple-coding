@@ -1,4 +1,4 @@
-import { logger } from './utils.js';
+import { logger } from '../utils/utils.js';
 
 export class Router {
     constructor(views, tabs) {

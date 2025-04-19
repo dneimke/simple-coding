@@ -10,11 +10,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="site-icon.png">
-    <link rel="apple-touch-icon" sizes="512x512" href="site-icon-large.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png">
+    <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/site-icon.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/site-icon-large.png">
 </head>
 
 <body class="p-4 sm:p-8">
@@ -135,14 +135,10 @@
 
 
     </div>
-    <script type="module" src="utils.js"></script>
-    <!-- <script type="module" src="main.js"></script> -->
+    <script type="module" src="utils/utils.js"></script>
+    <script type="module" src="components/index.js"></script>
     <script type="module">
-        import { Router } from './router.js';
-        import { GameState } from './gameState.js';
-        import { EventLog } from './eventLog.js';
-        import { EventButtonManager } from './eventButtonManager.js';
-        // import { renderStatistics, renderSavedGamesList } from './utils.js';
+        import { EventButtonManager, EventLog, GameState, Router } from './components/index.js';
         import {
             createButton, createGameCard,
             computeGameStatistics,
@@ -157,7 +153,7 @@
             loadConfig, saveConfig,
             addVisualFeedbackToButtons,
             validateXmlStructure, parseXmlToEvents, showPreview
-        } from './utils.js';
+        } from './utils/utils.js';
 
         // --- Constants & Config --- (Updated)
         const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
