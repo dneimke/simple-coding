@@ -10,28 +10,13 @@ import {
     saveGameToLocalStorage,
     loadSavedGames,
     deleteSavedGame,
-    loadConfig,
-    saveConfig,
     validateXmlStructure,
     parseXmlToEvents,
     showPreview
 } from './utils/utils.js';
+import { loadConfiguration, saveConfiguration, resetConfiguration } from './components/config.js';
 
-// --- Constants & Config ---
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
-const LOCAL_STORAGE_KEY_CONFIG = 'fieldHockeyConfig_v1';
-const DEFAULT_CONFIG = {
-    rowDefs: [
-        { gridCols: "grid-cols-2", buttons: [{ event: "OUTLET", text: "OUTLET", color: "btn-blue" }, { event: "PRESS", text: "PRESS", color: "btn-blue" }] },
-        { gridCols: "grid-cols-4", buttons: [{ event: "DEF 25 ENTRY", text: "DEF 25 ENTRY", color: "btn-red" }, { event: "DEF CIRC ENTRY", text: "DEF CIRC ENTRY", color: "btn-red" }, { event: "SHOT AG", text: "SHOT AG", color: "btn-red" }, { event: "GOAL AG", text: "GOAL AG", color: "btn-red" }] },
-        { gridCols: "grid-cols-4", buttons: [{ event: "ATT 25 ENTRY", text: "ATT 25 ENTRY", color: "btn-green" }, { event: "ATT CIRC ENTRY", text: "ATT CIRC ENTRY", color: "btn-green" }, { event: "SHOT FOR", text: "SHOT FOR", color: "btn-green" }, { event: "GOAL FOR", text: "GOAL FOR", color: "btn-green" }] },
-        { gridCols: "grid-cols-4", buttons: [{ event: "APC", text: "APC", color: "btn-blue" }, { event: "DPC", text: "DPC", color: "btn-blue" }, { event: "STROKE", text: "STROKE", color: "btn-blue" }, { event: "1V1", text: "1V1", color: "btn-blue" }] },
-        { gridCols: "grid-cols-5", buttons: [{ event: "3 PASS", text: "3 PASS", color: "btn-yellow" }, { event: "TACKLE", text: "TACKLE", color: "btn-yellow" }, { event: "DEF", text: "DEF", color: "btn-yellow" }, { event: "MF", text: "MF", color: "btn-yellow" }, { event: "ATT", text: "ATT", color: "btn-yellow" }] },
-        { gridCols: "grid-cols-4", buttons: [{ event: "OVERHEAD FOR", text: "OVERHEAD FOR", color: "btn-blue" }, { event: "OVERHEAD AG", text: "OVERHEAD AG", color: "btn-blue" }, { event: "CIRC-DEF", text: "CIRC-DEF", color: "btn-blue" }, { event: "CLOSE-BASE", text: "CLOSE-BASE", color: "btn-blue" }] },
-        { gridCols: "grid-cols-4", buttons: [{ event: "P1", text: "P1", color: "btn-blue" }, { event: "P2", text: "P2", color: "btn-blue" }, { event: "P3", text: "P3", color: "btn-blue" }, { event: "P4", text: "P4", color: "btn-blue" }] },
-        { gridCols: "grid-cols-3", buttons: [{ event: "CARD", text: "CARD", color: "btn-green" }, { event: "INJURY", text: "INJURY", color: "btn-green" }, { event: "WHISTLE", text: "WHISTLE", color: "btn-green" }] }
-    ]
-};
 
 // DOM Elements
 const timerDisplay = document.getElementById('timer');
@@ -132,7 +117,7 @@ function renderSavedGames() {
 function initializeApplication() {
     registerEventListeners();
 
-    const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
+    const currentConfig = loadConfiguration();
 
     eventButtons.initialize(currentConfig);
     router.showView('Tracker');
@@ -158,6 +143,7 @@ function registerEventListeners() {
             if (viewName === 'SavedGames') {
                 renderSavedGames();
             } else if (viewName === 'Config') {
+                const currentConfig = loadConfiguration();
                 configJsonInput.value = JSON.stringify(currentConfig, null, 2);
             }
         });
@@ -231,7 +217,7 @@ function registerEventListeners() {
             const parsedConfig = JSON.parse(jsonString);
 
             if (parsedConfig && Array.isArray(parsedConfig.rowDefs)) {
-                const isSaved = saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG);
+                const isSaved = saveConfiguration(parsedConfig);
 
                 if (isSaved) {
                     showMessage(configMessage, "Configuration saved successfully!", false);
@@ -240,9 +226,7 @@ function registerEventListeners() {
                     showMessage(configMessage, "Failed to save configuration.", true);
                 }
             } else {
-                logger.error(configMessage, "Invalid configuration structure. Loading default configuration.");
-                configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2);
-                showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
+                throw new Error("Invalid configuration structure.");
             }
         } catch (error) {
             logger.error("Invalid JSON:", error);
@@ -252,7 +236,8 @@ function registerEventListeners() {
 
     // Load default configuration button
     loadDefaultConfigButton.addEventListener('click', () => {
-        configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2);
+        const defaultConfig = resetConfiguration();
+        configJsonInput.value = JSON.stringify(defaultConfig, null, 2);
         showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
     });
 
@@ -267,7 +252,7 @@ function registerEventListeners() {
         if (file) {
             try {
                 const xmlContent = await file.text();
-                const xmlDoc = validateXmlStructure(xmlContent);
+                validateXmlStructure(xmlContent);
                 const events = parseXmlToEvents(xmlContent);
 
                 showPreview(previewContainer, events, LOCAL_STORAGE_KEY_GAMES, (e) => {
