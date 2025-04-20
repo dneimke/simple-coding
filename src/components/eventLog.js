@@ -72,7 +72,6 @@ export class EventLog {
 
         // Define a consistent starting point for event markers
         const markerStartOffset = 150; // Adjust this value as needed for spacing after row headings
-        const timelineWidth = this.timelineContainer.offsetWidth - markerStartOffset; // Available width for markers
 
         // Create a row for each event type
         Object.entries(eventsByType).forEach(([eventType, eventList]) => {
@@ -96,7 +95,7 @@ export class EventLog {
                 marker.style.left = `calc(${markerStartOffset}px + ${positionPercent}%)`;
 
                 // Add tooltip for event time
-                marker.title = new Date(event.timeMs).toLocaleTimeString();
+                // marker.title = new Date(event.timeMs).toLocaleTimeString();
 
                 row.appendChild(marker);
             });
