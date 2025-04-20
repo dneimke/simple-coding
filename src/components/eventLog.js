@@ -17,17 +17,7 @@ export class EventLog {
             return;
         }
 
-        this.timelineContainer.innerHTML = events
-            .sort((a, b) => b.timeMs - a.timeMs) // Sort events by timeMs in descending order
-            .map(event => {
-                const eventTime = new Date(event.timeMs).toISOString().slice(11, 19);
-                return `
-                <div class="event-log-item">
-                    <span>${event.event}</span>
-                    <span>${eventTime}</span>
-                </div>
-            `;
-            }).join('');
+        this.renderTimeline(events);
 
         let styledXmlString = '';
         events.forEach((logEntry, index) => {
@@ -45,7 +35,7 @@ export class EventLog {
         let gameStatistics = computeGameStatistics(events);
 
         if (Object.keys(gameStatistics).length === 0) {
-            statsContainer.innerHTML = '<p class="text-gray-500 text-center">No statistics available.</p>';
+            this.statisticsContainer.innerHTML = '<p class="text-gray-500 text-center">No statistics available.</p>';
             return;
         }
 
@@ -62,5 +52,56 @@ export class EventLog {
         `;
             })
             .join('');
+    }
+
+    renderTimeline(events) {
+        // Clear the timeline container
+        this.timelineContainer.innerHTML = '';
+
+        // Group events by type
+        const eventsByType = events.reduce((acc, event) => {
+            if (!acc[event.event]) acc[event.event] = [];
+            acc[event.event].push(event);
+            return acc;
+        }, {});
+
+        // Get the earliest and latest timestamps for scaling
+        const allTimestamps = events.map(event => event.timeMs);
+        const minTime = Math.min(...allTimestamps);
+        const maxTime = Math.max(...allTimestamps);
+
+        // Define a consistent starting point for event markers
+        const markerStartOffset = 150; // Adjust this value as needed for spacing after row headings
+        const timelineWidth = this.timelineContainer.offsetWidth - markerStartOffset; // Available width for markers
+
+        // Create a row for each event type
+        Object.entries(eventsByType).forEach(([eventType, eventList]) => {
+            // Create a row container
+            const row = document.createElement('div');
+            row.className = 'relative h-12 border-b border-gray-300 flex items-center';
+
+            // Add a label for the event type
+            const label = document.createElement('span');
+            label.className = 'absolute left-0 top-1/2 transform -translate-y-1/2 text-sm text-gray-600 w-[140px] truncate';
+            label.textContent = eventType;
+            row.appendChild(label);
+
+            // Add event markers to the row
+            eventList.forEach(event => {
+                const marker = document.createElement('div');
+                marker.className = 'absolute w-4 h-4 bg-blue-500 rounded-full';
+
+                // Calculate position as a percentage of the timeline width
+                const positionPercent = ((event.timeMs - minTime) / (maxTime - minTime)) * 100;
+                marker.style.left = `calc(${markerStartOffset}px + ${positionPercent}%)`;
+
+                // Add tooltip for event time
+                marker.title = new Date(event.timeMs).toLocaleTimeString();
+
+                row.appendChild(marker);
+            });
+
+            this.timelineContainer.appendChild(row);
+        });
     }
 }
