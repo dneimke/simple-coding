@@ -325,7 +325,7 @@ body {
 }
 
 /* Add scrollable behavior to the List View when height exceeds 22rem */
-#listView {
+#timelineView {
     max-height: 22rem;
     overflow-y: auto;
 }

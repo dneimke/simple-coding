@@ -101,7 +101,11 @@
                     </div>
                     <div>
                         <div id="timelineView" class="tab-content">
-                            <p class="text-gray-500 text-center">No events recorded yet.</p>
+                            <div class="timeline-output-container">
+                                <div class="timeline-output">
+                                    <p class="text-gray-500 text-center">No events recorded yet.</p>
+                                </div>
+                            </div>
                         </div>
                         <div id="xmlView" class="tab-content hidden">
                             <div class="xml-output-container">
@@ -301,22 +305,25 @@
             thead.className = 'bg-gray-800 text-white rounded-t-lg';
             thead.innerHTML = `
     <tr>
-        <th class="px-6 py-3 border-b text-center">Event</th>
-        <th class="px-6 py-3 border-b text-center">Count</th>
+        <th class="px-4 py-2 border-b text-center text-sm">Event</th>
+        <th class="px-4 py-2 border-b text-center text-sm">Count</th>
     </tr>
 `;
             table.appendChild(thead);
 
             const tbody = document.createElement('tbody');
-            Object.entries(gameStatistics).forEach(([event, count]) => {
-                const row = document.createElement('tr');
-                row.className = 'odd:bg-gray-100 even:bg-white hover:bg-gray-200';
-                row.innerHTML = `
-        <td class="px-6 py-3 border-b text-center">${event}</td>
-        <td class="px-6 py-3 border-b text-center">${count}</td>
+            Object.entries(gameStatistics)
+                .sort(([eventA], [eventB]) => eventA.localeCompare(eventB)) // Sort alphabetically
+                .forEach(([event, count]) => {
+
+                    const row = document.createElement('tr');
+                    row.className = 'odd:bg-gray-100 even:bg-white hover:bg-gray-200';
+                    row.innerHTML = `
+        <td class="px-4 py-2 border-b text-center text-sm leading-tight">${event}</td>
+        <td class="px-4 py-2 border-b text-center text-sm leading-tight">${count}</td>
     `;
-                tbody.appendChild(row);
-            });
+                    tbody.appendChild(row);
+                });
             table.appendChild(tbody);
 
             statsContainer.appendChild(table);
@@ -357,6 +364,7 @@
                                 eventButtonManager.enableEventButtons();
                                 renderStatistics('statsContainer', gameState);
                                 updateNavbarVisibility(gameState.hasCurrentGame);
+                                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
                                 router.showView('log');
                                 logger.log(`Game ${index + 1} loaded successfully.`);
                             },
@@ -553,14 +561,16 @@
 
     <!-- Step 5: Preview and Confirmation -->
     <div id="previewModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-        <div class="bg-white rounded-lg p-6 max-w-lg w-full"></div>
-        <h2 class="text-xl font-bold mb-4">Preview Imported Events</h2>
-        <div id="previewContainer" class="max-h-60 overflow-y-auto mb-4"></div>
-        <div class="flex justify-end">
-            <button id="confirmImportButton" class="event-button btn-green px-4 py-2 mr-2">Confirm</button>
-            <button id="cancelImportButton" class="event-button btn-red px-4 py-2">Cancel</button>
+        <div class="bg-white rounded-lg p-6 max-w-lg w-full">
+            <h2 class="text-xl font-bold mb-4">Preview Imported Events</h2>
+            <div id="previewContainer" class="max-h-60 overflow-y-auto mb-4">
+                <!-- Preview content will be dynamically injected here -->
+            </div>
+            <div class="flex justify-end">
+                <button id="confirmImportButton" class="event-button btn-green px-4 py-2 mr-2">Confirm</button>
+                <button id="cancelImportButton" class="event-button btn-red px-4 py-2">Cancel</button>
+            </div>
         </div>
-    </div>
     </div>
 
 </body>

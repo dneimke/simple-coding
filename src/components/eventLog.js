@@ -15,15 +15,17 @@ export class EventLog {
             return;
         }
 
-        this.listContainer.innerHTML = events.map(event => {
-            const eventTime = new Date(event.timeMs).toISOString().substr(11, 8);
-            return `
+        this.listContainer.innerHTML = events
+            .sort((a, b) => b.timeMs - a.timeMs) // Sort events by timeMs in descending order
+            .map(event => {
+                const eventTime = new Date(event.timeMs).toISOString().slice(11, 19);
+                return `
                 <div class="event-log-item">
                     <span>${event.event}</span>
                     <span>${eventTime}</span>
                 </div>
             `;
-        }).join('');
+            }).join('');
 
         let styledXmlString = '';
         events.forEach((logEntry, index) => {
