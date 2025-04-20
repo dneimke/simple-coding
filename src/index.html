@@ -94,13 +94,14 @@
                 <div class="group-container">
                     <div class="border-b border-gray-200">
                         <nav class="-mb-px flex space-x-4" aria-label="Tabs">
-                            <button id="tabButtonList" class="tab-button tab-button-active" data-tab="listView">List
+                            <button id="tabButtonTimeline" class="tab-button tab-button-active"
+                                data-tab="timelineView">Timeline
                                 View</button>
                             <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
                         </nav>
                     </div>
                     <div>
-                        <div id="listView" class="tab-content">
+                        <div id="timelineView" class="tab-content">
                             <p class="text-gray-500 text-center">No events recorded yet.</p>
                         </div>
                         <div id="xmlView" class="tab-content hidden">
@@ -170,9 +171,9 @@
 
         // Update references to use constants
         const timerDisplay = document.getElementById('timer');
-        const tabButtonList = document.getElementById('tabButtonList');
+        const tabButtonTimeline = document.getElementById('tabButtonTimeline');
         const tabButtonXml = document.getElementById('tabButtonXml');
-        const listViewPanel = document.getElementById('listView');
+        const timelineViewPanel = document.getElementById('timelineView');
         const xmlViewPanel = document.getElementById('xmlView');
         const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
         const copyXmlButton = document.getElementById('copyXmlButton');
@@ -539,15 +540,14 @@
             log: { view: logView, button: navLog },
             statistics: { view: statsView, button: navStats },
             'saved-games': { view: savedGamesView, button: navSavedGames }
-        }
-            , {
-                list: tabButtonList,
-                xml: tabButtonXml,
-                listView: listViewPanel,
-                xmlView: xmlViewPanel
-            });
+        }, {
+            timeline: tabButtonTimeline,
+            xml: tabButtonXml,
+            timelineView: timelineViewPanel,
+            xmlView: xmlViewPanel
+        });
 
-        const eventLog = new EventLog(listViewPanel, xmlOutputContainer);
+        const eventLog = new EventLog(timelineViewPanel, xmlOutputContainer);
         const gameState = new GameState(timerDisplay);
         const eventButtonManager = new EventButtonManager(gameState, codingButtonsContainer);
         initApp();
