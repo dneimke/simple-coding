@@ -170,6 +170,10 @@
 
         // Update references to use constants
         const timerDisplay = document.getElementById('timer');
+        const newGameButton = document.getElementById('newGameButton');
+        const pauseResumeButton = document.getElementById('pauseResumeButton');
+        const completeGameButton = document.getElementById('completeGameButton');
+
         const tabButtonTimeline = document.getElementById('tabButtonTimeline');
         const tabButtonXml = document.getElementById('tabButtonXml');
         const tabButtonStatistics = document.getElementById('tabButtonStatistics');
@@ -237,7 +241,6 @@
                                 hideElement(completeGameButton);
 
                                 updateNavbarVisibility(gameState.hasCurrentGame);
-                                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
                                 router.showView('Log');
                                 logger.log(`Game ${index + 1} loaded successfully.`);
                             },
@@ -381,6 +384,7 @@
                     showMessage(configMessage, `Error parsing JSON: ${error.message}`, true);
                 }
             });
+
             loadDefaultConfigButton.addEventListener('click', () => { configJsonInput.value = JSON.stringify(DEFAULT_CONFIG, null, 2); showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false); });
 
             // Step 4: Event Listener for File Upload
@@ -412,7 +416,6 @@
                     }
                 }
             });
-
 
             const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
 
