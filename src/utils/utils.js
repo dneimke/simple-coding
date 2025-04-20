@@ -87,8 +87,8 @@ export const copyXmlToClipboard = (xmlContent) => {
         });
 };
 
-export const computeGameStatistics = (currentGame) => {
-    return currentGame.loggedEvents.reduce((stats, event) => {
+export const computeGameStatistics = (gameEvents) => {
+    return gameEvents.reduce((stats, event) => {
         if (event && event.event) { // Ensure event and event.event are defined
             stats[event.event] = (stats[event.event] || 0) + 1;
         }

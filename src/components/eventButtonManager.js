@@ -6,8 +6,8 @@ export class EventButtonManager {
         this.targetContainer = targetContainer;
     }
 
-    enableEventButtons() {
-        const eventButtons = document.querySelectorAll('.event-button[data-event]');
+    setButtonState() {
+        const eventButtons = this.targetContainer.querySelectorAll('.event-button[data-event]');
         const isRunning = this.gameState.isActive && this.gameState.isRunning;
 
         eventButtons.forEach(button => {
@@ -53,6 +53,6 @@ export class EventButtonManager {
 
         const eventButtons = this.targetContainer.querySelectorAll('.event-button[data-event]');
         addVisualFeedbackToButtons(eventButtons);
-        this.enableEventButtons();
+        this.setButtonState();
     }
 }
