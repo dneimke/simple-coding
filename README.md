@@ -70,10 +70,29 @@ The Configure page allows users to customize the event buttons displayed on the 
 - A JSON editor to define button groups, labels, and colors.
 - Options to save the configuration to local storage or load the default configuration.
 
-### 4. Log Page
+### 3. Log Page
 
 The Log page displays a detailed list of recorded events and provides options to export the log in XML format. Features include:
 
-- A **List View** for a chronological display of events.
+- A **Timeline View** for a timeline of events.
 - An **XML View** for exporting events in XML format.
+- A **Statistics View** to display the number of recorded events and their types. This helps users analyze the game's key moments at a glance.
 - Options to copy the XML to the clipboard or clear the log.
+
+### Timeline View
+
+The Timeline View provides a visual representation of the events logged during the game. Each event is displayed as a marker on a timeline, synchronized with the game timer.
+
+![Timeline View](images/timeline-view.png)
+
+### XML View
+
+The XML View allows users to export the logged events in XML format. This feature is useful for importing data into external analysis tools or sharing with others.
+
+![XML View](images/xml-view.png)
+
+### Statistics View
+
+The Statistics View displays a summary of the recorded events, including the total number of events and a breakdown by event type. This helps users analyze the game's key moments at a glance.
+
+![Statistics View](images/statistics-view.png)
