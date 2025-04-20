@@ -74,33 +74,38 @@ export class EventLog {
         const markerStartOffset = 150; // Adjust this value as needed for spacing after row headings
 
         // Create a row for each event type
-        Object.entries(eventsByType).forEach(([eventType, eventList]) => {
-            // Create a row container
-            const row = document.createElement('div');
-            row.className = 'relative h-12 border-b border-gray-300 flex items-center';
+        Object.entries(eventsByType)
+            .sort(([eventTypeA], [eventTypeB]) => eventTypeA.localeCompare(eventTypeB)) // Sort alphabetically by eventType
+            .forEach(([eventType, eventList]) => {
+                // Create a row container
+                const row = document.createElement('div');
+                row.className = 'relative h-8 border-b border-gray-300 flex items-center';
 
-            // Add a label for the event type
-            const label = document.createElement('span');
-            label.className = 'absolute left-0 top-1/2 transform -translate-y-1/2 text-sm text-gray-600 w-[140px] truncate';
-            label.textContent = eventType;
-            row.appendChild(label);
+                // Add a label for the event type
+                const label = document.createElement('span');
+                label.className = 'absolute left-0 top-1/2 transform -translate-y-1/2 text-sm text-gray-600 w-[140px] truncate';
+                label.textContent = eventType;
+                row.appendChild(label);
 
-            // Add event markers to the row
-            eventList.forEach(event => {
-                const marker = document.createElement('div');
-                marker.className = 'absolute w-4 h-4 bg-blue-500 rounded-full';
+                // Add event markers to the row
+                eventList.forEach(event => {
+                    const marker = document.createElement('div');
+                    marker.className = 'absolute w-4 h-4 bg-blue-500 rounded-full';
 
-                // Calculate position as a percentage of the timeline width
-                const positionPercent = ((event.timeMs - minTime) / (maxTime - minTime)) * 100;
-                marker.style.left = `calc(${markerStartOffset}px + ${positionPercent}%)`;
+                    // Calculate position as a percentage of the timeline width
+                    const positionPercent = ((event.timeMs - minTime) / (maxTime - minTime)) * 100;
+                    marker.style.left = `calc(${markerStartOffset}px + ${positionPercent}%)`;
 
-                // Add tooltip for event time
-                // marker.title = new Date(event.timeMs).toLocaleTimeString();
+                    // Add tooltip for event time
+                    const hours = Math.floor(event.timeMs / 3600000).toString().padStart(2, '0');
+                    const minutes = Math.floor((event.timeMs % 3600000) / 60000).toString().padStart(2, '0');
+                    const seconds = Math.floor((event.timeMs % 60000) / 1000).toString().padStart(2, '0');
+                    marker.title = `${hours}:${minutes}:${seconds}`;
 
-                row.appendChild(marker);
+                    row.appendChild(marker);
+                });
+
+                this.timelineContainer.appendChild(row);
             });
-
-            this.timelineContainer.appendChild(row);
-        });
     }
 }
