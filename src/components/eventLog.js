@@ -11,6 +11,7 @@ export class EventLog {
         const logIsEmpty = events.length === 0;
 
         if (logIsEmpty) {
+            this.statisticsContainer.innerHTML = '<p class="text-gray-500 text-center">No statistics available.</p>';
             this.timelineContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
             this.xmlContainer.innerHTML = '<p class="text-gray-500 text-center">No events recorded yet.</p>';
             return;
