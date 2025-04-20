@@ -295,24 +295,26 @@
             }
 
             const table = document.createElement('table');
-            table.className = 'min-w-full bg-white border border-gray-200';
+            table.className = 'min-w-full bg-white border border-gray-200 rounded-lg shadow-md';
 
             const thead = document.createElement('thead');
+            thead.className = 'bg-gray-800 text-white rounded-t-lg';
             thead.innerHTML = `
-        <tr>
-            <th class="px-4 py-2 border-b">Event</th>
-            <th class="px-4 py-2 border-b">Count</th>
-        </tr>
-    `;
+    <tr>
+        <th class="px-6 py-3 border-b text-center">Event</th>
+        <th class="px-6 py-3 border-b text-center">Count</th>
+    </tr>
+`;
             table.appendChild(thead);
 
             const tbody = document.createElement('tbody');
             Object.entries(gameStatistics).forEach(([event, count]) => {
                 const row = document.createElement('tr');
+                row.className = 'odd:bg-gray-100 even:bg-white hover:bg-gray-200';
                 row.innerHTML = `
-            <td class="px-4 py-2 border-b">${event}</td>
-            <td class="px-4 py-2 border-b">${count}</td>
-        `;
+        <td class="px-6 py-3 border-b text-center">${event}</td>
+        <td class="px-6 py-3 border-b text-center">${count}</td>
+    `;
                 tbody.appendChild(row);
             });
             table.appendChild(tbody);
