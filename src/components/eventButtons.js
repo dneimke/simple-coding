@@ -1,21 +1,20 @@
 import { addVisualFeedbackToButtons, logger } from '../utils/utils.js';
 
-export class EventButtonManager {
-    constructor(gameState, targetContainer) {
-        this.gameState = gameState;
+export class EventButtons {
+    constructor(targetContainer) {
         this.targetContainer = targetContainer;
     }
 
-    setButtonState() {
+    setState(gameState) {
         const eventButtons = this.targetContainer.querySelectorAll('.event-button[data-event]');
-        const isRunning = this.gameState.isActive && this.gameState.isRunning;
+        const isRunning = gameState.isActive && gameState.isRunning;
 
         eventButtons.forEach(button => {
             button.disabled = !isRunning;
         });
     }
 
-    renderEventButtons(config) {
+    initialize(config) {
         this.targetContainer.innerHTML = '';
 
         const renderGroup = (group) => {
@@ -53,6 +52,6 @@ export class EventButtonManager {
 
         const eventButtons = this.targetContainer.querySelectorAll('.event-button[data-event]');
         addVisualFeedbackToButtons(eventButtons);
-        this.setButtonState();
+        this.setState({ isActive: false, isRunning: false });
     }
 }

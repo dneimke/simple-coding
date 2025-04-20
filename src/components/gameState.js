@@ -1,7 +1,9 @@
 import { formatTime, logger } from '../utils/utils.js';
 
 export class GameState {
-    constructor(timerDisplay) {
+    constructor(timerDisplay, eventLog, eventButtons) {
+        this.eventButtons = eventButtons;
+        this.eventLog = eventLog;
         this.timerDisplay = timerDisplay;
         this.loggedEvents = [];
         this.isRunning = false;
@@ -13,7 +15,10 @@ export class GameState {
     }
 
     setGameState(newState) {
+        this.clearState();
         Object.assign(this, newState);
+        this.eventLog.render(this.loggedEvents);
+        this.eventButtons.setState(this);
     }
 
     addEvent(event) {
@@ -22,12 +27,36 @@ export class GameState {
             return;
         }
         this.loggedEvents.push(event);
+        this.eventLog.render(this.loggedEvents);
     }
 
+    newGame() {
+        this.clearState();
+        this.setGameState({
+            hasCurrentGame: true,
+            isActive: true,
+        });
+
+        this.start();
+    }
+
+    pauseResume() {
+        if (this.isRunning) {
+            this.pause();
+        } else {
+            this.start();
+        }
+    }
+
+    completeGame() {
+        this.pause();
+        this.clearState();
+    }
+
+    /// INTERNAL USE ONLY ///
     clearState() {
         this.pause();
-        this.timerDisplay.textContent = '00:00';
-        this.setGameState({
+        Object.assign(this, {
             loggedEvents: [],
             isRunning: false,
             elapsedTime: 0,
@@ -35,6 +64,8 @@ export class GameState {
             hasCurrentGame: false,
             isActive: false,
         });
+        this.timerDisplay.textContent = '00:00';
+
     }
 
     pause() {
@@ -45,10 +76,12 @@ export class GameState {
         this.isRunning = false;
         const currentTime = Date.now();
         this.elapsedTime += (currentTime - this.startTime);
+        this.eventButtons.setState(this);
     }
 
     start() {
         if (this.timerInterval) return;
+
         this.startTime = Date.now();
         this.timerInterval = setInterval(() => {
             const currentTime = Date.now();
@@ -57,6 +90,10 @@ export class GameState {
                 : this.elapsedTime;
             this.timerDisplay.textContent = formatTime(currentElapsedTime);
         }, 1000);
+
         this.isRunning = true;
+        this.eventLog.render(this.loggedEvents);
+        this.eventButtons.setState(this);
+
     }
 }

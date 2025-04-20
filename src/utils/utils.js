@@ -14,7 +14,7 @@ export const hideElement = (element) => {
 
 // Reusable Components
 
-export const createButton = ({ text, className, onClick, id = null }) => {
+const createButton = ({ text, className, onClick, id = null }) => {
     let button = document.getElementById(id);
     if (!button) {
         button = document.createElement('button');

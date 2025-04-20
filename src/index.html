@@ -139,9 +139,9 @@
     <script type="module" src="utils/utils.js"></script>
     <script type="module" src="components/index.js"></script>
     <script type="module">
-        import { EventButtonManager, EventLog, GameState, Router } from './components/index.js';
+        import { EventButtons, EventLog, GameState, Router } from './components/index.js';
         import {
-            createButton, createGameCard,
+            createGameCard,
             createLogEntry,
             copyXmlToClipboard, generatePlainXml, escapeXml,
             formatTime,
@@ -205,94 +205,13 @@
         const loadDefaultConfigButton = document.getElementById('loadDefaultConfigButton');
         const configMessage = document.getElementById('configMessage');
 
-        // Handle New Game, Pause/Resume, and Complete Game Button Events
-        const TrackerSessionControls = {
-            createControls() {
-                createButton({
-                    id: 'newGameButton',
-                    text: 'Start Game',
-                    className: 'event-button btn-green px-6 py-3 text-lg'
-                });
-
-                createButton({
-                    id: 'pauseResumeButton',
-                    text: 'Pause',
-                    className: 'event-button btn-yellow px-6 py-3 text-lg hidden'
-                });
-
-                createButton({
-                    id: 'completeGameButton',
-                    text: 'Complete',
-                    className: 'event-button btn-blue px-6 py-3 text-lg hidden'
-                });
-            },
-
-            handleNewGame() {
-                gameState.clearState();
-                gameState.setGameState({
-                    loggedEvents: [],
-                    isRunning: false,
-                    elapsedTime: 0,
-                    startTime: 0,
-                    hasCurrentGame: true,
-                    isActive: true,
-                });
-
-                gameState.start();
-
-                hideElement(newGameButton);
-                showElement(pauseResumeButton);
-                showElement(completeGameButton);
-
-                eventLog.render(gameState.loggedEvents);
-                eventButtonManager.setButtonState();
-                updateNavbarVisibility(gameState.hasCurrentGame);
-            },
-
-            handlePauseResume() {
-                if (gameState.isRunning) {
-                    gameState.pause();
-                    pauseResumeButton.textContent = 'Resume';
-                } else {
-                    gameState.start();
-                    pauseResumeButton.textContent = 'Pause';
-                }
-
-                eventButtonManager.setButtonState();
-            },
-
-            handleCompleteGame() {
-                const userConfirmed = confirm('Are you sure you want to complete the game? This will reset all progress.');
-                if (userConfirmed) {
-
-                    gameState.pause();
-
-                    saveGameToLocalStorage({
-                        events: gameState.loggedEvents,
-                        elapsedTime: gameState.elapsedTime,
-                        timestamp: new Date().toISOString()
-                    }, LOCAL_STORAGE_KEY_GAMES);
-
-                    gameState.clearState();
-
-                    showElement(newGameButton);
-                    hideElement(pauseResumeButton);
-                    hideElement(completeGameButton);
-
-                    eventLog.render(gameState.loggedEvents);
-                    eventButtonManager.setButtonState();
-                    updateNavbarVisibility(gameState.hasCurrentGame);
-                }
-            },
-        };
-
-
         function renderSavedGamesList() {
             const savedGamesList = document.getElementById('savedGamesList');
             savedGamesList.innerHTML = '';
 
             try {
                 const savedGames = loadSavedGames(LOCAL_STORAGE_KEY_GAMES);
+
                 if (savedGames.length > 0) {
                     savedGames.forEach((game, index) => {
                         const gameCard = createGameCard({
@@ -300,13 +219,12 @@
                             index,
                             onLoad: () => {
                                 if (gameState.isActive || gameState.isRunning) {
-                                    const userConfirmed = confirm('A game is currently in progress. Do you want to stop it and load the saved game?');
-                                    if (!userConfirmed) {
-                                        return;
-                                    }
+                                    const userConfirmed = confirm(
+                                        'A game is currently in progress. Do you want to stop it and load the saved game?'
+                                    );
+                                    if (!userConfirmed) return; // Exit if the user cancels
                                 }
 
-                                gameState.clearState();
                                 gameState.setGameState({
                                     loggedEvents: game.events,
                                     elapsedTime: game.elapsedTime,
@@ -318,8 +236,6 @@
                                 hideElement(pauseResumeButton);
                                 hideElement(completeGameButton);
 
-                                eventLog.render(gameState.loggedEvents);
-                                eventButtonManager.setButtonState();
                                 updateNavbarVisibility(gameState.hasCurrentGame);
                                 copyXmlButton.disabled = gameState.loggedEvents.length === 0;
                                 router.showView('log');
@@ -330,7 +246,7 @@
                                     deleteSavedGame(index, LOCAL_STORAGE_KEY_GAMES);
                                     renderSavedGamesList();
                                 }
-                            }
+                            },
                         });
 
                         savedGamesList.appendChild(gameCard);
@@ -366,7 +282,7 @@
                         break;
                     case 'navLog':
                         router.showView('log', () => {
-                            eventLog.render(gameState.loggedEvents);
+                            //eventLog.render(gameState.loggedEvents);
                             copyXmlButton.disabled = gameState.loggedEvents.length === 0;
                         });
                         break;
@@ -399,22 +315,49 @@
                     : gameState.elapsedTime;
 
                 gameState.addEvent({ event: eventName, timeMs: currentElapsedTimeMs });
-                eventLog.render(gameState.loggedEvents);
             });
 
-            // Attach a single event listener to the tracker-view container
+            // Handle New Game, Pause/Resume, and Complete Game Button Events
             trackerView.addEventListener('click', (event) => {
                 const { id } = event.target;
 
                 switch (id) {
                     case 'newGameButton':
-                        TrackerSessionControls.handleNewGame();
+                        gameState.newGame();
+
+                        hideElement(newGameButton);
+                        showElement(pauseResumeButton);
+                        showElement(completeGameButton);
+                        updateNavbarVisibility(gameState.hasCurrentGame);
                         break;
                     case 'pauseResumeButton':
-                        TrackerSessionControls.handlePauseResume();
+                        gameState.pauseResume();
+
+                        pauseResumeButton.textContent = gameState.isRunning ? 'Pause' : 'Resume';
                         break;
                     case 'completeGameButton':
-                        TrackerSessionControls.handleCompleteGame();
+                        const userConfirmed = confirm(
+                            'Are you sure you want to complete the game? This will reset all progress.'
+                        );
+
+                        if (userConfirmed) {
+                            // Extract game state details
+                            const { loggedEvents: events, elapsedTime } = gameState;
+                            const timestamp = new Date().toISOString();
+
+                            // Create a snapshot of the game and save it
+                            const gameSnapshot = { events, elapsedTime, timestamp };
+                            saveGameToLocalStorage(gameSnapshot, LOCAL_STORAGE_KEY_GAMES);
+
+                            // Complete the game and update UI
+                            gameState.completeGame();
+                            showElement(newGameButton);
+                            hideElement(pauseResumeButton);
+                            hideElement(completeGameButton);
+
+                            // Update navigation bar visibility
+                            updateNavbarVisibility(gameState.hasCurrentGame);
+                        }
                         break;
                     default:
                         // Ignore clicks on unrelated elements
@@ -433,10 +376,13 @@
                 try {
                     const jsonString = configJsonInput.value;
                     const parsedConfig = JSON.parse(jsonString);
+
                     if (parsedConfig && Array.isArray(parsedConfig.rowDefs)) {
-                        if (saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG)) {
+                        const isSaved = saveConfig(parsedConfig, LOCAL_STORAGE_KEY_CONFIG);
+
+                        if (isSaved) {
                             showMessage(configMessage, "Configuration saved successfully!", false);
-                            eventButtonManager.renderEventButtons(parsedConfig);
+                            eventButtons.initialize(parsedConfig);
                         } else {
                             showMessage(configMessage, "Failed to save configuration.", true);
                         }
@@ -486,9 +432,7 @@
             const currentConfig = loadConfig(LOCAL_STORAGE_KEY_CONFIG, DEFAULT_CONFIG);
 
             // Initial UI state
-            eventLog.render(gameState.loggedEvents);
-            eventButtonManager.renderEventButtons(currentConfig);
-            TrackerSessionControls.createControls();
+            eventButtons.initialize(currentConfig);
             router.showView('tracker');
             updateNavbarVisibility(gameState.hasCurrentGame);
         }
@@ -511,8 +455,9 @@
         );
 
         const eventLog = new EventLog(timelineViewPanel, xmlOutputContainer, statisticsViewPanel);
-        const gameState = new GameState(timerDisplay);
-        const eventButtonManager = new EventButtonManager(gameState, codingButtonsContainer);
+        const eventButtons = new EventButtons(codingButtonsContainer);
+        const gameState = new GameState(timerDisplay, eventLog, eventButtons);
+
         initApp();
     </script>
 
