@@ -24,8 +24,6 @@
         <nav class="border-b border-slate-700 flex justify-between items-center bg-slate-950 text-white p-4">
             <div class="flex space-x-4">
                 <button id="navTracker" class="text-gray-200 hover:text-white-300">Tracker</button>
-                <button id="navStats" class="text-gray-400 hover:text-white-300 font-medium hidden"
-                    data-requires-game>Statistics</button>
                 <button id="navLog" class="text-gray-400 hover:text-white-300 font-medium hidden"
                     data-requires-game>Log</button>
             </div>
@@ -95,9 +93,10 @@
                     <div class="border-b border-gray-200">
                         <nav class="-mb-px flex space-x-4" aria-label="Tabs">
                             <button id="tabButtonTimeline" class="tab-button tab-button-active"
-                                data-tab="timelineView">Timeline
-                                View</button>
+                                data-tab="timelineView">Timeline View</button>
                             <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
+                            <button id="tabButtonStatistics" class="tab-button"
+                                data-tab="statisticsView">Statistics</button>
                         </nav>
                     </div>
                     <div>
@@ -112,15 +111,12 @@
                             </div>
                             <button id="copyXmlButton" class="event-button btn-blue w-full py-2">Copy XML</button>
                         </div>
+                        <div id="statisticsView" class="tab-content hidden">
+                            <div id="statsContainer" class="overflow-x-auto">
+                                <!-- Statistics table will be injected here -->
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- New Statistics View -->
-            <div id="stats-view" class="hidden">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Game Statistics</h1>
-                <div id="statsContainer" class="overflow-x-auto">
-                    <!-- Statistics table will be injected here -->
                 </div>
             </div>
 
@@ -173,8 +169,10 @@
         const timerDisplay = document.getElementById('timer');
         const tabButtonTimeline = document.getElementById('tabButtonTimeline');
         const tabButtonXml = document.getElementById('tabButtonXml');
+        const tabButtonStatistics = document.getElementById('tabButtonStatistics');
         const timelineViewPanel = document.getElementById('timelineView');
         const xmlViewPanel = document.getElementById('xmlView');
+        const statisticsViewPanel = document.getElementById('statisticsView');
         const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
         const copyXmlButton = document.getElementById('copyXmlButton');
         const codingButtonsContainer = document.getElementById('coding-buttons-container');
@@ -357,7 +355,7 @@
                                 eventButtonManager.enableEventButtons();
                                 renderStatistics('statsContainer', gameState);
                                 updateNavbarVisibility(gameState.hasCurrentGame);
-                                router.showView('statistics');
+                                router.showView('log');
                                 logger.log(`Game ${index + 1} loaded successfully.`);
                             },
                             onDelete: () => {
@@ -398,12 +396,6 @@
                 switch (id) {
                     case 'navTracker':
                         router.showView('tracker');
-                        break;
-                    case 'navStats':
-                        router.showView('statistics', () => {
-                            renderStatistics('statsContainer', gameState);
-                            copyXmlButton.disabled = gameState.loggedEvents.length === 0;
-                        });
                         break;
                     case 'navLog':
                         router.showView('log', () => {
@@ -534,18 +526,22 @@
             updateNavbarVisibility(gameState.hasCurrentGame);
         }
 
-        const router = new Router({
-            tracker: { view: trackerView, button: navTracker },
-            config: { view: configView, button: navConfig },
-            log: { view: logView, button: navLog },
-            statistics: { view: statsView, button: navStats },
-            'saved-games': { view: savedGamesView, button: navSavedGames }
-        }, {
-            timeline: tabButtonTimeline,
-            xml: tabButtonXml,
-            timelineView: timelineViewPanel,
-            xmlView: xmlViewPanel
-        });
+        const router = new Router(
+            {
+                tracker: { view: trackerView, button: navTracker },
+                config: { view: configView, button: navConfig },
+                log: { view: logView, button: navLog },
+                'saved-games': { view: savedGamesView, button: navSavedGames }
+            },
+            {
+                timeline: tabButtonTimeline,
+                xml: tabButtonXml,
+                statistics: tabButtonStatistics,
+                timelineView: timelineViewPanel,
+                xmlView: xmlViewPanel,
+                statisticsView: statisticsViewPanel
+            }
+        );
 
         const eventLog = new EventLog(timelineViewPanel, xmlOutputContainer);
         const gameState = new GameState(timerDisplay);
@@ -555,14 +551,14 @@
 
     <!-- Step 5: Preview and Confirmation -->
     <div id="previewModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-        <div class="bg-white rounded-lg p-6 max-w-lg w-full">
-            <h2 class="text-xl font-bold mb-4">Preview Imported Events</h2>
-            <div id="previewContainer" class="max-h-60 overflow-y-auto mb-4"></div>
-            <div class="flex justify-end">
-                <button id="confirmImportButton" class="event-button btn-green px-4 py-2 mr-2">Confirm</button>
-                <button id="cancelImportButton" class="event-button btn-red px-4 py-2">Cancel</button>
-            </div>
+        <div class="bg-white rounded-lg p-6 max-w-lg w-full"></div>
+        <h2 class="text-xl font-bold mb-4">Preview Imported Events</h2>
+        <div id="previewContainer" class="max-h-60 overflow-y-auto mb-4"></div>
+        <div class="flex justify-end">
+            <button id="confirmImportButton" class="event-button btn-green px-4 py-2 mr-2">Confirm</button>
+            <button id="cancelImportButton" class="event-button btn-red px-4 py-2">Cancel</button>
         </div>
+    </div>
     </div>
 
 </body>

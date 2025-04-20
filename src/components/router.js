@@ -8,15 +8,18 @@ export class Router {
 
     switchTab = (tabToShow) => {
         const isTimelineView = tabToShow === 'timelineView';
-        const { timeline, xml, timelineView, xmlView } = this.tabs;
+        const isXmlView = tabToShow === 'xmlView';
+        const isStatisticsView = tabToShow === 'statisticsView';
+
+        const { timeline, xml, statistics, timelineView, xmlView, statisticsView } = this.tabs;
 
         timeline.classList.toggle('tab-button-active', isTimelineView);
-        xml.classList.toggle('tab-button-active', !isTimelineView);
-        timeline.classList.toggle('tab-button', !isTimelineView);
-        xml.classList.toggle('tab-button', isTimelineView);
+        xml.classList.toggle('tab-button-active', isXmlView);
+        statistics.classList.toggle('tab-button-active', isStatisticsView);
 
         timelineView.classList.toggle('hidden', !isTimelineView);
-        xmlView.classList.toggle('hidden', isTimelineView);
+        xmlView.classList.toggle('hidden', !isXmlView);
+        statisticsView.classList.toggle('hidden', !isStatisticsView);
     };
 
     showView = (viewToShow, callback) => {
