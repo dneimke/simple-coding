@@ -90,7 +90,7 @@ export class EventLog {
                 // Add event markers to the row
                 eventList.forEach(event => {
                     const marker = document.createElement('div');
-                    marker.className = 'absolute w-4 h-4 bg-blue-500 rounded-full';
+                    marker.className = 'absolute w-2 h-2 bg-blue-500 rounded-full';
 
                     // Calculate position as a percentage of the timeline width
                     const positionPercent = ((event.timeMs - minTime) / (maxTime - minTime)) * 100;
