@@ -238,7 +238,7 @@
 
                                 updateNavbarVisibility(gameState.hasCurrentGame);
                                 copyXmlButton.disabled = gameState.loggedEvents.length === 0;
-                                router.showView('log');
+                                router.showView('Log');
                                 logger.log(`Game ${index + 1} loaded successfully.`);
                             },
                             onDelete: () => {
@@ -276,32 +276,17 @@
             navContainer.addEventListener('click', (event) => {
                 const { id } = event.target;
 
-                switch (id) {
-                    case 'navTracker':
-                        router.showView('tracker');
-                        break;
-                    case 'navLog':
-                        router.showView('log', () => {
-                            //eventLog.render(gameState.loggedEvents);
-                            copyXmlButton.disabled = gameState.loggedEvents.length === 0;
-                        });
-                        break;
-                    case 'navSavedGames':
-                        router.showView('saved-games', () => {
-                            renderSavedGamesList();
-                            copyXmlButton.disabled = gameState.loggedEvents.length === 0;
-                        });
-                        break;
-                    case 'navConfig':
-                        router.showView('config', () => {
-                            configJsonInput.value = JSON.stringify(currentConfig, null, 2);
-                            showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
-                        });
-                        break;
-                    default:
-                        // Ignore clicks on unrelated elements
-                        break;
-                }
+                const viewName = id.startsWith('nav') ? id.slice(3) : id;
+
+                router.showView(viewName, () => {
+                    if (viewName === 'SavedGames') {
+                        renderSavedGamesList();
+                    } else if (viewName === 'Config') {
+                        configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+                    }
+                });
+
+                copyXmlButton.disabled = gameState.loggedEvents.length === 0;
             });
 
             // Attach a single event listener to the coding-buttons-container
@@ -433,16 +418,16 @@
 
             // Initial UI state
             eventButtons.initialize(currentConfig);
-            router.showView('tracker');
+            router.showView('Tracker');
             updateNavbarVisibility(gameState.hasCurrentGame);
         }
 
         const router = new Router(
             {
-                tracker: { view: trackerView, button: navTracker },
-                config: { view: configView, button: navConfig },
-                log: { view: logView, button: navLog },
-                'saved-games': { view: savedGamesView, button: navSavedGames }
+                Tracker: { view: trackerView, button: navTracker },
+                Config: { view: configView, button: navConfig },
+                Log: { view: logView, button: navLog },
+                SavedGames: { view: savedGamesView, button: navSavedGames }
             },
             {
                 timeline: tabButtonTimeline,
