@@ -79,11 +79,13 @@ export class EventLog {
             .forEach(([eventType, eventList]) => {
                 // Create a row container
                 const row = document.createElement('div');
-                row.className = 'relative h-8 border-b border-gray-300 flex items-center';
+                row.className = 'relative h-8 bg-white flex items-center';
 
                 // Add a label for the event type
                 const label = document.createElement('span');
-                label.className = 'absolute left-0 top-1/2 transform -translate-y-1/2 text-sm text-gray-600 w-[140px] truncate';
+                // Apply sticky positioning and background - rely on parent's flex items-center for vertical alignment
+                // Added bg-white back to ensure label covers markers behind it.
+                label.className = 'sticky left-0 text-sm text-gray-600 w-[140px] truncate bg-white z-10 p-2';
                 label.textContent = eventType;
                 row.appendChild(label);
 
