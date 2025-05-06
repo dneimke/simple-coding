@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<game date="2025-05-07" teams="Team A vs Team B" location="Sports Complex">
+    <events>
+        <event timestamp="2025-05-07T14:00:00Z" title="Kick-off" description="Game started" />
+        <event timestamp="2025-05-07T14:05:30Z" title="Goal Attempt" description="Player #8 shot wide" />
+        <event timestamp="2025-05-07T14:10:15Z" title="Goal Scored" description="Player #10 scores from penalty corner" />
+        <event timestamp="2025-05-07T14:15:45Z" title="Green Card" description="Player #7 receives green card for stick tackle" />
+        <event timestamp="2025-05-07T14:20:00Z" title="Substitution" description="Player #9 replaces Player #12" />
+        <event timestamp="2025-05-07T14:28:30Z" title="Goal Scored" description="Team B scores with a field goal" />
+        <event timestamp="2025-05-07T14:35:00Z" title="Quarter Break" description="First quarter ends, score: 1-1" />
+    </events>
+</game>

@@ -49,6 +49,8 @@ This method ensures a smooth local development experience without needing additi
 ### Load Saved Games
 
 - Load previously saved game logs from local storage to review past matches.
+- Import game data from XML files for analysis.
+- See the [Timeline View Guide](docs/timeline-view-guide.md) for detailed instructions on working with saved games.
 - Clear the log to start a new game or remove old entries.
 
 ## Application Pages
@@ -81,7 +83,12 @@ The Log page displays a detailed list of recorded events and provides options to
 
 ### Timeline View
 
-The Timeline View provides a visual representation of the events logged during the game. Each event is displayed as a marker on a timeline, synchronized with the game timer.
+The Timeline View provides a visual representation of the events logged during the game. Each event is displayed as a marker on a timeline, synchronized with the game timer. You can also upload a video file and navigate to specific events by clicking on them in the timeline.
+
+- [Timeline View Guide](docs/timeline-view-guide.md) - Detailed documentation on using the Timeline View feature
+- Import and export game data using XML files
+- Load saved games from local storage
+- Interact with timeline events to navigate video footage
 
 ![Timeline View](images/timeline-view.png)
 

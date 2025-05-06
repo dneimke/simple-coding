@@ -5,6 +5,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.26.9",
+    "cssom": "^0.5.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0"
   }
