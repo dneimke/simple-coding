@@ -24,9 +24,8 @@ Before you can view timeline events, you need to load game data. There are three
 
 Once game data is loaded, the timeline will display events chronologically (newest first). Each event shows:
 
-- **Time**: When the event occurred
-- **Title**: Brief description of the event (e.g., "Goal Scored")
-- **Description**: Additional details about the event
+- **Time**: Time of the event in minutes and seconds (MM:SS format)
+- **Event**: Type of event that occurred (e.g., "GOAL_FOR", "FOUL", "PRESS")
 
 ### Interacting with Events
 
@@ -40,8 +39,8 @@ Timeline events are automatically sorted in reverse chronological order (newest 
 
 When you click on an event, the application:
 
-1. Calculates the time difference between the clicked event and the first event in the game
-2. Converts this time difference to seconds
+1. Uses the event's `timeMs` value (time in milliseconds from game start)
+2. Converts this time to seconds
 3. Seeks the video player to that position
 4. The video will automatically jump to the moment of the event (assuming the video timeline corresponds to the game timeline)
 
@@ -74,7 +73,8 @@ The timeline view supports importing game data from XML files. The format is as 
 <?xml version="1.0" encoding="UTF-8"?>
 <game date="YYYY-MM-DD" teams="Team A vs Team B" location="Location Name">
   <events>
-    <event timestamp="YYYY-MM-DDThh:mm:ssZ" title="Event Title" description="Event Description" />
+    <event event="GOAL_FOR" timeMs="1230000" />
+    <event event="FOUL" timeMs="1035000" />
     <!-- Additional events... -->
   </events>
 </game>
@@ -85,11 +85,10 @@ The timeline view supports importing game data from XML files. The format is as 
 - `<game>`: Root element containing game metadata
 - `<events>`: Container for all game events
 - `<event>`: Individual event with the following attributes:
-  - `timestamp`: Date and time of the event in ISO format (YYYY-MM-DDThh:mm:ssZ)
-  - `title`: Short event name
-  - `description`: Detailed event description
+  - `event`: Event type/code (e.g., "GOAL_FOR", "PRESS")
+  - `timeMs`: Time in milliseconds from game start
 
-You can download a [sample XML file](../assets/sample-game.xml) to use as a template.
+You can download a [sample XML file](../assets/sample-game.xml) to use as a template. Note that the sample file may need to be updated to match the new standardized event format.
 
 ## Saving and Managing Games
 
@@ -107,8 +106,8 @@ The Timeline View includes the following accessibility features:
 ## Tips for Effective Use
 
 1. **Organize Events Chronologically**: Events are displayed newest-first to make recent events easily accessible.
-2. **Use Descriptive Titles**: Make event titles clear and consistent for easier scanning.
-3. **Include Detailed Descriptions**: Add player numbers, specific actions, and other relevant details in the description.
+2. **Use Standardized Event Codes**: Stick to consistent event codes for easier filtering and analysis.
+3. **Set Accurate Timing**: Ensure events have accurate `timeMs` values to sync properly with video.
 4. **Prepare Video Files in Advance**: Convert video files to web-compatible formats (MP4, WebM) for best results.
 
 ## Troubleshooting
@@ -118,8 +117,8 @@ The Timeline View includes the following accessibility features:
 | Issue | Possible Solution |
 |-------|-------------------|
 | No saved games appear in the dropdown | Check if your browser has local storage enabled |
-| XML file fails to import | Ensure your XML follows the format specified above |
-| Video and timeline events don't sync | Verify that video length matches the timespan between first and last event |
+| XML file fails to import | Ensure your XML follows the standard format with `event` and `timeMs` attributes |
+| Video and timeline events don't sync | Verify that your `timeMs` values accurately reflect game time |
 | Video doesn't play | Check that your browser supports the video format (MP4, WebM, etc.) |
 | Timeline events don't appear | Ensure you've selected a game or imported data before looking for events |
 
@@ -149,10 +148,8 @@ The application uses a custom event system to facilitate communication between c
 // When a timeline event is clicked, a custom event is dispatched
 const timelineClickEvent = new CustomEvent('timeline-event-clicked', {
   detail: {
-    title: event.title,
-    timestamp: event.timestamp,
-    description: event.description,
-    seekTime: timestampInSeconds
+    event: event.event,      // The event type/code
+    seekTime: event.timeMs / 1000  // Convert milliseconds to seconds for video seeking
   }
 });
 document.dispatchEvent(timelineClickEvent);
@@ -162,10 +159,10 @@ document.dispatchEvent(timelineClickEvent);
 
 To extend the Timeline View, consider these integration points:
 
-1. **Add new event types**: Extend the XML format and update the parser
-2. **Improve video synchronization**: Enhance the video seeking mechanism
+1. **Add new event types**: Expand the event codes used in the standardized event model
+2. **Enhance time display formats**: Add options for different time display formats while maintaining the standard `timeMs` storage
 3. **Add data export capabilities**: Create functions to export game data as XML or JSON
-4. **Implement cloud storage**: Add authentication and remote storage capabilities
+4. **Implement cloud storage**: Add authentication and remote storage capabilities while preserving the standardized event model
 
 ## Integration with Field Hockey Tracker
 

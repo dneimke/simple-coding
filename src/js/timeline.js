@@ -1,6 +1,8 @@
+import { formatTimeFromMs } from '../utils/event-utils.js';
+
 /**
  * Renders timeline events into a specified container.
- * @param {Array<object>} events - Array of event objects { timestamp, title, description }
+ * @param {Array<object>} events - Array of standardized event objects { event, timeMs }
  * @param {string} containerId - The ID of the HTML element to render into.
  */
 export function renderTimeline(events, containerId) {
@@ -13,43 +15,37 @@ export function renderTimeline(events, containerId) {
     // Clear existing content
     container.innerHTML = '';
 
-    // Sort events (assuming timestamps are ISO strings or Date objects)
-    // Sort descending to show newest first, or ascending for oldest first
-    const sortedEvents = [...events].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // Sort events by timeMs (most recent first for display)
+    const sortedEvents = [...events].sort((a, b) => b.timeMs - a.timeMs);
 
     if (sortedEvents.length === 0) {
         container.innerHTML = '<p class="text-gray-500 italic">No events yet.</p>';
         return;
-    }
-
-    // Create and append event elements
+    }    // Create and append event elements
     sortedEvents.forEach(event => {
         const eventElement = document.createElement('div');
-        eventElement.className = 'mb-4 p-3 bg-blue-50 rounded border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors duration-150'; // Added cursor/hover
+        eventElement.className = 'mb-4 p-3 bg-blue-50 rounded border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors duration-150';
         // Add data attribute for potential interaction (e.g., seeking video)
-        // Convert timestamp to seconds or a suitable format if needed for video seeking
-        // eventElement.dataset.timestamp = new Date(event.timestamp).getTime() / 1000;
+        eventElement.setAttribute('data-time-ms', event.timeMs);
 
-        const time = new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // Format the time nicely (MM:SS)
+        const timeFormatted = formatTimeFromMs(event.timeMs);
 
         eventElement.innerHTML = `
-            <p class="font-medium text-sm text-blue-800">${time} - ${event.title}</p>
-            <p class="text-xs text-gray-600">${event.description}</p>
+            <p class="font-medium text-sm text-blue-800">${timeFormatted} - ${event.event}</p>
         `;
-        container.appendChild(eventElement);        // Add event listener for timeline interaction
+        container.appendChild(eventElement);
+
+        // Add event listener for timeline interaction
         eventElement.addEventListener('click', () => {
-            console.log(`Event clicked: ${event.title} at ${event.timestamp}`);
+            // Calculate seconds for video seeking
+            const seekTime = event.timeMs / 1000;
 
-            // Calculate timestamp in seconds for video seeking
-            const timestampInSeconds = Math.floor((new Date(event.timestamp).getTime() - new Date(sortedEvents[sortedEvents.length - 1].timestamp).getTime()) / 1000);
-
-            // Dispatch a custom event that our main script can listen for
+            console.log(`Event clicked: ${event.event} at ${seekTime} seconds`);            // Dispatch a custom event that our main script can listen for
             const timelineClickEvent = new CustomEvent('timeline-event-clicked', {
                 detail: {
-                    title: event.title,
-                    timestamp: event.timestamp,
-                    description: event.description,
-                    seekTime: timestampInSeconds > 0 ? timestampInSeconds : 0
+                    event: event.event,
+                    seekTime: seekTime
                 }
             });
             document.dispatchEvent(timelineClickEvent);

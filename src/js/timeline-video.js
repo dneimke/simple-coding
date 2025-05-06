@@ -22,10 +22,19 @@ function getSavedGames() {
 function saveGame(gameId, events, metadata = {}) {
     const savedGames = getSavedGames();
 
+    // Ensure all events are in standard format (event, timeMs)
+    const standardEvents = events.map(evt => {
+        // Keep only the standard properties
+        return {
+            event: evt.event,
+            timeMs: evt.timeMs
+        };
+    });
+
     // Create or update game in the saved games object
     savedGames[gameId] = {
         id: gameId,
-        events,
+        events: standardEvents,
         metadata: {
             ...metadata,
             lastUpdated: new Date().toISOString()
@@ -109,24 +118,41 @@ function parseXmlEvents(xmlString) {
             eventElements = xmlDoc.getElementsByTagName('event');
         }
 
-        const events = [];
-
-        for (let i = 0; i < eventElements.length; i++) {
+        const events = []; for (let i = 0; i < eventElements.length; i++) {
             const element = eventElements[i];
 
-            // Extract event data
-            const event = {
-                timestamp: element.getAttribute('timestamp') || new Date().toISOString(),
-                title: element.getAttribute('title') || 'Untitled Event',
-                description: element.getAttribute('description') || '',
-                // Add additional fields as needed
-            };
+            // Get timeMs directly if available
+            let timeMs;
+            const timeMsAttr = element.getAttribute('timeMs');
 
-            events.push(event);
+            if (timeMsAttr) {
+                timeMs = parseInt(timeMsAttr, 10);
+            } else {
+                // Try to calculate from timestamp if available
+                const timestamp = element.getAttribute('timestamp');
+                if (timestamp) {
+                    // Use timestamp as a reference point
+                    const eventTime = new Date(timestamp);
+                    timeMs = eventTime.getTime();
+                } else {
+                    // As fallback, get zero time
+                    timeMs = 0;
+                }
+            }
+
+            // Get the event name
+            const eventName = element.getAttribute('event') ||
+                element.getAttribute('title') ||
+                'Unknown Event';
+
+            events.push({
+                event: eventName,
+                timeMs: timeMs
+            });
         }
 
-        // Sort events by timestamp (oldest first)
-        events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        // Sort events by timeMs (earliest first)
+        events.sort((a, b) => a.timeMs - b.timeMs);
 
         return events;
     } catch (e) {
@@ -190,6 +216,9 @@ function domReady(callback) {
 // --- Initialization ---
 domReady(() => {
     console.log('DOM fully loaded and parsed');
+
+    // Migrate stored games to standard format
+    migrateStoredGames();
 
     // Initialize UI with empty state
     toggleEmptyState(true);
@@ -277,12 +306,10 @@ domReady(() => {
                 `;
                 videoContainer.appendChild(errorMessage);
             }
-        });
-
-        // Listen for timeline event clicks to seek the video
+        });        // Listen for timeline event clicks to seek the video
         document.addEventListener('timeline-event-clicked', (e) => {
-            const { title, seekTime } = e.detail;
-            console.log(`Seeking video to ${seekTime} seconds for event: ${title}`);
+            const { event, seekTime } = e.detail;
+            console.log(`Seeking video to ${seekTime} seconds for event: ${event}`);
 
             try {
                 // Check if video is loaded
@@ -295,10 +322,8 @@ domReady(() => {
                         videoPlayer.play().catch(err => {
                             console.warn("Couldn't auto-play video:", err);
                         });
-                    }
-
-                    // Show a notification
-                    showNotification(`Seeking to event: ${title}`);
+                    }            // Show a notification
+                    showNotification(`Seeking to event: ${event}`);
                 } else {
                     console.warn("Video not ready for seeking");
                     showNotification("Video not loaded yet. Please try again.");
@@ -336,6 +361,52 @@ domReady(() => {
         }, 3000);
     }
 });
+
+/**
+ * Migrates saved games to use the standard GameEvent format
+ */
+function migrateStoredGames() {
+    const savedGames = getSavedGames();
+    let migrated = false;
+
+    // Check each game for old format events
+    Object.keys(savedGames).forEach(gameId => {
+        const game = savedGames[gameId];
+
+        if (game.events && Array.isArray(game.events)) {
+            // Convert each event to the standard format
+            game.events = game.events.map(oldEvent => {
+                // If already in standard format, keep as is
+                if (typeof oldEvent.event === 'string' && typeof oldEvent.timeMs === 'number') {
+                    return {
+                        event: oldEvent.event,
+                        timeMs: oldEvent.timeMs
+                    };
+                }
+
+                // Otherwise, create standardized event
+                return {
+                    // Get event from title or default
+                    event: oldEvent.event || oldEvent.title || 'Unknown Event',
+                    // Get timeMs or calculate from timestamp or default to 0
+                    timeMs: oldEvent.timeMs || (oldEvent.timestamp ? new Date(oldEvent.timestamp).getTime() : 0)
+                };
+            });
+
+            migrated = true;
+        }
+    });
+
+    // If any games were migrated, save changes back to storage
+    if (migrated) {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY_GAMES, JSON.stringify(savedGames));
+            console.log("Successfully migrated saved games to standard event format");
+        } catch (e) {
+            console.error("Error migrating saved games:", e);
+        }
+    }
+}
 
 // Populate game selector dropdown
 function populateGameSelector() {
@@ -439,13 +510,12 @@ function setupGameControls() {
     // Sample data load button handler
     const loadSampleButton = document.getElementById('load-sample-data');
     if (loadSampleButton) {
-        loadSampleButton.addEventListener('click', () => {
-            // Load sample data
+        loadSampleButton.addEventListener('click', () => {            // Load sample data using standardized GameEvent format
             const sampleEvents = [
-                { timestamp: '2025-05-03T10:05:30Z', title: 'Goal Scored', description: 'Player #10 scores.' },
-                { timestamp: '2025-05-03T10:02:15Z', title: 'Foul Committed', description: 'Yellow card for Player #5.' },
-                { timestamp: '2025-05-03T09:58:50Z', title: 'Substitution', description: 'Player #11 replaces Player #7.' },
-                { timestamp: '2025-05-03T09:45:00Z', title: 'Kick-off', description: 'Game started.' },
+                { event: 'GOAL_FOR', timeMs: 1230000 },    // 20:30
+                { event: 'FOUL', timeMs: 1035000 },        // 17:15
+                { event: 'SUBSTITUTION', timeMs: 830000 }, // 13:50
+                { event: 'KICKOFF', timeMs: 0 }            // 00:00
             ];
 
             // Update timeline
