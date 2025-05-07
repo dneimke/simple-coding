@@ -27,7 +27,7 @@ const createButton = ({ text, className, onClick, id = null }) => {
     return button;
 };
 
-export const createGameCard = ({ game, index, onLoad, onDelete }) => {
+export const createGameCard = ({ game, index, onLoad, onDelete, onRename }) => {
     const gameCard = document.createElement('div');
     gameCard.className = 'saved-game-card flex items-center p-4 mb-4 bg-gray-100 rounded-lg shadow-md hover:shadow-lg transition-shadow';
 
@@ -42,7 +42,7 @@ export const createGameCard = ({ game, index, onLoad, onDelete }) => {
 
     const gameTitle = document.createElement('h3');
     gameTitle.className = 'text-lg font-bold text-gray-800';
-    gameTitle.textContent = `Game ${index + 1}`;
+    gameTitle.textContent = game.teams ? game.teams : `Game ${index + 1}`;
 
     const gameTimestamp = document.createElement('p');
     gameTimestamp.className = 'text-sm text-gray-600';
@@ -60,13 +60,19 @@ export const createGameCard = ({ game, index, onLoad, onDelete }) => {
         onClick: onLoad
     });
 
+    const renameButton = createButton({
+        text: 'Rename',
+        className: 'event-button btn-yellow px-4 py-2 text-sm ml-2',
+        onClick: onRename
+    });
+
     const deleteButton = createButton({
         text: 'Delete',
         className: 'event-button btn-red px-4 py-2 text-sm ml-2',
         onClick: onDelete
     });
 
-    gameCard.append(icon, gameDetails, loadButton, deleteButton);
+    gameCard.append(icon, gameDetails, loadButton, renameButton, deleteButton);
 
     return gameCard;
 };
@@ -261,9 +267,36 @@ export function deleteSavedGame(index, storageKey) {
     }
 }
 
+export function updateSavedGame(index, updatedData, storageKey) {
+    try {
+        const savedGames = getFromLocalStorage(storageKey) || [];
+        if (index >= 0 && index < savedGames.length) {
+            // Update only the specified properties while preserving the rest
+            savedGames[index] = { ...savedGames[index], ...updatedData };
+            setToLocalStorage(storageKey, savedGames);
+            logger.log('Game updated successfully.');
+            return true;
+        } else {
+            logger.warn('Invalid game index for update.');
+            return false;
+        }
+    } catch (error) {
+        logger.error('Error updating game in localStorage:', error);
+        return false;
+    }
+}
+
 export const parseXmlToEvents = (xmlContent) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
+
+    // Try to extract teams info from the game element if available
+    let teamsAttribute = null;
+    const gameElement = xmlDoc.querySelector('game');
+    if (gameElement && gameElement.hasAttribute('teams')) {
+        teamsAttribute = gameElement.getAttribute('teams');
+    }
+
     const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
 
     const events = instanceNodes.map(node => {
@@ -282,6 +315,11 @@ export const parseXmlToEvents = (xmlContent) => {
         }
         return null;
     }).filter(Boolean);
+
+    // Attach the teams attribute to the events array for later use
+    if (teamsAttribute) {
+        events.teamsAttribute = teamsAttribute;
+    }
 
     return events;
 };
@@ -315,8 +353,10 @@ export const validateXmlStructure = (xmlContent) => {
 
 // Function to display a preview of parsed events in a modal, with an optional callback
 export const showPreview = (previewContainer, events, storageKey, callback = null) => {
+    const teamsAttribute = events.teamsAttribute || null;
 
-    setupImportButtons(events, storageKey, callback);
+    setupImportButtons(events, storageKey, teamsAttribute, callback);
+
     previewContainer.innerHTML = events.map(event => `
         <div class="event-preview p-4 border-b">
             <p class="font-bold">Event: ${event.event}</p>
@@ -324,25 +364,43 @@ export const showPreview = (previewContainer, events, storageKey, callback = nul
         </div>
     `).join('');
 
+    // Show teams information if available
+    if (teamsAttribute) {
+        previewContainer.innerHTML = `
+            <div class="p-4 mb-4 bg-blue-50 border-blue-200 border rounded">
+                <p class="font-bold">Teams: ${teamsAttribute}</p>
+            </div>
+        ` + previewContainer.innerHTML;
+    }
 };
 
 // Function to set up the Confirm button's event listener, with an optional callback
-export const setupImportButtons = (parsedEvents, storageKey, callback = null) => {
+export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = null, callback = null) => {
     const confirmButton = document.getElementById('confirmImportButton');
     const cancelButton = document.getElementById('cancelImportButton');
+
+    confirmButton.onclick = () => {
+        // Prompt the user to name the game, pre-filling with teams from XML if available
+        const teamsName = prompt('Enter teams for this game (e.g., "Team A vs Team B"):', teamsAttribute || '');
+
+        // Calculate max time as a reasonable estimate of game duration
+        const maxTimeMs = parsedEvents.reduce((max, event) => Math.max(max, event.timeMs || 0), 0);
+
+        saveGameToLocalStorage({
+            events: parsedEvents,
+            elapsedTime: maxTimeMs,
+            timestamp: new Date().toISOString(),
+            teams: teamsName ? teamsName.trim() : null
+        }, storageKey);
+
+        document.getElementById('previewModal').classList.add('hidden');
+        if (callback) callback({ importedFileCount: 1 });
+        alert('Game imported successfully!');
+    };
+
     cancelButton.onclick = () => {
         document.getElementById('previewModal').classList.add('hidden');
         if (callback) callback({ importedFileCount: 0 });
         alert('Import canceled.');
-    };
-    confirmButton.onclick = () => {
-        saveGameToLocalStorage({
-            events: parsedEvents,
-            elapsedTime: 0,
-            timestamp: new Date().toISOString()
-        }, storageKey);
-        alert('XML imported successfully!');
-        document.getElementById('previewModal').classList.add('hidden');
-        if (callback) callback({ importedFileCount: 1 });
     };
 };

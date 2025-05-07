@@ -10,6 +10,7 @@ import {
     saveGameToLocalStorage,
     loadSavedGames,
     deleteSavedGame,
+    updateSavedGame,
     validateXmlStructure,
     parseXmlToEvents,
     showPreview
@@ -89,11 +90,32 @@ function renderSavedGames() {
 
                         showElement(newGameButton);
                         hideElement(pauseResumeButton);
-                        hideElement(completeGameButton);
-
-                        updateNavbarVisibility(gameState.hasCurrentGame);
+                        hideElement(completeGameButton); updateNavbarVisibility(gameState.hasCurrentGame);
                         router.showView('Log');
-                        logger.log(`Game ${index + 1} loaded successfully.`);
+                        // Use the team name if available when reporting successful load
+                        const gameName = game.teams || `Game ${index + 1}`;
+                        logger.log(`Game "${gameName}" loaded successfully.`);
+                    },
+                    onRename: () => {
+                        // Get the current name or use a placeholder
+                        const currentName = game.teams || `Game ${index + 1}`;
+
+                        // Prompt the user for a new name
+                        const newName = prompt('Enter a new name for this game:', currentName);
+
+                        // If the user didn't cancel and provided a non-empty name
+                        if (newName !== null && newName.trim() !== '') {
+                            // Update the game with the new name
+                            const success = updateSavedGame(index, { teams: newName.trim() }, LOCAL_STORAGE_KEY_GAMES);
+
+                            if (success) {
+                                // Refresh the saved games list
+                                renderSavedGames();
+                                logger.log(`Game renamed to "${newName}" successfully.`);
+                            } else {
+                                alert('Failed to rename the game. Please try again.');
+                            }
+                        }
                     },
                     onDelete: () => {
                         if (confirm('Are you sure you want to delete this saved game?')) {
@@ -189,7 +211,15 @@ function registerEventListeners() {
                     const { loggedEvents: events, elapsedTime } = gameState;
                     const timestamp = new Date().toISOString();
 
-                    const gameSnapshot = { events, elapsedTime, timestamp };
+                    // Ask for teams information
+                    const teamsName = prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
+
+                    const gameSnapshot = {
+                        events,
+                        elapsedTime,
+                        timestamp,
+                        teams: teamsName ? teamsName.trim() : null
+                    };
                     saveGameToLocalStorage(gameSnapshot, LOCAL_STORAGE_KEY_GAMES);
 
                     gameState.completeGame();

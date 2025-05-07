@@ -1,8 +1,5 @@
 import { renderTimeline } from './timeline.js';
 
-// --- Data Storage Setup ---
-// const STORAGE_KEY = 'timeline_events';
-// const GAMES_STORAGE_KEY = 'saved_games';
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
 // Game management functions
@@ -31,10 +28,14 @@ function saveGame(gameId, events, metadata = {}) {
         };
     });
 
+    // Extract teams name from metadata if available
+    const teamsName = metadata.teams || null;
+
     // Create or update game in the saved games object
     savedGames[gameId] = {
         id: gameId,
         events: standardEvents,
+        teams: teamsName,
         metadata: {
             ...metadata,
             lastUpdated: new Date().toISOString()
@@ -57,6 +58,7 @@ function loadGame(gameId) {
         try {
             // Get events from the saved game
             const events = savedGames[gameId].events;
+            const game = savedGames[gameId];
 
             // Update current events and render timeline
             timelineEvents = events;
@@ -68,8 +70,9 @@ function loadGame(gameId) {
                 gameSelector.value = gameId;
             }
 
-            // Display success message
-            showNotification(`Game "${gameId}" loaded successfully`);
+            // Display success message using teams name if available
+            const displayName = game.teams || gameId;
+            showNotification(`Game "${displayName}" loaded successfully`);
 
             return true;
         } catch (e) {
@@ -433,7 +436,14 @@ function populateGameSelector() {
             const game = savedGames[gameId];
             const option = document.createElement('option');
             option.value = gameId;
-            option.textContent = gameId; // Or use game.metadata.name if you have a name property
+
+            // Use teams attribute if available, otherwise use the gameId
+            if (game.teams) {
+                option.textContent = game.teams;
+            } else {
+                option.textContent = gameId;
+            }
+
             gameSelector.appendChild(option);
         });
     }
@@ -467,14 +477,24 @@ function setupGameControls() {
             if (file.type !== 'text/xml' && !file.name.toLowerCase().endsWith('.xml')) {
                 showNotification('Please select a valid XML file', 'error');
                 return;
-            }
-
-            // Read the file content
+            }            // Read the file content
             const reader = new FileReader();
             reader.onload = function (event) {
                 try {
-                    // Parse XML file content
-                    const events = parseXmlEvents(event.target.result);
+                    // Parse XML file content and get XML document
+                    const xmlString = event.target.result;
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+
+                    // Extract teams information if available
+                    let teamsName = null;
+                    const gameElement = xmlDoc.getElementsByTagName('game')[0];
+                    if (gameElement && gameElement.hasAttribute('teams')) {
+                        teamsName = gameElement.getAttribute('teams');
+                    }
+
+                    // Parse events
+                    const events = parseXmlEvents(xmlString);
 
                     // Update timeline with parsed events
                     timelineEvents = events;
@@ -485,7 +505,8 @@ function setupGameControls() {
                     saveGame(gameId, events, {
                         source: 'xml-import',
                         fileName: file.name,
-                        importDate: new Date().toISOString()
+                        importDate: new Date().toISOString(),
+                        teams: teamsName || `Imported: ${gameId}` // Use teams from XML or create a default
                     });
 
                     // Update game selector
@@ -505,9 +526,7 @@ function setupGameControls() {
 
             reader.readAsText(file);
         });
-    }
-
-    // Sample data load button handler
+    }    // Sample data load button handler
     const loadSampleButton = document.getElementById('load-sample-data');
     if (loadSampleButton) {
         loadSampleButton.addEventListener('click', () => {            // Load sample data using standardized GameEvent format
@@ -522,8 +541,12 @@ function setupGameControls() {
             timelineEvents = sampleEvents;
             renderTimelineEvents();
 
-            // Save as sample game
-            saveGame('Sample Game', sampleEvents, { source: 'sample-data' });
+            // Save as sample game with teams information
+            const sampleGame = {
+                source: 'sample-data',
+                teams: 'Sample Game: Team A vs Team B'
+            };
+            saveGame('Sample Game', sampleEvents, sampleGame);
 
             // Update game selector
             populateGameSelector();
