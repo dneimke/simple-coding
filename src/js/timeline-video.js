@@ -2,6 +2,30 @@ import { renderTimeline } from './timeline.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
+// Helper function to show a temporary notification
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    const baseClasses = 'fixed top-4 right-4 py-2 px-4 rounded-md shadow-lg z-50 transition-opacity duration-300';
+
+    if (type === 'error') {
+        notification.className = `${baseClasses} bg-red-600 text-white`;
+    } else if (type === 'warning') {
+        notification.className = `${baseClasses} bg-yellow-500 text-white`;
+    } else {
+        notification.className = `${baseClasses} bg-green-600 text-white`;
+    }
+
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+
 // Game management functions
 function getSavedGames() {
     const storedGames = localStorage.getItem(LOCAL_STORAGE_KEY_GAMES);
@@ -180,6 +204,17 @@ function renderTimelineEvents() {
 
         // Show or hide the empty state message
         toggleEmptyState(timelineEvents.length === 0);
+
+        // Update filter buttons based on available event types
+        if (timelineEvents.length > 0) {
+            updateEventFilters();
+        } else {
+            // Hide filter container if no events
+            const filterContainer = document.getElementById('timeline-filters');
+            if (filterContainer) {
+                filterContainer.classList.add('hidden');
+            }
+        }
     } catch (error) {
         console.error("Error rendering timeline:", error);
         // Display an error message to the user in the timeline container
@@ -187,6 +222,148 @@ function renderTimelineEvents() {
         if (container) {
             container.innerHTML = '<p class="text-red-600">Could not load timeline events.</p>';
         }
+    }
+}
+
+// Get unique event types from timeline events
+function getUniqueEventTypes(events) {
+    const eventTypes = new Set();
+    events.forEach(event => {
+        if (event.event) {
+            eventTypes.add(event.event);
+        }
+    });
+    return Array.from(eventTypes).sort();
+}
+
+// Update filter buttons based on available event types
+function updateEventFilters() {
+    if (timelineEvents.length === 0) return;
+
+    // Get unique event types
+    const eventTypes = getUniqueEventTypes(timelineEvents);
+
+    const filterContainer = document.getElementById('timeline-filters');
+    if (!filterContainer) return;
+
+    // Show the filter container
+    filterContainer.classList.remove('hidden');
+
+    // Keep the "All" button
+    const allButton = document.getElementById('filter-all');
+
+    // Remove existing filter buttons (except the "All" button)
+    const existingButtons = filterContainer.querySelectorAll('button:not(#filter-all)');
+    existingButtons.forEach(button => button.remove());
+
+    // Make sure "All" button is marked as active
+    if (allButton) {
+        allButton.classList.add('bg-blue-500', 'text-white');
+        allButton.classList.remove('bg-gray-200', 'text-gray-700');
+        allButton.setAttribute('aria-pressed', 'true');
+    }
+
+    // Create a button for each event type
+    eventTypes.forEach(eventType => {
+        const button = document.createElement('button');
+        button.className = 'bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm py-1 px-3 rounded-full transition-colors';
+        button.setAttribute('data-filter', eventType);
+        button.setAttribute('aria-pressed', 'false');
+
+        // Format the event type name for display
+        button.textContent = formatEventTypeName(eventType);
+
+        // Add click event handler
+        button.addEventListener('click', () => {
+            handleFilterClick(button);
+        });
+
+        filterContainer.appendChild(button);
+    });
+
+    // Add click handler for "All" button if it doesn't have one
+    if (allButton && !allButton._hasClickHandler) {
+        allButton.addEventListener('click', () => {
+            handleFilterClick(allButton);
+        });
+        allButton._hasClickHandler = true;
+    }
+}
+
+// Format event type names for better readability
+function formatEventTypeName(eventType) {
+    // Handle snake_case
+    if (eventType.includes('_')) {
+        return eventType
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    }
+
+    // Handle CamelCase
+    if (/[a-z][A-Z]/.test(eventType)) {
+        return eventType
+            .replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/\b\w/g, char => char.toUpperCase());
+    }
+
+    // Simple capitalize for other formats
+    return eventType.charAt(0).toUpperCase() + eventType.slice(1).toLowerCase();
+}
+
+// Handle filter button click
+function handleFilterClick(button) {
+    const filterContainer = document.getElementById('timeline-filters');
+    const allButtons = filterContainer.querySelectorAll('button');
+    const filterValue = button.getAttribute('data-filter');
+
+    // Update button states
+    allButtons.forEach(btn => {
+        if (btn === button) {
+            // Make this button active
+            btn.classList.add('bg-blue-500', 'text-white');
+            btn.classList.remove('bg-gray-200', 'text-gray-700');
+            btn.setAttribute('aria-pressed', 'true');
+        } else {
+            // Make other buttons inactive
+            btn.classList.remove('bg-blue-500', 'text-white');
+            btn.classList.add('bg-gray-200', 'text-gray-700');
+            btn.setAttribute('aria-pressed', 'false');
+        }
+    });
+
+    // Apply filter
+    applyTimelineFilter(filterValue);
+}
+
+// Apply filter to timeline
+function applyTimelineFilter(filterType) {
+    const timelineContainerId = 'timeline-events';
+    const container = document.getElementById(timelineContainerId);
+
+    if (!container) return;
+
+    // If "all" is selected, show all events
+    if (filterType === 'all') {
+        renderTimeline(timelineEvents, timelineContainerId);
+        return;
+    }
+
+    // Otherwise, filter events by type
+    const filteredEvents = timelineEvents.filter(event =>
+        event.event === filterType
+    );
+
+    // Render filtered timeline
+    if (filteredEvents.length > 0) {
+        renderTimeline(filteredEvents, timelineContainerId);
+    } else {
+        // Show message if no events match filter
+        container.innerHTML = `
+            <div class="text-center py-6 text-gray-500">
+                <p>No events of type "${formatEventTypeName(filterType)}" found.</p>
+            </div>
+        `;
     }
 }
 
@@ -231,6 +408,15 @@ domReady(() => {
 
     // Set up event handlers for game loading controls
     setupGameControls();
+
+    // Set up filter "All" button click handler
+    const filterAllButton = document.getElementById('filter-all');
+    if (filterAllButton) {
+        filterAllButton.addEventListener('click', () => {
+            handleFilterClick(filterAllButton);
+        });
+        filterAllButton._hasClickHandler = true;
+    }
 
     // --- Video Time Setup ---
     const currentVideoTimeElement = document.getElementById('current-video-time');
@@ -338,30 +524,6 @@ domReady(() => {
         });
     } else {
         console.warn('Video player element not found.');
-    }
-
-    // Helper function to show a temporary notification
-    function showNotification(message, type = 'success') {
-        const notification = document.createElement('div');
-        const baseClasses = 'fixed top-4 right-4 py-2 px-4 rounded-md shadow-lg z-50 transition-opacity duration-300';
-
-        if (type === 'error') {
-            notification.className = `${baseClasses} bg-red-600 text-white`;
-        } else if (type === 'warning') {
-            notification.className = `${baseClasses} bg-yellow-500 text-white`;
-        } else {
-            notification.className = `${baseClasses} bg-green-600 text-white`;
-        }
-
-        notification.textContent = message;
-        document.body.appendChild(notification);
-
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 3000);
     }
 });
 
