@@ -1,4 +1,5 @@
-import { addVisualFeedbackToButtons, logger } from '../utils/utils.js';
+import { addVisualFeedbackToButtons } from '../utils/domUtils.js';
+import { logger } from '../utils/formatUtils.js';
 
 export class EventButtons {
     constructor(targetContainer) {

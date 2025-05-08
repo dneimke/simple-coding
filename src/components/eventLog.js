@@ -1,4 +1,5 @@
-import { escapeXml, computeGameStatistics } from '../utils/utils.js';
+import { escapeXml } from '../utils/formatUtils.js';
+import { computeGameStatistics } from '../utils/gameUtils.js';
 
 export class EventLog {
     constructor(timelineContainer, xmlContainer, statisticsContainer) {

@@ -1,4 +1,5 @@
-import { formatTime, logger } from '../utils/utils.js';
+import { formatTime } from '../utils/formatUtils.js';
+import { logger } from '../utils/formatUtils.js';
 
 export class GameState {
     constructor(timerDisplay, eventLog, eventButtons) {

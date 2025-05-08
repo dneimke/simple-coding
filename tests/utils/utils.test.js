@@ -1,4 +1,5 @@
-import { parseXmlToEvents, validateXmlStructure, computeGameStatistics } from '../../src/utils/utils.js';
+import { parseXmlToEvents, validateXmlStructure } from '../../src/utils/xmlUtils.js';
+import { computeGameStatistics } from '../../src/utils/gameUtils.js';
 
 // Mock DOM elements for tests
 beforeEach(() => {
