@@ -1,3 +1,6 @@
+import { storageService } from '../services/storageService.js';
+import { notificationService } from '../services/notificationService.js';
+
 export const logger = {
     log: (message) => console.log(message),
     error: (message) => console.error(message),
@@ -85,11 +88,11 @@ export const copyXmlToClipboard = (xmlContent) => {
     navigator.clipboard.writeText(xmlContent)
         .then(() => {
             logger.log('XML content copied to clipboard.');
-            alert('XML content copied to clipboard.');
+            notificationService.notify('XML content copied to clipboard.', 'success');
         })
         .catch((err) => {
             logger.error('Failed to copy XML content to clipboard:', err);
-            alert('Failed to copy XML content to clipboard.');
+            notificationService.notify('Failed to copy XML content to clipboard.', 'error');
         });
 };
 
@@ -157,40 +160,23 @@ export function addVisualFeedbackToButtons(buttons) {
 }
 
 export function showMessage(element, message, isError = false) {
-    element.textContent = message;
-    element.className = 'config-message';
-    if (isError) {
-        element.classList.add('config-error');
-    } else {
-        element.classList.add('config-success');
-    }
-    element.classList.remove('hidden');
-    setTimeout(() => {
-        element.classList.add('hidden');
-    }, 5000);
+    // Use the notification service's showMessage method
+    notificationService.showMessage(element, message, isError);
 }
 
+// Storage functions are now handled by the storageService module
+// These functions are kept for backward compatibility
 function getFromLocalStorage(key) {
-    try {
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : null;
-    } catch (error) {
-        logger.error(`Error getting data from localStorage for key: ${key}`, error);
-        return null;
-    }
+    return storageService.getItem(key);
 }
 
 function setToLocalStorage(key, value) {
-    try {
-        localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-        logger.error(`Error setting data to localStorage for key: ${key}`, error);
-    }
+    return storageService.setItem(key, value);
 }
 
 export function loadConfig(configKey, defaultConfig) {
     try {
-        const savedConfig = getFromLocalStorage(configKey);
+        const savedConfig = storageService.getItem(configKey);
         if (savedConfig && Array.isArray(savedConfig.rowDefs)) {
             logger.log("Loaded config from localStorage");
             return savedConfig;
@@ -210,24 +196,27 @@ export function saveConfig(configObject, configKey) {
             throw new Error("Invalid configuration object structure.");
         }
 
-        setToLocalStorage(configKey, configObject);
-        logger.log("Configuration saved to localStorage.");
-        return true;
+        const result = storageService.setItem(configKey, configObject);
+
+        if (result === true) {
+            logger.log("Configuration saved to localStorage.");
+            return true;
+        } else {
+            // Handle error from storage service
+            logger.error("Error saving config to localStorage:", result.message);
+            notificationService.alert(`Error: ${result.message}`);
+            return false;
+        }
     } catch (error) {
         logger.error("Error saving config to localStorage:", error);
-        if (error.name === 'QuotaExceededError') {
-            alert('Error: Could not save configuration. Browser storage limit exceeded.');
-        } else {
-            alert(`Error: ${error.message}`);
-        }
+        notificationService.alert(`Error: ${error.message}`);
         return false;
     }
 }
 
 export function saveGameToLocalStorage(gameData, storageKey) {
-
     try {
-        const savedGames = getFromLocalStorage(storageKey) || [];
+        const savedGames = storageService.getItem(storageKey) || [];
         savedGames.push(gameData);
 
         // Retain only the last 5 games
@@ -235,53 +224,84 @@ export function saveGameToLocalStorage(gameData, storageKey) {
             savedGames.shift();
         }
 
-        setToLocalStorage(storageKey, savedGames);
-        logger.log('Game saved successfully.');
+        const result = storageService.setItem(storageKey, savedGames);
+
+        if (result === true) {
+            logger.log('Game saved successfully.');
+            return true;
+        } else {
+            logger.error('Error saving game to localStorage:', result.message);
+            notificationService.notify('Failed to save game data: ' + result.message, 'error');
+            return false;
+        }
     } catch (error) {
         logger.error('Error saving game to localStorage:', error);
+        notificationService.notify('Failed to save game data', 'error');
+        return false;
     }
 }
 
 export function loadSavedGames(storageKey) {
     try {
-        const savedGames = getFromLocalStorage(storageKey);
+        const savedGames = storageService.getItem(storageKey);
         return savedGames || [];
     } catch (error) {
         logger.error('Error retrieving saved games from localStorage:', error);
+        notificationService.notify('Failed to load saved games', 'error');
         return [];
     }
 }
 
 export function deleteSavedGame(index, storageKey) {
     try {
-        const savedGames = getFromLocalStorage(storageKey) || [];
+        const savedGames = storageService.getItem(storageKey) || [];
         if (index >= 0 && index < savedGames.length) {
             savedGames.splice(index, 1);
-            setToLocalStorage(storageKey, savedGames);
-            logger.log('Game deleted successfully.');
+            const result = storageService.setItem(storageKey, savedGames);
+
+            if (result === true) {
+                logger.log('Game deleted successfully.');
+                return true;
+            } else {
+                logger.error('Error deleting game:', result.message);
+                notificationService.notify('Failed to delete game: ' + result.message, 'error');
+                return false;
+            }
         } else {
             logger.warn('Invalid game index for deletion.');
+            return false;
         }
     } catch (error) {
         logger.error('Error deleting game from localStorage:', error);
+        notificationService.notify('Failed to delete game', 'error');
+        return false;
     }
 }
 
 export function updateSavedGame(index, updatedData, storageKey) {
     try {
-        const savedGames = getFromLocalStorage(storageKey) || [];
+        const savedGames = storageService.getItem(storageKey) || [];
         if (index >= 0 && index < savedGames.length) {
             // Update only the specified properties while preserving the rest
             savedGames[index] = { ...savedGames[index], ...updatedData };
-            setToLocalStorage(storageKey, savedGames);
-            logger.log('Game updated successfully.');
-            return true;
+
+            const result = storageService.setItem(storageKey, savedGames);
+
+            if (result === true) {
+                logger.log('Game updated successfully.');
+                return true;
+            } else {
+                logger.error('Error updating game:', result.message);
+                notificationService.notify('Failed to update game: ' + result.message, 'error');
+                return false;
+            }
         } else {
             logger.warn('Invalid game index for update.');
             return false;
         }
     } catch (error) {
         logger.error('Error updating game in localStorage:', error);
+        notificationService.notify('Failed to update game', 'error');
         return false;
     }
 }
@@ -377,11 +397,9 @@ export const showPreview = (previewContainer, events, storageKey, callback = nul
 // Function to set up the Confirm button's event listener, with an optional callback
 export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = null, callback = null) => {
     const confirmButton = document.getElementById('confirmImportButton');
-    const cancelButton = document.getElementById('cancelImportButton');
-
-    confirmButton.onclick = () => {
+    const cancelButton = document.getElementById('cancelImportButton'); confirmButton.onclick = () => {
         // Prompt the user to name the game, pre-filling with teams from XML if available
-        const teamsName = prompt('Enter teams for this game (e.g., "Team A vs Team B"):', teamsAttribute || '');
+        const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', teamsAttribute || '');
 
         // Calculate max time as a reasonable estimate of game duration
         const maxTimeMs = parsedEvents.reduce((max, event) => Math.max(max, event.timeMs || 0), 0);
@@ -391,16 +409,14 @@ export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = nu
             elapsedTime: maxTimeMs,
             timestamp: new Date().toISOString(),
             teams: teamsName ? teamsName.trim() : null
-        }, storageKey);
-
-        document.getElementById('previewModal').classList.add('hidden');
+        }, storageKey); document.getElementById('previewModal').classList.add('hidden');
         if (callback) callback({ importedFileCount: 1 });
-        alert('Game imported successfully!');
+        notificationService.notify('Game imported successfully!', 'success');
     };
 
     cancelButton.onclick = () => {
         document.getElementById('previewModal').classList.add('hidden');
         if (callback) callback({ importedFileCount: 0 });
-        alert('Import canceled.');
+        notificationService.notify('Import canceled.', 'warning');
     };
 };

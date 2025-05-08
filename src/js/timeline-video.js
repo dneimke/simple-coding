@@ -1,43 +1,23 @@
 import { renderTimeline } from './timeline.js';
+import { storageService } from '../services/storageService.js';
+import { notificationService } from '../services/notificationService.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
-// Helper function to show a temporary notification
+// Use the notification service for notifications
 function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    const baseClasses = 'fixed top-4 right-4 py-2 px-4 rounded-md shadow-lg z-50 transition-opacity duration-300';
-
-    if (type === 'error') {
-        notification.className = `${baseClasses} bg-red-600 text-white`;
-    } else if (type === 'warning') {
-        notification.className = `${baseClasses} bg-yellow-500 text-white`;
-    } else {
-        notification.className = `${baseClasses} bg-green-600 text-white`;
-    }
-
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 300);
-    }, 3000);
+    notificationService.notify(message, type);
 }
 
 // Game management functions
 function getSavedGames() {
-    const storedGames = localStorage.getItem(LOCAL_STORAGE_KEY_GAMES);
+    const storedGames = storageService.getItem(LOCAL_STORAGE_KEY_GAMES);
     if (storedGames) {
-        try {
-            return JSON.parse(storedGames);
-        } catch (e) {
-            console.error("Error parsing saved games data:", e);
-            return {};
-        }
+        return storedGames; // Already parsed by storageService
+    } else {
+        console.error("No saved games found");
+        return {};
     }
-    return {}; // Return empty object if no saved games
 }
 
 function saveGame(gameId, events, metadata = {}) {
@@ -64,14 +44,13 @@ function saveGame(gameId, events, metadata = {}) {
             ...metadata,
             lastUpdated: new Date().toISOString()
         }
-    };
-
-    // Save to localStorage
-    try {
-        localStorage.setItem(LOCAL_STORAGE_KEY_GAMES, JSON.stringify(savedGames));
+    };    // Save to localStorage using storage service
+    const result = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+    if (result === true) {
         return true;
-    } catch (e) {
-        console.error("Error saving game:", e);
+    } else {
+        console.error("Error saving game:", result.message);
+        showNotification("Error saving game: " + result.message, "error");
         return false;
     }
 }
@@ -560,15 +539,14 @@ function migrateStoredGames() {
 
             migrated = true;
         }
-    });
-
-    // If any games were migrated, save changes back to storage
+    });    // If any games were migrated, save changes back to storage using storage service
     if (migrated) {
-        try {
-            localStorage.setItem(LOCAL_STORAGE_KEY_GAMES, JSON.stringify(savedGames));
+        const result = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        if (result === true) {
             console.log("Successfully migrated saved games to standard event format");
-        } catch (e) {
-            console.error("Error migrating saved games:", e);
+        } else {
+            console.error("Error migrating saved games:", result.message);
+            showNotification("Error migrating saved games", "error");
         }
     }
 }

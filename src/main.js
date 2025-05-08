@@ -1,4 +1,5 @@
 import { EventButtons, EventLog, GameState, Router } from './components/index.js';
+import { notificationService } from './services/notificationService.js';
 import {
     createGameCard,
     copyXmlToClipboard,
@@ -58,9 +59,6 @@ const logView = document.getElementById('log-view');
 const statsView = document.getElementById('stats-view');
 const savedGamesView = document.getElementById('saved-games-view');
 
-
-
-
 function renderSavedGames() {
     const savedGamesList = document.getElementById('savedGamesList');
     savedGamesList.innerHTML = '';
@@ -75,7 +73,7 @@ function renderSavedGames() {
                     index,
                     onLoad: () => {
                         if (gameState.isActive || gameState.isRunning) {
-                            const userConfirmed = confirm(
+                            const userConfirmed = notificationService.confirm(
                                 'A game is currently in progress. Do you want to stop it and load the saved game?'
                             );
                             if (!userConfirmed) return; // Exit if the user cancels
@@ -98,10 +96,8 @@ function renderSavedGames() {
                     },
                     onRename: () => {
                         // Get the current name or use a placeholder
-                        const currentName = game.teams || `Game ${index + 1}`;
-
-                        // Prompt the user for a new name
-                        const newName = prompt('Enter a new name for this game:', currentName);
+                        const currentName = game.teams || `Game ${index + 1}`;                        // Prompt the user for a new name
+                        const newName = notificationService.prompt('Enter a new name for this game:', currentName);
 
                         // If the user didn't cancel and provided a non-empty name
                         if (newName !== null && newName.trim() !== '') {
@@ -110,15 +106,13 @@ function renderSavedGames() {
 
                             if (success) {
                                 // Refresh the saved games list
-                                renderSavedGames();
-                                logger.log(`Game renamed to "${newName}" successfully.`);
+                                renderSavedGames(); logger.log(`Game renamed to "${newName}" successfully.`);
                             } else {
-                                alert('Failed to rename the game. Please try again.');
+                                notificationService.notify('Failed to rename the game. Please try again.', 'error');
                             }
                         }
-                    },
-                    onDelete: () => {
-                        if (confirm('Are you sure you want to delete this saved game?')) {
+                    }, onDelete: () => {
+                        if (notificationService.confirm('Are you sure you want to delete this saved game?')) {
                             deleteSavedGame(index, LOCAL_STORAGE_KEY_GAMES);
                             renderSavedGames();
                         }
@@ -202,17 +196,14 @@ function registerEventListeners() {
                 gameState.pauseResume();
                 pauseResumeButton.textContent = gameState.isRunning ? 'Pause' : 'Resume';
                 break;
-            case 'completeGameButton':
-                const userConfirmed = confirm(
-                    'Are you sure you want to complete the game? This will reset all progress.'
-                );
+            case 'completeGameButton': const userConfirmed = notificationService.confirm(
+                'Are you sure you want to complete the game? This will reset all progress.'
+            );
 
                 if (userConfirmed) {
                     const { loggedEvents: events, elapsedTime } = gameState;
-                    const timestamp = new Date().toISOString();
-
-                    // Ask for teams information
-                    const teamsName = prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
+                    const timestamp = new Date().toISOString();                    // Ask for teams information
+                    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
 
                     const gameSnapshot = {
                         events,
@@ -294,7 +285,7 @@ function registerEventListeners() {
                 previewModal.classList.remove('hidden');
             } catch (error) {
                 console.error('Error importing XML:', error);
-                alert(`Failed to import XML: ${error.message}`);
+                notificationService.notify(`Failed to import XML: ${error.message}`, 'error');
             } finally {
                 xmlFileInput.value = '';
             }
