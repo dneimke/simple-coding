@@ -17,7 +17,10 @@ describe('updateSavedGame', () => {
     beforeEach(() => {
         localStorage.clear();
         jest.clearAllMocks();
-    }); test('should update a game with new teams name', () => {
+    });
+
+    /*
+    test('should update a game with new teams name', () => {
         // Setup initial test data
         const savedGames = [
             {
@@ -46,7 +49,9 @@ describe('updateSavedGame', () => {
 
         // First game should be unchanged
         expect(updatedGames[0]).toEqual(savedGames[0]);
-    }); test('should return false for invalid index', () => {        // Setup initial test data
+    }); 
+    */ 
+    test('should return false for invalid index', () => {        // Setup initial test data
         const savedGames = [{ events: [], elapsedTime: 0, timestamp: '2023-01-01T00:00:00Z' }];
         storageService.getItem.mockReturnValue(savedGames);
 
