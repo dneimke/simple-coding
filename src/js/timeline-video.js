@@ -421,13 +421,7 @@ domReady(() => {
 
     toggleEmptyState(true);
     populateGameSelector();
-    setupGameControls();
-
-    // --- Video Time Setup ---
-    const currentVideoTimeElement = document.getElementById('current-video-time');
-    let currentVideoTime = 0;
-
-    // --- Video Upload Setup ---
+    setupGameControls();    // --- Video Upload Setup ---
     const videoUploadInput = document.getElementById('video-upload');
     if (videoUploadInput) {
         videoUploadInput.addEventListener('change', (e) => {
@@ -466,27 +460,10 @@ domReady(() => {
                 });
             }
         });
-    }
-
-    // --- Video Player Setup ---
+    }    // --- Video Player Setup ---
     const videoPlayer = document.getElementById('video-player');
     if (videoPlayer) {
-        console.log('Video player element found.');
-
-        // Update current time display
-        videoPlayer.addEventListener('timeupdate', () => {
-            currentVideoTime = videoPlayer.currentTime;
-            // Format time as MM:SS
-            const minutes = Math.floor(currentVideoTime / 60);
-            const seconds = Math.floor(currentVideoTime % 60);
-            const formattedTime = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
-            if (currentVideoTimeElement) {
-                currentVideoTimeElement.textContent = formattedTime;
-            }
-        });
-
-        // Handle errors
+        console.log('Video player element found.');// Handle errors
         videoPlayer.addEventListener('error', (e) => {
             console.error('Video Player Error:', videoPlayer.error);
             // Display a user-friendly error message
