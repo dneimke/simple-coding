@@ -1,7 +1,7 @@
 import { formatTimeFromMs } from '../utils/event-utils.js';
 
 /**
- * Renders timeline events into a specified container.
+ * Renders timeline events into a specified container, sorted by time with earliest events at the top.
  * @param {Array<object>} events - Array of standardized event objects { event, timeMs }
  * @param {string} containerId - The ID of the HTML element to render into.
  */
@@ -10,13 +10,11 @@ export function renderTimeline(events, containerId) {
     if (!container) {
         console.error(`Timeline container with ID "${containerId}" not found.`);
         return;
-    }
-
-    // Clear existing content
+    }    // Clear existing content
     container.innerHTML = '';
 
-    // Sort events by timeMs (most recent first for display)
-    const sortedEvents = [...events].sort((a, b) => b.timeMs - a.timeMs);
+    // Sort events by timeMs (earliest first for display)
+    const sortedEvents = [...events].sort((a, b) => a.timeMs - b.timeMs);
 
     if (sortedEvents.length === 0) {
         container.innerHTML = '<p class="text-gray-500 italic">No events yet.</p>';

@@ -8,7 +8,7 @@ describe('Timeline Module', () => {
     // Setup: create a fresh container element before each test
     beforeEach(() => {
         document.body.innerHTML = `<div id="test-container"></div>`;
-    }); test('renderTimeline should display events in descending chronological order', () => {
+    }); test('renderTimeline should display events in ascending chronological order', () => {
         // Arrange
         const events = [
             { event: 'Event 1', timeMs: 600000, description: 'First event' },
@@ -26,10 +26,10 @@ describe('Timeline Module', () => {
         // There should be 3 event elements
         expect(eventElements.length).toBe(3);
 
-        // First element should be Event 2 (most recent)
-        expect(eventElements[0].textContent).toContain('Event 2');
-        // Last element should be Event 3 (oldest)
-        expect(eventElements[2].textContent).toContain('Event 3');
+        // First element should be Event 3 (earliest)
+        expect(eventElements[0].textContent).toContain('Event 3');
+        // Last element should be Event 2 (latest)
+        expect(eventElements[2].textContent).toContain('Event 2');
     });
 
     test('renderTimeline should display a message when no events are provided', () => {

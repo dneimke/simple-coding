@@ -115,7 +115,7 @@ function loadGame(gameId) {
 
 let timelineEvents = [];
 
-// Render timeline with current events
+// Render timeline with current events (sorted with earliest events at the top)
 function renderTimelineEvents() {
     const timelineContainerId = 'timeline-events';
     try {
