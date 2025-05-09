@@ -39,7 +39,7 @@ const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
 const copyXmlButton = document.getElementById('copyXmlButton');
 
 // Navigation Elements
-const navTracker = document.getElementById('navTracker');
+const navEventCapture = document.getElementById('navEventCapture');
 const navConfig = document.getElementById('navConfig');
 const navLog = document.getElementById('navLog');
 const navStats = document.getElementById('navStats');
@@ -254,7 +254,8 @@ function registerEventListeners() {
                     const { loggedEvents: events, elapsedTime } = currentGameState;
                     const timestamp = new Date().toISOString();
                     // Ask for teams information
-                    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', ''); const gameSnapshot = {
+                    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
+                    const gameSnapshot = {
                         events,
                         elapsedTime,
                         timestamp,
@@ -358,7 +359,7 @@ function registerEventListeners() {
 
 const router = new Router(
     {
-        EventCapture: { view: trackerView, button: navTracker },
+        EventCapture: { view: trackerView, button: navEventCapture },
         Config: { view: configView, button: navConfig },
         Log: { view: logView, button: navLog },
         SavedGames: { view: savedGamesView, button: navSavedGames }
