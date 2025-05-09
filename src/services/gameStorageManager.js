@@ -198,42 +198,6 @@ export class GameStorageManager {
     }
 
     /**
-     * Exports all games to a JSON file for download
-     * @returns {boolean} Success status
-     */
-    exportAllGames() {
-        try {
-            const games = this.getAllGames();
-            if (games.length === 0) {
-                notificationService.notify('No games to export', 'info');
-                return false;
-            }
-
-            const gamesBlob = new Blob([JSON.stringify(games, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(gamesBlob);
-
-            // Create temporary link to trigger download
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `hockey-games-export-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(link);
-            link.click();
-
-            // Clean up
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-                document.body.removeChild(link);
-            }, 100);
-
-            return true;
-        } catch (error) {
-            logger.error('Error exporting games:', error);
-            notificationService.notify('Failed to export games', 'error');
-            return false;
-        }
-    }
-
-    /**
      * Import games from a JSON file
      * @param {Array} games - Array of game objects to import
      * @param {boolean} replace - Whether to replace existing games (true) or append (false)

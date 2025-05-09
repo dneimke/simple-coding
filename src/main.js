@@ -57,10 +57,8 @@ function renderSavedGames() {
     savedGamesList.innerHTML = '';
 
     try {
-        // Use the gameStorageManager instead of loadSavedGames function
+        logger.log('Loading saved games from localStorage...');
         const savedGames = gameStorageManager.getAllGames();
-
-        // Check storage usage and display warning if needed
         checkStorageQuota(80);
 
         // Add export all button if there are games
@@ -151,17 +149,6 @@ function createExportButton() {
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'inline-block';
 
-        const exportButton = createButton({
-            id: 'exportAllGamesButton',
-            text: 'Export All Games',
-            type: 'success',
-            className: 'px-6 py-2 ml-2',
-            onClick: () => {
-                gameStorageManager.exportAllGames();
-            }
-        });
-
-        buttonContainer.appendChild(exportButton);
         importButton.parentNode.insertBefore(buttonContainer, importButton.nextSibling);
     }
 }
