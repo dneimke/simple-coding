@@ -45,11 +45,9 @@ describe('validateXmlStructure', () => {
     test('should throw an error for invalid XML format', () => {
         const invalidXml = '<instances><instance><ID>1</ID><start>0</start><end>10</end><code>PRESS</code></instance></instances';
         expect(() => validateXmlStructure(invalidXml)).toThrow('Invalid XML format.');
-    });
-
-    test('should throw an error if no instances are found', () => {
+    });    test('should throw an error if no events or instances are found', () => {
         const noInstancesXml = '<instances></instances>';
-        expect(() => validateXmlStructure(noInstancesXml)).toThrow('No instances found in the XML file.');
+        expect(() => validateXmlStructure(noInstancesXml)).toThrow('No events or instances found in the XML file.');
     });
 
     test('should throw an error for invalid instance data', () => {
