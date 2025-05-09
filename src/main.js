@@ -3,12 +3,13 @@ import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility, showElement, hideElement } from './utils/domUtils.js';
 import { logger } from './utils/formatUtils.js';
-import { saveGameToLocalStorage, loadSavedGames, deleteSavedGame, updateSavedGame } from './utils/gameUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
 import { loadConfiguration, saveConfiguration, resetConfiguration } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
+import { gameStorageManager } from './services/gameStorageManager.js';
+import { checkStorageQuota } from './utils/storageWarningUtils.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
@@ -56,7 +57,17 @@ function renderSavedGames() {
     savedGamesList.innerHTML = '';
 
     try {
-        const savedGames = loadSavedGames(LOCAL_STORAGE_KEY_GAMES);
+        // Use the gameStorageManager instead of loadSavedGames function
+        const savedGames = gameStorageManager.getAllGames();
+
+        // Check storage usage and display warning if needed
+        checkStorageQuota(80);
+
+        // Add export all button if there are games
+        const exportAllButton = document.getElementById('exportAllGamesButton');
+        if (!exportAllButton && savedGames.length > 0) {
+            createExportButton();
+        }
 
         if (savedGames.length > 0) {
             savedGames.forEach((game, index) => {
@@ -96,19 +107,23 @@ function renderSavedGames() {
 
                         // If the user didn't cancel and provided a non-empty name
                         if (newName !== null && newName.trim() !== '') {
-                            // Update the game with the new name
-                            const success = updateSavedGame(index, { teams: newName.trim() }, LOCAL_STORAGE_KEY_GAMES);
+                            // Update the game with the new name using gameStorageManager
+                            const result = gameStorageManager.updateGame(index, { teams: newName.trim() });
 
-                            if (success) {
+                            if (result === true) {
                                 // Refresh the saved games list
-                                renderSavedGames(); logger.log(`Game renamed to "${newName}" successfully.`);
+                                renderSavedGames();
+                                logger.log(`Game renamed to "${newName}" successfully.`);
                             } else {
-                                notificationService.notify('Failed to rename the game. Please try again.', 'error');
+                                const errorMessage = result.message || 'Unknown error';
+                                notificationService.notify(`Failed to rename the game: ${errorMessage}`, 'error');
                             }
                         }
-                    }, onDelete: () => {
+                    },
+                    onDelete: () => {
                         if (notificationService.confirm('Are you sure you want to delete this saved game?')) {
-                            deleteSavedGame(index, LOCAL_STORAGE_KEY_GAMES);
+                            // Use gameStorageManager to remove game
+                            gameStorageManager.removeGame(index);
                             renderSavedGames();
                         }
                     },
@@ -122,6 +137,32 @@ function renderSavedGames() {
     } catch (error) {
         logger.error('Error loading games from localStorage:', error);
         savedGamesList.innerHTML = '<p class="text-red-500 text-center">Failed to load saved games.</p>';
+    }
+}
+
+/**
+ * Creates and adds the Export All Games button to the saved games view
+ */
+function createExportButton() {
+    const savedGamesView = document.getElementById('saved-games-view');
+    const importButton = document.getElementById('importXmlButton');
+
+    if (savedGamesView && importButton) {
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'inline-block';
+
+        const exportButton = createButton({
+            id: 'exportAllGamesButton',
+            text: 'Export All Games',
+            type: 'success',
+            className: 'px-6 py-2 ml-2',
+            onClick: () => {
+                gameStorageManager.exportAllGames();
+            }
+        });
+
+        buttonContainer.appendChild(exportButton);
+        importButton.parentNode.insertBefore(buttonContainer, importButton.nextSibling);
     }
 }
 
@@ -226,15 +267,27 @@ function registerEventListeners() {
                     const { loggedEvents: events, elapsedTime } = currentGameState;
                     const timestamp = new Date().toISOString();
                     // Ask for teams information
-                    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
-
-                    const gameSnapshot = {
+                    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', ''); const gameSnapshot = {
                         events,
                         elapsedTime,
                         timestamp,
                         teams: teamsName ? teamsName.trim() : null
                     };
-                    saveGameToLocalStorage(gameSnapshot, LOCAL_STORAGE_KEY_GAMES);
+
+                    // Use gameStorageManager instead of saveGameToLocalStorage
+                    try {
+                        const result = gameStorageManager.saveGame(gameSnapshot);
+                        if (result !== true) {
+                            // Handle non-true result (error object)
+                            const errorMsg = result.message || 'Unknown error';
+                            notificationService.notify(`Failed to save game: ${errorMsg}`, 'error');
+                        } else {
+                            // Check storage quota after saving
+                            checkStorageQuota();
+                        }
+                    } catch (error) {
+                        notificationService.notify(`Error saving game: ${error.message}`, 'error');
+                    }
 
                     gameState.completeGame();
                     showElement(newGameButton);

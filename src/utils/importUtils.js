@@ -1,6 +1,8 @@
 // Import utility functions
 import { notificationService } from '../services/notificationService.js';
-import { saveGameToLocalStorage } from './gameUtils.js';
+import { gameStorageManager } from '../services/gameStorageManager.js';
+import { checkStorageQuota } from './storageWarningUtils.js';
+import { logger } from './formatUtils.js';
 
 /**
  * Shows a preview of parsed events in a modal
@@ -47,17 +49,44 @@ export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = nu
         const teamsName = notificationService.prompt(
             'Enter teams for this game (e.g., "Team A vs Team B"):',
             teamsAttribute || ''
-        );
-
-        // Calculate max time as a reasonable estimate of game duration
+        );        // Calculate max time as a reasonable estimate of game duration
         const maxTimeMs = parsedEvents.reduce((max, event) => Math.max(max, event.timeMs || 0), 0);
 
-        saveGameToLocalStorage({
-            events: parsedEvents,
-            elapsedTime: maxTimeMs,
-            timestamp: new Date().toISOString(),
-            teams: teamsName ? teamsName.trim() : null
-        }, storageKey);
+        try {
+            // Create game data object
+            const gameData = {
+                events: parsedEvents,
+                elapsedTime: maxTimeMs,
+                timestamp: new Date().toISOString(),
+                teams: teamsName ? teamsName.trim() : null
+            };
+
+            // Use gameStorageManager instead of saveGameToLocalStorage
+            const result = gameStorageManager.saveGame(gameData);
+
+            if (result !== true) {
+                // Handle error case
+                const errorMsg = result.message || 'Unknown error';
+                logger.error('Failed to import game:', errorMsg);
+                notificationService.notify(`Failed to import game: ${errorMsg}`, 'error');
+
+                // Still close the modal even if saving failed
+                document.getElementById('previewModal').classList.add('hidden');
+                if (callback) callback({ importedFileCount: 0 });
+                return;
+            }
+
+            // Check storage quota after saving
+            checkStorageQuota();
+        } catch (error) {
+            logger.error('Error importing game:', error);
+            notificationService.notify(`Error importing game: ${error.message}`, 'error');
+
+            // Close the modal even if saving failed
+            document.getElementById('previewModal').classList.add('hidden');
+            if (callback) callback({ importedFileCount: 0 });
+            return;
+        }
 
         document.getElementById('previewModal').classList.add('hidden');
         if (callback) callback({ importedFileCount: 1 });
