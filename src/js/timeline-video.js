@@ -210,7 +210,7 @@ function updateEventFilters() {
     }
 }
 
-// Format event type names for better readability
+
 function formatEventTypeName(eventType) {
     // Handle snake_case
     if (eventType.includes('_')) {
@@ -227,11 +227,10 @@ function formatEventTypeName(eventType) {
             .replace(/\b\w/g, char => char.toUpperCase());
     }
 
-    // Simple capitalize for other formats
     return eventType.charAt(0).toUpperCase() + eventType.slice(1).toLowerCase();
 }
 
-// Handle filter button click
+
 function handleFilterClick(button) {
     const filterContainer = document.getElementById('timeline-filters');
     const allButtons = filterContainer.querySelectorAll('button');
@@ -256,7 +255,6 @@ function handleFilterClick(button) {
     applyTimelineFilter(filterValue);
 }
 
-// Apply filter to timeline
 function applyTimelineFilter(filterType) {
     const timelineContainerId = 'timeline-events';
     const container = document.getElementById(timelineContainerId);
@@ -303,8 +301,7 @@ function toggleEmptyState(isEmpty) {
     }
 }
 
-// --- DOM Ready ---
-// Vanilla JS equivalent of DOMContentLoaded
+
 function domReady(callback) {
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", callback);
@@ -313,20 +310,11 @@ function domReady(callback) {
     }
 }
 
-// --- Initialization ---
 domReady(() => {
     console.log('DOM fully loaded and parsed');
 
-    // Migrate stored games to standard format
-    migrateStoredGames();
-
-    // Initialize UI with empty state
     toggleEmptyState(true);
-
-    // Set up game selector
     populateGameSelector();
-
-    // Set up event handlers for game loading controls
     setupGameControls();
 
     // Set up filter "All" button click handler
@@ -447,51 +435,6 @@ domReady(() => {
     }
 });
 
-/**
- * Migrates saved games to use the standard GameEvent format
- */
-function migrateStoredGames() {
-    const savedGames = getSavedGames();
-    let migrated = false;
-
-    // Check each game for old format events
-    Object.keys(savedGames).forEach(gameId => {
-        const game = savedGames[gameId];
-
-        if (game.events && Array.isArray(game.events)) {
-            // Convert each event to the standard format
-            game.events = game.events.map(oldEvent => {
-                // If already in standard format, keep as is
-                if (typeof oldEvent.event === 'string' && typeof oldEvent.timeMs === 'number') {
-                    return {
-                        event: oldEvent.event,
-                        timeMs: oldEvent.timeMs
-                    };
-                }
-
-                // Otherwise, create standardized event
-                return {
-                    // Get event from title or default
-                    event: oldEvent.event || oldEvent.title || 'Unknown Event',
-                    // Get timeMs or calculate from timestamp or default to 0
-                    timeMs: oldEvent.timeMs || (oldEvent.timestamp ? new Date(oldEvent.timestamp).getTime() : 0)
-                };
-            });
-
-            migrated = true;
-        }
-    });    // If any games were migrated, save changes back to storage using storage service
-    if (migrated) {
-        const result = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-        if (result === true) {
-            console.log("Successfully migrated saved games to standard event format");
-        } else {
-            console.error("Error migrating saved games:", result.message);
-            showNotification("Error migrating saved games", "error");
-        }
-    }
-}
-
 // Populate game selector dropdown
 function populateGameSelector() {
     const gameSelector = document.getElementById('game-selector');
@@ -502,14 +445,12 @@ function populateGameSelector() {
         gameSelector.remove(1);
     }
 
-    // Get saved games and add them to the selector
     const savedGames = getSavedGames();
 
     if (Object.keys(savedGames).length === 0) {
-        // If no saved games, disable the selector
         gameSelector.disabled = true;
     } else {
-        // Enable the selector and add options
+
         gameSelector.disabled = false;
 
         // Add each saved game as an option
@@ -530,7 +471,6 @@ function populateGameSelector() {
     }
 }
 
-// Set up event handlers for game loading controls
 function setupGameControls() {
     // Game selector change handler
     const gameSelector = document.getElementById('game-selector');
