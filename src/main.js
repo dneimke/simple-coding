@@ -126,9 +126,30 @@ function renderSavedGames() {
 }
 
 function initializeApplication() {
-    registerEventListeners();
+    // Load configuration
+    loadConfiguration((config) => {
+        if (config) {
+            configJsonInput.value = JSON.stringify(config, null, 2);
+            eventButtons.setConfig(config);
+        }
+    });
 
-    const currentConfig = loadConfiguration();
+    // Check URL parameters for view navigation
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewParam = urlParams.get('view');
+
+    // Handle navigation based on URL parameters
+    if (viewParam === 'config') {
+        stateService.setState('ui.currentView', 'Config');
+    } else if (viewParam === 'saved-games') {
+        stateService.setState('ui.currentView', 'SavedGames');
+        renderSavedGames();
+    } else {
+        // Default to tracker view if no parameter or invalid parameter
+        stateService.setState('ui.currentView', 'Tracker');
+    }
+
+    registerEventListeners();
 
     // Initialize state
     stateService.setState('ui.currentView', 'Tracker');

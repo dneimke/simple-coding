@@ -4,6 +4,27 @@ import { notificationService } from '../services/notificationService.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
+// Initialize navigation functionality
+document.addEventListener('DOMContentLoaded', () => {
+    // Set up navigation handlers
+    const navSavedGames = document.getElementById('navSavedGames');
+    const navConfig = document.getElementById('navConfig');
+
+    if (navSavedGames) {
+        navSavedGames.addEventListener('click', () => {
+            // Redirect to index.html with saved games view
+            window.location.href = 'index.html?view=saved-games';
+        });
+    }
+
+    if (navConfig) {
+        navConfig.addEventListener('click', () => {
+            // Redirect to index.html with config view
+            window.location.href = 'index.html?view=config';
+        });
+    }
+});
+
 // Use the notification service for notifications
 function showNotification(message, type = 'success') {
     notificationService.notify(message, type);
