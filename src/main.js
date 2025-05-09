@@ -78,7 +78,9 @@ function renderSavedGames() {
 
                         showElement(newGameButton);
                         hideElement(pauseResumeButton);
-                        hideElement(completeGameButton); updateNavbarVisibility(gameState.hasCurrentGame);
+                        hideElement(completeGameButton);
+                        updateNavbarVisibility(gameState.hasCurrentGame);
+
                         router.showView('Log');
                         // Use the team name if available when reporting successful load
                         const gameName = game.teams || `Game ${index + 1}`;
@@ -86,7 +88,8 @@ function renderSavedGames() {
                     },
                     onRename: () => {
                         // Get the current name or use a placeholder
-                        const currentName = game.teams || `Game ${index + 1}`;                        // Prompt the user for a new name
+                        const currentName = game.teams || `Game ${index + 1}`;
+                        // Prompt the user for a new name
                         const newName = notificationService.prompt('Enter a new name for this game:', currentName);
 
                         // If the user didn't cancel and provided a non-empty name
