@@ -2,11 +2,12 @@ import { EventButtons, EventLog, GameState, Router } from './components/index.js
 import { notificationService } from './services/notificationService.js';
 import { updateNavbarVisibility, showElement, hideElement } from './utils/domUtils.js';
 import { logger } from './utils/formatUtils.js';
-import { createGameCard, saveGameToLocalStorage, loadSavedGames, deleteSavedGame, updateSavedGame } from './utils/gameUtils.js';
+import { saveGameToLocalStorage, loadSavedGames, deleteSavedGame, updateSavedGame } from './utils/gameUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
 import { loadConfiguration, saveConfiguration, resetConfiguration } from './components/config.js';
+import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 

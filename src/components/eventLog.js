@@ -1,5 +1,6 @@
 import { escapeXml } from '../utils/formatUtils.js';
 import { computeGameStatistics } from '../utils/gameUtils.js';
+import { createLogEntry, createLogContainer } from './ui/index.js';
 
 export class EventLog {
     constructor(timelineContainer, xmlContainer, statisticsContainer) {
@@ -53,11 +54,12 @@ export class EventLog {
         `;
             })
             .join('');
-    }
-
-    renderTimeline(events) {
+    } renderTimeline(events) {
         // Clear the timeline container
         this.timelineContainer.innerHTML = '';
+
+        // For simple views, we could use our new createLogContainer component
+        // For now, we'll keep the custom timeline visualization logic as is
 
         // Group events by type
         const eventsByType = events.reduce((acc, event) => {

@@ -2,7 +2,7 @@
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
 import { logger } from './formatUtils.js';
-import { createButton } from './domUtils.js';
+import { createButton, createGameCard as uiCreateGameCard } from '../components/ui/index.js';
 
 /**
  * Computes statistics from game events
@@ -29,53 +29,8 @@ export const computeGameStatistics = (gameEvents) => {
  * @returns {HTMLDivElement} Created game card element
  */
 export const createGameCard = ({ game, index, onLoad, onDelete, onRename }) => {
-    const gameCard = document.createElement('div');
-    gameCard.className = 'saved-game-card flex items-center p-4 mb-4 bg-gray-100 rounded-lg shadow-md hover:shadow-lg transition-shadow';
-
-    const icon = document.createElement('div');
-    icon.className = 'saved-game-icon flex-shrink-0 w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center mr-4';
-    icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c.828 0 1.5-.672 1.5-1.5S12.828 5 12 5s-1.5.672-1.5 1.5S11.172 8 12 8zm0 0v8m0 0H9m3 0h3" />
-    </svg>`;
-
-    const gameDetails = document.createElement('div');
-    gameDetails.className = 'saved-game-details flex-grow';
-
-    const gameTitle = document.createElement('h3');
-    gameTitle.className = 'text-lg font-bold text-gray-800';
-    gameTitle.textContent = game.teams ? game.teams : `Game ${index + 1}`;
-
-    const gameTimestamp = document.createElement('p');
-    gameTimestamp.className = 'text-sm text-gray-600';
-    gameTimestamp.textContent = `Saved on: ${new Date(game.timestamp).toLocaleString()}`;
-
-    const eventCount = document.createElement('p');
-    eventCount.className = 'text-sm text-gray-600';
-    eventCount.textContent = `Events: ${game.events.length}`;
-
-    gameDetails.append(gameTitle, gameTimestamp, eventCount);
-
-    const loadButton = createButton({
-        text: 'Load',
-        className: 'event-button btn-blue px-4 py-2 text-sm',
-        onClick: onLoad
-    });
-
-    const renameButton = createButton({
-        text: 'Rename',
-        className: 'event-button btn-yellow px-4 py-2 text-sm ml-2',
-        onClick: onRename
-    });
-
-    const deleteButton = createButton({
-        text: 'Delete',
-        className: 'event-button btn-red px-4 py-2 text-sm ml-2',
-        onClick: onDelete
-    });
-
-    gameCard.append(icon, gameDetails, loadButton, renameButton, deleteButton);
-
-    return gameCard;
+    // Use the UI component instead of creating elements manually
+    return uiCreateGameCard({ game, index, onLoad, onDelete, onRename });
 };
 
 /**

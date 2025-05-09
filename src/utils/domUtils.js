@@ -1,6 +1,7 @@
 // DOM manipulation utility functions
 import { escapeXml } from './formatUtils.js';
 import { formatTime } from './formatUtils.js';
+import { createButton as uiCreateButton, createLogEntry as uiCreateLogEntry } from '../components/ui/index.js';
 
 /**
  * Shows an element by setting display to inline-block
@@ -51,18 +52,8 @@ export function addVisualFeedbackToButtons(buttons) {
  * @param {string} [options.id=null] - Button ID (optional)
  * @returns {HTMLButtonElement} Created button element
  */
-export const createButton = ({ text, className, onClick, id = null }) => {
-    let button = id ? document.getElementById(id) : null;
-    if (!button) {
-        button = document.createElement('button');
-        if (id) button.id = id;
-    }
-    button.className = className;
-    button.textContent = text;
-    if (onClick) {
-        button.addEventListener('click', onClick);
-    }
-    return button;
+export const createButton = (options) => {
+    return uiCreateButton(options);
 };
 
 /**
@@ -72,9 +63,6 @@ export const createButton = ({ text, className, onClick, id = null }) => {
  * @param {number} options.time - Event time in milliseconds
  * @returns {HTMLDivElement} Created log entry element
  */
-export function createLogEntry({ event, time }) {
-    const logItem = document.createElement('div');
-    logItem.className = 'event-log-item';
-    logItem.innerHTML = `<span class="font-medium text-gray-700">${escapeXml(event)}</span> <span class="text-gray-500">${formatTime(time)}</span>`;
-    return logItem;
+export function createLogEntry(options) {
+    return uiCreateLogEntry(options);
 }

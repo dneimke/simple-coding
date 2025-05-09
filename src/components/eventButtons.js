@@ -1,5 +1,6 @@
 import { addVisualFeedbackToButtons } from '../utils/domUtils.js';
 import { logger } from '../utils/formatUtils.js';
+import { createButtonGrid } from './ui/index.js';
 
 export class EventButtons {
     constructor(targetContainer) {
@@ -13,9 +14,7 @@ export class EventButtons {
         eventButtons.forEach(button => {
             button.disabled = !isRunning;
         });
-    }
-
-    initialize(config) {
+    } initialize(config) {
         this.targetContainer.innerHTML = '';
 
         const renderGroup = (group) => {
@@ -23,27 +22,19 @@ export class EventButtons {
                 logger.warn("Skipping invalid group in config:", group);
                 return; // Skip invalid groups
             }
+
             const groupContainer = document.createElement('div');
             groupContainer.className = 'group-container';
 
+            // Use the createButtonGrid component from our UI library
             const gridColsClass = group.gridCols || 'grid-cols-4'; // Default if not specified
-            const buttonGridHTML = `
-            <div class="button-grid ${gridColsClass}">
-                ${group.buttons.map(buttonConfig => {
-                if (!buttonConfig || !buttonConfig.event || !buttonConfig.text || !buttonConfig.color) {
-                    logger.warn("Skipping invalid button config:", buttonConfig);
-                    return '';
-                }
-                return `
-                        <button class="event-button ${buttonConfig.color}" style="padding: 0.5rem 1rem;" data-event="${buttonConfig.event}">
-                            ${buttonConfig.text}
-                        </button>
-                    `;
-            }).join('')}
-            </div>
-        `;
+            const buttonGrid = createButtonGrid({
+                gridCols: gridColsClass,
+                buttons: group.buttons,
+                className: 'gap-2'
+            });
 
-            groupContainer.innerHTML = buttonGridHTML;
+            groupContainer.appendChild(buttonGrid);
             this.targetContainer.appendChild(groupContainer);
         };
 
