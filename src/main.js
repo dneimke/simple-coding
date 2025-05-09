@@ -127,12 +127,13 @@ function renderSavedGames() {
 
 function initializeApplication() {
     // Load configuration
-    loadConfiguration((config) => {
-        if (config) {
-            configJsonInput.value = JSON.stringify(config, null, 2);
-            eventButtons.setConfig(config);
-        }
-    });
+    const currentConfig = loadConfiguration();
+
+    // Set configuration in editor and initialize event buttons
+    if (currentConfig) {
+        configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+        eventButtons.setConfig(currentConfig);
+    }
 
     // Check URL parameters for view navigation
     const urlParams = new URLSearchParams(window.location.search);
