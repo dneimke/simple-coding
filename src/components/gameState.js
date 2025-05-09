@@ -1,100 +1,148 @@
 import { formatTime } from '../utils/formatUtils.js';
 import { logger } from '../utils/formatUtils.js';
+import { stateService } from '../services/stateService.js';
 
 export class GameState {
     constructor(timerDisplay, eventLog, eventButtons) {
         this.eventButtons = eventButtons;
         this.eventLog = eventLog;
         this.timerDisplay = timerDisplay;
-        this.loggedEvents = [];
-        this.isRunning = false;
-        this.elapsedTime = 0;
         this.startTime = 0;
         this.timerInterval = null;
-        this.hasCurrentGame = false;
-        this.isActive = false;
+
+        // Subscribe to state changes
+        stateService.subscribe('game', this._handleStateChange.bind(this));
+
+        // Initialize UI with current state
+        this._updateUI(stateService.getState('game'));
     }
 
-    setGameState(newState) {
-        this.clearState();
-        Object.assign(this, newState);
-        this.eventLog.render(this.loggedEvents);
-        this.eventButtons.setState(this);
+    /**
+     * Handle state changes from stateService
+     * @param {Object} gameState - New game state
+     * @private
+     */
+    _handleStateChange(gameState) {
+        this._updateUI(gameState);
+    }
+
+    /**
+     * Update UI components based on state
+     * @param {Object} gameState - Game state
+     * @private
+     */
+    _updateUI(gameState) {
+        // Update event log if available
+        if (gameState.loggedEvents && this.eventLog) {
+            this.eventLog.render(gameState.loggedEvents);
+        }
+
+        // Update event buttons if available
+        if (this.eventButtons) {
+            this.eventButtons.setState({
+                isActive: gameState.isActive,
+                isRunning: gameState.isRunning
+            });
+        }
+    } setGameState(newState) {
+        this._stopTimerUpdate();
+        stateService.setState('game', newState, true);
+
+        // Set up timer if game is running
+        if (newState.isRunning) {
+            this.startTime = Date.now();
+            this._startTimerUpdate();
+        }
     }
 
     addEvent(event) {
-        if (!this.isActive || !this.isRunning) {
+        const gameState = stateService.getState('game');
+
+        if (!gameState.isActive || !gameState.isRunning) {
             logger.warn("Timer not started. Event not logged.");
             return;
         }
-        this.loggedEvents.push(event);
-        this.eventLog.render(this.loggedEvents);
+
+        const events = [...gameState.loggedEvents, event];
+        stateService.setState('game.loggedEvents', events);
     }
 
     newGame() {
-        this.clearState();
-        this.setGameState({
+        this._stopTimerUpdate();
+
+        stateService.setState('game', {
             hasCurrentGame: true,
             isActive: true,
+            isRunning: true,
+            elapsedTime: 0,
+            loggedEvents: []
         });
 
-        this.start();
-    }
+        this.startTime = Date.now();
+        this._startTimerUpdate();
+    } pauseResume() {
+        const gameState = stateService.getState('game');
 
-    pauseResume() {
-        if (this.isRunning) {
-            this.pause();
+        if (gameState.isRunning) {
+            // Pause
+            const currentTime = Date.now();
+            const elapsedTime = gameState.elapsedTime + (currentTime - this.startTime);
+
+            stateService.setState('game', {
+                isRunning: false,
+                elapsedTime
+            }, true);
+
+            this._stopTimerUpdate();
         } else {
-            this.start();
+            // Resume
+            stateService.setState('game.isRunning', true);
+            this.startTime = Date.now();
+            this._startTimerUpdate();
         }
     }
 
     completeGame() {
-        this.pause();
-        this.clearState();
-    }
+        this._stopTimerUpdate();
 
-    /// INTERNAL USE ONLY ///
-    clearState() {
-        this.pause();
-        Object.assign(this, {
-            loggedEvents: [],
-            isRunning: false,
-            elapsedTime: 0,
-            startTime: 0,
-            hasCurrentGame: false,
+        stateService.setState('game', {
             isActive: false,
-        });
-        this.timerDisplay.textContent = '00:00';
+            isRunning: false,
+            hasCurrentGame: false
+        }, true);
 
+        if (this.timerDisplay) {
+            this.timerDisplay.textContent = '00:00';
+        }
     }
 
-    pause() {
+    /**
+     * Start timer update interval
+     * @private
+     */
+    _startTimerUpdate() {
+        if (this.timerInterval) return;
+
+        this.timerInterval = setInterval(() => {
+            const gameState = stateService.getState('game');
+            if (!gameState.isRunning) return;
+
+            if (this.timerDisplay) {
+                const currentTime = Date.now();
+                const currentElapsedTime = gameState.elapsedTime + (currentTime - this.startTime);
+                this.timerDisplay.textContent = formatTime(currentElapsedTime);
+            }
+        }, 1000);
+    }
+
+    /**
+     * Stop timer update interval
+     * @private
+     */
+    _stopTimerUpdate() {
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
         }
-        this.isRunning = false;
-        const currentTime = Date.now();
-        this.elapsedTime += (currentTime - this.startTime);
-        this.eventButtons.setState(this);
-    }
-
-    start() {
-        if (this.timerInterval) return;
-
-        this.startTime = Date.now();
-        this.timerInterval = setInterval(() => {
-            const currentTime = Date.now();
-            const currentElapsedTime = this.isRunning
-                ? this.elapsedTime + (currentTime - this.startTime)
-                : this.elapsedTime;
-            this.timerDisplay.textContent = formatTime(currentElapsedTime);
-        }, 1000);
-
-        this.isRunning = true;
-        this.eventLog.render(this.loggedEvents);
-        this.eventButtons.setState(this);
-
     }
 }

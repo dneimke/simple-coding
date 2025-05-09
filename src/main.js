@@ -1,5 +1,6 @@
 import { EventButtons, EventLog, GameState, Router } from './components/index.js';
 import { notificationService } from './services/notificationService.js';
+import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility, showElement, hideElement } from './utils/domUtils.js';
 import { logger } from './utils/formatUtils.js';
 import { saveGameToLocalStorage, loadSavedGames, deleteSavedGame, updateSavedGame } from './utils/gameUtils.js';
@@ -129,9 +130,15 @@ function initializeApplication() {
 
     const currentConfig = loadConfiguration();
 
+    // Initialize state
+    stateService.setState('ui.currentView', 'Tracker');
+
+    // Initialize UI components
     eventButtons.initialize(currentConfig);
-    router.showView('Tracker');
-    updateNavbarVisibility(gameState.hasCurrentGame);
+
+    // Update UI visibility based on game state
+    const hasCurrentGame = stateService.getState('game.hasCurrentGame');
+    updateNavbarVisibility(hasCurrentGame);
 }
 
 function registerEventListeners() {
@@ -158,6 +165,7 @@ function registerEventListeners() {
             }
         });
 
+        const gameState = stateService.getState('game');
         copyXmlButton.disabled = gameState.loggedEvents.length === 0;
     });
 
@@ -167,14 +175,13 @@ function registerEventListeners() {
         if (!button) return; // Ignore clicks on unrelated elements
 
         const eventName = button.dataset.event;
-        const currentElapsedTimeMs = gameState.isRunning
-            ? gameState.elapsedTime + (Date.now() - gameState.startTime)
-            : gameState.elapsedTime;
+        const currentGameState = stateService.getState('game');
+        const currentElapsedTimeMs = currentGameState.isRunning
+            ? currentGameState.elapsedTime + (Date.now() - gameState.startTime)
+            : currentGameState.elapsedTime;
 
         gameState.addEvent({ event: eventName, timeMs: currentElapsedTimeMs });
-    });
-
-    // Tracker view buttons
+    });    // Tracker view buttons
     trackerView.addEventListener('click', (event) => {
         const { id } = event.target;
 
@@ -184,19 +191,21 @@ function registerEventListeners() {
                 hideElement(newGameButton);
                 showElement(pauseResumeButton);
                 showElement(completeGameButton);
-                updateNavbarVisibility(gameState.hasCurrentGame);
+                updateNavbarVisibility(true);
                 break;
             case 'pauseResumeButton':
                 gameState.pauseResume();
-                pauseResumeButton.textContent = gameState.isRunning ? 'Pause' : 'Resume';
-                break;
-            case 'completeGameButton': const userConfirmed = notificationService.confirm(
-                'Are you sure you want to complete the game? This will reset all progress.'
-            );
+                const isPaused = !stateService.getState('game.isRunning');
+                pauseResumeButton.textContent = isPaused ? 'Resume' : 'Pause';
+                break; case 'completeGameButton': const userConfirmed = notificationService.confirm(
+                    'Are you sure you want to complete the game? This will reset all progress.'
+                );
 
                 if (userConfirmed) {
-                    const { loggedEvents: events, elapsedTime } = gameState;
-                    const timestamp = new Date().toISOString();                    // Ask for teams information
+                    const currentGameState = stateService.getState('game');
+                    const { loggedEvents: events, elapsedTime } = currentGameState;
+                    const timestamp = new Date().toISOString();
+                    // Ask for teams information
                     const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
 
                     const gameSnapshot = {
@@ -211,7 +220,7 @@ function registerEventListeners() {
                     showElement(newGameButton);
                     hideElement(pauseResumeButton);
                     hideElement(completeGameButton);
-                    updateNavbarVisibility(gameState.hasCurrentGame);
+                    updateNavbarVisibility(false);
                 }
                 break;
             default:
