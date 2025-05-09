@@ -3,6 +3,7 @@
  * @module components/ui/card
  */
 import { createButton } from './button.js';
+import { generateGameXml } from '../../utils/xmlUtils.js';
 
 /**
  * Creates a basic card container with Tailwind styling
@@ -115,14 +116,41 @@ export const createGameCard = ({
     eventCount.className = 'text-sm text-gray-600';
     eventCount.textContent = `Events: ${game.events.length}`;
 
-    gameDetails.append(gameTitle, gameTimestamp, eventCount);
-
-    // Create action buttons
+    gameDetails.append(gameTitle, gameTimestamp, eventCount);    // Create action buttons
     const loadButton = createButton({
         text: 'Load',
         type: 'primary',
         className: 'px-4 py-2 text-sm',
         onClick: onLoad
+    });
+
+    const exportButton = createButton({
+        text: 'Export XML',
+        type: 'secondary',
+        className: 'px-4 py-2 text-sm ml-2',
+        onClick: (e) => {            // Prevent event bubbling
+            e.stopPropagation();
+
+            // Generate XML content using the utility function
+            const xmlContent = generateGameXml(game, index + 1);
+
+            // Create and trigger download
+            const blob = new Blob([xmlContent], { type: 'application/xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const fileName = (game.teams || `game-${index + 1}`).toLowerCase().replace(/\s+/g, '-');
+
+            a.href = url;
+            a.download = `${fileName}.xml`;
+            document.body.appendChild(a);
+            a.click();
+
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 0);
+        }
     });
 
     const renameButton = createButton({
@@ -140,7 +168,7 @@ export const createGameCard = ({
     });
 
     // Add all elements to card
-    gameCard.append(icon, gameDetails, loadButton, renameButton, deleteButton);
+    gameCard.append(icon, gameDetails, loadButton, exportButton, renameButton, deleteButton);
 
     return gameCard;
 };

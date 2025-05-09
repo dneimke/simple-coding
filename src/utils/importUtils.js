@@ -3,6 +3,7 @@ import { notificationService } from '../services/notificationService.js';
 import { gameStorageManager } from '../services/gameStorageManager.js';
 import { checkStorageQuota } from './storageWarningUtils.js';
 import { logger } from './formatUtils.js';
+import { generateGameXml } from './xmlUtils.js';
 
 /**
  * Shows a preview of parsed events in a modal
@@ -95,7 +96,24 @@ export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = nu
 
     cancelButton.onclick = () => {
         document.getElementById('previewModal').classList.add('hidden');
-        if (callback) callback({ importedFileCount: 0 });
-        notificationService.notify('Import canceled.', 'warning');
+        if (callback) callback({ importedFileCount: 0 }); notificationService.notify('Import canceled.', 'warning');
     };
+};
+
+/**
+ * Generates sample XML data in the modern format (export-compatible)
+ * @returns {string} Sample XML content
+ */
+export const generateSampleXml = () => {
+    const sampleGame = {
+        teams: 'Sample Team A vs Sample Team B',
+        timestamp: new Date().toISOString(),
+        events: [
+            { event: 'GOAL_FOR', timeMs: 60000 },
+            { event: 'FOUL', timeMs: 120000 },
+            { event: 'PENALTY_CORNER', timeMs: 180000 }
+        ]
+    };
+
+    return generateGameXml(sampleGame, 'Sample');
 };
