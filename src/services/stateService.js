@@ -19,7 +19,7 @@ export const stateService = {
             hasCurrentGame: false
         },
         ui: {
-            currentView: 'Tracker',
+            currentView: 'EventCapture',
             currentTab: 'timelineView'
         }
     },

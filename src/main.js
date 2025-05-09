@@ -146,14 +146,12 @@ function initializeApplication() {
         stateService.setState('ui.currentView', 'SavedGames');
         renderSavedGames();
     } else {
-        // Default to tracker view if no parameter or invalid parameter
-        stateService.setState('ui.currentView', 'Tracker');
-    }
-
-    registerEventListeners();
+        // Default to event capture view if no parameter or invalid parameter
+        stateService.setState('ui.currentView', 'EventCapture');
+    } registerEventListeners();
 
     // Initialize state
-    stateService.setState('ui.currentView', 'Tracker');
+    stateService.setState('ui.currentView', 'EventCapture');
 
     // Initialize UI components
     eventButtons.initialize(currentConfig);
@@ -203,7 +201,7 @@ function registerEventListeners() {
             : currentGameState.elapsedTime;
 
         gameState.addEvent({ event: eventName, timeMs: currentElapsedTimeMs });
-    });    // Tracker view buttons
+    });    // Event Capture view buttons
     trackerView.addEventListener('click', (event) => {
         const { id } = event.target;
 
@@ -320,7 +318,7 @@ function registerEventListeners() {
 
 const router = new Router(
     {
-        Tracker: { view: trackerView, button: navTracker },
+        EventCapture: { view: trackerView, button: navTracker },
         Config: { view: configView, button: navConfig },
         Log: { view: logView, button: navLog },
         SavedGames: { view: savedGamesView, button: navSavedGames }

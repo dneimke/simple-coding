@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Field Hockey Event Tracker</title>
+    <title>Field Hockey Event Capture</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,11 +22,10 @@
     <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-xl">
         <nav class="border-b border-slate-700 flex justify-between items-center bg-slate-950 text-white p-4">
             <div class="flex space-x-4">
-                <button id="navTracker" class="text-white hover:text-white-300 font-medium">Tracker</button>
+                <button id="navTracker" class="text-white hover:text-white-300 font-medium">Event Capture</button>
                 <button id="navLog" class="text-gray-400 hover:text-white-300 font-medium hidden"
-                    data-requires-game>Log</button>
-                <a href="timeline-video.html" class="text-gray-400 hover:text-white-300 font-medium">Timeline &
-                    Video</a>
+                    data-requires-game>Log</button> <a href="timeline-video.html"
+                    class="text-gray-400 hover:text-white-300 font-medium">Match Review</a>
             </div>
             <div class="flex space-x-4 items-center">
                 <button id="navSavedGames" class="text-gray-400 hover:text-white-300 font-medium">Saved Games</button>
@@ -40,12 +39,11 @@
                 </a>
             </div>
         </nav>
-
         <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl">
 
-            <!-- Tracker View -->
+            <!-- Event Capture View -->
             <div id="tracker-view">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Field Hockey Event Tracker
+                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Field Hockey Event Capture
                 </h1>
                 <div
                     class="flex flex-col sm:flex-row justify-center items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
@@ -69,7 +67,8 @@
                 <p class="mb-4 text-gray-600">
                     Edit the JSON below to define the button layout. Buttons defined in 'leftColumn' and 'rightColumn'
                     will
-                    appear sequentially in a single column on the Tracker page. Each group has an optional 'gridCols'
+                    appear sequentially in a single column on the Event Capture page. Each group has an optional
+                    'gridCols'
                     (e.g.,
                     "grid-cols-4") and an array of 'buttons'. Each button needs an 'event' (unique identifier), 'text'
                     (display label), and 'color' ('btn-blue', 'btn-red', 'btn-green', 'btn-yellow', 'btn-gray').

@@ -8,7 +8,7 @@ The Timeline View is a feature that allows you to review and navigate events dur
 
 ### Accessing the Timeline View
 
-The Timeline View can be accessed from the main tracker by clicking on the "Timeline & Video View" link or by navigating directly to the timeline-video.html page.
+The Timeline View can be accessed from the main Event Capture screen by clicking on the "Match Review" link or by navigating directly to the timeline-video.html page.
 
 ### Loading Game Data
 
@@ -164,17 +164,17 @@ To extend the Timeline View, consider these integration points:
 3. **Add data export capabilities**: Create functions to export game data as XML or JSON
 4. **Implement cloud storage**: Add authentication and remote storage capabilities while preserving the standardized event model
 
-## Integration with Field Hockey Tracker
+## Integration with Field Hockey Event Capture
 
-The Timeline View is designed to work seamlessly with the main Field Hockey Event Tracker application. Here's how they integrate:
+The Timeline View is designed to work seamlessly with the main Field Hockey Event Capture application. Here's how they integrate:
 
 ### Workflow Integration
 
-1. **Capture events during a live game** using the main tracker interface
+1. **Capture events during a live game** using the main Event Capture interface
 2. **Review and analyze events** using the Timeline View
 3. **Navigate video footage** by clicking on timeline events
 4. **Export events** for sharing or archiving
 
 ### Data Flow
 
-Events captured in the main tracker flow into the same localStorage system used by the Timeline View, ensuring that all game data is accessible from both interfaces. This unified data approach allows for a seamless experience when switching between live tracking and video analysis.
+Events captured in the main Event Capture interface flow into the same localStorage system used by the Timeline View, ensuring that all game data is accessible from both interfaces. This unified data approach allows for a seamless experience when switching between live event capturing and video analysis.
