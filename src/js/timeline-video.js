@@ -156,61 +156,7 @@ function getUniqueEventTypes(events) {
     return Array.from(eventTypes).sort();
 }
 
-// Update filter buttons based on available event types
-function updateEventFilters() {
-    if (timelineEvents.length === 0) return;
-
-    // Get unique event types
-    const eventTypes = getUniqueEventTypes(timelineEvents);
-
-    const filterContainer = document.getElementById('timeline-filters');
-    if (!filterContainer) return;
-
-    // Show the filter container
-    filterContainer.classList.remove('hidden');
-
-    // Keep the "All" button
-    const allButton = document.getElementById('filter-all');
-
-    // Remove existing filter buttons (except the "All" button)
-    const existingButtons = filterContainer.querySelectorAll('button:not(#filter-all)');
-    existingButtons.forEach(button => button.remove());
-
-    // Make sure "All" button is marked as active
-    if (allButton) {
-        allButton.classList.add('bg-blue-500', 'text-white');
-        allButton.classList.remove('bg-gray-200', 'text-gray-700');
-        allButton.setAttribute('aria-pressed', 'true');
-    }
-
-    // Create a button for each event type
-    eventTypes.forEach(eventType => {
-        const button = document.createElement('button');
-        button.className = 'bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm py-1 px-3 rounded-full transition-colors';
-        button.setAttribute('data-filter', eventType);
-        button.setAttribute('aria-pressed', 'false');
-
-        // Format the event type name for display
-        button.textContent = formatEventTypeName(eventType);
-
-        // Add click event handler
-        button.addEventListener('click', () => {
-            handleFilterClick(button);
-        });
-
-        filterContainer.appendChild(button);
-    });
-
-    // Add click handler for "All" button if it doesn't have one
-    if (allButton && !allButton._hasClickHandler) {
-        allButton.addEventListener('click', () => {
-            handleFilterClick(allButton);
-        });
-        allButton._hasClickHandler = true;
-    }
-}
-
-
+// Format event type name for display
 function formatEventTypeName(eventType) {
     // Handle snake_case
     if (eventType.includes('_')) {
@@ -230,46 +176,206 @@ function formatEventTypeName(eventType) {
     return eventType.charAt(0).toUpperCase() + eventType.slice(1).toLowerCase();
 }
 
+// Update filter dropdown based on available event types
+function updateEventFilters() {
+    if (timelineEvents.length === 0) return;
 
-function handleFilterClick(button) {
+    // Get unique event types
+    const eventTypes = getUniqueEventTypes(timelineEvents);
+
     const filterContainer = document.getElementById('timeline-filters');
-    const allButtons = filterContainer.querySelectorAll('button');
-    const filterValue = button.getAttribute('data-filter');
+    if (!filterContainer) return;
 
-    // Update button states
-    allButtons.forEach(btn => {
-        if (btn === button) {
-            // Make this button active
-            btn.classList.add('bg-blue-500', 'text-white');
-            btn.classList.remove('bg-gray-200', 'text-gray-700');
-            btn.setAttribute('aria-pressed', 'true');
-        } else {
-            // Make other buttons inactive
-            btn.classList.remove('bg-blue-500', 'text-white');
-            btn.classList.add('bg-gray-200', 'text-gray-700');
-            btn.setAttribute('aria-pressed', 'false');
+    // Show the filter container
+    filterContainer.classList.remove('hidden');
+
+    // Get references to our filter elements
+    const dropdownButton = document.getElementById('filter-dropdown-button');
+    const dropdownPanel = document.getElementById('filter-dropdown-panel');
+    const optionsContainer = document.getElementById('filter-options-container');
+    const selectedFiltersText = document.getElementById('selected-filters-text');
+    const selectedFiltersTags = document.getElementById('selected-filters-tags');
+    const applyButton = document.getElementById('apply-filters');
+    const allCheckbox = document.getElementById('filter-option-all');
+
+    // Clear any existing options (except the "All" option which is static)
+    optionsContainer.innerHTML = '';
+
+    // Create a checkbox for each event type
+    eventTypes.forEach(eventType => {
+        const optionWrapper = document.createElement('div');
+        optionWrapper.className = 'flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `filter-option-${eventType}`;
+        checkbox.className = 'filter-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded';
+        checkbox.setAttribute('data-filter', eventType);
+
+        const label = document.createElement('label');
+        label.htmlFor = `filter-option-${eventType}`;
+        label.className = 'ml-3 block text-sm font-medium text-gray-700 cursor-pointer w-full';
+        label.textContent = formatEventTypeName(eventType);
+
+        optionWrapper.appendChild(checkbox);
+        optionWrapper.appendChild(label);
+
+        // Make the entire div clickable
+        optionWrapper.addEventListener('click', (e) => {
+            // Prevent label's native behavior
+            if (e.target !== checkbox) {
+                e.preventDefault();
+                checkbox.checked = !checkbox.checked;
+
+                // If individual filter is checked, uncheck "All"
+                if (checkbox.checked && allCheckbox.checked) {
+                    allCheckbox.checked = false;
+                }
+
+                // If no filters are selected, check "All"
+                const anyChecked = Array.from(optionsContainer.querySelectorAll('.filter-checkbox'))
+                    .some(cb => cb.checked);
+                if (!anyChecked && !allCheckbox.checked) {
+                    allCheckbox.checked = true;
+                }
+            }
+        });
+
+        optionsContainer.appendChild(optionWrapper);
+    });
+
+    // Toggle dropdown visibility
+    dropdownButton.addEventListener('click', () => {
+        const expanded = dropdownButton.getAttribute('aria-expanded') === 'true';
+        dropdownButton.setAttribute('aria-expanded', !expanded);
+        dropdownPanel.classList.toggle('hidden');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!dropdownButton.contains(e.target) && !dropdownPanel.contains(e.target)) {
+            dropdownButton.setAttribute('aria-expanded', 'false');
+            dropdownPanel.classList.add('hidden');
         }
     });
 
-    // Apply filter
-    applyTimelineFilter(filterValue);
+    // Handle "All" checkbox behavior
+    allCheckbox.addEventListener('change', () => {
+        if (allCheckbox.checked) {
+            // If "All" is checked, uncheck individual filters
+            const individualCheckboxes = optionsContainer.querySelectorAll('.filter-checkbox');
+            individualCheckboxes.forEach(cb => {
+                cb.checked = false;
+            });
+        }
+    });
+
+    // Apply filters button
+    applyButton.addEventListener('click', () => {
+        // Get selected filters
+        let selectedFilters = [];
+
+        if (allCheckbox.checked) {
+            selectedFilters = ['all'];
+        } else {
+            const checkedBoxes = document.querySelectorAll('#filter-options-container .filter-checkbox:checked');
+            selectedFilters = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-filter'));
+
+            // If nothing is selected, default to "all"
+            if (selectedFilters.length === 0) {
+                selectedFilters = ['all'];
+                allCheckbox.checked = true;
+            }
+        }
+
+        // Update the display text and tags
+        updateSelectedFiltersDisplay(selectedFilters);
+
+        // Apply the filter
+        applyTimelineFilter(selectedFilters);
+
+        // Close dropdown
+        dropdownButton.setAttribute('aria-expanded', 'false');
+        dropdownPanel.classList.add('hidden');
+    });
+
+    // Initialize with "All" selected
+    updateSelectedFiltersDisplay(['all']);
 }
 
-function applyTimelineFilter(filterType) {
+// Update the selected filters display text and tags
+function updateSelectedFiltersDisplay(selectedFilters) {
+    const selectedFiltersText = document.getElementById('selected-filters-text');
+    const selectedFiltersTags = document.getElementById('selected-filters-tags');
+
+    if (selectedFilters.includes('all') || selectedFilters.length === 0) {
+        selectedFiltersText.textContent = 'All events';
+        selectedFiltersTags.innerHTML = '';
+        return;
+    }
+
+    // Update dropdown button text
+    selectedFiltersText.textContent = `${selectedFilters.length} filter${selectedFilters.length > 1 ? 's' : ''} selected`;
+
+    // Update tags display
+    selectedFiltersTags.innerHTML = '';
+
+    selectedFilters.forEach(filter => {
+        const tag = document.createElement('div');
+        tag.className = 'bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center';
+
+        const tagText = document.createElement('span');
+        tagText.textContent = formatEventTypeName(filter);
+
+        const removeButton = document.createElement('button');
+        removeButton.className = 'ml-1.5 text-blue-600 hover:text-blue-800';
+        removeButton.innerHTML = '&times;';
+        removeButton.setAttribute('aria-label', `Remove ${formatEventTypeName(filter)} filter`);
+
+        // Remove filter when clicking the X
+        removeButton.addEventListener('click', () => {
+            const checkbox = document.querySelector(`.filter-checkbox[data-filter="${filter}"]`);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+
+            // Re-apply filters
+            const newSelection = selectedFilters.filter(f => f !== filter);
+            if (newSelection.length === 0) {
+                const allCheckbox = document.getElementById('filter-option-all');
+                if (allCheckbox) {
+                    allCheckbox.checked = true;
+                }
+                updateSelectedFiltersDisplay(['all']);
+                applyTimelineFilter(['all']);
+            } else {
+                updateSelectedFiltersDisplay(newSelection);
+                applyTimelineFilter(newSelection);
+            }
+        });
+
+        tag.appendChild(tagText);
+        tag.appendChild(removeButton);
+        selectedFiltersTags.appendChild(tag);
+    });
+}
+
+// Apply timeline filtering
+function applyTimelineFilter(filterTypes) {
     const timelineContainerId = 'timeline-events';
     const container = document.getElementById(timelineContainerId);
 
     if (!container) return;
 
     // If "all" is selected, show all events
-    if (filterType === 'all') {
+    if (filterTypes.includes('all')) {
         renderTimeline(timelineEvents, timelineContainerId);
         return;
     }
 
     // Otherwise, filter events by type
     const filteredEvents = timelineEvents.filter(event =>
-        event.event === filterType
+        filterTypes.includes(event.event)
     );
 
     // Render filtered timeline
@@ -279,7 +385,7 @@ function applyTimelineFilter(filterType) {
         // Show message if no events match filter
         container.innerHTML = `
             <div class="text-center py-6 text-gray-500">
-                <p>No events of type "${formatEventTypeName(filterType)}" found.</p>
+                <p>No events match the selected filters.</p>
             </div>
         `;
     }
@@ -316,15 +422,6 @@ domReady(() => {
     toggleEmptyState(true);
     populateGameSelector();
     setupGameControls();
-
-    // Set up filter "All" button click handler
-    const filterAllButton = document.getElementById('filter-all');
-    if (filterAllButton) {
-        filterAllButton.addEventListener('click', () => {
-            handleFilterClick(filterAllButton);
-        });
-        filterAllButton._hasClickHandler = true;
-    }
 
     // --- Video Time Setup ---
     const currentVideoTimeElement = document.getElementById('current-video-time');
