@@ -1,107 +1,272 @@
 # Field Hockey Event Tracker
 
 [![Deploy static content to Pages](https://github.com/dneimke/simple-coding/actions/workflows/static.yml/badge.svg)](https://github.com/dneimke/simple-coding/actions/workflows/static.yml)
+[![Test Coverage](https://img.shields.io/badge/coverage-30%25-yellow.svg)](coverage/lcov-report/index.html)
+[![JavaScript Style](https://img.shields.io/badge/code_style-ES6%2B-brightgreen.svg)](https://www.ecma-international.org/ecma-262/6.0/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-The **Field Hockey Event Tracker** is a web application designed to allow coaches, analysts, or enthusiasts to track specific actions (like goals, circle entries, tackles, etc.) during a game using a configurable button interface. Events are timestamped against a game timer. The application also features a timeline view that synchronizes these logged events with a locally loaded video file, allowing for quick navigation to key moments in the game footage.
+## Overview
+
+The **Field Hockey Event Tracker** is a modern web application that empowers coaches, analysts, and sports enthusiasts to record, analyze, and visualize game events in real-time. Built with HTML5, Tailwind CSS, and modern Vanilla JavaScript (ES6+), it offers a responsive and customizable interface for sports performance analysis.
+
+Key features:
+
+- Record timestamped events during live games with minimal friction
+- Customize event buttons to match your team's specific tracking needs
+- Review event logs in multiple formats (list, timeline, statistics)
+- Sync recorded events with video footage for in-depth analysis
+- Export data in XML format for compatibility with other analysis tools
+- Persist games and configurations with browser local storage
+- Works offline with no server dependencies
 
 ![Tracker Page](images/coding-tool.png)
 
-## Running the Solution Locally
+## Table of Contents
 
-To run the solution locally, you can use the **Live Server** extension for Visual Studio Code. This extension provides a quick way to serve your project and view it in the browser.
+- [Getting Started](#getting-started)
+  - [Installation](#installation)
+  - [Running Locally](#running-locally)
+  - [Testing](#testing)
+- [Features](#features)
+- [Application Pages](#application-pages)
+- [Technical Architecture](#technical-architecture)
+- [Contributing](#contributing)
+- [Project Documentation](#project-documentation)
 
-### Steps to Install and Use Live Server
+## Getting Started
 
-1. **Install the Live Server Extension**:
-   - Open Visual Studio Code.
-   - Go to the Extensions view by clicking on the Extensions icon in the Activity Bar on the side of the window or pressing `Ctrl+Shift+X`.
-   - Search for "Live Server" in the Extensions Marketplace.
-   - Click "Install" to add the extension to your Visual Studio Code.
+### Installation
 
-2. **Open the Project**:
-   - Open the `coding-tool` folder in Visual Studio Code.
+1. **Clone the repository**:
 
-3. **Start Live Server**:
-   - Right-click on the `index.html` file in the Explorer view.
-   - Select "Open with Live Server" from the context menu.
+   ```bash
+   git clone https://github.com/dneimke/simple-coding.git
+   cd coding-tool
+   ```
 
-4. **View in Browser**:
-   - Your default web browser will open, displaying the application.
-   - Any changes you make to the files will automatically refresh the browser.
+2. **Install dependencies**:
 
-This method ensures a smooth local development experience without needing additional server setup.
+   ```bash
+   npm install
+   ```
+
+### Running Locally
+
+You can run the application using any of these methods:
+
+1. **VS Code Live Server (Recommended)**:
+   - Install the [Live Server extension](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) for VS Code
+   - Right-click on `src/index.html` and select "Open with Live Server"
+   - The application will open in your default browser
+
+2. **Any HTTP Server**:
+   - If you have Python installed:
+
+     ```bash
+     # Python 3.x
+     python -m http.server --directory src 8080
+     ```
+
+   - Then open `http://localhost:8080` in your browser
+
+3. **NPM http-server package**:
+
+   ```bash
+   npm install -g http-server
+   http-server src
+   ```
+
+The application runs entirely in the browser with no backend dependencies.
+
+### Testing
+
+The project uses Jest for testing:
+
+```bash
+# Run tests once
+npm test
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run tests in watch mode during development
+npm run test:watch
+```
+
+After running tests with coverage, open `coverage/lcov-report/index.html` in a browser to view the detailed coverage report.
 
 ## Features
 
-### Game Timer
+### Game Timer and Event Recording
 
-- Start, stop, and reset a game clock to track the elapsed time during a match.
-- Log predefined or custom events with timestamps by clicking on configurable buttons.
+- **Real-time Timer**: Start, stop, and reset a game clock to track elapsed match time
+- **Event Logging**: Record predefined events with timestamps using customizable buttons
+- **Quick Actions**: Ability to undo or modify recent events
 
 ### Customizable Configuration
 
-- Customize the layout, labels, colors, and event names of the tracker buttons via a JSON configuration page.
-- Save configurations directly in the browser's local storage for future use.
+- **Button Editor**: Customize event buttons via an intuitive JSON configuration interface
+- **Preset Layouts**: Create and save multiple button configurations for different analysis needs
+- **Local Storage**: Configurations persist between sessions in your browser's storage
 
-### Event Logs
+### Data Management
 
-- **List View**: Display a chronological list of logged events and their timestamps.
-- **XML View**: View events formatted as XML, suitable for importing into other analysis tools. Includes a "Copy to Clipboard" function for easy sharing.
+- **Game Saving**: Automatically save games to prevent data loss
+- **Import/Export**: Exchange game data with other analysis tools via XML format
+- **Local Storage**: Access previously recorded games from your browser's storage
+- **Data Clearing**: Option to start fresh with a new game recording
 
-### Load Saved Games
+### Analysis Views
 
-- Load previously saved game logs from local storage to review past matches.
-- Import game data from XML files for analysis.
-- See the [Timeline View Guide](docs/timeline-view-guide.md) for detailed instructions on working with saved games.
-- Clear the log to start a new game or remove old entries.
+- **List View**: Chronological list of events with timestamps and details
+- **Timeline View**: Visual representation of events with video synchronization
+- **Statistics View**: Aggregated counts and metrics from recorded events
+- **XML View**: Raw data export with copy-to-clipboard functionality
 
 ## Application Pages
 
-### 1. Tracker Page
+### Tracker Page
 
-The Tracker page is the main interface for recording events during a game. It includes:
+The primary interface for recording live game events:
 
-- A **timer** to track the elapsed game time.
-- Buttons for recording predefined events, which can be customized in the Configure page.
-- Options to start, pause, and reset the timer.
+- **Game Timer**: Controls for starting, pausing, and resetting the game clock
+- **Event Buttons**: Customizable buttons for logging different event types
+- **Quick Actions**: Undo functionality and game management options
+- **Real-time Feedback**: Visual confirmations when events are recorded
 
 ![Tracker Page](images/field-hockey-tracker.png)
 
-### 2. Configure Page
+### Configure Page
 
-The Configure page allows users to customize the event buttons displayed on the Tracker page. Features include:
+Customize the application to match your specific tracking needs:
 
-- A JSON editor to define button groups, labels, and colors.
-- Options to save the configuration to local storage or load the default configuration.
+- **JSON Editor**: Define event button groups, labels, colors, and behaviors
+- **Configuration Management**: Save, load, and reset button layouts
+- **Preview**: See your changes before applying them to the tracker
+- **Persistence**: All configurations are saved to browser local storage
 
-### 3. Log Page
+### Log Page
 
-The Log page displays a detailed list of recorded events and provides options to export the log in XML format. Features include:
+Review, analyze, and export recorded game data:
 
-- A **Timeline View** for a timeline of events.
-- An **XML View** for exporting events in XML format.
-- A **Statistics View** to display the number of recorded events and their types. This helps users analyze the game's key moments at a glance.
-- Options to copy the XML to the clipboard or clear the log.
+- **Event List**: Chronological list of all recorded events with timestamps
+- **Export Options**: Save or share your data in various formats
+- **Game Selection**: Load previous games from local storage
+- **Data Management**: Clear logs or start new recordings
 
-### Timeline View
+The Log Page includes multiple views:
 
-The Timeline View provides a visual representation of the events logged during the game. Each event is displayed as a marker on a timeline, synchronized with the game timer. You can also upload a video file and navigate to specific events by clicking on them in the timeline.
+#### Timeline View
 
-- [Timeline View Guide](docs/timeline-view-guide.md) - Detailed documentation on using the Timeline View feature
-- Import and export game data using XML files
-- Load saved games from local storage
-- Interact with timeline events to navigate video footage
+Visual representation of game events with video synchronization:
+
+- Markers for each event positioned along a time axis
+- Video playback controls synced with event timestamps
+- Click navigation to jump to specific events in the footage
+- [Timeline View Guide](docs/timeline-view-guide.md) for detailed usage instructions
 
 ![Timeline View](images/timeline-view.png)
 
-### XML View
+#### XML View
 
-The XML View allows users to export the logged events in XML format. This feature is useful for importing data into external analysis tools or sharing with others.
+Raw data export for integration with external analysis tools:
+
+- Structured XML format containing all event data
+- Copy-to-clipboard functionality for easy sharing
+- Compatible with third-party sports analysis platforms
 
 ![XML View](images/xml-view.png)
 
-### Statistics View
+#### Statistics View
 
-The Statistics View displays a summary of the recorded events, including the total number of events and a breakdown by event type. This helps users analyze the game's key moments at a glance.
+Aggregate metrics and counts of recorded events:
+
+- Total events by category and subcategory
+- Visual representation of event distribution
+- Quick insights into game patterns and key moments
 
 ![Statistics View](images/statistics-view.png)
+
+## Technical Architecture
+
+The Field Hockey Event Tracker is built using modern web technologies with a focus on simplicity, maintainability, and performance:
+
+### Technology Stack
+
+- **HTML5**: Modern semantic markup for structure
+- **Tailwind CSS**: Utility-first CSS framework for styling without separate CSS files
+- **Vanilla JavaScript (ES6+)**: No frameworks or libraries for core functionality
+- **ES Modules**: Component-based architecture with native JavaScript modules
+- **Jest**: Testing framework for unit tests
+
+### Code Organization
+
+- `src/` - Main application source code
+  - `components/` - Reusable UI components and application modules
+  - `services/` - Core services (state, storage, notifications)
+  - `utils/` - Utility functions and helpers
+  - `assets/` - Static resources like icons and sample data
+- `tests/` - Jest test files mirroring the src/ structure
+- `docs/` - Project documentation
+
+### Key Design Patterns
+
+- **Module Pattern**: ES6 modules for code organization and encapsulation
+- **Service-Based Architecture**: Core functionality abstracted into service modules
+- **Event-Driven Communication**: Components communicate via custom events
+- **Local Storage Persistence**: Game data and configuration stored in browser
+
+## Contributing
+
+Contributions to improve the Field Hockey Event Tracker are welcome! Here's how to get started:
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests to ensure everything works (`npm test`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to your branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Code Standards
+
+- Follow ES6+ JavaScript conventions
+- Use semantic HTML5 elements where appropriate
+- Prefer Tailwind utility classes for styling
+- Write tests for new functionality
+- Maintain or improve current test coverage (aim for >30%)
+- Document complex functions and components
+
+### Adding New Features
+
+When adding new features, consider:
+
+- Compatibility with existing code structure
+- Performance implications, especially for mobile devices
+- Maintainability and testability
+- User experience for coaches and analysts
+
+## Project Documentation
+
+Additional documentation is available in the `docs/` directory:
+
+- [Timeline View Guide](docs/timeline-view-guide.md) - Instructions for using the timeline with video synchronization
+- [Event Model Standardization](docs/event-model-standardization.md) - Standards for event data structure
+- [Import Data Guide](docs/import-data.md) - How to import external game data
+- [State Management](docs/state-management.md) - Overview of the application state architecture
+- [Unit Testing](docs/unit-testing.md) - Testing approach and guidelines
+- [User Experience](docs/user-experience.md) - UX design principles for the application
+- [Refactoring Plan](docs/refactoring-plan.md) - Ongoing improvements and technical debt
+- [UI Components](docs/ui-components-refactoring.md) - Component architecture documentation
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- Developed for field hockey coaches and analysts
+- Inspired by the needs of sports performance analysis
+- Thanks to all contributors and testers who have provided valuable feedback
