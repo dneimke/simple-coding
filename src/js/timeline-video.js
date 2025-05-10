@@ -6,15 +6,47 @@ const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
 // Initialize navigation functionality
 document.addEventListener('DOMContentLoaded', () => {
-    // Set up navigation handlers    // Navigation links are now handled via href attributes with hash fragments
-    // No need for event listeners anymore as we've updated the HTML to use direct links:
-    // <a href="index.html#saved-games">Saved Games</a>
-    // <a href="index.html#configure">Configure</a>
+    // Set up mobile menu toggle
+    initMobileMenu();
 
     // Set up favorites toggle and playlist functionality
     initFavoritesUI();
     initPresentationMode();
 });
+
+// Initialize mobile menu functionality
+function initMobileMenu() {
+    const mobileMenuButton = document.getElementById('mobileMenuButton');
+    const mainMenu = document.getElementById('mainMenu');
+
+    if (mobileMenuButton && mainMenu) {
+        mobileMenuButton.addEventListener('click', () => {
+            const isOpen = !mainMenu.classList.contains('hidden');
+
+            if (isOpen) {
+                // Close menu with smooth transition
+                mainMenu.classList.add('opacity-0');
+                setTimeout(() => {
+                    mainMenu.classList.add('hidden');
+                    mainMenu.classList.remove('opacity-0');
+                }, 200);
+                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                mobileMenuButton.setAttribute('aria-expanded', 'false');
+            } else {
+                // Open menu with smooth transition
+                mainMenu.classList.remove('hidden');
+                // Small delay to allow the display change before starting opacity transition
+                setTimeout(() => {
+                    mainMenu.classList.add('flex');
+                }, 10);
+                mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+                mobileMenuButton.setAttribute('aria-expanded', 'true');
+            }
+        });
+    }
+    // Initialize with menu closed
+    mobileMenuButton.setAttribute('aria-expanded', 'false');
+}
 
 // Initialize favorites UI and handlers
 function initFavoritesUI() {
