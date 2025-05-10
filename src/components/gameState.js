@@ -3,6 +3,7 @@ import { logger } from '../utils/formatUtils.js';
 import { stateService } from '../services/stateService.js';
 
 export class GameState {
+
     constructor(timerDisplay, eventLog, eventButtons) {
         this.eventButtons = eventButtons;
         this.eventLog = eventLog;
@@ -44,7 +45,9 @@ export class GameState {
                 isRunning: gameState.isRunning
             });
         }
-    } setGameState(newState) {
+    }
+
+    setGameState(newState) {
         this._stopTimerUpdate();
         stateService.setState('game', newState, true);
 
@@ -80,7 +83,9 @@ export class GameState {
 
         this.startTime = Date.now();
         this._startTimerUpdate();
-    } pauseResume() {
+    }
+
+    pauseResume() {
         const gameState = stateService.getState('game');
 
         if (gameState.isRunning) {

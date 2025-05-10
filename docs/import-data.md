@@ -162,16 +162,15 @@
 
        // Pass parsed events to the confirm button's event listener
        setupConfirmButton(events);
-   }
-
-   function setupConfirmButton(parsedEvents) {
+   }   function setupConfirmButton(parsedEvents) {
        const confirmButton = document.getElementById('confirmImportButton');
        confirmButton.onclick = () => {
-           saveGameToLocalStorage({
+           // Using gameStorageManager for saving games
+           gameStorageManager.saveGame({
                events: parsedEvents,
                elapsedTime: calculateElapsedTime(parsedEvents),
                timestamp: new Date().toISOString()
-           }, LOCAL_STORAGE_KEY_GAMES);
+           });
            renderSavedGamesList();
            alert('XML imported successfully!');
            document.getElementById('previewModal').classList.add('hidden');

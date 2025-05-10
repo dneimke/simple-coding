@@ -3,6 +3,7 @@ import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
 import { logger } from './formatUtils.js';
 import { createButton, createGameCard as uiCreateGameCard } from '../components/ui/index.js';
+import { gameStorageManager } from '../services/gameStorageManager.js';
 
 /**
  * Computes statistics from game events
@@ -86,79 +87,55 @@ export function saveConfig(configObject, configKey) {
 }
 
 /**
+ * @deprecated Use gameStorageManager.saveGame() instead
+ *
  * Saves game data to localStorage
  * @param {Object} gameData - Game data object to save
  * @param {string} storageKey - Storage key for game data
  * @returns {boolean} Success status
  */
 export function saveGameToLocalStorage(gameData, storageKey) {
+    logger.warn('DEPRECATED: saveGameToLocalStorage is deprecated. Use gameStorageManager.saveGame() instead.');
     try {
-        const savedGames = storageService.getItem(storageKey) || [];
-        savedGames.push(gameData);
-
-        // Retain only the last 5 games
-        while (savedGames.length > 5) {
-            savedGames.shift();
-        }
-
-        const result = storageService.setItem(storageKey, savedGames);
-
-        if (result === true) {
-            logger.log('Game saved successfully.');
-            return true;
-        } else {
-            logger.error('Error saving game to localStorage:', result.message);
-            notificationService.notify('Failed to save game data: ' + result.message, 'error');
-            return false;
-        }
+        // Forward to the gameStorageManager
+        return gameStorageManager.saveGame(gameData) === true;
     } catch (error) {
-        logger.error('Error saving game to localStorage:', error);
+        logger.error('Error in deprecated saveGameToLocalStorage:', error);
         notificationService.notify('Failed to save game data', 'error');
         return false;
     }
 }
 
 /**
+ * @deprecated Use gameStorageManager.getAllGames() instead
+ *
  * Loads saved games from localStorage
  * @param {string} storageKey - Storage key for game data
  * @returns {Array} Array of saved game objects
  */
 export function loadSavedGames(storageKey) {
+    logger.warn('DEPRECATED: loadSavedGames is deprecated. Use gameStorageManager.getAllGames() instead.');
     try {
-        const savedGames = storageService.getItem(storageKey);
-        return savedGames || [];
+        return gameStorageManager.getAllGames();
     } catch (error) {
-        logger.error('Error retrieving saved games from localStorage:', error);
+        logger.error('Error in deprecated loadSavedGames:', error);
         notificationService.notify('Failed to load saved games', 'error');
         return [];
     }
 }
 
 /**
+ * @deprecated Use gameStorageManager.removeGame() instead
+ *
  * Deletes a saved game from localStorage
  * @param {number} index - Index of the game to delete
  * @param {string} storageKey - Storage key for game data
  * @returns {boolean} Success status
  */
 export function deleteSavedGame(index, storageKey) {
+    logger.warn('DEPRECATED: deleteSavedGame is deprecated. Use gameStorageManager.removeGame() instead.');
     try {
-        const savedGames = storageService.getItem(storageKey) || [];
-        if (index >= 0 && index < savedGames.length) {
-            savedGames.splice(index, 1);
-            const result = storageService.setItem(storageKey, savedGames);
-
-            if (result === true) {
-                logger.log('Game deleted successfully.');
-                return true;
-            } else {
-                logger.error('Error deleting game:', result.message);
-                notificationService.notify('Failed to delete game: ' + result.message, 'error');
-                return false;
-            }
-        } else {
-            logger.warn('Invalid game index for deletion.');
-            return false;
-        }
+        return gameStorageManager.removeGame(index) === true;
     } catch (error) {
         logger.error('Error deleting game from localStorage:', error);
         notificationService.notify('Failed to delete game', 'error');
@@ -167,6 +144,8 @@ export function deleteSavedGame(index, storageKey) {
 }
 
 /**
+ * @deprecated Use gameStorageManager.updateGame() instead
+ *
  * Updates a saved game in localStorage
  * @param {number} index - Index of the game to update
  * @param {Object} updatedData - Updated game data
@@ -174,26 +153,9 @@ export function deleteSavedGame(index, storageKey) {
  * @returns {boolean} Success status
  */
 export function updateSavedGame(index, updatedData, storageKey) {
+    logger.warn('DEPRECATED: updateSavedGame is deprecated. Use gameStorageManager.updateGame() instead.');
     try {
-        const savedGames = storageService.getItem(storageKey) || [];
-        if (index >= 0 && index < savedGames.length) {
-            // Update only the specified properties while preserving the rest
-            savedGames[index] = { ...savedGames[index], ...updatedData };
-
-            const result = storageService.setItem(storageKey, savedGames);
-
-            if (result === true) {
-                logger.log('Game updated successfully.');
-                return true;
-            } else {
-                logger.error('Error updating game:', result.message);
-                notificationService.notify('Failed to update game: ' + result.message, 'error');
-                return false;
-            }
-        } else {
-            logger.warn('Invalid game index for update.');
-            return false;
-        }
+        return gameStorageManager.updateGame(index, updatedData) === true;
     } catch (error) {
         logger.error('Error updating game in localStorage:', error);
         notificationService.notify('Failed to update game', 'error');

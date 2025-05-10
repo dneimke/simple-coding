@@ -190,7 +190,7 @@ function initializeApplication() {
 }
 
 function registerEventListeners() {
-    // Tab navigation
+
     tabNavContainer.addEventListener('click', (event) => {
         const button = event.target.closest('.tab-button');
         if (!button) return; // Ignore clicks on unrelated elements
@@ -199,7 +199,6 @@ function registerEventListeners() {
         router.switchTab(tab);
     });
 
-    // Navigation container
     navContainer.addEventListener('click', (event) => {
         const { id } = event.target;
         const viewName = id.startsWith('nav') ? id.slice(3) : id;
@@ -217,7 +216,7 @@ function registerEventListeners() {
         copyXmlButton.disabled = gameState.loggedEvents.length === 0;
     });
 
-    // Coding buttons container
+
     codingButtonsContainer.addEventListener('click', (event) => {
         const button = event.target.closest('.event-button[data-event]');
         if (!button) return; // Ignore clicks on unrelated elements
@@ -229,7 +228,8 @@ function registerEventListeners() {
             : currentGameState.elapsedTime;
 
         gameState.addEvent({ event: eventName, timeMs: currentElapsedTimeMs });
-    });    // Event Capture view buttons
+    });
+
     trackerView.addEventListener('click', (event) => {
         const { id } = event.target;
 
@@ -262,7 +262,6 @@ function registerEventListeners() {
                         teams: teamsName ? teamsName.trim() : null
                     };
 
-                    // Use gameStorageManager instead of saveGameToLocalStorage
                     try {
                         const result = gameStorageManager.saveGame(gameSnapshot);
                         if (result !== true) {
@@ -319,19 +318,16 @@ function registerEventListeners() {
         }
     });
 
-    // Load default configuration button
     loadDefaultConfigButton.addEventListener('click', () => {
         const defaultConfig = resetConfiguration();
         configJsonInput.value = JSON.stringify(defaultConfig, null, 2);
         showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
     });
 
-    // Import XML button
     importXmlButton.addEventListener('click', () => {
         xmlFileInput.click();
     });
 
-    // XML file input change event
     xmlFileInput.addEventListener('change', async (event) => {
         const file = event.target.files[0];
         if (file) {

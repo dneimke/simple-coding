@@ -33,15 +33,19 @@ export {
 } from './domUtils.js';
 
 // Re-export from gameUtils
+// Note: The storage management functions (saveGameToLocalStorage, loadSavedGames,
+// deleteSavedGame, updateSavedGame) are deprecated and will emit warnings when used.
+// New code should use gameStorageManager methods directly.
 export {
     computeGameStatistics,
     createGameCard,
     loadConfig,
     saveConfig,
-    saveGameToLocalStorage,
-    loadSavedGames,
-    deleteSavedGame,
-    updateSavedGame
+    // The functions below are deprecated - use gameStorageManager instead
+    saveGameToLocalStorage, // ⚠️ Deprecated: Use gameStorageManager.saveGame()
+    loadSavedGames,         // ⚠️ Deprecated: Use gameStorageManager.getAllGames()
+    deleteSavedGame,        // ⚠️ Deprecated: Use gameStorageManager.removeGame()
+    updateSavedGame         // ⚠️ Deprecated: Use gameStorageManager.updateGame()
 } from './gameUtils.js';
 
 // Re-export from importUtils

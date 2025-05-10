@@ -27,7 +27,8 @@ export class GameStorageManager {
      * @param {Object} game - Game object to save
      * @returns {boolean|Object} True if saved successfully, error object if failed
      * @throws {Error} If storage quota is exceeded
-     */    saveGame(game) {
+     */
+    saveGame(game) {
         try {
             // Ensure game has required properties
             if (!game || !game.timestamp) {
@@ -45,21 +46,18 @@ export class GameStorageManager {
                 logger.log(`Pruned game list to ${this.MAX_GAMES} games`);
             }
 
-            // Save back to storage
             const result = storageService.setItem(this.STORAGE_KEY, games);
 
             if (result === true) {
                 logger.log('Game saved successfully.');
                 return true;
             } else {
-                // Handle storage service error
                 logger.error('Error saving game:', result.message);
                 return result;
             }
         } catch (error) {
             logger.error('Error in GameStorageManager.saveGame:', error);
 
-            // Check if error is related to quota
             if (this._isQuotaError(error)) {
                 throw new Error('Storage quota exceeded. Please export and remove some games.');
             }
