@@ -7,151 +7,142 @@
 
 ## Overview
 
-The **Field Hockey Event Tracker** is a modern web application that empowers coaches, analysts, and sports enthusiasts to record, analyze, and visualize game events in real-time. Built with HTML5, Tailwind CSS, and modern Vanilla JavaScript (ES6+), it offers a responsive and customizable interface for sports performance analysis.
-
-Key features:
-
-- Record timestamped events during live games with minimal friction
-- Customize event buttons to match your team's specific tracking needs
-- Review event logs in multiple formats (list, timeline, statistics)
-- Sync recorded events with video footage for in-depth analysis
-- Export data in XML format for compatibility with other analysis tools
-- Persist games and configurations with browser local storage
-- Works offline with no server dependencies
+The **Field Hockey Event Tracker** is a modern web application for coaches, analysts, and sports enthusiasts to record, analyze, and visualize game events in real-time. Built with HTML5, Tailwind CSS, and modern Vanilla JavaScript (ES6+), it offers a responsive interface for sports performance analysis without requiring a server connection.
 
 ![Event Capture](images/coding-tool.png)
 
 ## Table of Contents
 
-- [Getting Started](#getting-started)
-  - [Installation](#installation)
-  - [Running Locally](#running-locally)
-  - [Testing](#testing)
 - [Features](#features)
-- [Application Pages](#application-pages)
-- [Technical Architecture](#technical-architecture)
-- [Contributing](#contributing)
-- [Project Documentation](#project-documentation)
+- [Application Structure](#application-structure)
+- [Getting Started](#getting-started)
+- [Documentation](#documentation)
+- [License & Acknowledgments](#license--acknowledgments)
 
 ## Features
 
-### Game Timer and Event Recording
+### Core Capabilities
 
-- **Real-time Timer**: Start, stop, and reset a game clock to track elapsed match time
-- **Event Logging**: Record predefined events with timestamps using customizable buttons
-- **Quick Actions**: Ability to undo or modify recent events
+- **Real-time Event Recording**: Capture timestamped events during live games with minimal friction
+- **Customizable Interface**: Configure event buttons to match your team's specific tracking needs
+- **Multiple Analysis Views**: Review events as lists, timelines, or aggregated statistics
+- **Video Synchronization**: Link recorded events with video footage for in-depth analysis
+- **Data Portability**: Export data in XML format for compatibility with other analysis tools
+- **Offline Functionality**: Works without internet connection, storing data in browser local storage
 
-### Customizable Configuration
+### Game Management
 
-- **Button Editor**: Customize event buttons via an intuitive JSON configuration interface
-- **Preset Layouts**: Create and save multiple button configurations for different analysis needs
-- **Local Storage**: Configurations persist between sessions in your browser's storage
+- **Timer Controls**: Start, stop, and reset a game clock to track elapsed match time
+- **Event Logging**: Record events with timestamps using customizable buttons
+- **Data Persistence**: Automatically save games to prevent data loss
+- **History Access**: Load previously recorded games from browser storage
 
-### Data Management
+## Application Structure
 
-- **Game Saving**: Automatically save games to prevent data loss
-- **Import/Export**: Exchange game data with other analysis tools via XML format
-- **Local Storage**: Access previously recorded games from your browser's storage
-- **Data Clearing**: Option to start fresh with a new game recording
+The application is organized into four main interfaces:
 
-### Analysis Views
+### 1. Event Capture Page
 
-- **List View**: Chronological list of events with timestamps and details
-- **Timeline View**: Visual representation of events with video synchronization
-- **Statistics View**: Aggregated counts and metrics from recorded events
-- **XML View**: Raw data export with copy-to-clipboard functionality
+The primary interface for recording live game events with:
 
-## Application Pages
-
-### Event Capture Page
-
-The primary interface for recording live game events:
-
-- **Game Timer**: Controls for starting, pausing, and resetting the game clock
-- **Event Buttons**: Customizable buttons for logging different event types
-- **Quick Actions**: Undo functionality and game management options
-- **Real-time Feedback**: Visual confirmations when events are recorded
+- Game timer controls
+- Customizable event buttons
+- Quick action tools (undo, reset)
+- Real-time feedback when events are recorded
 
 ![Event Capture Page](images/field-hockey-tracker.png)
 
-### Match Review Page
+### 2. Match Review Page
 
-The interface for reviewing match events synchronized with video footage:
+For analyzing recorded events with video synchronization:
 
-- **Timeline Panel**: Chronological view of all recorded match events with filtering
-- **Video Player**: Video playback control synced with game events
-- **Event Navigation**: Click on events to jump to specific moments in the video
-- **Game Selection**: Choose from previously recorded games to review
+- Timeline view of all events
+- Video player synchronized with event timestamps
+- Navigation between significant game moments
 
 ![Match Review](docs/images/match-review-screen.png)
 
-### Configure Page
+### 3. Configure Page
 
-Customize the application to match your specific tracking needs:
+Customize the application to match specific tracking needs:
 
-- **JSON Editor**: Define event button groups, labels, colors, and behaviors
-- **Configuration Management**: Save, load, and reset button layouts
-- **Preview**: See your changes before applying them to the Event Capture page
-- **Persistence**: All configurations are saved to browser local storage
+- JSON editor for button configuration
+- Save/load multiple layouts
+- Preview changes before applying
 
-### Log Page
+### 4. Log Page with Multiple Views
 
-Review, analyze, and export recorded game data:
+Review and export recorded game data in various formats:
 
-- **Event List**: Chronological list of all recorded events with timestamps
-- **Export Options**: Save or share your data in various formats
-- **Game Selection**: Load previous games from local storage
-- **Data Management**: Clear logs or start new recordings
+**Timeline View**:
 
-The Log Page includes multiple views:
-
-#### Timeline View
-
-Visual representation of game events with video synchronization:
-
-- Markers for each event positioned along a time axis
-- Video playback controls synced with event timestamps
-- Click navigation to jump to specific events in the footage
-- [Timeline View Guide](docs/timeline-view-guide.md) for detailed usage instructions
+- Visual representation of events along a time axis
+- Video synchronization capabilities
 
 ![Timeline View](images/timeline-view.png)
 
-#### XML View
+**XML View**:
 
-Raw data export for integration with external analysis tools:
-
-- Structured XML format containing all event data
-- Copy-to-clipboard functionality for easy sharing
-- Compatible with third-party sports analysis platforms
+- Structured data export for integration with external tools
+- Copy-to-clipboard functionality
 
 ![XML View](images/xml-view.png)
 
-#### Statistics View
+**Statistics View**:
 
-Aggregate metrics and counts of recorded events:
-
-- Total events by category and subcategory
-- Visual representation of event distribution
-- Quick insights into game patterns and key moments
+- Aggregate metrics and event distribution
+- Quick insights into game patterns
 
 ![Statistics View](images/statistics-view.png)
 
-## Project Documentation
+## Getting Started
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/field-hockey-event-tracker.git
+
+# Navigate to project directory
+cd field-hockey-event-tracker
+
+# Install dependencies
+npm install
+```
+
+### Running Locally
+
+```bash
+# Start development server
+npm start
+```
+
+### Testing
+
+```bash
+# Run tests
+npm test
+
+# Generate coverage report
+npm run test:coverage
+```
+
+## Documentation
 
 Additional documentation is available in the `docs/` directory:
 
-- [Match Review](docs/match-review.md) - Documentation for the match review timeline video feature
-- [Saved Games](docs/saved-games.md) - Architecture for game data storage and retrieval
-- [State Management](docs/state-management.md) - Overview of the application state architecture
-- [User Workflow](docs/user-workflow.md) - Current user experience and workflow for the game tracker
-- [Developer Guide](docs/developer-guide.md) - Guidelines for developers contributing to the project
+- [Match Review](docs/match-review.md) - Video synchronization features
+- [Saved Games](docs/saved-games.md) - Game data storage architecture
+- [State Management](docs/state-management.md) - Application state design
+- [User Workflow](docs/user-workflow.md) - Current user experience
+- [Developer Guide](docs/developer-guide.md) - Contributing guidelines
 
-## License
+## License & Acknowledgments
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments
+**Acknowledgments**:
 
 - Developed for field hockey coaches and analysts
 - Inspired by the needs of sports performance analysis
-- Thanks to all contributors and testers who have provided valuable feedback
+- Thanks to all contributors and testers for their valuable feedback
