@@ -68,9 +68,6 @@
                 <!-- Left Pane: Timeline -->
                 <div id="timeline-container"
                     class="w-full md:w-1/3 lg:w-1/4 h-1/2 md:h-full overflow-y-auto bg-white p-5 border border-gray-200 rounded-lg shadow-sm flex flex-col">
-                    <h2 class="text-xl font-semibold mb-6 sticky top-0 bg-white pb-3 border-b border-gray-100">Timeline
-                        Review
-                    </h2> <!-- Game selection controls -->
                     <div class="mb-2 pb-3">
                         <div class="flex flex-col space-y-3">
                             <label for="game-selector" class="text-sm font-medium text-gray-700">Select Game</label>
@@ -79,8 +76,42 @@
                                 <option value="default">Choose a game</option>
                                 <!-- Saved games will be populated here by JS -->
                             </select>
-                        </div> <!-- XML import functionality has been removed -->
-                    </div> <!-- Empty state message -->
+                            <!-- No games notification that appears when there are no saved games -->
+                            <div id="no-games-notification"
+                                class="hidden mt-1 text-amber-600 flex items-center text-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                No saved games found
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- No games state message -->
+                    <div id="no-games-state"
+                        class="hidden flex flex-col items-center justify-center py-10 my-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-gray-300 mb-4" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="text-gray-700 mb-3 font-medium">No saved games available</p>
+                        <p class="text-sm text-gray-500 mb-6 max-w-xs">To review match events, you first need to capture
+                            them during a game</p>
+                        <a href="index.html"
+                            class="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            Create New Game
+                        </a>
+                    </div>
+
+                    <!-- Empty state message for when a game is selected but has no events -->
                     <div id="timeline-empty-state"
                         class="flex flex-col items-center justify-center py-10 my-4 text-center bg-gray-50 rounded-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-gray-300 mb-4" fill="none"
@@ -90,7 +121,7 @@
                         </svg>
                         <p class="text-gray-600 mb-3 font-medium">No timeline events to display</p>
                         <p class="text-sm text-gray-500">Select a saved game to view events</p>
-                    </div> <!-- Timeline filters - Advanced dropdown multi-select -->
+                    </div><!-- Timeline filters - Advanced dropdown multi-select -->
                     <div id="timeline-filters" class="mb-6 border-b border-gray-200 pb-5 hidden">
                         <label for="filter-dropdown" class="text-sm font-medium text-gray-700 mb-2 block">Filter
                             events:</label>

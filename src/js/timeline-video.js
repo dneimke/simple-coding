@@ -407,6 +407,35 @@ function toggleEmptyState(isEmpty) {
     }
 }
 
+/**
+ * Toggle visibility of the no-games state message
+ * @param {boolean} show Whether to show the no-games state message
+ */
+function toggleNoGamesState(show) {
+    const noGamesStateElement = document.getElementById('no-games-state');
+    const emptyStateElement = document.getElementById('timeline-empty-state');
+    const timelineContainerElement = document.getElementById('timeline-events');
+
+    if (noGamesStateElement) {
+        if (show) {
+            // Show no-games message, hide other states
+            noGamesStateElement.classList.remove('hidden');
+
+            // Hide the timeline-empty-state when showing the no-games state
+            if (emptyStateElement) {
+                emptyStateElement.classList.add('hidden');
+            }
+
+            // Hide the timeline events container
+            if (timelineContainerElement) {
+                timelineContainerElement.classList.add('hidden');
+            }
+        } else {
+            noGamesStateElement.classList.add('hidden');
+        }
+    }
+}
+
 
 function domReady(callback) {
     if (document.readyState === "loading") {
@@ -520,12 +549,31 @@ function populateGameSelector() {
     }
 
     const savedGames = getSavedGames();
+    const noGamesNotification = document.getElementById('no-games-notification');
+    const hasGames = Object.keys(savedGames).length > 0;
 
-    if (Object.keys(savedGames).length === 0) {
+    // Show/hide the no games notification
+    if (noGamesNotification) {
+        if (!hasGames) {
+            noGamesNotification.classList.remove('hidden');
+        } else {
+            noGamesNotification.classList.add('hidden');
+        }
+    }
+
+    // Toggle game selector state
+    if (!hasGames) {
         gameSelector.disabled = true;
-    } else {
+        gameSelector.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
 
+        // Show the no-games state
+        toggleNoGamesState(true);
+    } else {
         gameSelector.disabled = false;
+        gameSelector.classList.remove('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
+
+        // Hide the no-games state
+        toggleNoGamesState(false);
 
         // Add each saved game as an option
         Object.keys(savedGames).forEach(gameId => {
