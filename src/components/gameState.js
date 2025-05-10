@@ -11,10 +11,8 @@ export class GameState {
         this.startTime = 0;
         this.timerInterval = null;
 
-        // Subscribe to state changes
         stateService.subscribe('game', this._handleStateChange.bind(this));
 
-        // Initialize UI with current state
         this._updateUI(stateService.getState('game'));
     }
 
@@ -38,7 +36,6 @@ export class GameState {
             this.eventLog.render(gameState.loggedEvents);
         }
 
-        // Update event buttons if available
         if (this.eventButtons) {
             this.eventButtons.setState({
                 isActive: gameState.isActive,
@@ -116,8 +113,15 @@ export class GameState {
             hasCurrentGame: false
         }, true);
 
+        this.resetTimer();
+    }
+
+    resetTimer() {
+        this._stopTimerUpdate();
+
         if (this.timerDisplay) {
             this.timerDisplay.textContent = '00:00';
+            stateService.setState('game', { elapsedTime: 0 }, true);
         }
     }
 

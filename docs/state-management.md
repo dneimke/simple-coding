@@ -2,107 +2,262 @@
 
 ## Overview
 
-This document outlines the implementation of a simple state management pattern in the Field Hockey Event Tracker application. The state management pattern follows a pub/sub (publisher/subscriber) approach, providing a centralized state store with the ability for components to subscribe to state changes.
+This document outlines how state is managed in the Field Hockey Event Tracker application. The application uses a custom state management system built around the pub/sub (publisher/subscriber) pattern, which provides a centralized way to manage application state and notify components when changes occur.
 
-## Key Components
+## Core Component: StateService
 
-### State Service (`src/services/stateService.js`)
+The `stateService` module is the heart of the state management solution, providing:
 
-The core of the state management system is the `stateService` module, which:
+1. **Centralized State Storage**
+   - Maintains a single source of truth for application state
+   - Initial state structure with logical sections:
 
-- Maintains a central state store
-- Provides methods to get and update state
-- Implements a pub/sub pattern for state change notifications
-- Supports dot notation for accessing nested state properties
+     ```javascript
+     _state: {
+         game: {
+             isActive: false,
+             isRunning: false,
+             elapsedTime: 0,
+             loggedEvents: [],
+             hasCurrentGame: false
+         },
+         ui: {
+             currentView: 'EventCapture',
+             currentTab: 'timelineView'
+         }
+     }
+     ```
 
-### Key Features
+2. **State Access & Manipulation Methods**
+   - `getState(path)` - Retrieves state values using dot notation paths
+   - `setState(path, newValue, merge)` - Updates state values and notifies subscribers
 
-1. **Centralized State Store**
-   - Single source of truth for application state
-   - State is organized into logical sections (e.g., `game`, `ui`)
+3. **Subscription System**
+   - `subscribe(path, handler)` - Registers callbacks for state changes
+   - Returns an unsubscribe function to prevent memory leaks
 
-2. **Pub/Sub Pattern**
-   - Components can subscribe to specific state changes
-   - Subscribers are notified when relevant state changes occur
-   - Support for unsubscribing to prevent memory leaks
+## How Components Subscribe to State
 
-3. **Path-based Access**
-   - Dot notation for accessing nested state properties
-   - Automatic creation of intermediate objects for deep paths
-   - Parent path subscribers are notified of child path changes
+The `GameState` class demonstrates a typical subscription pattern:
 
-## API Reference
+```javascript
+constructor(timerDisplay, eventLog, eventButtons) {
+    // Store UI references
+    this.eventButtons = eventButtons;
+    this.eventLog = eventLog;
+    this.timerDisplay = timerDisplay;
 
-### `getState(path)`
+    // Subscribe to game state changes
+    stateService.subscribe('game', this._handleStateChange.bind(this));
 
-Gets the current state or a specific state slice.
+    // Initialize UI with current state
+    this._updateUI(stateService.getState('game'));
+}
 
-**Parameters:**
+_handleStateChange(gameState) {
+    this._updateUI(gameState);
+}
+```
 
-- `path` (optional): Dot notation path to specific state slice (e.g., `game.isRunning`)
+This pattern allows the `GameState` component to:
 
-**Returns:** Current state or state slice
+1. Subscribe to changes in the 'game' state slice
+2. Respond to those changes by updating the UI
 
-### `setState(path, newValue, merge)`
+## Notification Flow Example
 
-Updates state at the specified path and notifies subscribers.
+When an event is added during gameplay:
 
-**Parameters:**
+1. The `addEvent` method in `GameState` modifies state:
 
-- `path`: Dot notation path to state slice to update
-- `newValue`: New value to set
-- `merge` (optional): Whether to merge with existing object (default: `false`)
+   ```javascript
+   addEvent(event) {
+       const gameState = stateService.getState('game');
 
-### `subscribe(path, handler)`
+       // Validation checks...
 
-Subscribes to state changes at the specified path.
+       const events = [...gameState.loggedEvents, event];
+       stateService.setState('game.loggedEvents', events);
+   }
+   ```
 
-**Parameters:**
+2. Inside `setState`, the state is updated and notifications are triggered:
 
-- `path`: Path to state slice to subscribe to
-- `handler`: Callback function to be called when state changes
+   ```javascript
+   setState(path, newValue, merge = false) {
+       // Update the state...
 
-**Returns:** Unsubscribe function
+       // Notify subscribers
+       this._notify(path, this.getState(path));
+   }
+   ```
 
-## Implementation in Components
+3. The `_notify` method handles notification propagation:
+   - Notifies direct subscribers of the path
+   - Also notifies subscribers of parent paths (cascading notifications)
 
-### Router Component
+4. The `_handleStateChange` callback in `GameState` is invoked:
 
-The Router component was updated to:
+   ```javascript
+   _handleStateChange(gameState) {
+       this._updateUI(gameState);
+   }
+   ```
 
-- Subscribe to UI state changes (`ui.currentView` and `ui.currentTab`)
-- Update the view and tab display based on state changes
-- Update state when navigation occurs
+5. The `_updateUI` method refreshes UI components:
 
-### GameState Component
+   ```javascript
+   _updateUI(gameState) {
+       if (gameState.loggedEvents && this.eventLog) {
+           this.eventLog.render(gameState.loggedEvents);
+       }
 
-The GameState component was updated to:
+       // Update other UI elements...
+   }
+   ```
 
-- Subscribe to game state changes
-- Update UI components based on state changes
-- Update state when game actions occur (start, pause, etc.)
+## Advanced Features
 
-### Event Listeners
+1. **Path-based Subscriptions** - Components can subscribe to specific state slices, reducing unnecessary updates.
 
-Event listeners in `main.js` were updated to:
+2. **Automatic Parent Path Notifications** - Updating a nested path (`game.loggedEvents`) also notifies subscribers of parent paths (`game`).
 
-- Read state from the state service
-- Update state through the GameState and Router components
-- React to state changes through subscriptions
+3. **Object Merging** - When updating objects, the `merge` parameter allows shallow merging with existing state.
 
-## Testing
+4. **Unsubscribe Support** - Every subscription returns a function to remove the subscription, preventing memory leaks:
 
-Unit tests for the state service cover:
+   ```javascript
+   const unsubscribe = stateService.subscribe('path', handler);
+   // Later when no longer needed:
+   unsubscribe();
+   ```
 
-- Getting and setting state at various paths
-- Subscribing to state changes
-- Unsubscribing from state changes
-- Handling parent and child path subscriptions
+## Implementation Details
 
-## Future Improvements
+The state management system is implemented in `src/services/stateService.js` and follows these key principles:
 
-1. **Dev Tools**: Add developer tools for state inspection and debugging
-2. **Middleware**: Implement middleware support for logging, validation, etc.
-3. **State Persistence**: Add support for persisting state across page reloads
-4. **Action Creators**: Add typed action creators for more structured state updates
-5. **Selectors**: Add memoized selectors for derived state
+### 1. Immutability
+
+State updates create new objects rather than mutating existing ones, which helps with:
+
+- Preventing unintended side effects
+- Supporting undo/redo functionality in the future
+- Easier debugging and state tracking
+
+### 2. Path-based State Access
+
+The dot notation path system allows components to:
+
+- Access deeply nested state values with simple syntax
+- Subscribe to specific parts of the state tree
+- Receive updates only when relevant data changes
+
+### 3. Centralized Updates
+
+All state mutations go through `setState()`, which ensures:
+
+- Consistent state update patterns
+- Proper notification of all subscribers
+- A single entry point for potential logging or middleware
+
+## Usage Guidelines
+
+When implementing new components that need to interact with application state:
+
+1. **Identify Required State** - Determine which pieces of state the component needs
+2. **Subscribe to Relevant Paths** - Use specific paths to minimize unnecessary updates
+3. **Handle Cleanup** - Store and call the unsubscribe function when the component is no longer needed
+4. **Avoid Direct State Mutation** - Always use `setState()` to update state
+
+## Benefits of This Approach
+
+This state management approach provides several advantages:
+
+1. **Lightweight** - No external dependencies required
+2. **Modular** - Components can subscribe only to what they need
+3. **Testable** - Pure functions and ES6 modules make testing straightforward
+4. **Efficient** - Targeted updates prevent unnecessary re-renders
+5. **Understandable** - Simple API with predictable behavior
+
+## Subscription and Notification Flow Diagram
+
+The diagram below illustrates how components interact with the state management system:
+
+```ascii
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│                       State Management System                           │
+│                                                                         │
+├─────────────────────────────────────────┬───────────────────────────────┤
+│                                         │                               │
+│  ┌───────────────────┐                  │  ┌─────────────────────────┐  │
+│  │                   │                  │  │                         │  │
+│  │   Central State   │◄─────────────────┘  │    Subscriber Registry  │  │
+│  │                   │  Updates State      │                         │  │
+│  └──────────┬────────┘                     └─────────────┬───────────┘  │
+│             │                                            │              │
+└─────────────┼────────────────────────────────────────────┼──────────────┘
+              │                                            │
+              │                                            │
+              ▼                                            │
+┌─────────────────────────┐                                │
+│                         │                                │
+│  1. State Change Event  │                                │
+│                         │                                │
+└──────────────┬──────────┘                                │
+               │                                           │
+               │                                           │
+               ▼                                           │
+┌─────────────────────────┐                                │
+│                         │                                │
+│  2. _notify() Called    │                                │
+│                         │                                │
+└──────────────┬──────────┘                                │
+               │                                           │
+               │                                           │
+               ▼                                           │
+┌─────────────────────────┐        Looks Up         ┌─────▼───────────────┐
+│                         │◄───────Handlers─────────┤                     │
+│  3. Find Subscribers    │                         │   Subscribed        │
+│     for Path            │                         │   Components        │
+└──────────────┬──────────┘                         │                     │
+               │                                    └─────────────────────┘
+               │
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  4. Execute Callback for Each Subscriber with Updated State  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+               │
+               │
+               ▼
+┌─────────────────────────┐         ┌────────────────────────┐
+│                         │         │                        │
+│  Component A            │         │  Component B           │
+│  _handleStateChange()   │         │  _handleStateChange()  │
+│                         │         │                        │
+└─────────────────────────┘         └────────────────────────┘
+               │                                │
+               │                                │
+               ▼                                ▼
+┌─────────────────────────┐         ┌────────────────────────┐
+│                         │         │                        │
+│  Update UI Elements     │         │  Update UI Elements    │
+│                         │         │                        │
+└─────────────────────────┘         └────────────────────────┘
+```
+
+### Example Scenario
+
+In this example:
+
+1. A user clicks a button to log an event during gameplay
+2. `GameState.addEvent()` calls `stateService.setState('game.loggedEvents', events)`
+3. `setState()` updates the internal state and calls `_notify()`
+4. `_notify()` finds all subscribers for 'game.loggedEvents' and 'game'
+5. Each subscriber's handler function is called with the updated state
+6. Components (GameState, EventLog) update their UI elements based on the new state
+
+This pattern ensures that all components depending on a particular part of the state are updated when changes occur, while components not dependent on that state remain unaffected.

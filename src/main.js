@@ -82,11 +82,12 @@ function renderSavedGames() {
 
                         gameState.setGameState({
                             loggedEvents: game.events,
-                            elapsedTime: game.elapsedTime,
+                            elapsedTime: 0,
                             hasCurrentGame: true,
                             isActive: false,
                         });
 
+                        gameState.resetTimer();
                         showElement(newGameButton);
                         hideElement(pauseResumeButton);
                         hideElement(completeGameButton);

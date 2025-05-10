@@ -62,7 +62,6 @@ export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = nu
                 teams: teamsName ? teamsName.trim() : null
             };
 
-            // Use gameStorageManager instead of saveGameToLocalStorage
             const result = gameStorageManager.saveGame(gameData);
 
             if (result !== true) {
