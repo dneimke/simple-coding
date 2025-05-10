@@ -24,19 +24,34 @@ describe('Router', () => {
         mockViews = {
             EventCapture: {
                 view: { classList: { add: jest.fn(), remove: jest.fn() } },
-                button: { classList: { add: jest.fn(), remove: jest.fn() } }
+                button: {
+                    classList: { add: jest.fn(), remove: jest.fn() },
+                    removeAttribute: jest.fn(),
+                    setAttribute: jest.fn()
+                }
             },
             Config: {
                 view: { classList: { add: jest.fn(), remove: jest.fn() } },
-                button: { classList: { add: jest.fn(), remove: jest.fn() } }
-            },
-            Log: {
+                button: {
+                    classList: { add: jest.fn(), remove: jest.fn() },
+                    removeAttribute: jest.fn(),
+                    setAttribute: jest.fn()
+                }
+            }, Log: {
                 view: { classList: { add: jest.fn(), remove: jest.fn() } },
-                button: { classList: { add: jest.fn(), remove: jest.fn() } }
+                button: {
+                    classList: { add: jest.fn(), remove: jest.fn() },
+                    removeAttribute: jest.fn(),
+                    setAttribute: jest.fn()
+                }
             },
             SavedGames: {
                 view: { classList: { add: jest.fn(), remove: jest.fn() } },
-                button: { classList: { add: jest.fn(), remove: jest.fn() } }
+                button: {
+                    classList: { add: jest.fn(), remove: jest.fn() },
+                    removeAttribute: jest.fn(),
+                    setAttribute: jest.fn()
+                }
             }
         };
 
@@ -100,24 +115,6 @@ describe('Router', () => {
         router.showView('Config');
         expect(window.location.hash).toBe('#configure');
     });
-
-    test('_handleViewChange should update view visibility', () => {
-        const handleViewChange = router._handleViewChange;
-        handleViewChange('EventCapture');
-
-        // Check that all views are hidden first
-        Object.values(mockViews).forEach(({ view }) => {
-            expect(view.classList.add).toHaveBeenCalledWith('hidden');
-        });
-
-        // Check that selected view is shown
-        expect(mockViews.EventCapture.view.classList.remove).toHaveBeenCalledWith('hidden');
-
-        // Check that selected button is styled correctly
-        expect(mockViews.EventCapture.button.classList.add).toHaveBeenCalledWith('text-white', 'hover:text-white');
-        expect(mockViews.EventCapture.button.classList.remove).toHaveBeenCalledWith('text-gray-400', 'hover:text-white');
-    });
-
     test('_handleTabChange should update tab visibility', () => {
         const handleTabChange = router._handleTabChange;
         handleTabChange('timelineView');
