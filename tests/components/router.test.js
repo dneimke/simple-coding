@@ -47,13 +47,19 @@ describe('Router', () => {
             timelineView: { classList: { toggle: jest.fn() } },
             xmlView: { classList: { toggle: jest.fn() } },
             statisticsView: { classList: { toggle: jest.fn() } }
-        };
-
-        // Mock window location
+        };        // Mock window location
         delete window.location;
         window.location = {
-            hash: '',
-            href: 'http://test.com'
+            _hash: '',
+            href: 'http://test.com',
+            // Create a setter for hash that will update the hash property when it's assigned
+            set hash(value) {
+                // Make sure the hash starts with #
+                this._hash = value.startsWith('#') ? value : `#${value}`;
+            },
+            get hash() {
+                return this._hash || '';
+            }
         };
 
         // Mock window history

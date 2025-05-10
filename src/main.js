@@ -177,15 +177,11 @@ function initializeApplication() {
     } else {
         // Default to event capture view if no parameter or invalid parameter
         stateService.setState('ui.currentView', 'EventCapture');
-    } registerEventListeners();
+    }
 
-    // Initialize state
-    stateService.setState('ui.currentView', 'EventCapture');
-
-    // Initialize UI components
+    registerEventListeners();
     eventButtons.initialize(currentConfig);
 
-    // Update UI visibility based on game state
     const hasCurrentGame = stateService.getState('game.hasCurrentGame');
     updateNavbarVisibility(hasCurrentGame);
 }
