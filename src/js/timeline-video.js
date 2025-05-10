@@ -23,7 +23,208 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = 'index.html?view=config';
         });
     }
+
+    // Set up favorites toggle and playlist functionality
+    initFavoritesUI();
+    initPresentationMode();
 });
+
+// Initialize favorites UI and handlers
+function initFavoritesUI() {
+    const showAllBtn = document.getElementById('show-all-events');
+    const showFavoritesBtn = document.getElementById('show-favorites');
+
+    if (showAllBtn && showFavoritesBtn) {
+        showAllBtn.addEventListener('click', () => {
+            showAllEvents();
+        });
+
+        showFavoritesBtn.addEventListener('click', () => {
+            showFavoritesOnly();
+        });
+    }
+}
+
+// Initialize presentation mode functionality
+function initPresentationMode() {
+    const presentationModeBtn = document.getElementById('presentation-mode');
+    const playlistControls = document.getElementById('playlist-controls');
+    const prevFavoriteBtn = document.getElementById('prev-favorite');
+    const nextFavoriteBtn = document.getElementById('next-favorite');
+
+    if (presentationModeBtn && playlistControls) {
+        presentationModeBtn.addEventListener('click', () => {
+            togglePresentationMode();
+        });
+
+        if (prevFavoriteBtn && nextFavoriteBtn) {
+            prevFavoriteBtn.addEventListener('click', () => {
+                navigatePlaylist('previous');
+            });
+
+            nextFavoriteBtn.addEventListener('click', () => {
+                navigatePlaylist('next');
+            });
+        }
+    }
+}
+
+// Track presentation mode state
+let presentationModeActive = false;
+let currentPlaylistIndex = 0;
+let favoriteEvents = [];
+let currentGameId = null;
+
+// Toggle between presentation mode and normal mode
+function togglePresentationMode() {
+    presentationModeActive = !presentationModeActive;
+    const presentationModeBtn = document.getElementById('presentation-mode');
+    const playlistControls = document.getElementById('playlist-controls');
+    const timelineContainer = document.getElementById('timeline-container');
+    const videoContainer = document.getElementById('video-container');
+
+    if (presentationModeActive) {
+        // First, filter out only favorite events
+        favoriteEvents = timelineEvents.filter(event => event.isFavorite);
+
+        // If no favorites, show notification and exit presentation mode
+        if (favoriteEvents.length === 0) {
+            showNotification('Add some favorites first to start a presentation', 'warning');
+            presentationModeActive = false;
+            return;
+        }
+
+        // Enter presentation mode
+        presentationModeBtn.classList.replace('bg-purple-600', 'bg-purple-800');
+        playlistControls.classList.replace('hidden', 'flex');
+
+        // Make video larger
+        timelineContainer.classList.add('md:hidden');
+        videoContainer.classList.replace('md:w-2/3', 'md:w-full');
+        videoContainer.classList.replace('lg:w-3/4', 'lg:w-full');
+
+        // Reset playlist position and navigate to first favorite
+        currentPlaylistIndex = 0;
+        updatePlaylistCounter();
+        if (favoriteEvents.length > 0) {
+            jumpToEventTime(favoriteEvents[0]);
+        }
+    } else {
+        // Exit presentation mode
+        presentationModeBtn.classList.replace('bg-purple-800', 'bg-purple-600');
+        playlistControls.classList.replace('flex', 'hidden');
+
+        // Restore original layout
+        timelineContainer.classList.remove('md:hidden');
+        videoContainer.classList.replace('md:w-full', 'md:w-2/3');
+        videoContainer.classList.replace('lg:w-full', 'lg:w-3/4');
+    }
+}
+
+// Navigate through the playlist of favorite events
+function navigatePlaylist(direction) {
+    if (favoriteEvents.length === 0) return;
+
+    if (direction === 'next') {
+        currentPlaylistIndex = (currentPlaylistIndex + 1) % favoriteEvents.length;
+    } else {
+        currentPlaylistIndex = (currentPlaylistIndex - 1 + favoriteEvents.length) % favoriteEvents.length;
+    }
+
+    updatePlaylistCounter();
+    jumpToEventTime(favoriteEvents[currentPlaylistIndex]);
+}
+
+// Update the playlist counter display
+function updatePlaylistCounter() {
+    const counter = document.getElementById('playlist-counter');
+    if (counter && favoriteEvents.length > 0) {
+        counter.textContent = `${currentPlaylistIndex + 1}/${favoriteEvents.length}`;
+    }
+}
+
+// Jump to a specific event time in the video
+function jumpToEventTime(event) {
+    const videoPlayer = document.getElementById('video-player');
+    if (!videoPlayer || !event || !event.timeMs) return;
+
+    // Convert milliseconds to seconds
+    const timeSeconds = event.timeMs / 1000;
+    videoPlayer.currentTime = timeSeconds;
+
+    // Start playing from this point
+    videoPlayer.play().catch(e => console.error("Error playing video:", e));
+
+    // Highlight the event in the timeline
+    highlightTimelineEvent(event.id);
+
+    // Show event details notification
+    const eventType = formatEventTypeName(event.event);
+    const eventTime = formatTime(event.timeMs);
+    showNotification(`${eventType} at ${eventTime}`);
+}
+
+// Highlight the current event in the timeline
+function highlightTimelineEvent(eventId) {
+    // Remove highlight from all events
+    const events = document.querySelectorAll('.timeline-event');
+    events.forEach(el => {
+        el.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-500');
+    });
+
+    // Add highlight to current event
+    const currentEvent = document.querySelector(`.timeline-event[data-event-id="${eventId}"]`);
+    if (currentEvent) {
+        currentEvent.classList.add('bg-blue-50', 'ring-2', 'ring-blue-500');
+
+        // Scroll to make event visible if needed
+        currentEvent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Format milliseconds time to MM:SS format
+function formatTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Show all events (disable favorites filter)
+function showAllEvents() {
+    const showAllBtn = document.getElementById('show-all-events');
+    const showFavoritesBtn = document.getElementById('show-favorites');
+
+    // Update UI state
+    showAllBtn.classList.replace('bg-gray-200', 'bg-blue-500');
+    showAllBtn.classList.replace('text-gray-700', 'text-white');
+    showFavoritesBtn.classList.replace('bg-blue-500', 'bg-gray-200');
+    showFavoritesBtn.classList.replace('text-white', 'text-gray-700');
+
+    // Hide favorites empty state if visible
+    const favoritesEmptyState = document.getElementById('favorites-empty-state');
+    if (favoritesEmptyState) {
+        favoritesEmptyState.classList.add('hidden');
+    }
+
+    // Show timeline events
+    renderTimelineEvents();
+}
+
+// Show only favorited events
+function showFavoritesOnly() {
+    const showAllBtn = document.getElementById('show-all-events');
+    const showFavoritesBtn = document.getElementById('show-favorites');
+
+    // Update UI state
+    showFavoritesBtn.classList.replace('bg-gray-200', 'bg-blue-500');
+    showFavoritesBtn.classList.replace('text-gray-700', 'text-white');
+    showAllBtn.classList.replace('bg-blue-500', 'bg-gray-200');
+    showAllBtn.classList.replace('text-white', 'text-gray-700');
+
+    // Show only favorites
+    renderTimelineEvents(true);
+}
 
 // Use the notification service for notifications
 function showNotification(message, type = 'success') {
@@ -49,7 +250,9 @@ function saveGame(gameId, events, metadata = {}) {
         // Keep only the standard properties
         return {
             event: evt.event,
-            timeMs: evt.timeMs
+            timeMs: evt.timeMs,
+            id: evt.id,
+            isFavorite: evt.isFavorite || false // Ensure favorite status is preserved
         };
     });
 
@@ -65,7 +268,7 @@ function saveGame(gameId, events, metadata = {}) {
             ...metadata,
             lastUpdated: new Date().toISOString()
         }
-    };    // Save to localStorage using storage service
+    };// Save to localStorage using storage service
     const result = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
     if (result === true) {
         return true;
@@ -83,6 +286,19 @@ function loadGame(gameId) {
             // Get events from the saved game
             const events = savedGames[gameId].events;
             const game = savedGames[gameId];
+
+            // Ensure each event has an id and isFavorite property
+            events.forEach((evt, index) => {
+                if (!evt.id) {
+                    evt.id = `event-${index}`;
+                }
+                if (evt.isFavorite === undefined) {
+                    evt.isFavorite = false;
+                }
+            });
+
+            // Store current game ID
+            currentGameId = gameId;
 
             // Update current events and render timeline
             timelineEvents = events;
@@ -116,14 +332,119 @@ function loadGame(gameId) {
 let timelineEvents = [];
 
 // Render timeline with current events (sorted with earliest events at the top)
-function renderTimelineEvents() {
+function renderTimelineEvents(favoritesOnly = false) {
     const timelineContainerId = 'timeline-events';
-    try {
-        renderTimeline(timelineEvents, timelineContainerId);
-        console.log('Timeline rendered with', timelineEvents.length, 'events');
+    const timelineContainer = document.getElementById(timelineContainerId);
+    const favoritesEmptyState = document.getElementById('favorites-empty-state');
+    const timelineEmptyState = document.getElementById('timeline-empty-state');
 
-        // Show or hide the empty state message
-        toggleEmptyState(timelineEvents.length === 0);
+    if (!timelineContainer) return;
+
+    try {
+        // Filter events if showing favorites only
+        const eventsToRender = favoritesOnly ?
+            timelineEvents.filter(event => event.isFavorite) :
+            timelineEvents;
+
+        // Check if there are events to display
+        if (timelineEvents.length === 0) {
+            // No events at all - show regular empty state
+            if (timelineEmptyState) timelineEmptyState.classList.remove('hidden');
+            if (favoritesEmptyState) favoritesEmptyState.classList.add('hidden');
+            timelineContainer.classList.add('hidden');
+
+            // Hide filter container
+            const filterContainer = document.getElementById('timeline-filters');
+            if (filterContainer) {
+                filterContainer.classList.add('hidden');
+            }
+
+            return;
+        }
+
+        // There are events, but need to check if favorites mode has events
+        if (favoritesOnly && eventsToRender.length === 0) {
+            // No favorites - show favorites empty state
+            if (favoritesEmptyState) favoritesEmptyState.classList.remove('hidden');
+            if (timelineEmptyState) timelineEmptyState.classList.add('hidden');
+            timelineContainer.classList.add('hidden');
+            return;
+        }
+
+        // Has events to display - hide empty states
+        if (favoritesEmptyState) favoritesEmptyState.classList.add('hidden');
+        if (timelineEmptyState) timelineEmptyState.classList.add('hidden');
+        timelineContainer.classList.remove('hidden');
+
+        // Generate custom timeline with star buttons
+        timelineContainer.innerHTML = '';
+
+        // Sort events by time (earliest first)
+        eventsToRender.sort((a, b) => a.timeMs - b.timeMs);
+
+        // Create events in timeline
+        eventsToRender.forEach((event, index) => {
+            // Create event element
+            const eventElement = document.createElement('div');
+            eventElement.classList.add(
+                'timeline-event',
+                'flex',
+                'items-center',
+                'justify-between',
+                'p-3',
+                'border-l-4',
+                `border-${getEventColor(event.event)}-500`,
+                'bg-white',
+                'hover:bg-gray-50',
+                'rounded',
+                'shadow-sm',
+                'mb-3',
+                'cursor-pointer'
+            );
+            eventElement.dataset.eventId = event.id || `event-${index}`;
+
+            // Format time from milliseconds to MM:SS
+            const timeFormatted = formatTime(event.timeMs);
+
+            // Determine if this event is a favorite
+            const isFavorite = !!event.isFavorite;
+
+            // Create event content
+            eventElement.innerHTML = `
+                <div class="flex-grow">
+                    <span class="text-xs text-gray-500">${timeFormatted}</span>
+                    <p class="font-medium">${formatEventTypeName(event.event)}</p>
+                </div>
+                <button class="favorite-toggle p-1 focus:outline-none ${isFavorite ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'}"
+                        data-event-id="${eventElement.dataset.eventId}"
+                        aria-label="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" ${isFavorite ? 'fill="currentColor"' : 'fill="none"'} viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                </button>
+            `;
+
+            // Add event listener to jump to this time in video
+            eventElement.addEventListener('click', (e) => {
+                // Don't trigger when clicking favorite button
+                if (!e.target.closest('.favorite-toggle')) {
+                    const timeMs = event.timeMs;
+                    jumpToVideoTime(timeMs);
+                    highlightTimelineEvent(eventElement.dataset.eventId);
+                }
+            });
+
+            // Add event listener for favorite toggle
+            const favoriteBtn = eventElement.querySelector('.favorite-toggle');
+            favoriteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleFavorite(eventElement.dataset.eventId);
+            });
+
+            timelineContainer.appendChild(eventElement);
+        });
+
+        console.log(`Timeline rendered with ${eventsToRender.length} events${favoritesOnly ? ' (favorites only)' : ''}`);
 
         // Update filter buttons based on available event types
         if (timelineEvents.length > 0) {
@@ -138,10 +459,7 @@ function renderTimelineEvents() {
     } catch (error) {
         console.error("Error rendering timeline:", error);
         // Display an error message to the user in the timeline container
-        const container = document.getElementById(timelineContainerId);
-        if (container) {
-            container.innerHTML = '<p class="text-red-600">Could not load timeline events.</p>';
-        }
+        timelineContainer.innerHTML = '<p class="text-red-600">Could not load timeline events.</p>';
     }
 }
 
@@ -367,28 +685,28 @@ function applyTimelineFilter(filterTypes) {
 
     if (!container) return;
 
-    // If "all" is selected, show all events
+    // Check if we're in favorites mode
+    const showFavoritesBtn = document.getElementById('show-favorites');
+    const isFavoritesMode = showFavoritesBtn?.classList.contains('bg-blue-500');
+
+    // If "all" is selected, show all events (respecting favorites mode)
     if (filterTypes.includes('all')) {
-        renderTimeline(timelineEvents, timelineContainerId);
+        renderTimelineEvents(isFavoritesMode);
         return;
     }
 
     // Otherwise, filter events by type
-    const filteredEvents = timelineEvents.filter(event =>
-        filterTypes.includes(event.event)
+    const allEvents = [...timelineEvents]; // Create a copy to avoid modifying the original
+    const filteredEvents = allEvents.filter(event =>
+        filterTypes.includes(event.event) &&
+        (!isFavoritesMode || event.isFavorite)
     );
 
-    // Render filtered timeline
-    if (filteredEvents.length > 0) {
-        renderTimeline(filteredEvents, timelineContainerId);
-    } else {
-        // Show message if no events match filter
-        container.innerHTML = `
-            <div class="text-center py-6 text-gray-500">
-                <p>No events match the selected filters.</p>
-            </div>
-        `;
-    }
+    // Store filtered events temporarily and render
+    const originalEvents = [...timelineEvents];
+    timelineEvents = filteredEvents;
+    renderTimelineEvents(false);
+    timelineEvents = originalEvents; // Restore original events
 }
 
 // Toggle empty state message
@@ -436,6 +754,33 @@ function toggleNoGamesState(show) {
     }
 }
 
+// Toggle favorite status for an event
+function toggleFavorite(eventId) {
+    // Find the event in current events
+    const event = timelineEvents.find(e => e.id === eventId);
+    if (!event) return;
+
+    // Toggle favorite status
+    event.isFavorite = !event.isFavorite;
+
+    // Save changes to localStorage
+    if (currentGameId) {
+        saveGame(currentGameId, timelineEvents);
+    }
+
+    // Re-render UI (maintaining current filter state)
+    const showFavoritesBtn = document.getElementById('show-favorites');
+    const isFavoritesMode = showFavoritesBtn.classList.contains('bg-blue-500');
+
+    renderTimelineEvents(isFavoritesMode);
+
+    // Show confirmation
+    if (event.isFavorite) {
+        showNotification('Added to favorites');
+    } else {
+        showNotification('Removed from favorites', 'info');
+    }
+}
 
 function domReady(callback) {
     if (document.readyState === "loading") {
@@ -607,5 +952,36 @@ function setupGameControls() {
                 renderTimelineEvents();
             }
         });
+    }
+}
+
+// Get appropriate color for event type
+function getEventColor(eventType) {
+    // Map of event types to colors
+    const colorMap = {
+        goal: 'green',
+        foul: 'red',
+        penalty: 'amber',
+        substitution: 'blue',
+        injury: 'red',
+        card: 'amber',
+        timeout: 'purple',
+        possession_change: 'indigo',
+        shot_on_goal: 'blue',
+        corner: 'teal',
+        free_hit: 'sky'
+    };
+
+    // Return mapped color or default blue
+    return colorMap[eventType?.toLowerCase()] || 'blue';
+}
+
+// Jump to a specific time in the video
+function jumpToVideoTime(timeMs) {
+    const videoPlayer = document.getElementById('video-player');
+    if (videoPlayer) {
+        const timeSeconds = timeMs / 1000;
+        videoPlayer.currentTime = timeSeconds;
+        videoPlayer.play().catch(e => console.error("Error playing video:", e));
     }
 }
