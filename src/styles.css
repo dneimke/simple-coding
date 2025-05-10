@@ -22,9 +22,12 @@ body {
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
     transform-origin: center;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     line-height: 1rem;
     cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @media (min-width: 640px) {
@@ -51,7 +54,13 @@ body {
 }
 
 .event-button[data-event] {
-    padding: 0.5rem 1rem;
+    padding: 0.375rem 0.5rem;
+}
+
+@media (min-width: 640px) {
+    .event-button[data-event] {
+        padding: 0.5rem 1rem;
+    }
 }
 
 .btn-blue {
@@ -151,13 +160,26 @@ body {
     gap: 0.25rem;
 }
 
+@media (max-width: 640px) {
+    .button-grid {
+        gap: 0.125rem;
+    }
+}
+
 .group-container {
     border-width: 1px;
     border-color: #d1d5db;
     padding: 0.5rem;
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 640px) {
+    .group-container {
+        padding: 0.25rem;
+        margin-bottom: 0.375rem;
+    }
 }
 
 .tab-button {

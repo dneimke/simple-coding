@@ -10,6 +10,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png">
     <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
@@ -22,44 +26,55 @@
     <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-xl">
         <nav class="border-b border-slate-700 flex justify-between items-center bg-slate-950 text-white p-4">
             <div class="flex space-x-4">
-                <a href="#event-capture" id="navEventCapture" class="text-white hover:text-white-300 font-medium">Event
-                    Capture</a>
-                <a href="#log" id="navLog" class="text-gray-400 hover:text-white-300 font-medium hidden"
-                    data-requires-game>Log</a>
-                <a href="timeline-video.html" class="text-gray-400 hover:text-white-300 font-medium">Match Review</a>
+                <a href="#event-capture" id="navEventCapture"
+                    class="text-white hover:text-white-300 font-medium flex items-center gap-1">
+                    <i class="fas fa-hockey-puck text-sm"></i> Event Capture
+                </a>
+                <a href="#log" id="navLog"
+                    class="text-gray-400 hover:text-white-300 font-medium hidden flex items-center gap-1"
+                    data-requires-game>
+                    <i class="fas fa-list-ul text-sm"></i> Log
+                </a>
+                <a href="timeline-video.html"
+                    class="text-gray-400 hover:text-white-300 font-medium flex items-center gap-1">
+                    <i class="fas fa-video text-sm"></i> Match Review
+                </a>
             </div>
             <div class="flex space-x-4 items-center">
-                <a href="#saved-games" id="navSavedGames" class="text-gray-400 hover:text-white-300 font-medium">Saved
-                    Games</a>
-                <a href="#configure" id="navConfig" class="text-gray-400 hover:text-white-300 font-medium">Configure</a>
+                <a href="#saved-games" id="navSavedGames"
+                    class="text-gray-400 hover:text-white-300 font-medium flex items-center gap-1">
+                    <i class="fas fa-save text-sm"></i> Saved Games
+                </a>
+                <a href="#configure" id="navConfig"
+                    class="text-gray-400 hover:text-white-300 font-medium flex items-center gap-1">
+                    <i class="fas fa-cog text-sm"></i> Configure
+                </a>
                 <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
                     title="Visit the GitHub repository" class="text-gray-200 hover:text-white-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="w-6 h-6">
-                        <path
-                            d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.207 11.387.6.113.793-.263.793-.587 0-.287-.012-1.243-.018-2.253-3.338.725-4.042-1.613-4.042-1.613-.546-1.387-1.333-1.756-1.333-1.756-1.09-.744.083-.729.083-.729 1.204.087 1.837 1.237 1.837 1.237 1.07 1.833 2.807 1.303 3.492.996.108-.775.42-1.303.763-1.603-2.665-.303-5.467-1.333-5.467-5.933 0-1.31.468-2.382 1.237-3.222-.123-.303-.537-1.523.117-3.176 0 0 1.01-.324 3.3 1.23a11.5 11.5 0 013.003-.403c1.02.005 2.047.137 3.003.403 2.29-1.554 3.3-1.23 3.3-1.23.654 1.653.24 2.873.117 3.176.768.84 1.236 1.912 1.236 3.222 0 4.61-2.807 5.625-5.478 5.922.432.372.816 1.102.816 2.222 0 1.606-.015 2.898-.015 3.293 0 .324.192.705.798.586C20.565 21.797 24 17.297 24 12c0-6.63-5.37-12-12-12z" />
-                    </svg>
+                    <i class="fab fa-github text-xl"></i>
                 </a>
             </div>
         </nav>
-        <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl">
-
-            <!-- Event Capture View -->
+        <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl"> <!-- Event Capture View -->
             <div id="tracker-view">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-800">Match Event Capture
-                </h1>
-                <div
-                    class="flex flex-col sm:flex-row justify-center items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
-                    <div id="timer"
-                        class="text-4xl font-mono font-bold bg-gray-800 text-white px-6 py-2 rounded-lg shadow">
-                        00:00</div>
-                    <button id="newGameButton" class="event-button btn-green px-6 py-3 text-lg">Start Game</button>
-                    <button id="pauseResumeButton"
-                        class="event-button btn-yellow px-6 py-3 text-lg hidden">Pause</button>
-                    <button id="completeGameButton"
-                        class="event-button btn-blue px-6 py-3 text-lg hidden">Complete</button>
+                <!-- Title removed to optimize space as requested -->
+                <div class="flex justify-center items-center mb-4 sm:mb-5">
+                    <div class="flex flex-row w-full max-w-md justify-between items-center">
+                        <div id="timer"
+                            class="text-3xl sm:text-4xl font-mono font-bold bg-gray-800 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-lg shadow">
+                            00:00</div>
+                        <div class="flex space-x-2">
+                            <button id="newGameButton"
+                                class="event-button btn-green px-4 py-2 text-base sm:text-lg">Start</button>
+                            <button id="pauseResumeButton"
+                                class="event-button btn-yellow px-4 py-2 text-base sm:text-lg hidden">Pause</button>
+                            <button id="completeGameButton"
+                                class="event-button btn-blue px-4 py-2 text-base sm:text-lg hidden">Complete</button>
+                        </div>
+                    </div>
                 </div>
 
-                <div id="coding-buttons-container" class="max-w-4xl mx-auto">
+                <div id="coding-buttons-container" class="max-w-full mx-auto px-1">
                 </div>
             </div>
 

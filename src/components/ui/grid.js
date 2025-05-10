@@ -52,7 +52,16 @@ export const createButtonGrid = ({
     onButtonClick = null
 }) => {
     const buttonGrid = document.createElement('div');
-    buttonGrid.className = `button-grid ${gridCols} gap-2 ${className}`;
+    // Dynamically adjust grid columns for mobile
+    // Extract the number from gridCols (e.g., "grid-cols-4" -> 4)
+    const colsMatch = gridCols.match(/grid-cols-(\d+)/);
+    const colsNumber = colsMatch ? parseInt(colsMatch[1]) : 4;
+
+    // Create responsive classes for different screen sizes
+    const responsiveGridClass =
+        `button-grid grid-cols-${Math.min(colsNumber, 4)} sm:${gridCols} ${className}`;
+
+    buttonGrid.className = responsiveGridClass;
 
     buttons.forEach(buttonConfig => {
         if (!buttonConfig || !buttonConfig.text || !buttonConfig.color) {
@@ -61,7 +70,7 @@ export const createButtonGrid = ({
         }
 
         const button = document.createElement('button');
-        button.className = `event-button ${buttonConfig.color} py-2 px-4 rounded text-center`;
+        button.className = `event-button ${buttonConfig.color} rounded text-center`;
         button.textContent = buttonConfig.text;
 
         if (buttonConfig.event) {

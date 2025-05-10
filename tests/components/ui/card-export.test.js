@@ -85,10 +85,7 @@ describe('Export XML Functionality', () => {
                 { event: 'GOAL_FOR', timeMs: 60000 },
                 { event: 'FOUL', timeMs: 120000 }
             ]
-        };
-
-        mockHandlers = {
-            onLoad: jest.fn(),
+        }; mockHandlers = {
             onRename: jest.fn(),
             onDelete: jest.fn()
         };

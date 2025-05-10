@@ -71,11 +71,9 @@ export const createCard = ({
 
 /**
  * Creates a card for displaying saved game information
- *
- * @param {Object} options - Game card configuration
+ * * @param {Object} options - Game card configuration
  * @param {Object} options.game - Game data object containing events, timestamp, etc.
  * @param {number} options.index - Index of the game in the list
- * @param {Function} options.onLoad - Load game handler
  * @param {Function} options.onDelete - Delete game handler
  * @param {Function} options.onRename - Rename game handler
  * @returns {HTMLDivElement} The created game card element
@@ -83,7 +81,6 @@ export const createCard = ({
 export const createGameCard = ({
     game,
     index,
-    onLoad,
     onDelete,
     onRename
 }) => {
@@ -93,9 +90,7 @@ export const createGameCard = ({
     // Create icon section
     const icon = document.createElement('div');
     icon.className = 'saved-game-icon flex-shrink-0 w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center mr-4';
-    icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c.828 0 1.5-.672 1.5-1.5S12.828 5 12 5s-1.5.672-1.5 1.5S11.172 8 12 8zm0 0v8m0 0H9m3 0h3" />
-  </svg>`;
+    icon.innerHTML = `<i class="fas fa-hockey-puck text-xl"></i>`;
 
     // Create game details section
     const gameDetails = document.createElement('div');
@@ -117,13 +112,6 @@ export const createGameCard = ({
     eventCount.textContent = `Events: ${game.events.length}`;
 
     gameDetails.append(gameTitle, gameTimestamp, eventCount);    // Create action buttons
-    const loadButton = createButton({
-        text: 'Load',
-        type: 'primary',
-        className: 'px-4 py-2 text-sm',
-        onClick: onLoad
-    });
-
     const exportButton = createButton({
         text: 'Export XML',
         type: 'secondary',
@@ -165,10 +153,8 @@ export const createGameCard = ({
         type: 'danger',
         className: 'px-4 py-2 text-sm ml-2',
         onClick: onDelete
-    });
-
-    // Add all elements to card
-    gameCard.append(icon, gameDetails, loadButton, exportButton, renameButton, deleteButton);
+    });    // Add all elements to card
+    gameCard.append(icon, gameDetails, exportButton, renameButton, deleteButton);
 
     return gameCard;
 };

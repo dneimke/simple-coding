@@ -72,32 +72,6 @@ function renderSavedGames() {
                 const gameCard = createGameCard({
                     game,
                     index,
-                    onLoad: () => {
-                        if (gameState.isActive || gameState.isRunning) {
-                            const userConfirmed = notificationService.confirm(
-                                'A game is currently in progress. Do you want to stop it and load the saved game?'
-                            );
-                            if (!userConfirmed) return; // Exit if the user cancels
-                        }
-
-                        gameState.setGameState({
-                            loggedEvents: game.events,
-                            elapsedTime: 0,
-                            hasCurrentGame: true,
-                            isActive: false,
-                        });
-
-                        gameState.resetTimer();
-                        showElement(newGameButton);
-                        hideElement(pauseResumeButton);
-                        hideElement(completeGameButton);
-                        updateNavbarVisibility(gameState.hasCurrentGame);
-
-                        router.showView('Log');
-                        // Use the team name if available when reporting successful load
-                        const gameName = game.teams || `Game ${index + 1}`;
-                        logger.log(`Game "${gameName}" loaded successfully.`);
-                    },
                     onRename: () => {
                         // Get the current name or use a placeholder
                         const currentName = game.teams || `Game ${index + 1}`;

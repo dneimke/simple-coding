@@ -49,18 +49,15 @@ export class Router {
      */
     _handleHashChange() {
         // Get the hash without the # character
-        const hash = window.location.hash.substring(1);
-
-        if (hash) {
+        const hash = window.location.hash.substring(1); if (hash) {
             const viewName = this.hashToViewMap[hash];
             if (viewName) {
-                // Check if view has prerequisites (like active game for Log)
                 if (viewName === 'Log') {
-                    const hasActiveGame = localStorage.getItem('currentGame') !== null;
+                    // Check if there's an active game via state service instead of localStorage
+                    const hasActiveGame = stateService.getState('game.hasCurrentGame');
                     if (!hasActiveGame) {
-                        // Default to EventCapture if no active game
-                        this._updateHashSilently('event-capture');
-                        this.showView('EventCapture');
+                        this._updateHashSilently(hash);
+                        this.showView('event-capture');
                         return;
                     }
                 }
