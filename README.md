@@ -132,6 +132,7 @@ npm run test:coverage
 Additional documentation is available in the `docs/` directory:
 
 - [Match Review](docs/match-review.md) - Video synchronization features
+- [Navigation](docs/navigation.md) - Router implementation and deep linking
 - [Saved Games](docs/saved-games.md) - Game data storage architecture
 - [State Management](docs/state-management.md) - Application state design
 - [User Workflow](docs/user-workflow.md) - Current user experience

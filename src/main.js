@@ -198,12 +198,16 @@ function registerEventListeners() {
 
         const tab = button.dataset.tab;
         router.switchTab(tab);
-    });
+    }); navContainer.addEventListener('click', (event) => {
+        // Only process clicks on elements with IDs that start with 'nav'
+        if (!event.target.id || !event.target.id.startsWith('nav')) {
+            return;
+        }
 
-    navContainer.addEventListener('click', (event) => {
-        const { id } = event.target;
-        const viewName = id.startsWith('nav') ? id.slice(3) : id;
+        // Extract the view name from the button ID
+        const viewName = event.target.id.slice(3);
 
+        // Use the router to navigate, which will now update the hash
         router.showView(viewName, () => {
             if (viewName === 'SavedGames') {
                 renderSavedGames();
@@ -374,5 +378,20 @@ const router = new Router(
 const eventLog = new EventLog(timelineViewPanel, xmlOutputContainer, statisticsViewPanel);
 const eventButtons = new EventButtons(codingButtonsContainer);
 const gameState = new GameState(timerDisplay, eventLog, eventButtons);
+
+// Initial navigation based on URL hash or defaults to EventCapture
+document.addEventListener('DOMContentLoaded', () => {
+    // The Router class now handles initial hash-based navigation
+    // So we don't need to manually set the view here
+
+    // Check if we need to load content for specific views
+    const hash = window.location.hash.substring(1);
+    if (hash === 'saved-games') {
+        renderSavedGames();
+    } else if (hash === 'configure') {
+        const currentConfig = loadConfiguration();
+        configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+    }
+});
 
 initializeApplication();

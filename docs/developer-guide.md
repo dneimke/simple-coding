@@ -151,6 +151,56 @@ The application follows a modular ES6 architecture with:
 3. Use Tailwind CSS classes for styling
 4. Test the changes both visually and with unit tests
 
+### Working with the Router
+
+The application implements a custom router that handles navigation between views using hash-based routing:
+
+1. **Router Configuration**:
+   - The `Router` class is initialized in `main.js` with view and tab mappings
+   - View mappings connect DOM elements to internal view names
+   - Tab mappings handle sub-navigation within specific views (like the Log view)
+
+2. **Adding a New View**:
+   - Create a new view container element in `index.html`
+   - Add a navigation link with the appropriate hash fragment
+   - Update the router initialization in `main.js` to include the new view
+   - Add the view name and hash to `viewToHashMap` and `hashToViewMap` in `components/router.js`
+
+3. **Navigation Concepts**:
+   - Hash-based navigation: URL fragments like `#event-capture` control which view is shown
+   - Route guards: Checks like ensuring an active game exists before showing the Log view
+   - Deep linking: Direct navigation to specific views from external pages
+
+4. **Example: Adding a "Help" View**:
+
+   ```javascript
+   // 1. Add the view to index.html
+   <div id="help-view" class="hidden">
+     <h1>Help Documentation</h1>
+     <!-- Content here -->
+   </div>
+
+   // 2. Add a navigation link
+   <a href="#help" id="navHelp" class="text-gray-400 hover:text-white-300 font-medium">Help</a>
+
+   // 3. Update router initialization in main.js
+   const router = new Router(
+     {
+       // ...existing views
+       Help: { view: document.getElementById('help-view'), button: document.getElementById('navHelp') }
+     },
+     // ...tabs config
+   );
+
+   // 4. Update the hash maps in router.js
+   this.viewToHashMap = {
+     // ...existing mappings
+     'Help': 'help'
+   };
+   ```
+
+For more detailed information about the navigation system, see [Navigation](navigation.md).
+
 ## Additional Resources
 
 - Check the `README.md` for an overview of the application

@@ -6,23 +6,10 @@ const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
 // Initialize navigation functionality
 document.addEventListener('DOMContentLoaded', () => {
-    // Set up navigation handlers
-    const navSavedGames = document.getElementById('navSavedGames');
-    const navConfig = document.getElementById('navConfig');
-
-    if (navSavedGames) {
-        navSavedGames.addEventListener('click', () => {
-            // Redirect to index.html with saved games view
-            window.location.href = 'index.html?view=saved-games';
-        });
-    }
-
-    if (navConfig) {
-        navConfig.addEventListener('click', () => {
-            // Redirect to index.html with config view
-            window.location.href = 'index.html?view=config';
-        });
-    }
+    // Set up navigation handlers    // Navigation links are now handled via href attributes with hash fragments
+    // No need for event listeners anymore as we've updated the HTML to use direct links:
+    // <a href="index.html#saved-games">Saved Games</a>
+    // <a href="index.html#configure">Configure</a>
 
     // Set up favorites toggle and playlist functionality
     initFavoritesUI();

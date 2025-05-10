@@ -20,8 +20,19 @@ The current user experience for creating and retrieving games follows this lifec
    - If no session is currently active (i.e., the timer is stopped and no elapsed time is recorded), the "Load Game" button on the Log page becomes available.
    - Clicking "Load Game" retrieves the saved game state from `localStorage` and restores the events and elapsed time to the application.
 
-5. **Reviewing a Game**:
+5. **Direct Navigation (Deep Linking)**:
+   - The application supports direct navigation to specific views using URL hash fragments.
+   - Users can bookmark specific views or share links that go directly to a particular view.
+   - Available deep links:
+     - `index.html#event-capture` - Navigate to the Event Capture view
+     - `index.html#log` - Navigate to the Log view (requires an active game)
+     - `index.html#configure` - Navigate to the Configure view
+     - `index.html#saved-games` - Navigate to the Saved Games view
+   - The navigation system will automatically redirect to the Event Capture view if trying to access the Log view without an active game.
+
+6. **Reviewing a Game**:
    - The user can review the game by navigating to the Match Review page.
    - The timeline panel displays all recorded events, and the video player allows synchronized playback of the match footage.
+   - From the Match Review page, deep links allow returning directly to specific views in the main application.
 
-This flow ensures that users can efficiently manage game sessions while preventing conflicts between active and saved states.
+This flow ensures that users can efficiently manage game sessions while preventing conflicts between active and saved states. For more details on the navigation system, see [Navigation](navigation.md).
