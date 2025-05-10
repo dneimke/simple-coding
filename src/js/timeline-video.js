@@ -202,12 +202,16 @@ function showAllEvents() {
 function showFavoritesOnly() {
     const showAllBtn = document.getElementById('show-all-events');
     const showFavoritesBtn = document.getElementById('show-favorites');
+    const filterContainer = document.getElementById('timeline-filters');
 
     // Update UI state
     showFavoritesBtn.classList.replace('bg-gray-200', 'bg-blue-500');
     showFavoritesBtn.classList.replace('text-gray-700', 'text-white');
     showAllBtn.classList.replace('bg-blue-500', 'bg-gray-200');
     showAllBtn.classList.replace('text-white', 'text-gray-700');
+
+    // Make sure filter container is visible
+    if (filterContainer) filterContainer.classList.remove('hidden');
 
     // Show only favorites
     renderTimelineEvents(true);
@@ -347,12 +351,22 @@ function renderTimelineEvents(favoritesOnly = false) {
             }
 
             return;
-        }
-
-        // There are events, but need to check if favorites mode has events
+        }        // There are events, but need to check if favorites mode has events
         if (favoritesOnly && eventsToRender.length === 0) {
             // No favorites - show favorites empty state
-            if (favoritesEmptyState) favoritesEmptyState.classList.remove('hidden');
+            if (favoritesEmptyState) {
+                favoritesEmptyState.classList.remove('hidden');
+
+                // Move the favorites empty state element to be right after the timeline filters
+                const timelineFilters = document.getElementById('timeline-filters');
+                if (timelineFilters && timelineFilters.nextElementSibling !== favoritesEmptyState) {
+                    timelineFilters.parentNode.insertBefore(favoritesEmptyState, timelineFilters.nextSibling);
+                }
+
+                // Make sure timeline filters are visible even when no favorites
+                if (timelineFilters) timelineFilters.classList.remove('hidden');
+            }
+
             if (timelineEmptyState) timelineEmptyState.classList.add('hidden');
             timelineContainer.classList.add('hidden');
             return;
