@@ -26,7 +26,19 @@ export const hideElement = (element) => {
 export function updateNavbarVisibility(isVisible) {
     const requiresGameButtons = document.querySelectorAll('[data-requires-game]');
     requiresGameButtons.forEach(button => {
-        button.classList.toggle('hidden', !isVisible);
+        if (isVisible) {
+            // Make visible, but maintain proper display mode
+            button.classList.remove('hidden');
+            // For standard nav items, we want flex display
+            if (button.classList.contains('nav-link')) {
+                button.style.display = 'flex';
+            } else {
+                button.style.display = 'inline-block';
+            }
+        } else {
+            // Hide completely
+            button.classList.add('hidden');
+        }
     });
 }
 

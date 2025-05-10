@@ -121,9 +121,7 @@ export class Router {
 
     switchTab = (tabToShow) => {
         stateService.setState('ui.currentTab', tabToShow);
-    };
-
-    /**
+    };    /**
      * Handle view change from state service
      * @param {string} viewName - New view name
      * @private
@@ -131,8 +129,16 @@ export class Router {
     _handleViewChange = (viewName) => {
         Object.values(this.views).forEach(({ view, button }) => {
             view.classList.add('hidden');
+
+            // Remove active classes for both old and new styles
             button.classList.remove('text-white', 'hover:text-white');
             button.classList.add('text-gray-400', 'hover:text-white');
+
+            // Remove any active styling for new navigation style
+            button.classList.remove('nav-link-active');
+
+            // Remove ARIA current attribute
+            button.removeAttribute('aria-current');
         });
 
         const selectedView = this.views[viewName];
@@ -142,8 +148,13 @@ export class Router {
         }
 
         selectedView.view.classList.remove('hidden');
-        selectedView.button.classList.add('text-white', 'hover:text-white');
+
+        // Apply active styles for both old and new navigation styles
+        selectedView.button.classList.add('text-white', 'hover:text-white', 'nav-link-active');
         selectedView.button.classList.remove('text-gray-400', 'hover:text-white');
+
+        // Set ARIA current page attribute
+        selectedView.button.setAttribute('aria-current', 'page');
     };
 
     /**

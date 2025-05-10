@@ -38,6 +38,11 @@ const statisticsViewPanel = document.getElementById('statisticsView');
 const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
 const copyXmlButton = document.getElementById('copyXmlButton');
 
+// Mobile Navigation Elements
+const mobileMenuButton = document.getElementById('mobileMenuButton');
+const mainMenu = document.getElementById('mainMenu');
+const navEventCaptureMobile = document.getElementById('navEventCaptureMobile');
+
 // Navigation Elements
 const navEventCapture = document.getElementById('navEventCapture');
 const navConfig = document.getElementById('navConfig');
@@ -362,6 +367,79 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentConfig = loadConfiguration();
         configJsonInput.value = JSON.stringify(currentConfig, null, 2);
     }
+
+    // Initialize mobile menu functionality
+    initMobileMenu();
 });
+
+/**
+ * Initialize the mobile menu toggle and its behavior
+ */
+function initMobileMenu() {
+    // Mobile menu toggle with animation
+    mobileMenuButton.addEventListener('click', () => {
+        const isOpen = !mainMenu.classList.contains('hidden');
+
+        if (isOpen) {
+            // Close menu with smooth transition
+            mainMenu.classList.add('opacity-0');
+            setTimeout(() => {
+                mainMenu.classList.add('hidden');
+                mainMenu.classList.remove('opacity-0');
+            }, 200);
+            mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+        } else {
+            // Open menu with smooth transition
+            mainMenu.classList.remove('hidden');
+            // Small delay to allow the display change before starting opacity transition
+            setTimeout(() => {
+                mainMenu.classList.add('flex');
+            }, 10);
+            mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+            mobileMenuButton.setAttribute('aria-expanded', 'true');
+        }
+    });
+
+    // Handle mobile menu item clicks (close menu after click)
+    const navLinks = mainMenu.querySelectorAll('a');
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth < 768) { // Only on mobile
+                // Close menu with animation
+                mainMenu.classList.add('opacity-0');
+                setTimeout(() => {
+                    mainMenu.classList.add('hidden');
+                    mainMenu.classList.remove('opacity-0', 'flex');
+                }, 200);
+                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                mobileMenuButton.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+
+    // Handle mobile event capture link
+    navEventCaptureMobile.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.router.showView('EventCapture');
+    });
+
+    // Handle window resize to show/hide menu appropriately
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768) {
+            // Desktop view - ensure menu is visible
+            mainMenu.classList.remove('hidden');
+            mainMenu.classList.add('flex');
+        } else if (!mainMenu.classList.contains('hidden')) {
+            // Mobile view - hide menu if it was open
+            mainMenu.classList.add('hidden');
+            mainMenu.classList.remove('flex');
+            mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+            mobileMenuButton.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    // Set initial ARIA state
+    mobileMenuButton.setAttribute('aria-expanded', 'false');
+}
 
 initializeApplication();
