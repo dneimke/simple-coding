@@ -870,7 +870,33 @@ domReady(() => {
     }    // --- Video Player Setup ---
     const videoPlayer = document.getElementById('video-player');
     if (videoPlayer) {
-        console.log('Video player element found.');// Handle errors
+        console.log('Video player element found.');
+
+        // Setup video navigation controls (10 second skip)
+        const rewind10sButton = document.getElementById('rewind-10s');
+        const forward10sButton = document.getElementById('forward-10s');
+
+        if (rewind10sButton) {
+            rewind10sButton.addEventListener('click', () => {
+                if (videoPlayer.readyState > 0) {
+                    // Move back 10 seconds, ensuring we don't go below 0
+                    videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+                    showNotification('Rewound 10 seconds', 'info');
+                }
+            });
+        }
+
+        if (forward10sButton) {
+            forward10sButton.addEventListener('click', () => {
+                if (videoPlayer.readyState > 0) {
+                    // Move forward 10 seconds, ensuring we don't exceed duration
+                    videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
+                    showNotification('Advanced 10 seconds', 'info');
+                }
+            });
+        }
+
+        // Handle errors
         videoPlayer.addEventListener('error', (e) => {
             console.error('Video Player Error:', videoPlayer.error);
             // Display a user-friendly error message
