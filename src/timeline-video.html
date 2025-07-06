@@ -342,6 +342,13 @@
                                 <div class="flex justify-end gap-2 mt-6">
                                     <button type="button" id="cancel-add-event"
                                         class="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Cancel</button>
+                                    <!-- Presentation overlay for tag/description (hidden by default) -->
+                                    <div id="presentation-overlay"
+                                        class="absolute top-6 left-1/2 transform -translate-x-1/2 z-40 bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg shadow-lg text-center max-w-lg w-full pointer-events-none hidden"
+                                        role="status" aria-live="polite">
+                                        <h3 id="presentation-tag" class="text-lg font-bold mb-1"></h3>
+                                        <p id="presentation-description" class="text-sm text-gray-200"></p>
+                                    </div>
                                     <button type="submit"
                                         class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition">Add
                                         Event</button>

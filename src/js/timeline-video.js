@@ -98,9 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderForSelectedGame() {
         const game = getCurrentGame();
         if (game && Array.isArray(game.events)) {
-            renderTimelineEvents(game.events);
+            timelineEvents = game.events;
+            showAllEvents();
         } else {
-            renderTimelineEvents([]);
+            timelineEvents = [];
+            renderTimelineEvents();
         }
     }
 
@@ -110,8 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
         gameSelector.addEventListener('change', renderForSelectedGame);
     }
 
-    // On load, render events for selected game
+    // On load, render all events for selected game by default
     renderForSelectedGame();
+    // Also ensure "All Events" is selected in the UI
+    const showAllBtn = document.getElementById('show-all-events');
+    const showFavoritesBtn = document.getElementById('show-favorites');
+    if (showAllBtn && showFavoritesBtn) {
+        showAllBtn.classList.add('bg-blue-500', 'text-white');
+        showAllBtn.classList.remove('bg-gray-200', 'text-gray-700');
+        showFavoritesBtn.classList.add('bg-gray-200', 'text-gray-700');
+        showFavoritesBtn.classList.remove('bg-blue-500', 'text-white');
+    }
 });
 import { renderTimeline } from './timeline.js';
 import { storageService } from '../services/storageService.js';
