@@ -232,6 +232,11 @@ function togglePresentationMode() {
         // First, filter out only favorite events
         favoriteEvents = timelineEvents.filter(event => event.isFavorite);
 
+        // Ensure all favorite events have a unique id
+        favoriteEvents.forEach((evt, idx) => {
+            if (!evt.id) evt.id = `event-fav-${idx}`;
+        });
+
         // If no favorites, show notification and exit presentation mode
         if (favoriteEvents.length === 0) {
             showNotification('Add some favorites first to start a presentation', 'warning');
@@ -251,8 +256,12 @@ function togglePresentationMode() {
         // Reset playlist position and navigate to first favorite
         currentPlaylistIndex = 0;
         updatePlaylistCounter();
+        // Render timeline filtered to favorites before jumping
+        renderTimelineEvents(true);
         if (favoriteEvents.length > 0) {
-            jumpToEventTime(favoriteEvents[0]);
+            setTimeout(() => {
+                jumpToEventTime(favoriteEvents[0]);
+            }, 50); // Allow DOM update
         }
     } else {
         // Exit presentation mode
@@ -263,6 +272,9 @@ function togglePresentationMode() {
         timelineContainer.classList.remove('md:hidden');
         videoContainer.classList.replace('md:w-full', 'md:w-2/3');
         videoContainer.classList.replace('lg:w-full', 'lg:w-3/4');
+
+        // Hide overlay when exiting presentation mode
+        updatePresentationOverlay(null);
     }
 }
 
@@ -300,13 +312,51 @@ function jumpToEventTime(event) {
     // Start playing from this point
     videoPlayer.play().catch(e => console.error("Error playing video:", e));
 
-    // Highlight the event in the timeline
-    highlightTimelineEvent(event.id);
+    // Highlight the event in the timeline (fallback if id is missing)
+    if (event.id) {
+        highlightTimelineEvent(event.id);
+    } else {
+        // Try to highlight by time if id is missing
+        const events = document.querySelectorAll('.timeline-event');
+        for (const el of events) {
+            if (el.textContent.includes(formatTime(event.timeMs))) {
+                el.classList.add('bg-blue-50', 'ring-2', 'ring-blue-500');
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                break;
+            }
+        }
+    }
+
+    // Show overlay with tag and description if in presentation mode
+    updatePresentationOverlay(event);
 
     // Show event details notification
     const eventType = formatEventTypeName(event.event);
     const eventTime = formatTime(event.timeMs);
     showNotification(`${eventType} at ${eventTime}`);
+}
+
+// Update the presentation overlay with tag and description
+function updatePresentationOverlay(event) {
+    const overlay = document.getElementById('presentation-overlay');
+    const tag = document.getElementById('presentation-tag');
+    const desc = document.getElementById('presentation-description');
+    if (!overlay || !tag || !desc) {
+        console.warn('Presentation overlay elements not found.');
+        return;
+    }
+
+    // Debug: Log event and mode
+    console.log('updatePresentationOverlay called', { presentationModeActive, event });
+
+    // Only show overlay in presentation mode
+    if (presentationModeActive && event) {
+        tag.textContent = formatEventTypeName(event.event);
+        desc.textContent = event.note || '';
+        overlay.classList.remove('hidden');
+    } else {
+        overlay.classList.add('hidden');
+    }
 }
 
 // Highlight the current event in the timeline
