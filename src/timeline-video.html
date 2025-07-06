@@ -221,7 +221,7 @@
                 </div> <!-- Right Pane: Video Player -->
 
                 <section id="video-container"
-                    class="w-full md:w-2/3 lg:w-3/4 h-1/2 md:h-full bg-gray-900 flex flex-col items-center justify-center p-6 border border-gray-200 rounded-lg shadow-sm">
+                    class="w-full md:w-2/3 lg:w-3/4 h-1/2 md:h-full bg-gray-900 flex flex-col items-center justify-center p-6 border border-gray-200 rounded-lg shadow-sm relative">
                     <div class="w-full flex justify-end mb-4">
                         <!-- Video navigation controls to move forward or backwards by 10 seconds -->
                         <div class="flex items-center mr-auto space-x-3">
@@ -300,6 +300,63 @@
                         <!-- Fallback text for browsers that don't support the video tag -->
                         Your browser does not support the video tag.
                     </video>
+
+                    <!-- Floating Action Button (FAB) for adding/tagging new events -->
+                    <button id="add-event-fab" type="button"
+                        class="fixed md:absolute bottom-8 right-8 z-30 bg-blue-600 bg-opacity-80 hover:bg-blue-700 hover:bg-opacity-100 text-white rounded-full shadow-lg p-4 flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hidden"
+                        aria-label="Add new event">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+
+                    <!-- Modal for adding a new event -->
+                    <div id="add-event-modal"
+                        class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-40 hidden"
+                        role="dialog" aria-modal="true" aria-labelledby="add-event-modal-title">
+                        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative">
+                            <h2 id="add-event-modal-title" class="text-lg font-semibold mb-4 text-gray-800">Add New
+                                Event</h2>
+                            <form id="add-event-form" class="space-y-4">
+                                <div>
+                                    <label for="event-type" class="block text-sm font-medium text-gray-700">Event
+                                        Type</label>
+                                    <input id="event-type" name="event-type" type="text" required autocomplete="off"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="e.g., Goal, Foul, Custom...">
+                                </div>
+                                <div>
+                                    <label for="event-note" class="block text-sm font-medium text-gray-700">Note <span
+                                            class="text-gray-400">(optional)</span></label>
+                                    <input id="event-note" name="event-note" type="text" autocomplete="off"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="Add details (optional)">
+                                </div>
+                                <div>
+                                    <label for="event-timestamp"
+                                        class="block text-sm font-medium text-gray-700">Timestamp</label>
+                                    <input id="event-timestamp" name="event-timestamp" type="text" readonly
+                                        class="mt-1 block w-full rounded-md border-gray-200 bg-gray-100 text-gray-700 text-sm cursor-not-allowed">
+                                </div>
+                                <div class="flex justify-end gap-2 mt-6">
+                                    <button type="button" id="cancel-add-event"
+                                        class="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Cancel</button>
+                                    <button type="submit"
+                                        class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition">Add
+                                        Event</button>
+                                </div>
+                            </form>
+                            <button type="button" id="close-add-event-modal"
+                                class="absolute top-2 right-2 text-gray-400 hover:text-gray-600" aria-label="Close">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
             </div>
 
         </div>
@@ -307,6 +364,33 @@
     </div>
 
     <!-- Link to your JavaScript file -->
+    <script type="module">
+        import './js/timeline-video.js';
+        // FAB show/hide logic
+        const fab = document.getElementById('add-event-fab');
+        const video = document.getElementById('video-player');
+        const gameSelector = document.getElementById('game-selector');
+
+        function updateFabVisibility() {
+            // Check if a video is loaded (has a source or file loaded)
+            const videoLoaded = video && (video.currentSrc || video.querySelector('source')) && video.readyState > 0;
+            // Check if a game is selected (not default)
+            const gameLoaded = gameSelector && gameSelector.value && gameSelector.value !== 'default';
+            if (videoLoaded && gameLoaded) {
+                fab.classList.remove('hidden');
+            } else {
+                fab.classList.add('hidden');
+            }
+        }
+
+        // Listen for video load
+        video.addEventListener('loadeddata', updateFabVisibility);
+        video.addEventListener('emptied', updateFabVisibility);
+        // Listen for game selection
+        gameSelector.addEventListener('change', updateFabVisibility);
+        // Also check on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', updateFabVisibility);
+    </script>
     <script type="module" src="js/timeline-video.js"></script>
 </body>
 

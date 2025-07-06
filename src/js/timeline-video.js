@@ -1,3 +1,118 @@
+// --- Game selection helpers for legacy event modal logic ---
+function getSelectedGameId() {
+    const sel = document.getElementById('game-selector');
+    return sel && sel.value !== 'default' ? sel.value : null;
+}
+
+function getCurrentGame() {
+    const games = getSavedGames();
+    const id = getSelectedGameId();
+    if (!games || typeof games !== 'object') return null;
+    return games[id] || null;
+}
+// --- Timeline Video: Add Event FAB, Modal, and Persistent Event Logic ---
+
+// Utility: Format milliseconds or seconds as mm:ss
+function formatTime(input) {
+    // Accept ms or seconds
+    let seconds = typeof input === 'number' ? input : 0;
+    if (seconds > 10000) seconds = Math.floor(seconds / 1000); // treat as ms if large
+    if (isNaN(seconds)) return '';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+// Utility: Parse mm:ss to seconds
+function parseTime(str) {
+    const [m, s] = str.split(':').map(Number);
+    return m * 60 + s;
+}
+
+
+// --- FAB and Add Event Modal Logic ---
+document.addEventListener('DOMContentLoaded', () => {
+    const fab = document.getElementById('add-event-fab');
+    const modal = document.getElementById('add-event-modal');
+    const closeBtn = document.getElementById('close-add-event-modal');
+    const cancelBtn = document.getElementById('cancel-add-event');
+    const form = document.getElementById('add-event-form');
+    const timestampInput = document.getElementById('event-timestamp');
+    const video = document.getElementById('video-player');
+
+    // Show modal and fill timestamp
+    function openModal() {
+        if (video && !video.paused) video.pause();
+        if (timestampInput && video) {
+            timestampInput.value = formatTime(video.currentTime);
+        }
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            const firstInput = form.querySelector('input:not([readonly])');
+            if (firstInput) firstInput.focus();
+        }, 100);
+    }
+
+    // Hide modal
+    function closeModal() {
+        modal.classList.add('hidden');
+        form.reset();
+    }
+
+    if (fab) {
+        fab.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal();
+        });
+    }
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+    });
+
+    // Handle add event form submit
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const type = form['event-type'].value.trim();
+            const note = form['event-note'].value.trim();
+            const ts = timestampInput.value;
+            const game = getCurrentGame();
+            if (!game) {
+                alert('No game selected. Please select a game to add events.');
+                return;
+            }
+            // Add event to game.events (create if missing)
+            if (!Array.isArray(game.events)) game.events = [];
+            game.events.push({ event: type, note, timestamp: ts, timeMs: parseTime(ts) * 1000 });
+            saveGame(game.id, game.events, game.metadata || {});
+            timelineEvents = game.events;
+            updateEventFilters();
+            renderTimelineEvents();
+            closeModal();
+        });
+    }
+
+    // Initial render of timeline events for selected game
+    function renderForSelectedGame() {
+        const game = getCurrentGame();
+        if (game && Array.isArray(game.events)) {
+            renderTimelineEvents(game.events);
+        } else {
+            renderTimelineEvents([]);
+        }
+    }
+
+    // Listen for game selection changes
+    const gameSelector = document.getElementById('game-selector');
+    if (gameSelector) {
+        gameSelector.addEventListener('change', renderForSelectedGame);
+    }
+
+    // On load, render events for selected game
+    renderForSelectedGame();
+});
 import { renderTimeline } from './timeline.js';
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
@@ -201,13 +316,6 @@ function highlightTimelineEvent(eventId) {
     }
 }
 
-// Format milliseconds time to MM:SS format
-function formatTime(ms) {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
 
 // Show all events (disable favorites filter)
 function showAllEvents() {
@@ -507,6 +615,9 @@ function getUniqueEventTypes(events) {
 
 // Format event type name for display
 function formatEventTypeName(eventType) {
+    if (!eventType || typeof eventType !== 'string') {
+        return '';
+    }
     // Handle snake_case
     if (eventType.includes('_')) {
         return eventType
@@ -530,7 +641,8 @@ function updateEventFilters() {
     if (timelineEvents.length === 0) return;
 
     // Get unique event types
-    const eventTypes = getUniqueEventTypes(timelineEvents);
+    let eventTypes = getUniqueEventTypes(timelineEvents);
+    eventTypes.sort((a, b) => formatEventTypeName(a).localeCompare(formatEventTypeName(b)));
 
     const filterContainer = document.getElementById('timeline-filters');
     if (!filterContainer) return;
