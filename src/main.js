@@ -1,4 +1,4 @@
-import { EventButtons, EventLog, GameState, Router } from './components/index.js';
+import { EventButtons, EventLog, GameState, Router, ChatConfigManager } from './components/index.js';
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility, showElement, hideElement } from './utils/domUtils.js';
@@ -160,6 +160,9 @@ function initializeApplication() {
 
     registerEventListeners();
     eventButtons.initialize(currentConfig);
+
+    // Initialize chat configuration manager
+    const chatConfigManager = new ChatConfigManager(configJsonInput, configMessage, eventButtons);
 
     const hasCurrentGame = stateService.getState('game.hasCurrentGame');
     updateNavbarVisibility(hasCurrentGame);

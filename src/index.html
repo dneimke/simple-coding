@@ -101,6 +101,10 @@
             <!-- Configuration View -->
             <div id="config-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure Event Buttons</h1>
+                <div class="flex mb-4 space-x-2">
+                    <button id="textConfigTabButton" class="tab-button tab-button-active">Text Editor</button>
+                    <button id="chatConfigTabButton" class="tab-button">Chat Interface</button>
+                </div>
                 <p class="mb-4 text-gray-600">
                     Edit the JSON below to define the button layout. Buttons defined in 'leftColumn' and 'rightColumn'
                     will
@@ -121,6 +125,52 @@
                 </div>
                 <p class="mt-4 text-sm text-gray-500">Configuration is saved in your browser's local storage. Changes
                     will be applied after saving.</p>
+            </div>
+
+            <!-- Chat Configuration View -->
+            <div id="chat-config-view" class="hidden">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure with Chat</h1>
+
+                <div id="chat-container" class="border rounded-lg h-96 flex flex-col">
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+
+                    <div class="border-t p-4 bg-gray-50">
+                        <form id="chat-form" class="flex space-x-2">
+                            <input type="text" id="chat-input"
+                                class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Ask me to help configure your event buttons...">
+                            <button type="submit"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                aria-label="Send message">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h2 class="text-lg font-medium mb-2">Suggested Phrases:</h2>
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            class="suggestion-chip bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-sm">Create
+                            a button for goal scored</button>
+                        <button class="suggestion-chip bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-sm">I
+                            need buttons for penalties</button>
+                        <button
+                            class="suggestion-chip bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-sm">Show me
+                            my current configuration</button>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-lg font-medium">Configuration Preview:</h2>
+                        <button id="applyConfigButton" class="event-button btn-green px-4 py-1">Apply Changes</button>
+                    </div>
+                    <div id="config-preview" class="border rounded-lg p-4 bg-gray-50 h-40 overflow-auto">
+                        <p class="text-gray-400 italic">Your configuration will appear here</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Log View -->

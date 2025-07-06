@@ -325,6 +325,7 @@ function loadGame(gameId) {
 
             // Update current events and render timeline
             timelineEvents = events;
+            updateEventFilters();
             renderTimelineEvents();
 
             // Update game selector to show current selection
@@ -479,11 +480,8 @@ function renderTimelineEvents(favoritesOnly = false) {
 
         console.log(`Timeline rendered with ${eventsToRender.length} events${favoritesOnly ? ' (favorites only)' : ''}`);
 
-        // Update filter buttons based on available event types
-        if (timelineEvents.length > 0) {
-            updateEventFilters();
-        } else {
-            // Hide filter container if no events
+        // Hide filter container if no events
+        if (timelineEvents.length === 0) {
             const filterContainer = document.getElementById('timeline-filters');
             if (filterContainer) {
                 filterContainer.classList.add('hidden');
@@ -546,7 +544,7 @@ function updateEventFilters() {
     const optionsContainer = document.getElementById('filter-options-container');
     const selectedFiltersText = document.getElementById('selected-filters-text');
     const selectedFiltersTags = document.getElementById('selected-filters-tags');
-    const applyButton = document.getElementById('apply-filters');
+    // No Apply Filters button in auto-apply mode
     const allCheckbox = document.getElementById('filter-option-all');
 
     // Clear any existing options (except the "All" option which is static)
@@ -573,44 +571,69 @@ function updateEventFilters() {
 
         // Make the entire div clickable
         optionWrapper.addEventListener('click', (e) => {
-            // Prevent label's native behavior
             if (e.target !== checkbox) {
                 e.preventDefault();
                 checkbox.checked = !checkbox.checked;
+            }
+        });
 
-                // If individual filter is checked, uncheck "All"
-                if (checkbox.checked && allCheckbox.checked) {
-                    allCheckbox.checked = false;
-                }
+        // Auto-apply filter on change, but keep dropdown open
+        checkbox.addEventListener('change', () => {
+            // If individual filter is checked, uncheck "All"
+            if (checkbox.checked && allCheckbox.checked) {
+                allCheckbox.checked = false;
+            }
 
-                // If no filters are selected, check "All"
-                const anyChecked = Array.from(optionsContainer.querySelectorAll('.filter-checkbox'))
-                    .some(cb => cb.checked);
-                if (!anyChecked && !allCheckbox.checked) {
+            // If no filters are selected, check "All"
+            const anyChecked = Array.from(optionsContainer.querySelectorAll('.filter-checkbox'))
+                .some(cb => cb.checked);
+            if (!anyChecked && !allCheckbox.checked) {
+                allCheckbox.checked = true;
+            }
+
+            // Gather selected filters
+            let selectedFilters = [];
+            if (allCheckbox.checked) {
+                selectedFilters = ['all'];
+            } else {
+                const checkedBoxes = document.querySelectorAll('#filter-options-container .filter-checkbox:checked');
+                selectedFilters = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-filter'));
+                if (selectedFilters.length === 0) {
+                    selectedFilters = ['all'];
                     allCheckbox.checked = true;
                 }
             }
+            updateSelectedFiltersDisplay(selectedFilters);
+            applyTimelineFilter(selectedFilters);
+            // Do NOT close the dropdown here; keep it open for multi-select
         });
 
         optionsContainer.appendChild(optionWrapper);
     });
 
-    // Toggle dropdown visibility
-    dropdownButton.addEventListener('click', () => {
-        const expanded = dropdownButton.getAttribute('aria-expanded') === 'true';
-        dropdownButton.setAttribute('aria-expanded', !expanded);
-        dropdownPanel.classList.toggle('hidden');
-    });
+    // Only add dropdown toggle listeners once
+    if (!dropdownButton._dropdownListenerAdded) {
+        dropdownButton.addEventListener('click', () => {
+            const expanded = dropdownButton.getAttribute('aria-expanded') === 'true';
+            dropdownButton.setAttribute('aria-expanded', !expanded);
+            dropdownPanel.classList.toggle('hidden');
+        });
+        dropdownButton._dropdownListenerAdded = true;
+    }
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!dropdownButton.contains(e.target) && !dropdownPanel.contains(e.target)) {
-            dropdownButton.setAttribute('aria-expanded', 'false');
-            dropdownPanel.classList.add('hidden');
-        }
-    });
+    if (!document._dropdownOutsideListenerAdded) {
+        document.addEventListener('click', (e) => {
+            const dropdownPanel = document.getElementById('filter-dropdown-panel');
+            const dropdownButton = document.getElementById('filter-dropdown-button');
+            if (!dropdownButton.contains(e.target) && !dropdownPanel.contains(e.target)) {
+                dropdownButton.setAttribute('aria-expanded', 'false');
+                dropdownPanel.classList.add('hidden');
+            }
+        });
+        document._dropdownOutsideListenerAdded = true;
+    }
 
-    // Handle "All" checkbox behavior
+    // Handle "All" checkbox behavior (auto-apply)
     allCheckbox.addEventListener('change', () => {
         if (allCheckbox.checked) {
             // If "All" is checked, uncheck individual filters
@@ -618,37 +641,12 @@ function updateEventFilters() {
             individualCheckboxes.forEach(cb => {
                 cb.checked = false;
             });
+            updateSelectedFiltersDisplay(['all']);
+            applyTimelineFilter(['all']);
         }
     });
 
-    // Apply filters button
-    applyButton.addEventListener('click', () => {
-        // Get selected filters
-        let selectedFilters = [];
-
-        if (allCheckbox.checked) {
-            selectedFilters = ['all'];
-        } else {
-            const checkedBoxes = document.querySelectorAll('#filter-options-container .filter-checkbox:checked');
-            selectedFilters = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-filter'));
-
-            // If nothing is selected, default to "all"
-            if (selectedFilters.length === 0) {
-                selectedFilters = ['all'];
-                allCheckbox.checked = true;
-            }
-        }
-
-        // Update the display text and tags
-        updateSelectedFiltersDisplay(selectedFilters);
-
-        // Apply the filter
-        applyTimelineFilter(selectedFilters);
-
-        // Close dropdown
-        dropdownButton.setAttribute('aria-expanded', 'false');
-        dropdownPanel.classList.add('hidden');
-    });
+    // No Apply Filters button in auto-apply mode
 
     // Initialize with "All" selected
     updateSelectedFiltersDisplay(['all']);
