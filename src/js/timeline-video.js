@@ -1,3 +1,7 @@
+// Helper to generate a unique event id
+function generateEventId() {
+    return 'evt-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
+}
 // --- Game selection helpers for legacy event modal logic ---
 function getSelectedGameId() {
     const sel = document.getElementById('game-selector');
@@ -83,10 +87,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('No game selected. Please select a game to add events.');
                 return;
             }
+
             // Add event to game.events (create if missing)
             if (!Array.isArray(game.events)) game.events = [];
-            game.events.push({ event: type, note, timestamp: ts, timeMs: parseTime(ts) * 1000 });
-            saveGame(game.id, game.events, game.metadata || {});
+            game.events.push({
+                event: type,
+                note,
+                timestamp: ts,
+                timeMs: parseTime(ts) * 1000,
+                id: generateEventId()
+            });
+            // Always preserve teams and all metadata
+            const metadata = (game && game.metadata) ? { ...game.metadata } : {};
+
+            saveGame(game.id, game.events, metadata);
+
+            const savedGames = getSavedGames();
+            if (game.teams) {
+                if (savedGames[game.id]) {
+                    savedGames[game.id].teams = game.teams;
+                    storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+                }
+            }
             timelineEvents = game.events;
             updateEventFilters();
             renderTimelineEvents();
@@ -479,15 +501,22 @@ function loadGame(gameId) {
             const events = savedGames[gameId].events;
             const game = savedGames[gameId];
 
-            // Ensure each event has an id and isFavorite property
-            events.forEach((evt, index) => {
+
+            // Ensure each event has a unique id and isFavorite property
+            let needsResave = false;
+            events.forEach((evt) => {
                 if (!evt.id) {
-                    evt.id = `event-${index}`;
+                    evt.id = generateEventId();
+                    needsResave = true;
                 }
                 if (evt.isFavorite === undefined) {
                     evt.isFavorite = false;
                 }
             });
+            // If any ids were added, persist the update
+            if (needsResave) {
+                saveGame(gameId, events, savedGames[gameId].metadata);
+            }
 
             // Store current game ID
             currentGameId = gameId;
@@ -523,6 +552,26 @@ function loadGame(gameId) {
 
 
 let timelineEvents = [];
+
+// Delete event by id, update storage, re-render, and notify
+function deleteEvent(eventId) {
+    if (!currentGameId) return;
+    const savedGames = getSavedGames();
+    const game = savedGames[currentGameId];
+    if (!game || !Array.isArray(game.events)) return;
+    const idx = game.events.findIndex(e => e.id === eventId);
+    if (idx === -1) return;
+    if (!window.confirm('Are you sure you want to delete this event? This cannot be undone.')) return;
+    game.events.splice(idx, 1);
+    // Ensure teams property is preserved when saving
+    const metadata = { ...game.metadata, teams: game.teams };
+    saveGame(game.id, game.events, metadata);
+    timelineEvents = game.events;
+    const showFavoritesBtn = document.getElementById('show-favorites');
+    const isFavoritesMode = showFavoritesBtn && showFavoritesBtn.classList.contains('bg-blue-500');
+    renderTimelineEvents(isFavoritesMode);
+    showNotification('Event deleted', 'info');
+}
 
 // Render timeline with current events (sorted with earliest events at the top)
 function renderTimelineEvents(favoritesOnly = false) {
@@ -585,9 +634,9 @@ function renderTimelineEvents(favoritesOnly = false) {
         // Sort events by time (earliest first)
         eventsToRender.sort((a, b) => a.timeMs - b.timeMs);
 
+
         // Create events in timeline
         eventsToRender.forEach((event, index) => {
-            // Create event element
             const eventElement = document.createElement('div');
             eventElement.classList.add(
                 'timeline-event',
@@ -608,29 +657,34 @@ function renderTimelineEvents(favoritesOnly = false) {
 
             // Format time from milliseconds to MM:SS
             const timeFormatted = formatTime(event.timeMs);
-
-            // Determine if this event is a favorite
             const isFavorite = !!event.isFavorite;
 
-            // Create event content
+            // Add delete button (trash icon)
             eventElement.innerHTML = `
                 <div class="flex-grow">
                     <span class="text-xs text-gray-500">${timeFormatted}</span>
                     <p class="font-medium">${formatEventTypeName(event.event)}</p>
                 </div>
-                <button class="favorite-toggle p-1 focus:outline-none ${isFavorite ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'}"
+                <div class="flex items-center gap-2">
+                    <button class="favorite-toggle p-1 focus:outline-none ${isFavorite ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'}"
                         data-event-id="${eventElement.dataset.eventId}"
                         aria-label="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" ${isFavorite ? 'fill="currentColor"' : 'fill="none"'} viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                    </svg>
-                </button>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" ${isFavorite ? 'fill=\"currentColor\"' : 'fill=\"none\"'} viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                    </button>
+                    <button class="delete-event-btn p-1 text-gray-400 hover:text-red-600 focus:outline-none" data-event-id="${eventElement.dataset.eventId}" aria-label="Delete event">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             `;
 
             // Add event listener to jump to this time in video
             eventElement.addEventListener('click', (e) => {
-                // Don't trigger when clicking favorite button
-                if (!e.target.closest('.favorite-toggle')) {
+                // Don't trigger when clicking favorite or delete button
+                if (!e.target.closest('.favorite-toggle') && !e.target.closest('.delete-event-btn')) {
                     const timeMs = event.timeMs;
                     jumpToVideoTime(timeMs);
                     highlightTimelineEvent(eventElement.dataset.eventId);
@@ -644,8 +698,16 @@ function renderTimelineEvents(favoritesOnly = false) {
                 toggleFavorite(eventElement.dataset.eventId);
             });
 
+            // Add event listener for delete button
+            const deleteBtn = eventElement.querySelector('.delete-event-btn');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteEvent(eventElement.dataset.eventId);
+            });
+
             timelineContainer.appendChild(eventElement);
         });
+
 
         console.log(`Timeline rendered with ${eventsToRender.length} events${favoritesOnly ? ' (favorites only)' : ''}`);
 
