@@ -144,19 +144,26 @@ export const validateXmlStructure = (xmlContent) => {
     const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
 
     if (eventNodes.length > 0) {
-        // New format validation
+        // New format validation (relaxed: skip invalid events, don't throw)
+        let validEventFound = false;
         eventNodes.forEach(node => {
             const eventName = node.getAttribute('event');
             const timeMs = node.getAttribute('timeMs');
 
             if (!eventName || !timeMs) {
-                throw new Error('Invalid event data in XML. Missing event name or time.');
+                // skip invalid event
+                return;
             }
 
             if (isNaN(parseInt(timeMs, 10))) {
-                throw new Error('Invalid time value in XML.');
+                // skip invalid event
+                return;
             }
+            validEventFound = true;
         });
+        if (!validEventFound) {
+            throw new Error('No valid events found in XML.');
+        }
     } else {
         // Legacy format validation (<instance> elements)
         const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
