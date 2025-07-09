@@ -1034,11 +1034,26 @@ function toggleFavorite(eventId) {
         saveGame(currentGameId, timelineEvents);
     }
 
-    // Re-render UI (maintaining current filter state)
+    // --- Maintain current filter state after toggling favorite ---
+    // Determine if we are in favorites mode
     const showFavoritesBtn = document.getElementById('show-favorites');
-    const isFavoritesMode = showFavoritesBtn.classList.contains('bg-blue-500');
+    const isFavoritesMode = showFavoritesBtn && showFavoritesBtn.classList.contains('bg-blue-500');
 
-    renderTimelineEvents(isFavoritesMode);
+    // Get current filter selection from the filter UI
+    // (selected event types, or 'all')
+    let selectedFilters = ['all'];
+    const allCheckbox = document.getElementById('filter-option-all');
+    if (allCheckbox && !allCheckbox.checked) {
+        // Gather checked event type filters
+        const checkedBoxes = document.querySelectorAll('#filter-options-container .filter-checkbox:checked');
+        selectedFilters = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-filter'));
+        if (selectedFilters.length === 0) {
+            selectedFilters = ['all'];
+        }
+    }
+
+    // Re-apply the current filter (and favorites mode) to keep UI and list in sync
+    applyTimelineFilter(selectedFilters);
 
     // Show confirmation
     if (event.isFavorite) {
