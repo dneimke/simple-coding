@@ -1029,9 +1029,14 @@ function toggleFavorite(eventId) {
     // Toggle favorite status
     event.isFavorite = !event.isFavorite;
 
-    // Save changes to localStorage
+    // Save changes to localStorage, preserving teams/game name
     if (currentGameId) {
-        saveGame(currentGameId, timelineEvents);
+        // Get the current game object from storage to access metadata and teams
+        const savedGames = getSavedGames();
+        const game = savedGames[currentGameId];
+        // Compose metadata with teams to ensure game name is preserved
+        const metadata = game ? { ...game.metadata, teams: game.teams } : {};
+        saveGame(currentGameId, timelineEvents, metadata);
     }
 
     // --- Maintain current filter state after toggling favorite ---
