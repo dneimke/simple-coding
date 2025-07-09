@@ -157,7 +157,10 @@ export const createGameCard = ({
                     `Invalid events may be missing required fields or have invalid data.\n` +
                     `Do you want to proceed with the export?`
                 );
-                if (!proceed) return;
+                if (!proceed) {
+                    // Explicitly abort export and do not trigger download or toast
+                    return;
+                }
             }
 
             // Generate XML content using the utility function
