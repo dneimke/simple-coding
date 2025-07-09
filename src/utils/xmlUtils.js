@@ -196,18 +196,7 @@ export const generateGameXml = (game, gameTitle) => {
     const gameDate = dateObj.toISOString().split('T')[0];
     const gameTeams = game.teams || `Game ${gameTitle}`;
 
-    // Validate events before export
-    const invalidEvents = (game.events || []).filter(event => {
-        // event.event must be a non-empty string, timeMs must be a finite number
-        return !event || typeof event.event !== 'string' || !event.event.trim() || typeof event.timeMs !== 'number' || !isFinite(event.timeMs);
-    });
-    if (invalidEvents.length > 0) {
-        notificationService.notify(
-            `Export aborted: ${invalidEvents.length} invalid event(s) found. Each event must have a valid name and time. Please review your event log before exporting.`,
-            'warning'
-        );
-        return null;
-    }
+    // No longer block or notify on invalid events; allow export (UI handles confirmation)
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <game date="${gameDate}" teams="${escapeXml(gameTeams)}">
