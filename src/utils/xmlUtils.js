@@ -161,7 +161,14 @@ export const validateXmlStructure = (xmlContent) => {
  * @returns {string} Complete XML representation of the game
  */
 export const generateGameXml = (game, gameTitle) => {
-    const gameDate = new Date(game.timestamp).toISOString().split('T')[0];
+    // Helper to check if a date is valid
+    const isValidDate = (d) => d instanceof Date && !isNaN(d);
+    let dateObj = new Date(game.timestamp);
+    if (!isValidDate(dateObj)) {
+        // Fallback: use today, or you could use '' if you want blank
+        dateObj = new Date();
+    }
+    const gameDate = dateObj.toISOString().split('T')[0];
     const gameTeams = game.teams || `Game ${gameTitle}`;
 
     return `<?xml version="1.0" encoding="UTF-8"?>
