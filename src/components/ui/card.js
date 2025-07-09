@@ -145,8 +145,20 @@ export const createGameCard = ({
         text: 'Export XML',
         type: 'secondary',
         className: 'px-4 py-2 text-sm ml-2',
-        onClick: (e) => {            // Prevent event bubbling
+        onClick: (e) => {
             e.stopPropagation();
+
+            // Check for invalid events before exporting
+            const invalidEvents = getInvalidEvents(game);
+            if (invalidEvents.length > 0) {
+                // Show a confirmation dialog
+                const proceed = window.confirm(
+                    `Warning: This game has ${invalidEvents.length} invalid event(s).\n` +
+                    `Invalid events may be missing required fields or have invalid data.\n` +
+                    `Do you want to proceed with the export?`
+                );
+                if (!proceed) return;
+            }
 
             // Generate XML content using the utility function
             const xmlContent = generateGameXml(game, index + 1);
