@@ -3,7 +3,7 @@
  * @module components/ui/card
  */
 import { createButton } from './button.js';
-import { generateGameXml } from '../../utils/xmlUtils.js';
+import { generateGameXml, getInvalidEvents } from '../../utils/xmlUtils.js';
 
 /**
  * Creates a basic card container with Tailwind styling
@@ -96,10 +96,39 @@ export const createGameCard = ({
     const gameDetails = document.createElement('div');
     gameDetails.className = 'saved-game-details flex-grow';
 
-    // Game title
+
+    // Game title row (with warning if invalid events)
+    const gameTitleRow = document.createElement('div');
+    gameTitleRow.className = 'flex items-center';
+
     const gameTitle = document.createElement('h3');
     gameTitle.className = 'text-lg font-bold text-gray-800';
     gameTitle.textContent = game.teams ? game.teams : `Game ${index + 1}`;
+    gameTitleRow.appendChild(gameTitle);
+
+    // Check for invalid events
+    const invalidEvents = getInvalidEvents(game);
+    if (invalidEvents.length > 0) {
+        // Warning icon
+        const warningIcon = document.createElement('span');
+        warningIcon.className = 'ml-2 text-amber-600';
+        warningIcon.title = 'This game has invalid events';
+        warningIcon.setAttribute('aria-label', 'Warning');
+        warningIcon.setAttribute('role', 'img');
+        warningIcon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+        gameTitleRow.appendChild(warningIcon);
+
+        // View Issues button
+        const viewIssuesBtn = document.createElement('button');
+        viewIssuesBtn.className = 'ml-2 text-xs text-blue-600 underline focus:outline-none';
+        viewIssuesBtn.textContent = 'View Issues';
+        viewIssuesBtn.type = 'button';
+        viewIssuesBtn.onclick = (e) => {
+            e.stopPropagation();
+            showInvalidEventsModal(game, invalidEvents);
+        };
+        gameTitleRow.appendChild(viewIssuesBtn);
+    }
 
     // Timestamp
     const gameTimestamp = document.createElement('p');
@@ -111,7 +140,7 @@ export const createGameCard = ({
     eventCount.className = 'text-sm text-gray-600';
     eventCount.textContent = `Events: ${game.events.length}`;
 
-    gameDetails.append(gameTitle, gameTimestamp, eventCount);    // Create action buttons
+    gameDetails.append(gameTitleRow, gameTimestamp, eventCount);
     const exportButton = createButton({
         text: 'Export XML',
         type: 'secondary',
@@ -154,7 +183,41 @@ export const createGameCard = ({
         className: 'px-4 py-2 text-sm ml-2',
         onClick: onDelete
     });    // Add all elements to card
+
     gameCard.append(icon, gameDetails, exportButton, renameButton, deleteButton);
+
+    // Modal for invalid events (one per page, reused)
+    if (!document.getElementById('invalid-events-modal')) {
+        const modal = document.createElement('div');
+        modal.id = 'invalid-events-modal';
+        modal.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 max-w-lg w-full">
+                <h2 class="text-xl font-bold mb-4">Invalid Events</h2>
+                <div id="invalid-events-list" class="max-h-60 overflow-y-auto mb-4"></div>
+                <div class="flex justify-end">
+                    <button id="closeInvalidEventsModal" class="event-button btn-blue px-4 py-2">Close</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        document.getElementById('closeInvalidEventsModal').onclick = () => {
+            modal.classList.add('hidden');
+        };
+    }
+
+    // Helper to show the modal with details
+    function showInvalidEventsModal(game, invalidEvents) {
+        const modal = document.getElementById('invalid-events-modal');
+        const list = document.getElementById('invalid-events-list');
+        if (!modal || !list) return;
+        list.innerHTML = invalidEvents.map(({ event, idx }) => {
+            const eventName = event && typeof event.event === 'string' ? event.event : '<span class="text-red-600">(missing name)</span>';
+            const time = (event && typeof event.timeMs === 'number' && isFinite(event.timeMs)) ? event.timeMs : '<span class="text-red-600">(invalid time)</span>';
+            return `<div class="mb-2 p-2 bg-red-50 rounded"><strong>Event #${idx + 1}:</strong> Name: ${eventName}, Time: ${time}</div>`;
+        }).join('');
+        modal.classList.remove('hidden');
+    }
 
     return gameCard;
 };

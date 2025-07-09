@@ -1,3 +1,23 @@
+/**
+ * Returns an array of invalid events for a given game object.
+ * An event is invalid if it is missing a non-empty event name or a valid timeMs.
+ * @param {Object} game - Game data object containing events
+ * @returns {Array} Array of invalid event objects (with their index in the original array)
+ */
+export const getInvalidEvents = (game) => {
+    if (!game || !Array.isArray(game.events)) return [];
+    return game.events
+        .map((event, idx) => ({ event, idx }))
+        .filter(({ event }) => {
+            return (
+                !event ||
+                typeof event.event !== 'string' ||
+                !event.event.trim() ||
+                typeof event.timeMs !== 'number' ||
+                !isFinite(event.timeMs)
+            );
+        });
+};
 // XML utility functions
 import { escapeXml, logger } from './formatUtils.js';
 import { notificationService } from '../services/notificationService.js';
@@ -62,12 +82,17 @@ export const parseXmlToEvents = (xmlContent) => {
         events = eventNodes.map(node => {
             const eventName = node.getAttribute('event');
             const timeMs = node.getAttribute('timeMs');
-
+            // Read the 'favourite' attribute (optional)
+            const favouriteAttr = node.getAttribute('favourite');
             if (eventName && timeMs) {
-                return {
+                const eventObj = {
                     event: eventName,
                     timeMs: parseInt(timeMs, 10)
                 };
+                if (favouriteAttr === 'true') {
+                    eventObj.favourite = true;
+                }
+                return eventObj;
             }
             return null;
         }).filter(Boolean);
@@ -171,10 +196,27 @@ export const generateGameXml = (game, gameTitle) => {
     const gameDate = dateObj.toISOString().split('T')[0];
     const gameTeams = game.teams || `Game ${gameTitle}`;
 
+    // Validate events before export
+    const invalidEvents = (game.events || []).filter(event => {
+        // event.event must be a non-empty string, timeMs must be a finite number
+        return !event || typeof event.event !== 'string' || !event.event.trim() || typeof event.timeMs !== 'number' || !isFinite(event.timeMs);
+    });
+    if (invalidEvents.length > 0) {
+        notificationService.notify(
+            `Export aborted: ${invalidEvents.length} invalid event(s) found. Each event must have a valid name and time. Please review your event log before exporting.`,
+            'warning'
+        );
+        return null;
+    }
+
     return `<?xml version="1.0" encoding="UTF-8"?>
 <game date="${gameDate}" teams="${escapeXml(gameTeams)}">
     <events>
-${game.events.map(event => `        <event event="${escapeXml(event.event)}" timeMs="${event.timeMs}" />`).join('\n')}
+${game.events.map(event => {
+        // Add favourite attribute only if true
+        const favouriteAttr = event.favourite ? ' favourite="true"' : '';
+        return `        <event event="${escapeXml(event.event)}" timeMs="${event.timeMs}"${favouriteAttr} />`;
+    }).join('\n')}
     </events>
 </game>`;
 };
