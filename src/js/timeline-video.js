@@ -457,32 +457,41 @@ function getSavedGames() {
 }
 
 function saveGame(gameId, events, metadata = {}) {
-    const savedGames = getSavedGames();
+    const savedGames = getSavedGames() || {};
 
     // Ensure all events are in standard format (event, timeMs)
-    const standardEvents = events.map(evt => {
-        // Keep only the standard properties
-        return {
-            event: evt.event,
-            timeMs: evt.timeMs,
-            id: evt.id,
-            isFavorite: evt.isFavorite || false // Ensure favorite status is preserved
-        };
-    });
+    const standardEvents = events.map(evt => ({
+        event: evt.event,
+        timeMs: evt.timeMs,
+        id: evt.id,
+        isFavorite: evt.isFavorite || false
+    }));
 
-    // Extract teams name from metadata if available
-    const teamsName = metadata.teams || null;
+    // Preserve existing entry fields (timestamp, teams, metadata) when possible
+    const existing = savedGames[gameId] || {};
+    const existingTeams = existing.teams || (existing.metadata && existing.metadata.teams) || null;
+    const existingTimestamp = existing.timestamp || (existing.metadata && existing.metadata.timestamp) || null;
 
-    // Create or update game in the saved games object
+    const teamsName = metadata.teams ?? existingTeams ?? null;
+    const timestamp = existingTimestamp ?? new Date().toISOString();
+
+    // Merge metadata, preferring incoming metadata but keeping existing metadata where absent
+    const mergedMetadata = {
+        ...(existing.metadata || {}),
+        ...metadata,
+        lastUpdated: new Date().toISOString()
+    };
+
+    // Create or update game in the saved games object, keeping top-level timestamp for compatibility
     savedGames[gameId] = {
         id: gameId,
         events: standardEvents,
         teams: teamsName,
-        metadata: {
-            ...metadata,
-            lastUpdated: new Date().toISOString()
-        }
-    };// Save to localStorage using storage service
+        timestamp,
+        metadata: mergedMetadata
+    };
+
+    // Save to localStorage using storage service
     const result = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
     if (result === true) {
         return true;
