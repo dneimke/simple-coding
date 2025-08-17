@@ -176,14 +176,17 @@ function registerEventListeners() {
 
         const tab = button.dataset.tab;
         router.switchTab(tab);
-    }); navContainer.addEventListener('click', (event) => {
-        // Only process clicks on elements with IDs that start with 'nav'
-        if (!event.target.id || !event.target.id.startsWith('nav')) {
+    });
+
+    navContainer.addEventListener('click', (event) => {
+        // Find the closest ancestor with an id starting with 'nav'
+        const navButton = event.target.closest('[id^="nav"]');
+        if (!navButton) {
             return;
         }
 
         // Extract the view name from the button ID
-        const viewName = event.target.id.slice(3);
+        const viewName = navButton.id.slice(3);
 
         // Use the router to navigate, which will now update the hash
         router.showView(viewName, () => {

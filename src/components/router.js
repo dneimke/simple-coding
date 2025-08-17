@@ -121,7 +121,9 @@ export class Router {
 
     switchTab = (tabToShow) => {
         stateService.setState('ui.currentTab', tabToShow);
-    };    /**
+    };
+
+    /**
      * Handle view change from state service
      * @param {string} viewName - New view name
      * @private
