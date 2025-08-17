@@ -20,6 +20,8 @@ ${game.events.map(event => `        <event event="${event.event}" timeMs="${even
     </events>
 </game>`;
     })
+    ,
+    getInvalidEvents: jest.fn((game) => [])
 }));
 
 // Mock button creation function
@@ -43,6 +45,19 @@ beforeAll(() => {
             click: jest.fn()
         };
         return element;
+    });
+
+    // Mock getElementById to return a simple element object for modal controls
+    document.getElementById = jest.fn().mockImplementation((id) => {
+        return {
+            id,
+            onclick: null,
+            classList: {
+                add: jest.fn(),
+                remove: jest.fn()
+            },
+            innerHTML: ''
+        };
     });
 
     // Set up mock implementation for button

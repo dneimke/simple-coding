@@ -11,8 +11,8 @@ function getSelectedGameId() {
 function getCurrentGame() {
     const games = getSavedGames();
     const id = getSelectedGameId();
-    if (!games || typeof games !== 'object') return null;
-    return games[id] || null;
+    if (!Array.isArray(games)) return null;
+    return games.find(g => g.id === id) || null;
 }
 // --- Timeline Video: Add Event FAB, Modal, and Persistent Event Logic ---
 
@@ -104,8 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const savedGames = getSavedGames();
             if (game.teams) {
-                if (savedGames[game.id]) {
-                    savedGames[game.id].teams = game.teams;
+                const { game: existing, index } = findGameById(savedGames, game.id);
+                if (existing) {
+                    // update teams and persist
+                    existing.teams = game.teams;
+                    savedGames[index] = existing;
                     storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
                 }
             }
@@ -151,6 +154,52 @@ import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
+// Helper: normalize whatever is stored into an array of game objects
+// Generate a stable-ish game id when missing
+function generateGameId() {
+    return 'game-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
+}
+
+// Helper: normalize whatever is stored into an array of game objects
+// Returns an object { games, changed } where changed=true if we assigned ids or converted shape
+function normalizeSavedGamesToArray(raw) {
+    if (!raw) return { games: [], changed: false };
+    // If it's already an array, ensure each entry has an id
+    if (Array.isArray(raw)) {
+        let changed = false;
+        const mapped = raw.map(entry => {
+            if (!entry) return entry;
+            if (!entry.id) {
+                entry.id = generateGameId();
+                changed = true;
+            }
+            return entry;
+        });
+        return { games: mapped, changed };
+    }
+    // If it's an object keyed by id, map to array
+    if (typeof raw === 'object') {
+        try {
+            const mapped = Object.keys(raw).map(id => {
+                const entry = raw[id] || {};
+                // ensure id property exists on the entry as well
+                if (!entry.id) entry.id = id;
+                return { id, ...entry };
+            });
+            return { games: mapped, changed: true };
+        } catch (e) {
+            console.warn('Could not normalize saved games object to array', e);
+            return { games: [], changed: false };
+        }
+    }
+    return { games: [], changed: false };
+}
+
+function findGameById(gamesArray, gameId) {
+    if (!Array.isArray(gamesArray)) return { game: null, index: -1 };
+    const index = gamesArray.findIndex(g => g && g.id === gameId);
+    return { game: index >= 0 ? gamesArray[index] : null, index };
+}
 
 // Initialize navigation functionality
 document.addEventListener('DOMContentLoaded', () => {
@@ -448,16 +497,23 @@ function showNotification(message, type = 'success') {
 // Game management functions
 function getSavedGames() {
     const storedGames = storageService.getItem(LOCAL_STORAGE_KEY_GAMES);
-    if (storedGames) {
-        return storedGames; // Already parsed by storageService
-    } else {
-        console.error("No saved games found");
-        return {};
+    const { games: normalized, changed } = normalizeSavedGamesToArray(storedGames);
+    if (!normalized || normalized.length === 0) return [];
+
+    // If normalization assigned ids or transformed object shape, persist the updated array
+    if (changed) {
+        try {
+            storageService.setItem(LOCAL_STORAGE_KEY_GAMES, normalized);
+        } catch (e) {
+            console.warn('Failed to persist normalized saved games', e);
+        }
     }
+
+    return normalized;
 }
 
 function saveGame(gameId, events, metadata = {}) {
-    const savedGames = getSavedGames() || {};
+    const savedGames = getSavedGames() || [];
 
     // Ensure all events are in standard format (event, timeMs)
     const standardEvents = events.map(evt => ({
@@ -468,9 +524,9 @@ function saveGame(gameId, events, metadata = {}) {
     }));
 
     // Preserve existing entry fields (timestamp, teams, metadata) when possible
-    const existing = savedGames[gameId] || {};
-    const existingTeams = existing.teams || (existing.metadata && existing.metadata.teams) || null;
-    const existingTimestamp = existing.timestamp || (existing.metadata && existing.metadata.timestamp) || null;
+    const { game: existing, index } = findGameById(savedGames, gameId);
+    const existingTeams = (existing && (existing.teams || (existing.metadata && existing.metadata.teams))) || null;
+    const existingTimestamp = (existing && (existing.timestamp || (existing.metadata && existing.metadata.timestamp))) || null;
 
     const teamsName = metadata.teams ?? existingTeams ?? null;
     const timestamp = existingTimestamp ?? new Date().toISOString();
@@ -483,13 +539,19 @@ function saveGame(gameId, events, metadata = {}) {
     };
 
     // Create or update game in the saved games object, keeping top-level timestamp for compatibility
-    savedGames[gameId] = {
+    const mergedGame = {
         id: gameId,
         events: standardEvents,
         teams: teamsName,
         timestamp,
         metadata: mergedMetadata
     };
+
+    if (index >= 0) {
+        savedGames[index] = mergedGame;
+    } else {
+        savedGames.unshift(mergedGame);
+    }
 
     // Save to localStorage using storage service
     const result = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
@@ -504,11 +566,12 @@ function saveGame(gameId, events, metadata = {}) {
 
 function loadGame(gameId) {
     const savedGames = getSavedGames();
-    if (savedGames[gameId]) {
+    const { game: foundGame } = findGameById(savedGames, gameId);
+    if (foundGame) {
         try {
             // Get events from the saved game
-            const events = savedGames[gameId].events;
-            const game = savedGames[gameId];
+            const events = foundGame.events;
+            const game = foundGame;
 
 
             // Ensure each event has a unique id and isFavorite property
@@ -524,7 +587,7 @@ function loadGame(gameId) {
             });
             // If any ids were added, persist the update
             if (needsResave) {
-                saveGame(gameId, events, savedGames[gameId].metadata);
+                saveGame(gameId, events, game.metadata);
             }
 
             // Store current game ID
@@ -566,7 +629,7 @@ let timelineEvents = [];
 function deleteEvent(eventId) {
     if (!currentGameId) return;
     const savedGames = getSavedGames();
-    const game = savedGames[currentGameId];
+    const { game } = findGameById(savedGames, currentGameId);
     if (!game || !Array.isArray(game.events)) return;
     const idx = game.events.findIndex(e => e.id === eventId);
     if (idx === -1) return;
@@ -1042,7 +1105,7 @@ function toggleFavorite(eventId) {
     if (currentGameId) {
         // Get the current game object from storage to access metadata and teams
         const savedGames = getSavedGames();
-        const game = savedGames[currentGameId];
+        const { game } = findGameById(savedGames, currentGameId);
         // Compose metadata with teams to ensure game name is preserved
         const metadata = game ? { ...game.metadata, teams: game.teams } : {};
         saveGame(currentGameId, timelineEvents, metadata);
@@ -1216,7 +1279,7 @@ function populateGameSelector() {
 
     const savedGames = getSavedGames();
     const noGamesNotification = document.getElementById('no-games-notification');
-    const hasGames = Object.keys(savedGames).length > 0;
+    const hasGames = Array.isArray(savedGames) && savedGames.length > 0;
 
     // Show/hide the no games notification
     if (noGamesNotification) {
@@ -1241,18 +1304,31 @@ function populateGameSelector() {
         // Hide the no-games state
         toggleNoGamesState(false);
 
-        // Add each saved game as an option
-        Object.keys(savedGames).forEach(gameId => {
-            const game = savedGames[gameId];
-            const option = document.createElement('option');
-            option.value = gameId;
-
-            // Use teams attribute if available, otherwise use the gameId
-            if (game.teams) {
-                option.textContent = game.teams;
-            } else {
-                option.textContent = gameId;
+        // Add each saved game as an option (most recent first)
+        // Ensure every game has an id; if not, assign one and persist the list
+        let needsPersist = false;
+        const gamesToUse = savedGames.map(g => {
+            if (!g.id) {
+                g.id = generateGameId();
+                needsPersist = true;
             }
+            return g;
+        });
+
+        if (needsPersist) {
+            try {
+                storageService.setItem(LOCAL_STORAGE_KEY_GAMES, gamesToUse);
+            } catch (e) {
+                console.warn('Could not persist generated game ids', e);
+            }
+        }
+
+        gamesToUse.forEach(game => {
+            const option = document.createElement('option');
+            option.value = game.id;
+
+            // Use teams attribute if available, otherwise use the id
+            option.textContent = game.teams || game.id;
 
             gameSelector.appendChild(option);
         });
