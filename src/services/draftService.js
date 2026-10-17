@@ -18,7 +18,7 @@ export const draftService = {
 
     /**
      * Load the capture in progress. Drafts saved before team boards existed load with teams and activeZone null.
-     * @returns {{events: Array, elapsedTime: number, runningSince: number|null, teams: Array|null, activeZone: string|null, updatedAt: number|null}|null}
+     * @returns {{events: Array, elapsedTime: number, runningSince: number|null, teams: Array|null, activeZone: string|null, selectedTeam: number|null, updatedAt: number|null}|null}
      */
     loadDraft() {
         const draft = storageService.getItem(DRAFT_STORAGE_KEY);
@@ -30,6 +30,7 @@ export const draftService = {
             runningSince: typeof draft.runningSince === 'number' ? draft.runningSince : null,
             teams: isValidTeams(draft.teams) ? draft.teams : null,
             activeZone: typeof draft.activeZone === 'string' ? draft.activeZone : null,
+            selectedTeam: draft.selectedTeam === 1 || draft.selectedTeam === 2 ? draft.selectedTeam : null,
             updatedAt: typeof draft.updatedAt === 'number' ? draft.updatedAt : null
         };
     },
@@ -42,15 +43,17 @@ export const draftService = {
      * @param {number|null} draft.runningSince - Epoch ms the clock last started, or null when paused
      * @param {Array|null} [draft.teams] - Team 1 and Team 2 codes and colours for team boards
      * @param {string|null} [draft.activeZone] - Sticky zone from Team 1's perspective
+     * @param {number|null} [draft.selectedTeam] - Team slot picked for shared team buttons
      * @returns {boolean} True if the draft was written
      */
-    saveDraft({ events, elapsedTime, runningSince, teams = null, activeZone = null }) {
+    saveDraft({ events, elapsedTime, runningSince, teams = null, activeZone = null, selectedTeam = null }) {
         const result = storageService.setItem(DRAFT_STORAGE_KEY, {
             events,
             elapsedTime,
             runningSince,
             teams,
             activeZone,
+            selectedTeam,
             updatedAt: Date.now()
         });
 

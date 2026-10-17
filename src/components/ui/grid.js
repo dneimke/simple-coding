@@ -82,6 +82,8 @@ export const createButtonGrid = ({
         }
         if (team) {
             button.dataset.teamSlot = String(team.slot);
+            button.dataset.baseEvent = buttonConfig.event ?? '';
+            if (!buttonConfig.color) button.dataset.teamColored = 'true';
         }
         if (buttonConfig.zoned) {
             button.dataset.zoned = 'true';

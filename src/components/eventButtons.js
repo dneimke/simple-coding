@@ -11,6 +11,7 @@ export class EventButtons {
         this.config = null;
         this.teams = DEFAULT_TEAMS;
         this.zone = null;
+        this.selectedTeam = 1;
     }
 
     setState(gameState) {
@@ -32,8 +33,9 @@ export class EventButtons {
      * @param {Object} [options]
      * @param {Array<{code: string, color: string}>} [options.teams] - Team 1 and Team 2 for team-slot rows
      * @param {string} [options.zone] - Active zone from Team 1's perspective
+     * @param {number} [options.selectedTeam] - Team slot (1 or 2) picked on "selected" team rows
      */
-    initialize(config, { teams, zone } = {}) {
+    initialize(config, { teams, zone, selectedTeam } = {}) {
         // Use provided config, fall back to stored config, or log an error if neither exists
         const configToUse = config || this.config;
         if (!configToUse) {
@@ -47,6 +49,7 @@ export class EventButtons {
 
         const zones = configToUse.zones;
         this.zone = zones ? (zones.values.includes(zone) ? zone : zones.default ?? zones.values[0]) : null;
+        this.selectedTeam = selectedTeam === 2 ? 2 : 1;
 
         this.targetContainer.innerHTML = '';
 
@@ -65,7 +68,10 @@ export class EventButtons {
             groupContainer.className = 'group-container';
 
             const team = this._teamForRow(group);
-            if (team) {
+            if (group.team === 'selected') {
+                groupContainer.dataset.teamSelector = '';
+                groupContainer.appendChild(this._renderTeamToggle());
+            } else if (team) {
                 groupContainer.dataset.teamSlot = String(team.slot);
                 groupContainer.appendChild(this._renderTeamLabel(team));
             }
@@ -95,6 +101,7 @@ export class EventButtons {
             tag.dataset.zoneTag = '';
             button.appendChild(tag);
         });
+        this.setSelectedTeam(this.selectedTeam);
         if (zones) {
             this.setZone(this.zone);
         }
@@ -132,10 +139,66 @@ export class EventButtons {
         });
     }
 
+    /**
+     * Pick the team that buttons on "selected" team rows log for
+     * @param {number} slot - Team slot (1 or 2)
+     */
+    setSelectedTeam(slot) {
+        if (slot !== 1 && slot !== 2) return;
+        this.selectedTeam = slot;
+        const team = this._teamForSlot(slot);
+
+        this.targetContainer.querySelectorAll('[data-team-selector] .event-button[data-base-event]').forEach(button => {
+            button.dataset.event = `${team.code} ${button.dataset.baseEvent}`;
+            button.dataset.teamSlot = String(slot);
+            if (button.dataset.teamColored) {
+                this.teams.forEach(other => button.classList.remove(teamColorClass(other.color)));
+                button.classList.add(team.colorClass);
+            }
+        });
+
+        this.targetContainer.querySelectorAll('.team-toggle[data-team-select]').forEach(toggle => {
+            const isActive = Number(toggle.dataset.teamSelect) === slot;
+            const color = teamColorClass(this.teams[Number(toggle.dataset.teamSelect) - 1].color);
+            toggle.classList.toggle('is-active', isActive);
+            toggle.classList.toggle(color, isActive);
+            toggle.setAttribute('aria-pressed', String(isActive));
+        });
+
+        if (this.config?.zones && this.zone) this.setZone(this.zone);
+    }
+
+    _teamForSlot(slot) {
+        const team = this.teams[slot - 1];
+        return { slot, code: team.code, color: team.color, colorClass: teamColorClass(team.color) };
+    }
+
     _teamForRow(row) {
+        if (row?.team === 'selected') return this._teamForSlot(this.selectedTeam);
         if (row?.team !== 1 && row?.team !== 2) return null;
-        const team = this.teams[row.team - 1];
-        return { slot: row.team, code: team.code, color: team.color, colorClass: teamColorClass(team.color) };
+        return this._teamForSlot(row.team);
+    }
+
+    _renderTeamToggle() {
+        const header = document.createElement('div');
+        header.className = 'team-toggle-bar';
+
+        const label = document.createElement('span');
+        label.className = 'team-row-label';
+        label.textContent = 'TEAM';
+        header.appendChild(label);
+
+        this.teams.forEach((team, index) => {
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'team-toggle';
+            toggle.dataset.teamSelect = String(index + 1);
+            toggle.textContent = team.code;
+            toggle.setAttribute('aria-pressed', 'false');
+            header.appendChild(toggle);
+        });
+
+        return header;
     }
 
     _renderTeamLabel(team) {

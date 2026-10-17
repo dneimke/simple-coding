@@ -255,7 +255,8 @@ function renderBoard(config = loadConfiguration()) {
     const game = stateService.getState('game');
     eventButtons.initialize(config, {
         teams: game.teams ?? loadLastTeams(),
-        zone: game.activeZone ?? undefined
+        zone: game.activeZone ?? undefined,
+        selectedTeam: game.selectedTeam ?? undefined
     });
     eventButtons.setState(game);
 }
@@ -297,6 +298,14 @@ function selectZone(zone) {
     }
 }
 
+function selectTeam(slot) {
+    eventButtons.setSelectedTeam(slot);
+    if (stateService.getState('game.hasCurrentGame')) {
+        gameState.setSelectedTeam(slot);
+        saveCaptureDraft();
+    }
+}
+
 async function startNewGame() {
     const config = loadConfiguration();
     let teams = null;
@@ -308,7 +317,9 @@ async function startNewGame() {
     const zones = config.zones;
     const activeZone = zones ? (eventButtons.zone ?? zones.default ?? zones.values[0]) : null;
 
-    gameState.newGame({ teams, activeZone });
+    const selectedTeam = teams ? eventButtons.selectedTeam : null;
+
+    gameState.newGame({ teams, activeZone, selectedTeam });
     renderBoard(config);
     saveCaptureDraft();
     showCaptureControls();
@@ -485,6 +496,12 @@ function registerEventListeners() {
             return;
         }
 
+        const teamToggle = event.target.closest('.team-toggle[data-team-select]');
+        if (teamToggle) {
+            selectTeam(Number(teamToggle.dataset.teamSelect));
+            return;
+        }
+
         const button = event.target.closest('.event-button[data-event]');
         if (!button) return; // Ignore clicks on unrelated elements
 
@@ -539,12 +556,19 @@ function registerEventListeners() {
         renderBoardOptions();
     });
 
-    // Number keys pick the sticky zone (from Team 1's perspective)
+    // Number keys pick the sticky zone (from Team 1's perspective); T switches the team for shared team buttons
     document.addEventListener('keydown', (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (stateService.getState('ui.currentView') !== 'EventCapture') return;
         if (!teamSetupModal.classList.contains('hidden')) return;
         if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+
+        if (event.key === 't' || event.key === 'T') {
+            if (!codingButtonsContainer.querySelector('.team-toggle')) return;
+            event.preventDefault();
+            selectTeam(eventButtons.selectedTeam === 1 ? 2 : 1);
+            return;
+        }
 
         const zones = eventButtons.config?.zones;
         const index = Number(event.key) - 1;

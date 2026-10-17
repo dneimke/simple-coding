@@ -64,8 +64,9 @@ export class GameState {
      * @param {number|null} session.runningSince - Epoch ms the clock last started, or null when paused
      * @param {Array<{code: string, color: string}>|null} [session.teams] - Team 1 and Team 2 for team boards
      * @param {string|null} [session.activeZone] - Sticky zone from Team 1's perspective
+     * @param {number|null} [session.selectedTeam] - Team slot picked for shared team buttons
      */
-    restoreSession({ events, elapsedTime, runningSince, teams = null, activeZone = null }) {
+    restoreSession({ events, elapsedTime, runningSince, teams = null, activeZone = null, selectedTeam = null }) {
         this._stopTimerUpdate();
 
         const isRunning = typeof runningSince === 'number';
@@ -78,7 +79,8 @@ export class GameState {
             elapsedTime,
             loggedEvents: events,
             teams,
-            activeZone
+            activeZone,
+            selectedTeam
         });
 
         if (isRunning) {
@@ -99,7 +101,7 @@ export class GameState {
 
     /**
      * Snapshot of the capture in progress for the draft store
-     * @returns {{events: Array, elapsedTime: number, runningSince: number|null, teams: Array|null, activeZone: string|null}}
+     * @returns {{events: Array, elapsedTime: number, runningSince: number|null, teams: Array|null, activeZone: string|null, selectedTeam: number|null}}
      */
     getDraftSnapshot() {
         const gameState = stateService.getState('game');
@@ -108,7 +110,8 @@ export class GameState {
             elapsedTime: gameState.elapsedTime,
             runningSince: gameState.isRunning ? this.startTime : null,
             teams: gameState.teams ?? null,
-            activeZone: gameState.activeZone ?? null
+            activeZone: gameState.activeZone ?? null,
+            selectedTeam: gameState.selectedTeam ?? null
         };
     }
 
@@ -118,6 +121,14 @@ export class GameState {
      */
     setActiveZone(zone) {
         stateService.setState('game.activeZone', zone);
+    }
+
+    /**
+     * Set the team slot (1 or 2) that shared team buttons log for
+     * @param {number} slot
+     */
+    setSelectedTeam(slot) {
+        stateService.setState('game.selectedTeam', slot);
     }
 
     /**
@@ -140,8 +151,9 @@ export class GameState {
      * @param {Object} [options]
      * @param {Array<{code: string, color: string}>|null} [options.teams] - Team 1 and Team 2 for team boards
      * @param {string|null} [options.activeZone] - Starting sticky zone
+     * @param {number|null} [options.selectedTeam] - Starting team slot for shared team buttons
      */
-    newGame({ teams = null, activeZone = null } = {}) {
+    newGame({ teams = null, activeZone = null, selectedTeam = null } = {}) {
         this._stopTimerUpdate();
 
         stateService.setState('game', {
@@ -151,7 +163,8 @@ export class GameState {
             elapsedTime: 0,
             loggedEvents: [],
             teams,
-            activeZone
+            activeZone,
+            selectedTeam
         });
 
         this.startTime = Date.now();
@@ -189,7 +202,8 @@ export class GameState {
             hasCurrentGame: false,
             loggedEvents: [],
             teams: null,
-            activeZone: null
+            activeZone: null,
+            selectedTeam: null
         }, true);
 
         this.resetTimer();

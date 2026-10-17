@@ -49,20 +49,21 @@ const zonedTeamRows = () => [1, 2].map(team => ({
     }]
 }));
 
-const scoringTeamRows = () => [1, 2].map(team => ({
-    team,
+// One shared set of scoring and card buttons; a team toggle on the row picks which team they log for
+const scoringRow = () => ({
+    team: "selected",
     grids: [
         { gridCols: "grid-cols-4", buttons: slotButtons(["APS", "PS", "GOAL", "SO"]) },
         { gridCols: "grid-cols-3", buttons: slotButtons(["GREEN", "YELLOW", "RED"]) }
     ]
-}));
+});
 
 const HOCKEY_ONE_ZONED_CONFIG = {
     zones: { values: ["1", "2", "3", "4"], default: "1", perspective: "mirrored" },
     rowDefs: [
         { gridCols: "grid-cols-3", buttons: ["START", "END", "UMP"].map(code => ({ event: code, text: code, color: "btn-gray" })) },
         ...zonedTeamRows(),
-        ...scoringTeamRows()
+        scoringRow()
     ]
 };
 
@@ -77,6 +78,9 @@ const isValidConfig = (config) => Boolean(config && Array.isArray(config.rowDefs
 const isValidClipSeconds = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 const ZONE_PERSPECTIVES = ['mirrored', 'pitch'];
+
+// "selected" rows log for whichever team is picked on the row's team toggle
+const ROW_TEAMS = [1, 2, 'selected'];
 
 // A row holds either a single grid ({ gridCols, buttons }) or several ({ grids: [...] })
 export function rowGrids(row) {
@@ -110,8 +114,8 @@ export function validateConfig(config) {
     validateZones(config.zones);
 
     for (const row of config.rowDefs) {
-        if (row?.team !== undefined && row.team !== 1 && row.team !== 2) {
-            throw new Error('Row team must be 1 or 2.');
+        if (row?.team !== undefined && !ROW_TEAMS.includes(row.team)) {
+            throw new Error('Row team must be 1, 2 or "selected".');
         }
         for (const grid of rowGrids(row)) {
             for (const button of grid?.buttons ?? []) {

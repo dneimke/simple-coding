@@ -50,20 +50,43 @@ describe('EventButtons', () => {
             expect(fireBs.dataset.zoned).toBe('true');
             expect(fireBs.classList.contains('team-color-red')).toBe(true);
 
-            const tigersSo = container.querySelector('[data-event="TIGERS SO"]');
-            expect(tigersSo.dataset.teamSlot).toBe('2');
-            expect(tigersSo.dataset.zoned).toBeUndefined();
-            expect(tigersSo.classList.contains('team-color-yellow')).toBe(true);
+            const tigersBw = container.querySelector('[data-event="TIGERS BW"]');
+            expect(tigersBw.dataset.teamSlot).toBe('2');
+            expect(tigersBw.classList.contains('team-color-yellow')).toBe(true);
 
             expect(container.querySelector('[data-event="START"]').dataset.teamSlot).toBeUndefined();
         });
 
-        test('labels team rows and renders multi-grid rows', () => {
+        test('labels team rows and renders one shared multi-grid scoring row with a team toggle', () => {
             const labels = [...container.querySelectorAll('.team-row-label')].map(label => label.textContent);
-            expect(labels).toEqual(['FIRE', 'TIGERS', 'FIRE', 'TIGERS']);
+            expect(labels).toEqual(['FIRE', 'TIGERS', 'TEAM']);
 
-            const scoringRow = container.querySelector('[data-event="FIRE SO"]').closest('.group-container');
+            const scoringRow = container.querySelector('[data-team-selector]');
             expect(scoringRow.querySelectorAll('.button-grid')).toHaveLength(2);
+            expect([...scoringRow.querySelectorAll('.team-toggle')].map(toggle => toggle.textContent)).toEqual(['FIRE', 'TIGERS']);
+            expect(container.querySelectorAll('[data-base-event="SO"]')).toHaveLength(1);
+        });
+
+        test('shared scoring buttons log for the selected team', () => {
+            const so = container.querySelector('[data-team-selector] [data-base-event="SO"]');
+            expect(so.dataset.event).toBe('FIRE SO');
+            expect(so.classList.contains('team-color-red')).toBe(true);
+            expect(container.querySelector('.team-toggle.is-active').dataset.teamSelect).toBe('1');
+
+            eventButtons.setSelectedTeam(2);
+            expect(so.dataset.event).toBe('TIGERS SO');
+            expect(so.dataset.teamSlot).toBe('2');
+            expect(so.classList.contains('team-color-yellow')).toBe(true);
+            expect(so.classList.contains('team-color-red')).toBe(false);
+            const active = container.querySelector('.team-toggle.is-active');
+            expect(active.dataset.teamSelect).toBe('2');
+            expect(active.classList.contains('team-color-yellow')).toBe(true);
+        });
+
+        test('team toggles are not event buttons', () => {
+            container.querySelectorAll('.team-toggle').forEach(toggle => {
+                expect(toggle.dataset.event).toBeUndefined();
+            });
         });
 
         test('shows each team zone on zoned buttons and updates it with setZone', () => {
@@ -93,8 +116,15 @@ describe('EventButtons', () => {
         });
     });
 
-    test('falls back to the default zone when none is given', () => {
+    test('falls back to the default zone and Team 1 when none is given', () => {
         eventButtons.initialize(getNamedConfig('hockey-one-zoned'), { teams });
         expect(eventButtons.zone).toBe('1');
+        expect(eventButtons.selectedTeam).toBe(1);
+    });
+
+    test('renders the selected team passed to initialize', () => {
+        eventButtons.initialize(getNamedConfig('hockey-one-zoned'), { teams, selectedTeam: 2 });
+        expect(container.querySelector('[data-event="TIGERS GOAL"]')).not.toBeNull();
+        expect(container.querySelector('[data-event="FIRE GOAL"]')).toBeNull();
     });
 });

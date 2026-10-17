@@ -48,30 +48,31 @@ describe('GameState capture clock', () => {
         gameState.newGame();
         const startedAt = Date.now();
         expect(gameState.getDraftSnapshot()).toEqual({
-            events: [], elapsedTime: 0, runningSince: startedAt, teams: null, activeZone: null
+            events: [], elapsedTime: 0, runningSince: startedAt, teams: null, activeZone: null, selectedTeam: null
         });
 
         jest.advanceTimersByTime(10000);
         gameState.pauseResume();
         expect(gameState.getDraftSnapshot()).toEqual({
-            events: [], elapsedTime: 10000, runningSince: null, teams: null, activeZone: null
+            events: [], elapsedTime: 10000, runningSince: null, teams: null, activeZone: null, selectedTeam: null
         });
     });
 
     test('newGame keeps teams and zone, and setActiveZone updates the snapshot', () => {
         const teams = [{ code: 'FIRE', color: 'red' }, { code: 'TIGERS', color: 'yellow' }];
-        gameState.newGame({ teams, activeZone: '1' });
+        gameState.newGame({ teams, activeZone: '1', selectedTeam: 1 });
         gameState.setActiveZone('3');
+        gameState.setSelectedTeam(2);
 
-        expect(gameState.getDraftSnapshot()).toEqual(expect.objectContaining({ teams, activeZone: '3' }));
+        expect(gameState.getDraftSnapshot()).toEqual(expect.objectContaining({ teams, activeZone: '3', selectedTeam: 2 }));
     });
 
-    test('restoreSession round-trips teams and zone', () => {
+    test('restoreSession round-trips teams, zone and selected team', () => {
         const teams = [{ code: 'MELB', color: 'navy' }, { code: 'PERTH', color: 'orange' }];
-        gameState.restoreSession({ events: [], elapsedTime: 0, runningSince: null, teams, activeZone: '4' });
+        gameState.restoreSession({ events: [], elapsedTime: 0, runningSince: null, teams, activeZone: '4', selectedTeam: 2 });
 
         expect(stateService.getState('game.teams')).toEqual(teams);
-        expect(gameState.getDraftSnapshot()).toEqual(expect.objectContaining({ teams, activeZone: '4' }));
+        expect(gameState.getDraftSnapshot()).toEqual(expect.objectContaining({ teams, activeZone: '4', selectedTeam: 2 }));
     });
 
     test('restoreSession from an old draft leaves teams and zone empty', () => {

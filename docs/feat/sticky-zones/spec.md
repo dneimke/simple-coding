@@ -190,7 +190,7 @@ _Record feedback from trying the prototype here._
 | Team names | Entered as codes when a game starts |
 | Team colours | Picked per team from a 10-colour palette when a game starts |
 | Zone perspective | Zone bar is selected from Team 1's perspective |
-| Per-team or shared scoring and cards | Per-team rows; no shared team toggle |
+| Per-team or shared scoring and cards | Shared: one `APS PS GOAL SO` / `GREEN YELLOW RED` set with a sticky team toggle (tap or press T) |
 | Show zone on zoned buttons | Yes; BS and BW show each team's current zone |
 | Log zone changes | No; zone changes are not logged as events |
 | Board switching | Both boards are built-in named configs; switch from the Board selector on Event Capture (locked during a game) or from Configure |

@@ -34,12 +34,13 @@ describe('named configurations', () => {
         expect(JSON.parse(localStorage.getItem(NAMED_KEY))).toHaveProperty('hockey-one-zoned');
     });
 
-    test('hockey-one-zoned has four mirrored zones and per-team rows', () => {
+    test('hockey-one-zoned has four mirrored zones, per-team action rows and one shared scoring row', () => {
         const config = getNamedConfig('hockey-one-zoned');
 
         expect(config.zones).toEqual({ values: ['1', '2', '3', '4'], default: '1', perspective: 'mirrored' });
-        expect(config.rowDefs.filter(row => row.team === 1)).toHaveLength(2);
-        expect(config.rowDefs.filter(row => row.team === 2)).toHaveLength(2);
+        expect(config.rowDefs.filter(row => row.team === 1)).toHaveLength(1);
+        expect(config.rowDefs.filter(row => row.team === 2)).toHaveLength(1);
+        expect(config.rowDefs.filter(row => row.team === 'selected')).toHaveLength(1);
         expect(usesTeams(config)).toBe(true);
         expect(() => validateConfig(config)).not.toThrow();
 
@@ -146,9 +147,10 @@ describe('validateConfig', () => {
         expect(() => validateConfig(config)).not.toThrow();
     });
 
-    test('rejects team slots other than 1 or 2', () => {
-        const config = { rowDefs: [{ team: 3, gridCols: 'grid-cols-1', buttons: [] }] };
-        expect(() => validateConfig(config)).toThrow('Row team must be 1 or 2.');
+    test('rejects team slots other than 1, 2 or "selected"', () => {
+        const row = (team) => ({ rowDefs: [{ team, gridCols: 'grid-cols-1', buttons: [] }] });
+        expect(() => validateConfig(row(3))).toThrow('Row team must be 1, 2 or "selected".');
+        expect(() => validateConfig(row('selected'))).not.toThrow();
     });
 
     test('rejects zoned buttons without a zones block', () => {
