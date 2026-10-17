@@ -8,13 +8,16 @@ import {
     saveNamedConfig,
     activateNamedConfig,
     findNamedConfigName,
-    validateConfig
+    validateConfig,
+    rowGrids,
+    usesTeams
 } from '../../src/components/config.js';
 
 const ACTIVE_KEY = 'fieldHockeyConfig_v1';
 const NAMED_KEY = 'fieldHockeyNamedConfigs_v1';
 
-const eventsOf = (config) => config.rowDefs.flatMap(row => row.buttons.map(button => button.event));
+const eventsOf = (config) =>
+    config.rowDefs.flatMap(row => rowGrids(row).flatMap(grid => grid.buttons.map(button => button.event)));
 
 describe('named configurations', () => {
     beforeEach(() => {
@@ -26,9 +29,31 @@ describe('named configurations', () => {
         console.error.mockRestore();
     });
 
-    test('seeds the built-in default and hockey-one configurations', () => {
-        expect(listNamedConfigs()).toEqual(['default', 'hockey-one']);
-        expect(JSON.parse(localStorage.getItem(NAMED_KEY))).toHaveProperty('hockey-one');
+    test('seeds the built-in default, hockey-one and hockey-one-zoned configurations', () => {
+        expect(listNamedConfigs()).toEqual(['default', 'hockey-one', 'hockey-one-zoned']);
+        expect(JSON.parse(localStorage.getItem(NAMED_KEY))).toHaveProperty('hockey-one-zoned');
+    });
+
+    test('hockey-one-zoned has four mirrored zones and per-team rows', () => {
+        const config = getNamedConfig('hockey-one-zoned');
+
+        expect(config.zones).toEqual({ values: ['1', '2', '3', '4'], default: '1', perspective: 'mirrored' });
+        expect(config.rowDefs.filter(row => row.team === 1)).toHaveLength(2);
+        expect(config.rowDefs.filter(row => row.team === 2)).toHaveLength(2);
+        expect(usesTeams(config)).toBe(true);
+        expect(() => validateConfig(config)).not.toThrow();
+
+        const zoned = config.rowDefs.flatMap(row => rowGrids(row).flatMap(grid => grid.buttons))
+            .filter(button => button.zoned)
+            .map(button => button.event);
+        expect([...new Set(zoned)]).toEqual(['BS', 'BW']);
+        expect(eventsOf(config)).toEqual(expect.arrayContaining(['START', 'END', 'UMP', 'SO', 'GREEN', 'PC']));
+    });
+
+    test('usesTeams is false for boards without team rows', () => {
+        expect(usesTeams(getNamedConfig('hockey-one'))).toBe(false);
+        expect(usesTeams(loadConfiguration())).toBe(false);
+        expect(usesTeams(null)).toBe(false);
     });
 
     test('hockey-one uses team codes and excludes ball wins', () => {
@@ -107,6 +132,39 @@ describe('validateConfig', () => {
 
     test('rejects configs without rowDefs', () => {
         expect(() => validateConfig({ buttons: [] })).toThrow('Invalid configuration structure.');
+    });
+
+    test('validates lead and lag inside multi-grid rows', () => {
+        const config = {
+            rowDefs: [{ team: 1, grids: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'GOAL', text: 'GOAL', lag: -1 }] }] }]
+        };
+        expect(() => validateConfig(config)).toThrow('GOAL: lag must be a number of 0 or more.');
+    });
+
+    test('accepts team rows whose buttons omit color', () => {
+        const config = { rowDefs: [{ team: 2, gridCols: 'grid-cols-1', buttons: [{ event: 'GOAL', text: 'GOAL' }] }] };
+        expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    test('rejects team slots other than 1 or 2', () => {
+        const config = { rowDefs: [{ team: 3, gridCols: 'grid-cols-1', buttons: [] }] };
+        expect(() => validateConfig(config)).toThrow('Row team must be 1 or 2.');
+    });
+
+    test('rejects zoned buttons without a zones block', () => {
+        expect(() => validateConfig(withButton({ zoned: true })))
+            .toThrow('BLAZE PC: zoned buttons need a zones block in the configuration.');
+    });
+
+    test('rejects malformed zones blocks', () => {
+        const withZones = (zones) => ({ ...withButton({ zoned: true }), zones });
+
+        expect(() => validateConfig(withZones({ values: [] }))).toThrow('zones.values must be a non-empty list.');
+        expect(() => validateConfig(withZones({ values: ['1', '2'], default: '3' })))
+            .toThrow('zones.default must be one of zones.values.');
+        expect(() => validateConfig(withZones({ values: ['1', '2'], perspective: 'sideways' })))
+            .toThrow('zones.perspective must be one of: mirrored, pitch.');
+        expect(() => validateConfig(withZones({ values: ['1', '2'], perspective: 'pitch' }))).not.toThrow();
     });
 
     test('saveNamedConfig rejects invalid lead and lag', () => {

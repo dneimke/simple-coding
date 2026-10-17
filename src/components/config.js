@@ -37,26 +37,92 @@ const HOCKEY_ONE_CONFIG = {
     ]
 };
 
+// Team buttons hold only the event code; the team code chosen at game start is prefixed at runtime
+const slotButtons = (codes, zoned = false) =>
+    codes.map(code => ({ event: code, text: code, ...(zoned && { zoned: true }) }));
+
+const zonedTeamRows = () => [1, 2].map(team => ({
+    team,
+    grids: [{
+        gridCols: "grid-cols-8",
+        buttons: [...slotButtons(["BS", "BW"], true), ...slotButtons(["OH", "A25E", "CE", "SHOT", "ASC", "PC"])]
+    }]
+}));
+
+const scoringTeamRows = () => [1, 2].map(team => ({
+    team,
+    grids: [
+        { gridCols: "grid-cols-4", buttons: slotButtons(["APS", "PS", "GOAL", "SO"]) },
+        { gridCols: "grid-cols-3", buttons: slotButtons(["GREEN", "YELLOW", "RED"]) }
+    ]
+}));
+
+const HOCKEY_ONE_ZONED_CONFIG = {
+    zones: { values: ["1", "2", "3", "4"], default: "1", perspective: "mirrored" },
+    rowDefs: [
+        { gridCols: "grid-cols-3", buttons: ["START", "END", "UMP"].map(code => ({ event: code, text: code, color: "btn-gray" })) },
+        ...zonedTeamRows(),
+        ...scoringTeamRows()
+    ]
+};
+
 const BUILT_IN_NAMED_CONFIGS = {
     default: DEFAULT_CONFIG,
-    'hockey-one': HOCKEY_ONE_CONFIG
+    'hockey-one': HOCKEY_ONE_CONFIG,
+    'hockey-one-zoned': HOCKEY_ONE_ZONED_CONFIG
 };
 
 const isValidConfig = (config) => Boolean(config && Array.isArray(config.rowDefs));
 
 const isValidClipSeconds = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
-// Throws if the configuration structure or any button's lead/lag (seconds) is invalid
+const ZONE_PERSPECTIVES = ['mirrored', 'pitch'];
+
+// A row holds either a single grid ({ gridCols, buttons }) or several ({ grids: [...] })
+export function rowGrids(row) {
+    if (Array.isArray(row?.grids)) return row.grids.filter(Boolean);
+    return row ? [row] : [];
+}
+
+// True when the config has team-slot rows, so team codes must be chosen before a game starts
+export function usesTeams(config) {
+    return Boolean(isValidConfig(config) && config.rowDefs.some(row => row?.team !== undefined));
+}
+
+function validateZones(zones) {
+    if (zones === undefined) return;
+    if (!zones || !Array.isArray(zones.values) || zones.values.length === 0) {
+        throw new Error('zones.values must be a non-empty list.');
+    }
+    if (zones.default !== undefined && !zones.values.includes(zones.default)) {
+        throw new Error('zones.default must be one of zones.values.');
+    }
+    if (zones.perspective !== undefined && !ZONE_PERSPECTIVES.includes(zones.perspective)) {
+        throw new Error(`zones.perspective must be one of: ${ZONE_PERSPECTIVES.join(', ')}.`);
+    }
+}
+
+// Throws if the configuration structure, zones, team slots or any button's lead/lag (seconds) is invalid
 export function validateConfig(config) {
     if (!isValidConfig(config)) {
         throw new Error('Invalid configuration structure.');
     }
+    validateZones(config.zones);
+
     for (const row of config.rowDefs) {
-        for (const button of row?.buttons ?? []) {
-            for (const field of ['lead', 'lag']) {
-                if (button?.[field] !== undefined && !isValidClipSeconds(button[field])) {
-                    const name = button.event || button.text || 'Button';
-                    throw new Error(`${name}: ${field} must be a number of 0 or more.`);
+        if (row?.team !== undefined && row.team !== 1 && row.team !== 2) {
+            throw new Error('Row team must be 1 or 2.');
+        }
+        for (const grid of rowGrids(row)) {
+            for (const button of grid?.buttons ?? []) {
+                const name = button?.event || button?.text || 'Button';
+                for (const field of ['lead', 'lag']) {
+                    if (button?.[field] !== undefined && !isValidClipSeconds(button[field])) {
+                        throw new Error(`${name}: ${field} must be a number of 0 or more.`);
+                    }
+                }
+                if (button?.zoned && !config.zones) {
+                    throw new Error(`${name}: zoned buttons need a zones block in the configuration.`);
                 }
             }
         }
