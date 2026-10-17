@@ -298,6 +298,11 @@ body {
     }
 }
 
+/* Room to scroll the nav off screen while capturing */
+#tracker-view {
+    padding-bottom: 60vh;
+}
+
 /* --- Sticky zone board --- */
 .zone-bar {
     border: 1px solid #d1d5db;

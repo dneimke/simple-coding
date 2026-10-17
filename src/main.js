@@ -13,6 +13,7 @@ import { checkStorageQuota } from './utils/storageWarningUtils.js';
 import { draftService, finishCapture } from './services/draftService.js';
 import { openTeamSetupDialog, loadLastTeams, saveLastTeams } from './components/teamSetupDialog.js';
 import { resolveEventName } from './utils/zoneUtils.js';
+import { renderRecentEvents } from './components/recentEvents.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
@@ -28,6 +29,9 @@ const codingButtonsContainer = document.getElementById('coding-buttons-container
 const boardSelect = document.getElementById('boardSelect');
 const boardLockedHint = document.getElementById('boardLockedHint');
 const teamSetupModal = document.getElementById('teamSetupModal');
+const lastEventBar = document.getElementById('lastEventBar');
+const lastEventLabel = document.getElementById('lastEventLabel');
+const undoEventButton = document.getElementById('undoEventButton');
 const configJsonInput = document.getElementById('configJsonInput');
 const configDirtyIndicator = document.getElementById('configDirtyIndicator');
 const copyConfigButton = document.getElementById('copyConfigButton');
@@ -44,6 +48,8 @@ const importXmlButton = document.getElementById('importXmlButton');
 const xmlFileInput = document.getElementById('xmlFileInput');
 const previewModal = document.getElementById('previewModal');
 const previewContainer = document.getElementById('previewContainer');
+const tabButtonRecent = document.getElementById('tabButtonRecent');
+const recentViewPanel = document.getElementById('recentView');
 const tabButtonTimeline = document.getElementById('tabButtonTimeline');
 const tabButtonXml = document.getElementById('tabButtonXml');
 const tabButtonStatistics = document.getElementById('tabButtonStatistics');
@@ -175,13 +181,31 @@ function renderLogView() {
         events = game.events || [];
         savedGameLogTitle.textContent = game.teams || 'Game';
         savedGameLogBanner.classList.remove('hidden');
+        // Saved logs are read-only, so they have no Recent tab with Delete buttons
+        tabButtonRecent.classList.add('hidden');
+        recentViewPanel.innerHTML = '';
+        if (stateService.getState('ui.currentTab') === 'recentView') {
+            router.switchTab('timelineView');
+        }
     } else {
         events = stateService.getState('game.loggedEvents') || [];
         savedGameLogBanner.classList.add('hidden');
+        tabButtonRecent.classList.remove('hidden');
+        renderRecentEvents(recentViewPanel, events);
+        router.switchTab('recentView');
     }
 
     eventLog.render(events);
     copyXmlButton.disabled = events.length === 0;
+}
+
+function deleteLoggedEvent(index) {
+    const removed = gameState.removeEvent(index);
+    if (!removed) return;
+    saveCaptureDraft();
+    notifyRemoved(removed);
+    renderRecentEvents(recentViewPanel, stateService.getState('game.loggedEvents') || []);
+    copyXmlButton.disabled = (stateService.getState('game.loggedEvents') || []).length === 0;
 }
 
 // An empty select value stands for the active layout when it matches no saved name
@@ -289,6 +313,26 @@ function updateBoardLock() {
     boardLockedHint.classList.toggle('hidden', !locked);
 }
 
+const describeEvent = (event) => `${event.event} (${formatTime(event.timeMs)})`;
+
+function updateLastEventBar() {
+    const events = stateService.getState('game.loggedEvents') || [];
+    const lastEvent = stateService.getState('game.hasCurrentGame') ? events.at(-1) : null;
+    lastEventBar.classList.toggle('hidden', !lastEvent);
+    lastEventLabel.textContent = lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : '';
+}
+
+function notifyRemoved(event) {
+    notificationService.notify(`Removed ${describeEvent(event)}`, 'success');
+}
+
+function undoLastEvent() {
+    const removed = gameState.removeLastEvent();
+    if (!removed) return;
+    saveCaptureDraft();
+    notifyRemoved(removed);
+}
+
 function selectZone(zone) {
     eventButtons.setZone(zone);
     if (eventButtons.zone !== zone) return;
@@ -387,6 +431,7 @@ function showCaptureControls() {
     updatePauseResumeLabel();
     updateNavbarVisibility(true);
     updateBoardLock();
+    updateLastEventBar();
 }
 
 function showStartControls() {
@@ -397,6 +442,7 @@ function showStartControls() {
     pauseResumeButton.textContent = 'Pause';
     updateNavbarVisibility(false);
     updateBoardLock();
+    updateLastEventBar();
 }
 
 function restoreCaptureDraft() {
@@ -538,6 +584,25 @@ function registerEventListeners() {
             default:
                 break;
         }
+    });
+
+    undoEventButton.addEventListener('click', undoLastEvent);
+
+    recentViewPanel.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-delete-index]');
+        if (!button || stateService.getState('ui.logGameId')) return;
+        deleteLoggedEvent(Number(button.dataset.deleteIndex));
+    });
+
+    // Ctrl+Z / Cmd+Z removes the last event while capturing
+    document.addEventListener('keydown', (event) => {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
+        if (stateService.getState('ui.currentView') !== 'EventCapture') return;
+        if (!teamSetupModal.classList.contains('hidden')) return;
+        if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+
+        event.preventDefault();
+        undoLastEvent();
     });
 
     boardSelect.addEventListener('change', () => {
@@ -766,9 +831,11 @@ const router = new Router(
         SavedGames: { view: savedGamesView, button: navSavedGames }
     },
     {
+        recent: tabButtonRecent,
         timeline: tabButtonTimeline,
         xml: tabButtonXml,
         statistics: tabButtonStatistics,
+        recentView: recentViewPanel,
         timelineView: timelineViewPanel,
         xmlView: xmlViewPanel,
         statisticsView: statisticsViewPanel
@@ -784,6 +851,9 @@ stateService.subscribe('ui.currentView', (viewName) => {
         renderLogView();
     }
 });
+
+// Child-path changes (game.loggedEvents) and whole-game replacements (newGame, restore, complete) both notify 'game'
+stateService.subscribe('game', updateLastEventBar);
 
 // Initial navigation based on URL hash or defaults to EventCapture
 document.addEventListener('DOMContentLoaded', () => {

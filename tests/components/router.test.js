@@ -131,6 +131,19 @@ describe('Router', () => {
         expect(mockTabs.statisticsView.classList.toggle).toHaveBeenCalledWith('hidden', true);
     });
 
+    test('_handleTabChange handles any button and panel pair, such as a Recent tab', () => {
+        const recent = { classList: { toggle: jest.fn() } };
+        const recentView = { classList: { toggle: jest.fn() } };
+        const tabRouter = new Router(mockViews, { ...mockTabs, recent, recentView });
+
+        tabRouter._handleTabChange('recentView');
+
+        expect(recent.classList.toggle).toHaveBeenCalledWith('tab-button-active', true);
+        expect(recentView.classList.toggle).toHaveBeenCalledWith('hidden', false);
+        expect(mockTabs.timeline.classList.toggle).toHaveBeenCalledWith('tab-button-active', false);
+        expect(mockTabs.timelineView.classList.toggle).toHaveBeenCalledWith('hidden', true);
+    });
+
     test('switchTab should update the current tab state', () => {
         router.switchTab('xmlView');
         expect(stateService.setState).toHaveBeenCalledWith('ui.currentTab', 'xmlView');
