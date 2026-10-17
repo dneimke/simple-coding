@@ -51,6 +51,27 @@ describe('named configurations', () => {
         expect(eventsOf(config)).toEqual(expect.arrayContaining(['START', 'END', 'UMP', 'SO', 'GREEN', 'PC']));
     });
 
+    test('hockey-one-zoned buttons carry the MyVA lead and lag times', () => {
+        const buttons = getNamedConfig('hockey-one-zoned').rowDefs
+            .flatMap(row => rowGrids(row).flatMap(grid => grid.buttons));
+        const timing = (event) => {
+            const matches = buttons.filter(button => button.event === event);
+            const timings = [...new Set(matches.map(({ lead, lag }) => JSON.stringify({ lead, lag })))];
+            expect(timings).toHaveLength(1);
+            return JSON.parse(timings[0]);
+        };
+
+        expect(timing('START')).toEqual({ lead: 1, lag: 1 });
+        expect(timing('UMP')).toEqual({ lead: 7, lag: 7 });
+        expect(timing('BS')).toEqual({ lead: 10, lag: 10 });
+        expect(timing('SHOT')).toEqual({ lead: 15, lag: 5 });
+        expect(timing('ASC')).toEqual({ lead: 10, lag: 1 });
+        expect(timing('PC')).toEqual({ lead: 2, lag: 10 });
+        expect(timing('YELLOW')).toEqual({ lead: 20, lag: 360 });
+        expect(timing('BW')).toEqual({});
+        expect(timing('RED')).toEqual({});
+    });
+
     test('usesTeams is false for boards without team rows', () => {
         expect(usesTeams(getNamedConfig('hockey-one'))).toBe(false);
         expect(usesTeams(loadConfiguration())).toBe(false);
