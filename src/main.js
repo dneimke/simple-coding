@@ -6,7 +6,7 @@ import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName } from './components/config.js';
+import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -246,9 +246,7 @@ function applySavedConfig(name, config) {
 
 function parseEditorConfig() {
     const parsedConfig = JSON.parse(configJsonInput.value);
-    if (!parsedConfig || !Array.isArray(parsedConfig.rowDefs)) {
-        throw new Error("Invalid configuration structure.");
-    }
+    validateConfig(parsedConfig);
     return parsedConfig;
 }
 
@@ -406,7 +404,10 @@ function registerEventListeners() {
         if (!button) return; // Ignore clicks on unrelated elements
 
         const eventName = button.dataset.event;
-        if (gameState.addEvent({ event: eventName, timeMs: gameState.getLiveElapsedTime() })) {
+        const clip = {};
+        if (button.dataset.lead !== undefined) clip.lead = Number(button.dataset.lead);
+        if (button.dataset.lag !== undefined) clip.lag = Number(button.dataset.lag);
+        if (gameState.addEvent({ event: eventName, timeMs: gameState.getLiveElapsedTime(), ...clip })) {
             saveCaptureDraft();
         }
     });
@@ -492,6 +493,12 @@ function registerEventListeners() {
         }
         if (!parsedConfig || !Array.isArray(parsedConfig.rowDefs)) {
             showMessage(configMessage, "The clipboard doesn't contain a valid configuration.", true);
+            return;
+        }
+        try {
+            validateConfig(parsedConfig);
+        } catch (error) {
+            showMessage(configMessage, `The clipboard configuration is invalid. ${error.message}`, true);
             return;
         }
 

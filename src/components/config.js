@@ -44,6 +44,25 @@ const BUILT_IN_NAMED_CONFIGS = {
 
 const isValidConfig = (config) => Boolean(config && Array.isArray(config.rowDefs));
 
+const isValidClipSeconds = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
+// Throws if the configuration structure or any button's lead/lag (seconds) is invalid
+export function validateConfig(config) {
+    if (!isValidConfig(config)) {
+        throw new Error('Invalid configuration structure.');
+    }
+    for (const row of config.rowDefs) {
+        for (const button of row?.buttons ?? []) {
+            for (const field of ['lead', 'lag']) {
+                if (button?.[field] !== undefined && !isValidClipSeconds(button[field])) {
+                    const name = button.event || button.text || 'Button';
+                    throw new Error(`${name}: ${field} must be a number of 0 or more.`);
+                }
+            }
+        }
+    }
+}
+
 const cloneConfig = (config) => JSON.parse(JSON.stringify(config));
 
 // Utility function to load configuration from localStorage or return the default
@@ -143,9 +162,7 @@ export function saveNamedConfig(name, config) {
     if (!trimmedName) {
         throw new Error('Configuration name is required.');
     }
-    if (!isValidConfig(config)) {
-        throw new Error('Invalid configuration structure.');
-    }
+    validateConfig(config);
 
     const configs = readNamedConfigs();
     configs[trimmedName] = cloneConfig(config);

@@ -451,7 +451,9 @@ function saveGame(gameId, events, metadata = {}) {
         event: evt.event,
         timeMs: evt.timeMs,
         id: evt.id,
-        isFavorite: evt.isFavorite || false
+        isFavorite: evt.isFavorite || false,
+        ...(evt.lead !== undefined && { lead: evt.lead }),
+        ...(evt.lag !== undefined && { lag: evt.lag })
     }));
 
     // Preserve existing entry fields (timestamp, teams, metadata) when possible

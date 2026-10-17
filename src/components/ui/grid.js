@@ -77,6 +77,13 @@ export const createButtonGrid = ({
             button.dataset.event = buttonConfig.event;
         }
 
+        if (typeof buttonConfig.lead === 'number') {
+            button.dataset.lead = String(buttonConfig.lead);
+        }
+        if (typeof buttonConfig.lag === 'number') {
+            button.dataset.lag = String(buttonConfig.lag);
+        }
+
         if (onButtonClick) {
             button.addEventListener('click', () => onButtonClick(buttonConfig));
         }

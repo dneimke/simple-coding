@@ -297,6 +297,29 @@ describe('event filters', () => {
         expect(renderedIds()).toEqual(['e1', 'e2', 'e3', 'e4']);
     });
 
+    test('saving keeps per-event lead and lag', () => {
+        localStorage.setItem('fieldHockeyGames_v1', JSON.stringify([{
+            id: GAME_ID,
+            teams: 'A vs B',
+            events: [
+                { id: 'e1', event: 'BLAZE PC', timeMs: 1000, isFavorite: false, lead: 2, lag: 10 },
+                { id: 'e2', event: 'goal', timeMs: 2000, isFavorite: false }
+            ],
+            metadata: {}
+        }]));
+        jest.isolateModules(() => {
+            mod = require('../../src/js/timeline-video.js');
+        });
+        mod.loadGame(GAME_ID);
+
+        mod.toggleFavorite('e1');
+
+        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(saved.events[0]).toMatchObject({ id: 'e1', isFavorite: true, lead: 2, lag: 10 });
+        expect(saved.events[1]).not.toHaveProperty('lead');
+        expect(saved.events[1]).not.toHaveProperty('lag');
+    });
+
     test('unchecking "All" with nothing selected re-checks it', () => {
         document.getElementById('filter-option-all').click();
         expect(document.getElementById('filter-option-all').checked).toBe(true);

@@ -32,7 +32,9 @@ const formatSeconds = (seconds) => seconds.toFixed(2);
  * Builds a complete Sportscode XML document from event data.
  * Each event becomes an instance with a clip window around the event time,
  * and each distinct code becomes a row referenced by the instance's code_id.
- * @param {Array} events - Array of event objects ({ event, timeMs })
+ * The clip window uses each event's lead and lag (in seconds) when present,
+ * otherwise CLIP_LEAD_SECONDS and CLIP_LAG_SECONDS.
+ * @param {Array} events - Array of event objects ({ event, timeMs, lead?, lag? })
  * @returns {string} Sportscode XML document
  */
 export const generateSportscodeXml = (events) => {
@@ -45,8 +47,8 @@ export const generateSportscodeXml = (events) => {
             rowIds.set(code, rowIds.size + 1);
         }
         const eventSeconds = logEntry.timeMs / 1000;
-        const start = Math.max(0, eventSeconds - CLIP_LEAD_SECONDS);
-        const end = eventSeconds + CLIP_LAG_SECONDS;
+        const start = Math.max(0, eventSeconds - (logEntry.lead ?? CLIP_LEAD_SECONDS));
+        const end = eventSeconds + (logEntry.lag ?? CLIP_LAG_SECONDS);
         return [
             '    <instance>',
             `      <ID>${index + 1}</ID>`,
@@ -134,19 +136,32 @@ const readSportscodeInstance = (node) => {
     };
 };
 
+const roundToMs = (seconds) => Math.round(seconds * 1000) / 1000;
+
 /**
- * Converts an instance clip window back to an event time in milliseconds.
- * Clips that start at 0 and are no longer than the export window are treated as
- * clamped exports, so the event time is recovered from the end of the clip.
+ * Converts an instance clip window back to an event.
+ * Clips that start at 0 and are no longer than the default export window are treated as
+ * clamped exports, so the event time is recovered from the end of the clip and the
+ * default lead and lag apply.
+ * Other clips are centred on the event, with lead and lag set so that exporting again
+ * reproduces the same start and end. They are omitted when they match the defaults.
+ * @param {string} code - Instance code
  * @param {number} start - Clip start in seconds
  * @param {number} end - Clip end in seconds
- * @returns {number} Event time in milliseconds
+ * @returns {Object} Event object ({ event, timeMs, lead?, lag? })
  */
-const instanceTimeMs = (start, end) => {
+const instanceToEvent = (code, start, end) => {
     if (start === 0 && end <= CLIP_LEAD_SECONDS + CLIP_LAG_SECONDS) {
-        return Math.round(Math.max(0, end - CLIP_LAG_SECONDS) * 1000);
+        return { event: code, timeMs: Math.round(Math.max(0, end - CLIP_LAG_SECONDS) * 1000) };
     }
-    return Math.round(((start + end) / 2) * 1000);
+    const timeMs = Math.round(((start + end) / 2) * 1000);
+    const eventSeconds = timeMs / 1000;
+    const lead = roundToMs(eventSeconds - start);
+    const lag = roundToMs(end - eventSeconds);
+    if (lead === CLIP_LEAD_SECONDS && lag === CLIP_LAG_SECONDS) {
+        return { event: code, timeMs };
+    }
+    return { event: code, timeMs, lead, lag };
 };
 
 /**
@@ -163,10 +178,7 @@ export const parseXmlToEvents = (xmlContent) => {
         return childElements(instancesElement, 'instance')
             .map(readSportscodeInstance)
             .filter(({ code, start, end }) => code && isFinite(start) && isFinite(end))
-            .map(({ code, start, end }) => ({
-                event: code,
-                timeMs: instanceTimeMs(start, end)
-            }));
+            .map(({ code, start, end }) => instanceToEvent(code, start, end));
     }
 
     // Legacy custom export format: <game teams=".."><events><event event=".." timeMs=".." /></events></game>
@@ -207,10 +219,7 @@ export const parseXmlToEvents = (xmlContent) => {
             const end = parseFloat(node.getElementsByTagName('end')[0]?.textContent);
 
             if (code && isFinite(start) && isFinite(end)) {
-                return {
-                    event: code,
-                    timeMs: instanceTimeMs(start, end)
-                };
+                return instanceToEvent(code, start, end);
             }
             return null;
         }).filter(Boolean);

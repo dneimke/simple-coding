@@ -89,6 +89,23 @@ describe('XML Utils', () => {
             expect(texts(doc, 'instance > end')).toEqual(['65.00', '125.50', '185.00', '7.00']);
         });
 
+        test('uses per-event lead and lag, falling back to 5 seconds for missing values', () => {
+            const doc = parse(generateSportscodeXml([
+                { event: 'PC', timeMs: 100000, lead: 2, lag: 10 },
+                { event: 'ASC', timeMs: 100000, lead: 10 },
+                { event: 'SHOT', timeMs: 100000, lag: 0 },
+                { event: 'GOAL', timeMs: 100000 }
+            ]));
+            expect(texts(doc, 'instance > start')).toEqual(['98.00', '90.00', '95.00', '95.00']);
+            expect(texts(doc, 'instance > end')).toEqual(['110.00', '105.00', '100.00', '105.00']);
+        });
+
+        test('clamps start at 0 when the lead reaches before the start of the video', () => {
+            const doc = parse(generateSportscodeXml([{ event: 'START', timeMs: 4000, lead: 15, lag: 5 }]));
+            expect(texts(doc, 'instance > start')).toEqual(['0.00']);
+            expect(texts(doc, 'instance > end')).toEqual(['9.00']);
+        });
+
         test('escapes special characters in codes', () => {
             const xml = generateSportscodeXml([{ event: 'A & B <C>', timeMs: 10000 }]);
             expect(xml).toContain('<code>A &amp; B &lt;C&gt;</code>');
@@ -123,7 +140,7 @@ describe('XML Utils', () => {
     describe('parseXmlToEvents', () => {
         test('parses the Sportscode example, keeping decimal times and ignoring labels', () => {
             const events = parseXmlToEvents(USER_EXAMPLE);
-            expect(events).toEqual([{ event: 'Shot on Target', timeMs: 146375 }]);
+            expect(events).toEqual([{ event: 'Shot on Target', timeMs: 146375, lead: 3.875, lag: 3.875 }]);
             expect(events.teamsAttribute).toBeUndefined();
         });
 
@@ -137,6 +154,21 @@ describe('XML Utils', () => {
             const xml = generateSportscodeXml(events);
             expect(() => validateXmlStructure(xml)).not.toThrow();
             expect(parseXmlToEvents(xml)).toEqual(events);
+        });
+
+        test('re-exporting imported uneven clips reproduces the same start and end', () => {
+            const xml = generateSportscodeXml([
+                { event: 'BLAZE PC', timeMs: 111140, lead: 2, lag: 10 },
+                { event: 'BLAZE SHOT', timeMs: 1667910, lead: 15, lag: 5 },
+                { event: 'BLAZE ASC', timeMs: 60620, lead: 10, lag: 1 },
+                { event: 'START', timeMs: 20340, lead: 1, lag: 1 }
+            ]);
+            const imported = parseXmlToEvents(xml);
+            const doc = parse(generateSportscodeXml(imported));
+
+            expect(texts(doc, 'instance > start')).toEqual(['109.14', '1652.91', '50.62', '19.34']);
+            expect(texts(doc, 'instance > end')).toEqual(['121.14', '1672.91', '61.62', '21.34']);
+            expect(generateSportscodeXml(imported)).toBe(xml);
         });
 
         test('parses legacy <game> format with teams and favourites', () => {

@@ -7,7 +7,8 @@ import {
     getNamedConfig,
     saveNamedConfig,
     activateNamedConfig,
-    findNamedConfigName
+    findNamedConfigName,
+    validateConfig
 } from '../../src/components/config.js';
 
 const ACTIVE_KEY = 'fieldHockeyConfig_v1';
@@ -84,5 +85,32 @@ describe('named configurations', () => {
         expect(findNamedConfigName(unnamed)).toBeNull();
         expect(findNamedConfigName({ buttons: [] })).toBeNull();
         expect(findNamedConfigName(null)).toBeNull();
+    });
+});
+
+describe('validateConfig', () => {
+    const withButton = (button) => ({
+        rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'BLAZE PC', text: 'BLAZE PC', color: 'btn-orange', ...button }] }]
+    });
+
+    test('accepts buttons with and without lead and lag', () => {
+        expect(() => validateConfig(withButton({}))).not.toThrow();
+        expect(() => validateConfig(withButton({ lead: 2, lag: 10 }))).not.toThrow();
+        expect(() => validateConfig(withButton({ lead: 0, lag: 1.5 }))).not.toThrow();
+    });
+
+    test('rejects negative or non-numeric lead and lag, naming the event', () => {
+        expect(() => validateConfig(withButton({ lead: -1 }))).toThrow('BLAZE PC: lead must be a number of 0 or more.');
+        expect(() => validateConfig(withButton({ lag: '10' }))).toThrow('BLAZE PC: lag must be a number of 0 or more.');
+        expect(() => validateConfig(withButton({ lag: null }))).toThrow('BLAZE PC: lag must be a number of 0 or more.');
+    });
+
+    test('rejects configs without rowDefs', () => {
+        expect(() => validateConfig({ buttons: [] })).toThrow('Invalid configuration structure.');
+    });
+
+    test('saveNamedConfig rejects invalid lead and lag', () => {
+        expect(() => saveNamedConfig('bad-timing', withButton({ lag: -5 }))).toThrow('lag must be a number of 0 or more');
+        expect(listNamedConfigs()).not.toContain('bad-timing');
     });
 });
