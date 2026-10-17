@@ -31,6 +31,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Local reference notes
+docs/myva-lead-lag-times.md
+
 # Miscellaneous
 *.swp
 *.swo
