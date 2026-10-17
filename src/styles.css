@@ -203,6 +203,19 @@ body {
     box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #eab308, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
+.btn-orange {
+    background-image: linear-gradient(to bottom, #f97316, #ea580c);
+    border-color: #c2410c;
+}
+
+.btn-orange:hover {
+    background-image: linear-gradient(to bottom, #ea580c, #c2410c);
+}
+
+.btn-orange:focus {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #f97316, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
 .btn-gray {
     background-image: linear-gradient(to bottom, #6b7280, #4b5563);
     border-color: #374151;
