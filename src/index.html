@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Field Hockey Event Capture</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css?v=20261017">
+    <link rel="stylesheet" href="styles.css?v=20261017b">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
@@ -92,6 +92,14 @@
                     </div>
                 </div>
 
+                <div class="flex flex-wrap items-center gap-2 mb-3 px-1">
+                    <label for="boardSelect" class="text-sm font-medium text-gray-700">Board</label>
+                    <select id="boardSelect"
+                        class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"></select>
+                    <span id="boardLockedHint" class="text-xs text-gray-500 hidden">Locked until the game is completed
+                        or discarded</span>
+                </div>
+
                 <div id="coding-buttons-container" class="max-w-full mx-auto px-1">
                 </div>
             </div>
@@ -133,6 +141,12 @@
                             <code>btn-orange</code>, <code>btn-gray</code>). Buttons can also set
                             <code>lead</code> and <code>lag</code>: the seconds of video to include before and after
                             the press in the exported clip (default 5).
+                        </p>
+                        <p>
+                            Team boards (like <code>hockey-one-zoned</code>) add a <code>zones</code> block and rows
+                            with <code>"team": 1</code> or <code>2</code>. A team row can hold several
+                            <code>grids</code>; its buttons take the team's colour and code (e.g. <code>FIRE BS</code>),
+                            and buttons with <code>"zoned": true</code> also add the active zone (<code>FIRE BS2</code>).
                         </p>
                     </details>
                     <textarea id="configJsonInput" placeholder="Enter your configuration JSON here" spellcheck="false"
@@ -220,7 +234,34 @@
 
 
     </div>
-    <script type="module" src="main.js?v=20261017"></script>
+    <script type="module" src="main.js?v=20261017b"></script>
+
+    <!-- Team setup for boards with team rows -->
+    <div id="teamSetupModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden"
+        role="dialog" aria-modal="true" aria-labelledby="teamSetupTitle">
+        <form id="teamSetupForm" class="bg-white rounded-lg p-6 max-w-md w-full mx-4" novalidate>
+            <h2 id="teamSetupTitle" class="text-xl font-bold mb-1">Teams for this game</h2>
+            <p class="text-sm text-gray-500 mb-4">Codes prefix every event, e.g. <code>FIRE BS2</code>. Zones are
+                chosen from Team 1's perspective.</p>
+            <div class="mb-4">
+                <label for="teamCode1" class="block text-gray-700 font-medium mb-1">Team 1</label>
+                <input id="teamCode1" type="text" maxlength="12" autocomplete="off" autocapitalize="characters"
+                    class="block w-full px-3 py-2 mb-2 border border-gray-300 rounded-md uppercase focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div id="teamSwatches1" class="flex flex-wrap gap-2" role="group" aria-label="Team 1 colour"></div>
+            </div>
+            <div class="mb-4">
+                <label for="teamCode2" class="block text-gray-700 font-medium mb-1">Team 2</label>
+                <input id="teamCode2" type="text" maxlength="12" autocomplete="off" autocapitalize="characters"
+                    class="block w-full px-3 py-2 mb-2 border border-gray-300 rounded-md uppercase focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div id="teamSwatches2" class="flex flex-wrap gap-2" role="group" aria-label="Team 2 colour"></div>
+            </div>
+            <p id="teamSetupError" class="text-sm text-red-600 mb-3 hidden" role="alert"></p>
+            <div class="flex justify-end gap-2">
+                <button id="teamSetupCancel" type="button" class="event-button btn-gray px-4 py-2">Cancel</button>
+                <button type="submit" class="event-button btn-green px-4 py-2">Start</button>
+            </div>
+        </form>
+    </div>
 
     <!-- Step 5: Preview and Confirmation -->
     <div id="previewModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">

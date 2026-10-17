@@ -6,11 +6,13 @@ import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig } from './components/config.js';
+import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
 import { draftService, finishCapture } from './services/draftService.js';
+import { openTeamSetupDialog, loadLastTeams, saveLastTeams } from './components/teamSetupDialog.js';
+import { resolveEventName } from './utils/zoneUtils.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
@@ -23,6 +25,9 @@ const discardGameButton = document.getElementById('discardGameButton');
 const tabNavContainer = document.querySelector('#log-view nav');
 const navContainer = document.querySelector('nav');
 const codingButtonsContainer = document.getElementById('coding-buttons-container');
+const boardSelect = document.getElementById('boardSelect');
+const boardLockedHint = document.getElementById('boardLockedHint');
+const teamSetupModal = document.getElementById('teamSetupModal');
 const configJsonInput = document.getElementById('configJsonInput');
 const configDirtyIndicator = document.getElementById('configDirtyIndicator');
 const copyConfigButton = document.getElementById('copyConfigButton');
@@ -241,7 +246,72 @@ function applySavedConfig(name, config) {
     renderSavedConfigOptions(name);
     configEditorBaseline = configJsonInput.value;
     updateDirtyIndicator();
-    eventButtons.initialize(config);
+    renderBoard(config);
+    renderBoardOptions();
+}
+
+// Team rows show the game's teams, or the last-used teams as placeholders before a game starts
+function renderBoard(config = loadConfiguration()) {
+    const game = stateService.getState('game');
+    eventButtons.initialize(config, {
+        teams: game.teams ?? loadLastTeams(),
+        zone: game.activeZone ?? undefined
+    });
+    eventButtons.setState(game);
+}
+
+const CUSTOM_BOARD_VALUE = '';
+
+function renderBoardOptions() {
+    const activeName = findNamedConfigName(loadConfiguration());
+    boardSelect.innerHTML = '';
+    if (!activeName) {
+        const option = document.createElement('option');
+        option.value = CUSTOM_BOARD_VALUE;
+        option.textContent = 'Custom layout';
+        boardSelect.appendChild(option);
+    }
+    listNamedConfigs().forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        boardSelect.appendChild(option);
+    });
+    boardSelect.value = activeName ?? CUSTOM_BOARD_VALUE;
+    updateBoardLock();
+}
+
+function updateBoardLock() {
+    const locked = Boolean(stateService.getState('game.hasCurrentGame'));
+    boardSelect.disabled = locked;
+    boardSelect.title = locked ? 'Complete or discard the game to change board' : 'Choose the button board';
+    boardLockedHint.classList.toggle('hidden', !locked);
+}
+
+function selectZone(zone) {
+    eventButtons.setZone(zone);
+    if (eventButtons.zone !== zone) return;
+    if (stateService.getState('game.hasCurrentGame')) {
+        gameState.setActiveZone(zone);
+        saveCaptureDraft();
+    }
+}
+
+async function startNewGame() {
+    const config = loadConfiguration();
+    let teams = null;
+    if (usesTeams(config)) {
+        teams = await openTeamSetupDialog(loadLastTeams());
+        if (!teams) return;
+        saveLastTeams(teams);
+    }
+    const zones = config.zones;
+    const activeZone = zones ? (eventButtons.zone ?? zones.default ?? zones.values[0]) : null;
+
+    gameState.newGame({ teams, activeZone });
+    renderBoard(config);
+    saveCaptureDraft();
+    showCaptureControls();
 }
 
 function parseEditorConfig() {
@@ -275,7 +345,8 @@ function initializeApplication() {
     }
 
     registerEventListeners();
-    eventButtons.initialize(currentConfig);
+    renderBoard(currentConfig);
+    renderBoardOptions();
     showConfigView();
     restoreCaptureDraft();
 
@@ -304,6 +375,7 @@ function showCaptureControls() {
     showElement(discardGameButton);
     updatePauseResumeLabel();
     updateNavbarVisibility(true);
+    updateBoardLock();
 }
 
 function showStartControls() {
@@ -313,6 +385,7 @@ function showStartControls() {
     hideElement(discardGameButton);
     pauseResumeButton.textContent = 'Pause';
     updateNavbarVisibility(false);
+    updateBoardLock();
 }
 
 function restoreCaptureDraft() {
@@ -320,6 +393,7 @@ function restoreCaptureDraft() {
     if (!draft) return;
 
     gameState.restoreSession(draft);
+    renderBoard();
     showCaptureControls();
     notificationService.notify(`Restored capture in progress: ${describeCapture()}`, 'success', 6000);
 }
@@ -331,12 +405,15 @@ function completeCapture() {
     );
     if (!userConfirmed) return;
 
-    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
+    const teams = stateService.getState('game.teams');
+    const suggestedName = teams ? `${teams[0].code} vs ${teams[1].code}` : '';
+    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', suggestedName);
     const result = finishCapture({
         events: stateService.getState('game.loggedEvents'),
         elapsedTime,
         timestamp: new Date().toISOString(),
-        teams: teamsName ? teamsName.trim() : null
+        teams: teamsName ? teamsName.trim() : null,
+        ...(teams && { teamCodes: teams.map(team => team.code) })
     }, gameStorageManager);
 
     if (!result.success) {
@@ -350,6 +427,7 @@ function completeCapture() {
 
     checkStorageQuota();
     gameState.completeGame();
+    renderBoard();
     showStartControls();
 }
 
@@ -361,6 +439,7 @@ function discardCapture() {
 
     gameState.completeGame();
     draftService.clearDraft();
+    renderBoard();
     showStartControls();
 }
 
@@ -400,10 +479,19 @@ function registerEventListeners() {
 
 
     codingButtonsContainer.addEventListener('click', (event) => {
+        const zoneButton = event.target.closest('.zone-button[data-zone]');
+        if (zoneButton) {
+            selectZone(zoneButton.dataset.zone);
+            return;
+        }
+
         const button = event.target.closest('.event-button[data-event]');
         if (!button) return; // Ignore clicks on unrelated elements
 
-        const eventName = button.dataset.event;
+        const eventName = resolveEventName(
+            { event: button.dataset.event, zoned: button.dataset.zoned === 'true', slot: button.dataset.teamSlot },
+            { zone: eventButtons.zone, zones: eventButtons.config?.zones }
+        );
         const clip = {};
         if (button.dataset.lead !== undefined) clip.lead = Number(button.dataset.lead);
         if (button.dataset.lag !== undefined) clip.lag = Number(button.dataset.lag);
@@ -417,9 +505,7 @@ function registerEventListeners() {
 
         switch (id) {
             case 'newGameButton':
-                gameState.newGame();
-                saveCaptureDraft();
-                showCaptureControls();
+                startNewGame();
                 break;
             case 'pauseResumeButton':
                 gameState.pauseResume();
@@ -435,6 +521,37 @@ function registerEventListeners() {
             default:
                 break;
         }
+    });
+
+    boardSelect.addEventListener('change', () => {
+        if (stateService.getState('game.hasCurrentGame') || boardSelect.value === CUSTOM_BOARD_VALUE) {
+            renderBoardOptions();
+            return;
+        }
+        try {
+            const config = activateNamedConfig(boardSelect.value);
+            eventButtons.setConfig(config);
+            renderBoard(config);
+        } catch (error) {
+            logger.error('Failed to switch board:', error);
+            notificationService.notify(error.message, 'error');
+        }
+        renderBoardOptions();
+    });
+
+    // Number keys pick the sticky zone (from Team 1's perspective)
+    document.addEventListener('keydown', (event) => {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (stateService.getState('ui.currentView') !== 'EventCapture') return;
+        if (!teamSetupModal.classList.contains('hidden')) return;
+        if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+
+        const zones = eventButtons.config?.zones;
+        const index = Number(event.key) - 1;
+        if (!zones || !Number.isInteger(index) || index < 0 || index >= zones.values.length) return;
+
+        event.preventDefault();
+        selectZone(zones.values[index]);
     });
 
     // Copy XML button
