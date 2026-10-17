@@ -32,7 +32,7 @@ describe('draftService', () => {
         expect(typeof value.updatedAt).toBe('number');
     });
 
-    test('loadDraft returns the stored draft', () => {
+    test('loadDraft returns the stored draft, with empty teams and zone for drafts saved before team boards', () => {
         storageService.getItem.mockReturnValue({
             events: [{ event: 'GOAL', timeMs: 1000 }],
             elapsedTime: 5000,
@@ -44,8 +44,30 @@ describe('draftService', () => {
             events: [{ event: 'GOAL', timeMs: 1000 }],
             elapsedTime: 5000,
             runningSince: null,
+            teams: null,
+            activeZone: null,
+            selectedTeam: null,
             updatedAt: 42
         });
+    });
+
+    test('saveDraft and loadDraft round-trip teams, zone and selected team', () => {
+        const teams = [{ code: 'FIRE', color: 'red' }, { code: 'TIGERS', color: 'yellow' }];
+        draftService.saveDraft({ events: [], elapsedTime: 0, runningSince: null, teams, activeZone: '3', selectedTeam: 2 });
+
+        const [, value] = storageService.setItem.mock.calls[0];
+        expect(value).toEqual(expect.objectContaining({ teams, activeZone: '3', selectedTeam: 2 }));
+
+        storageService.getItem.mockReturnValue(value);
+        expect(draftService.loadDraft()).toEqual(expect.objectContaining({ teams, activeZone: '3', selectedTeam: 2 }));
+    });
+
+    test('loadDraft drops malformed teams, zone and selected team', () => {
+        storageService.getItem.mockReturnValue({
+            events: [], elapsedTime: 0, teams: [{ code: 'FIRE' }], activeZone: 3, selectedTeam: 3
+        });
+
+        expect(draftService.loadDraft()).toEqual(expect.objectContaining({ teams: null, activeZone: null, selectedTeam: null }));
     });
 
     test('loadDraft returns null when nothing or something malformed is stored', () => {

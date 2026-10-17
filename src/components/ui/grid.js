@@ -40,16 +40,19 @@ export const createGrid = ({
  *
  * @param {Object} options - Button grid configuration
  * @param {string} [options.gridCols="grid-cols-4"] - Tailwind grid column classes
- * @param {Array<{event: string, text: string, color: string}>} options.buttons - Button configurations
+ * @param {Array<{event: string, text: string, color?: string, zoned?: boolean}>} options.buttons - Button configurations
  * @param {string} [options.className=""] - Additional CSS classes
  * @param {Function} [options.onButtonClick=null] - Click handler for buttons
+ * @param {{slot: number, code: string, colorClass: string}} [options.team=null] - Team slot for the row; events are
+ *   prefixed with the team code and buttons without a color use the team's colour class
  * @returns {HTMLDivElement} Created button grid
  */
 export const createButtonGrid = ({
     gridCols = 'grid-cols-4',
     buttons = [],
     className = '',
-    onButtonClick = null
+    onButtonClick = null,
+    team = null
 }) => {
     const buttonGrid = document.createElement('div');
     // Dynamically adjust grid columns for mobile
@@ -64,17 +67,26 @@ export const createButtonGrid = ({
     buttonGrid.className = responsiveGridClass;
 
     buttons.forEach(buttonConfig => {
-        if (!buttonConfig || !buttonConfig.text || !buttonConfig.color) {
+        const color = buttonConfig?.color || team?.colorClass;
+        if (!buttonConfig || !buttonConfig.text || !color) {
             console.warn("Skipping invalid button config:", buttonConfig);
             return;
         }
 
         const button = document.createElement('button');
-        button.className = `event-button ${buttonConfig.color} rounded text-center`;
+        button.className = `event-button ${color} rounded text-center`;
         button.textContent = buttonConfig.text;
 
         if (buttonConfig.event) {
-            button.dataset.event = buttonConfig.event;
+            button.dataset.event = team ? `${team.code} ${buttonConfig.event}` : buttonConfig.event;
+        }
+        if (team) {
+            button.dataset.teamSlot = String(team.slot);
+            button.dataset.baseEvent = buttonConfig.event ?? '';
+            if (!buttonConfig.color) button.dataset.teamColored = 'true';
+        }
+        if (buttonConfig.zoned) {
+            button.dataset.zoned = 'true';
         }
 
         if (typeof buttonConfig.lead === 'number') {

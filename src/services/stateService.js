@@ -16,7 +16,10 @@ export const stateService = {
             isRunning: false,
             elapsedTime: 0,
             loggedEvents: [],
-            hasCurrentGame: false
+            hasCurrentGame: false,
+            teams: null,
+            activeZone: null,
+            selectedTeam: null
         },
         ui: {
             currentView: 'EventCapture',
