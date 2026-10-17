@@ -37,9 +37,22 @@ const HOCKEY_ONE_CONFIG = {
     ]
 };
 
+// Clip lead / lag seconds from Mitty's MyVA coding window; codes not listed (BW, RED) use the default
+const ZONED_CLIP_TIMINGS = {
+    START: [1, 1], END: [1, 1], UMP: [7, 7],
+    BS: [10, 10], OH: [5, 10], A25E: [5, 10], CE: [10, 10], SHOT: [15, 5], ASC: [10, 1], PC: [2, 10],
+    APS: [10, 1], PS: [3, 2], GOAL: [15, 5], SO: [2, 10],
+    GREEN: [20, 130], YELLOW: [20, 360]
+};
+
+const clipTiming = (code) => {
+    const timing = ZONED_CLIP_TIMINGS[code];
+    return timing ? { lead: timing[0], lag: timing[1] } : {};
+};
+
 // Team buttons hold only the event code; the team code chosen at game start is prefixed at runtime
 const slotButtons = (codes, zoned = false) =>
-    codes.map(code => ({ event: code, text: code, ...(zoned && { zoned: true }) }));
+    codes.map(code => ({ event: code, text: code, ...(zoned && { zoned: true }), ...clipTiming(code) }));
 
 const zonedTeamRows = () => [1, 2].map(team => ({
     team,
@@ -61,7 +74,7 @@ const scoringRow = () => ({
 const HOCKEY_ONE_ZONED_CONFIG = {
     zones: { values: ["1", "2", "3", "4"], default: "1", perspective: "mirrored" },
     rowDefs: [
-        { gridCols: "grid-cols-3", buttons: ["START", "END", "UMP"].map(code => ({ event: code, text: code, color: "btn-gray" })) },
+        { gridCols: "grid-cols-3", buttons: ["START", "END", "UMP"].map(code => ({ event: code, text: code, color: "btn-gray", ...clipTiming(code) })) },
         ...zonedTeamRows(),
         scoringRow()
     ]

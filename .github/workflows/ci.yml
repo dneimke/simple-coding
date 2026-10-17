@@ -24,7 +24,11 @@ jobs:
       run: npm ci
 
     - name: Run Jest tests with coverage
-      run: npm run test:ci
+      run: npm run test:ci -- --json --outputFile=test-results.json
+
+    - name: Write unit test summary
+      if: ${{ !cancelled() }}
+      run: node scripts/test-summary.js test-results.json coverage/coverage-summary.json
 
     - name: Upload coverage reports to Artifacts
       uses: actions/upload-artifact@v4

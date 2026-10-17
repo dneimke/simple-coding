@@ -12,7 +12,7 @@ module.exports = {
         '!**/node_modules/**'
     ],
     coverageDirectory: 'coverage',
-    coverageReporters: ['lcov', 'text', 'clover'],
+    coverageReporters: ['lcov', 'text', 'clover', 'json-summary'],
     coverageThreshold: {
         global: {
             statements: 30,
