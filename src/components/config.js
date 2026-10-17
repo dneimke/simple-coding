@@ -125,6 +125,18 @@ export function getNamedConfig(name) {
     return config ? cloneConfig(config) : null;
 }
 
+// Returns the saved name whose layout matches the given configuration, or null
+export function findNamedConfigName(config) {
+    if (!isValidConfig(config)) {
+        return null;
+    }
+    const target = JSON.stringify(config.rowDefs);
+    const configs = readNamedConfigs();
+    return Object.keys(configs)
+        .sort((a, b) => a.localeCompare(b))
+        .find(name => JSON.stringify(configs[name].rowDefs) === target) ?? null;
+}
+
 // Stores a configuration under a name and makes it the active configuration
 export function saveNamedConfig(name, config) {
     const trimmedName = String(name ?? '').trim();

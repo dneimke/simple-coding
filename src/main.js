@@ -6,7 +6,7 @@ import { logger } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, saveConfiguration, listNamedConfigs, saveNamedConfig, activateNamedConfig } from './components/config.js';
+import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -22,11 +22,14 @@ const tabNavContainer = document.querySelector('#log-view nav');
 const navContainer = document.querySelector('nav');
 const codingButtonsContainer = document.getElementById('coding-buttons-container');
 const configJsonInput = document.getElementById('configJsonInput');
+const configDirtyIndicator = document.getElementById('configDirtyIndicator');
 const saveConfigButton = document.getElementById('saveConfigButton');
 const savedConfigSelect = document.getElementById('savedConfigSelect');
-const loadNamedConfigButton = document.getElementById('loadNamedConfigButton');
+const saveAsConfigButton = document.getElementById('saveAsConfigButton');
+const saveAsConfigForm = document.getElementById('saveAsConfigForm');
 const configNameInput = document.getElementById('configNameInput');
-const saveNamedConfigButton = document.getElementById('saveNamedConfigButton');
+const confirmSaveAsConfigButton = document.getElementById('confirmSaveAsConfigButton');
+const cancelSaveAsConfigButton = document.getElementById('cancelSaveAsConfigButton');
 const configMessage = document.getElementById('configMessage');
 const importXmlButton = document.getElementById('importXmlButton');
 const xmlFileInput = document.getElementById('xmlFileInput');
@@ -172,23 +175,69 @@ function renderLogView() {
     copyXmlButton.disabled = events.length === 0;
 }
 
-function renderSavedConfigOptions(selectedName = savedConfigSelect.value) {
+// An empty select value stands for the active layout when it matches no saved name
+const UNSAVED_CONFIG_VALUE = '';
+let configEditorBaseline = '';
+let selectedConfigName = UNSAVED_CONFIG_VALUE;
+
+function renderSavedConfigOptions(selectedName, includeUnsaved = false) {
     const names = listNamedConfigs();
     savedConfigSelect.innerHTML = '';
+    if (includeUnsaved) {
+        const option = document.createElement('option');
+        option.value = UNSAVED_CONFIG_VALUE;
+        option.textContent = 'Unsaved layout';
+        savedConfigSelect.appendChild(option);
+    }
     names.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
         option.textContent = name;
         savedConfigSelect.appendChild(option);
     });
-    if (names.includes(selectedName)) {
+    if (includeUnsaved || names.includes(selectedName)) {
         savedConfigSelect.value = selectedName;
     }
+    selectedConfigName = savedConfigSelect.value;
+}
+
+function isEditorDirty() {
+    return configJsonInput.value !== configEditorBaseline;
+}
+
+function updateDirtyIndicator() {
+    configDirtyIndicator.classList.toggle('hidden', !isEditorDirty());
+}
+
+function setEditorConfig(config) {
+    configJsonInput.value = JSON.stringify(config, null, 2);
+    configEditorBaseline = configJsonInput.value;
+    updateDirtyIndicator();
+}
+
+function hideSaveAsForm() {
+    saveAsConfigForm.classList.add('hidden');
+    saveConfigButton.classList.remove('hidden');
+    saveAsConfigButton.classList.remove('hidden');
+    configNameInput.value = '';
 }
 
 function showConfigView() {
-    configJsonInput.value = JSON.stringify(loadConfiguration(), null, 2);
-    renderSavedConfigOptions();
+    const activeConfig = loadConfiguration();
+    const activeName = findNamedConfigName(activeConfig);
+    renderSavedConfigOptions(activeName ?? UNSAVED_CONFIG_VALUE, !activeName);
+    setEditorConfig(activeConfig);
+    hideSaveAsForm();
+}
+
+function applySavedConfig(name, config) {
+    if (!saveNamedConfig(name, config)) {
+        throw new Error("Failed to save configuration.");
+    }
+    renderSavedConfigOptions(name);
+    configEditorBaseline = configJsonInput.value;
+    updateDirtyIndicator();
+    eventButtons.initialize(config);
 }
 
 function parseEditorConfig() {
@@ -203,9 +252,8 @@ function initializeApplication() {
     // Load configuration
     const currentConfig = loadConfiguration();
 
-    // Set configuration in editor and initialize event buttons
+    // Initialize event buttons from the active configuration
     if (currentConfig) {
-        configJsonInput.value = JSON.stringify(currentConfig, null, 2);
         eventButtons.setConfig(currentConfig);
     }
 
@@ -226,7 +274,7 @@ function initializeApplication() {
 
     registerEventListeners();
     eventButtons.initialize(currentConfig);
-    renderSavedConfigOptions();
+    showConfigView();
 
     const hasCurrentGame = stateService.getState('game.hasCurrentGame');
     updateNavbarVisibility(hasCurrentGame);
@@ -344,54 +392,87 @@ function registerEventListeners() {
         copyXmlToClipboard(xmlContent);
     });
 
-    // Save configuration button
-    saveConfigButton.addEventListener('click', () => {
-        try {
-            const parsedConfig = parseEditorConfig();
-            const isSaved = saveConfiguration(parsedConfig);
+    savedConfigSelect.addEventListener('change', () => {
+        const name = savedConfigSelect.value;
+        if (isEditorDirty() &&
+            !notificationService.confirm('Discard your unsaved changes to the configuration JSON?')) {
+            savedConfigSelect.value = selectedConfigName;
+            return;
+        }
+        const config = name === UNSAVED_CONFIG_VALUE ? loadConfiguration() : getNamedConfig(name);
+        if (!config) {
+            savedConfigSelect.value = selectedConfigName;
+            showMessage(configMessage, `No saved configuration named "${name}".`, true);
+            return;
+        }
+        selectedConfigName = name;
+        setEditorConfig(config);
+        hideSaveAsForm();
+    });
 
-            if (isSaved) {
-                showMessage(configMessage, "Configuration saved successfully!", false);
-                eventButtons.initialize(parsedConfig);
-            } else {
-                showMessage(configMessage, "Failed to save configuration.", true);
-            }
-        } catch (error) {
-            logger.error("Invalid JSON:", error);
-            showMessage(configMessage, `Error parsing JSON: ${error.message}`, true);
+    configJsonInput.addEventListener('input', updateDirtyIndicator);
+
+    configJsonInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Tab' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
+            return;
+        }
+        event.preventDefault();
+        if (!document.execCommand('insertText', false, '  ')) {
+            configJsonInput.setRangeText('  ', configJsonInput.selectionStart, configJsonInput.selectionEnd, 'end');
+            updateDirtyIndicator();
         }
     });
 
-    loadNamedConfigButton.addEventListener('click', () => {
+    saveConfigButton.addEventListener('click', () => {
         const name = savedConfigSelect.value;
         try {
-            const config = activateNamedConfig(name);
-            configJsonInput.value = JSON.stringify(config, null, 2);
-            configNameInput.value = name;
-            eventButtons.initialize(config);
-            showMessage(configMessage, `Configuration "${name}" loaded and set as active.`, false);
+            if (name === UNSAVED_CONFIG_VALUE) {
+                throw new Error("This layout has no name yet. Use Save as to name it.");
+            }
+            applySavedConfig(name, parseEditorConfig());
+            showMessage(configMessage, `Configuration "${name}" saved and set as active.`, false);
         } catch (error) {
-            logger.error("Failed to load named configuration:", error);
+            logger.error("Failed to save configuration:", error);
             showMessage(configMessage, error.message, true);
         }
     });
 
-    saveNamedConfigButton.addEventListener('click', () => {
+    saveAsConfigButton.addEventListener('click', () => {
+        saveConfigButton.classList.add('hidden');
+        saveAsConfigButton.classList.add('hidden');
+        saveAsConfigForm.classList.remove('hidden');
+        configNameInput.value = '';
+        configNameInput.focus();
+    });
+
+    cancelSaveAsConfigButton.addEventListener('click', hideSaveAsForm);
+
+    const saveAsNewName = () => {
         const name = configNameInput.value.trim();
         try {
             if (!name) {
                 throw new Error("Enter a name for this configuration.");
             }
             const parsedConfig = parseEditorConfig();
-            if (!saveNamedConfig(name, parsedConfig)) {
-                throw new Error("Failed to save configuration.");
+            if (listNamedConfigs().includes(name) &&
+                !notificationService.confirm(`A configuration named "${name}" already exists. Overwrite it?`)) {
+                return;
             }
-            renderSavedConfigOptions(name);
-            eventButtons.initialize(parsedConfig);
+            applySavedConfig(name, parsedConfig);
+            hideSaveAsForm();
             showMessage(configMessage, `Configuration "${name}" saved and set as active.`, false);
         } catch (error) {
             logger.error("Failed to save named configuration:", error);
             showMessage(configMessage, error.message, true);
+        }
+    };
+
+    confirmSaveAsConfigButton.addEventListener('click', saveAsNewName);
+    configNameInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            saveAsNewName();
+        } else if (event.key === 'Escape') {
+            hideSaveAsForm();
         }
     });
 

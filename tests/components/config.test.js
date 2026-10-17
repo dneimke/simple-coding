@@ -6,7 +6,8 @@ import {
     listNamedConfigs,
     getNamedConfig,
     saveNamedConfig,
-    activateNamedConfig
+    activateNamedConfig,
+    findNamedConfigName
 } from '../../src/components/config.js';
 
 const ACTIVE_KEY = 'fieldHockeyConfig_v1';
@@ -70,5 +71,18 @@ describe('named configurations', () => {
 
     test('activateNamedConfig throws for an unknown name', () => {
         expect(() => activateNamedConfig('missing')).toThrow('No saved configuration named "missing".');
+    });
+
+    test('findNamedConfigName returns the saved name matching a layout', () => {
+        expect(findNamedConfigName(getNamedConfig('hockey-one'))).toBe('hockey-one');
+        expect(findNamedConfigName(loadConfiguration())).toBe('default');
+    });
+
+    test('findNamedConfigName returns null for unnamed or invalid layouts', () => {
+        const unnamed = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'Z', text: 'Z', color: 'btn-gray' }] }] };
+
+        expect(findNamedConfigName(unnamed)).toBeNull();
+        expect(findNamedConfigName({ buttons: [] })).toBeNull();
+        expect(findNamedConfigName(null)).toBeNull();
     });
 });
