@@ -148,6 +148,32 @@ export class GameState {
     }
 
     /**
+     * Remove a logged event from the capture in progress (running or paused)
+     * @param {number} index - Position in loggedEvents
+     * @returns {Object|null} The removed event, or null if nothing was removed
+     */
+    removeEvent(index) {
+        const gameState = stateService.getState('game');
+        const events = gameState.loggedEvents || [];
+        if (!gameState.hasCurrentGame || !Number.isInteger(index) || index < 0 || index >= events.length) {
+            return null;
+        }
+
+        const removed = events[index];
+        stateService.setState('game.loggedEvents', events.filter((_, i) => i !== index));
+        return removed;
+    }
+
+    /**
+     * Remove the most recently logged event
+     * @returns {Object|null} The removed event, or null if there were none
+     */
+    removeLastEvent() {
+        const events = stateService.getState('game.loggedEvents') || [];
+        return this.removeEvent(events.length - 1);
+    }
+
+    /**
      * @param {Object} [options]
      * @param {Array<{code: string, color: string}>|null} [options.teams] - Team 1 and Team 2 for team boards
      * @param {string|null} [options.activeZone] - Starting sticky zone
