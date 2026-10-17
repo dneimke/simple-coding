@@ -386,6 +386,44 @@ body {
     margin-right: 0.35rem;
 }
 
+.config-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.config-editor-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 44px;
+    padding: 0 0.85rem;
+    border: 1px solid #45475a;
+    border-radius: 0.5rem;
+    background-color: #313244;
+    color: #cdd6f4;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.config-editor-action:hover {
+    background-color: #45475a;
+}
+
+.config-editor-action:focus-visible {
+    outline: none;
+    border-color: #89b4fa;
+    box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.5);
+}
+
+.config-editor-action i {
+    color: #89b4fa;
+}
+
 .config-editor-dirty {
     color: #f9e2af;
     font-size: 0.75rem;

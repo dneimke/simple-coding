@@ -25,6 +25,8 @@ const navContainer = document.querySelector('nav');
 const codingButtonsContainer = document.getElementById('coding-buttons-container');
 const configJsonInput = document.getElementById('configJsonInput');
 const configDirtyIndicator = document.getElementById('configDirtyIndicator');
+const copyConfigButton = document.getElementById('copyConfigButton');
+const replaceConfigButton = document.getElementById('replaceConfigButton');
 const saveConfigButton = document.getElementById('saveConfigButton');
 const savedConfigSelect = document.getElementById('savedConfigSelect');
 const saveAsConfigButton = document.getElementById('saveAsConfigButton');
@@ -456,6 +458,58 @@ function registerEventListeners() {
         selectedConfigName = name;
         setEditorConfig(config);
         hideSaveAsForm();
+    });
+
+    copyConfigButton.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(configJsonInput.value);
+            notificationService.notify('Configuration copied to clipboard.', 'success');
+        } catch (err) {
+            logger.error('Failed to copy configuration to clipboard:', err);
+            configJsonInput.focus();
+            configJsonInput.select();
+            showMessage(configMessage, 'Copy failed. The configuration is selected so you can copy it manually.', true);
+        }
+    });
+
+    replaceConfigButton.addEventListener('click', async () => {
+        let text;
+        try {
+            text = await navigator.clipboard.readText();
+        } catch (err) {
+            logger.error('Failed to read configuration from clipboard:', err);
+            configJsonInput.focus();
+            configJsonInput.select();
+            showMessage(configMessage, 'Clipboard access was blocked. The configuration is selected, so long-press and choose Paste.', true);
+            return;
+        }
+
+        let parsedConfig;
+        try {
+            parsedConfig = JSON.parse(text);
+        } catch {
+            parsedConfig = null;
+        }
+        if (!parsedConfig || !Array.isArray(parsedConfig.rowDefs)) {
+            showMessage(configMessage, "The clipboard doesn't contain a valid configuration.", true);
+            return;
+        }
+
+        if (isEditorDirty() &&
+            !notificationService.confirm('Replace your unsaved changes with the clipboard contents?')) {
+            return;
+        }
+
+        const formatted = JSON.stringify(parsedConfig, null, 2);
+        configJsonInput.focus();
+        configJsonInput.select();
+        if (!document.execCommand('insertText', false, formatted)) {
+            configJsonInput.value = formatted;
+        }
+        configJsonInput.setSelectionRange(0, 0);
+        configJsonInput.scrollTop = 0;
+        updateDirtyIndicator();
+        showMessage(configMessage, 'Configuration replaced. Tap Save or Save as to keep it.');
     });
 
     configJsonInput.addEventListener('input', updateDirtyIndicator);

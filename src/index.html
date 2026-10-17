@@ -110,7 +110,17 @@
                         <label for="configJsonInput" class="config-editor-title">
                             <i class="fas fa-code" aria-hidden="true"></i> Configuration JSON
                         </label>
-                        <span id="configDirtyIndicator" class="config-editor-dirty hidden">Unsaved changes</span>
+                        <div class="config-editor-actions">
+                            <span id="configDirtyIndicator" class="config-editor-dirty hidden">Unsaved changes</span>
+                            <button id="copyConfigButton" type="button" class="config-editor-action"
+                                title="Copy the configuration JSON to the clipboard">
+                                <i class="fas fa-copy" aria-hidden="true"></i> Copy
+                            </button>
+                            <button id="replaceConfigButton" type="button" class="config-editor-action"
+                                title="Replace the configuration JSON with the clipboard contents">
+                                <i class="fas fa-paste" aria-hidden="true"></i> Replace from clipboard
+                            </button>
+                        </div>
                     </div>
                     <details class="config-editor-help">
                         <summary>JSON format help</summary>
