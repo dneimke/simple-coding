@@ -15,6 +15,9 @@ jspm_packages/
 # Coverage directory
 coverage/
 
+# Jest JSON results written in CI for the step summary
+test-results.json
+
 # Build output
 dist/
 
