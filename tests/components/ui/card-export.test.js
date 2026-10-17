@@ -12,15 +12,15 @@ jest.mock('../../../src/utils/formatUtils.js', () => ({
 
 // Mock XML utils
 jest.mock('../../../src/utils/xmlUtils.js', () => ({
-    generateGameXml: jest.fn((game, index) => {
-        return `<?xml version="1.0" encoding="UTF-8"?>
-<game date="${new Date(game.timestamp).toISOString().split('T')[0]}" teams="${game.teams || `Game ${index}`}">
-    <events>
-${game.events.map(event => `        <event event="${event.event}" timeMs="${event.timeMs}" />`).join('\n')}
-    </events>
-</game>`;
-    })
-    ,
+    generateGameXml: jest.fn((game) => {
+        return `<?xml version="1.0" encoding="utf-8"?>
+<file>
+  <ALL_INSTANCES>
+${game.events.map((event, i) => `    <instance><ID>${i + 1}</ID><code>${event.event}</code></instance>`).join('\n')}
+  </ALL_INSTANCES>
+  <ROWS />
+</file>`;
+    }),
     getInvalidEvents: jest.fn((game) => [])
 }));
 
@@ -155,8 +155,12 @@ describe('Export XML Functionality', () => {
         // Verify that generateGameXml was called with the correct parameters
         expect(generateGameXml).toHaveBeenCalledWith(mockGame, 1); // index + 1 = 0 + 1 = 1
 
-        // Verify Blob was created
+        // Verify Blob was created with the Sportscode document
         expect(global.Blob).toHaveBeenCalled();
+        const [[blobContent]] = global.Blob.mock.calls[0];
+        expect(blobContent).toContain('<file>');
+        expect(blobContent).toContain('<ALL_INSTANCES>');
+        expect(blobContent).toContain('<ROWS />');
 
         // Verify URL.createObjectURL was called
         expect(URL.createObjectURL).toHaveBeenCalled();
@@ -175,5 +179,35 @@ describe('Export XML Functionality', () => {
 
         // Run the setTimeout callback
         jest.runAllTimers();
+    });
+});
+
+describe('View Log button', () => {
+    const game = {
+        teams: 'Test Team vs Opponent',
+        timestamp: '2025-05-10T14:30:00Z',
+        events: [{ event: 'GOAL_FOR', timeMs: 60000 }]
+    };
+
+    const findButton = (card, text) => card.append.mock.calls[0].find(el => el.textContent === text);
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('is not rendered without an onViewLog handler', () => {
+        const card = createGameCard({ game, index: 0, onRename: jest.fn(), onDelete: jest.fn() });
+        expect(findButton(card, 'View Log')).toBeUndefined();
+    });
+
+    test('calls onViewLog and stops propagation when clicked', () => {
+        const onViewLog = jest.fn();
+        const card = createGameCard({ game, index: 0, onRename: jest.fn(), onDelete: jest.fn(), onViewLog });
+
+        const stopPropagation = jest.fn();
+        findButton(card, 'View Log').onclick({ stopPropagation });
+
+        expect(stopPropagation).toHaveBeenCalled();
+        expect(onViewLog).toHaveBeenCalledTimes(1);
     });
 });

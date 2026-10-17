@@ -12,7 +12,7 @@ The Match Review interface combines a timeline panel that displays recorded game
 
 The Timeline panel provides a chronological view of all recorded match events:
 
-- **Game Selection**: Choose from previously recorded games using the dropdown menu
+- **Game Title**: The game chosen from the Saved Games list is loaded automatically and its name is shown at the top of the panel. To review a different game, return to Saved Games
 - **Event Filtering**: Filter timeline events by type to focus on specific aspects of play
 - **Event Timeline**: Scrollable list of events showing timestamps and relevant information
 - **Event Interaction**: Click on any event to jump to that exact moment in the video
@@ -29,8 +29,10 @@ The video player section allows you to:
 ## How to Use
 
 1. **Select a Game**:
-   - Use the "Select Game" dropdown to choose from previously recorded matches
-   - The timeline will populate with events from the selected game
+   - Open **Saved Games** from the navigation bar and click a game's name or details
+   - Match Review opens at `timeline-video.html?game=<id>` with that game's events in the timeline
+   - To review another match, go back to Saved Games and choose it there
+   - Export, Rename, and Delete remain available on the Saved Games list
 
 2. **Filter Events** (if needed):
    - Click the filter dropdown to select specific event types
@@ -53,7 +55,6 @@ The video player section allows you to:
 
 ## Best Practices
 
-- Upload video files before selecting games for the best experience
 - For optimal performance, use compressed video formats
 - Consider filtering events by type when focusing on specific aspects (e.g., only penalties or goals)
 - Use the timeline to quickly navigate between important game moments rather than manually scrubbing through video

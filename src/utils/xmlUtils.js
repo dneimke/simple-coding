@@ -8,33 +8,74 @@ export const getInvalidEvents = (game) => {
     if (!game || !Array.isArray(game.events)) return [];
     return game.events
         .map((event, idx) => ({ event, idx }))
-        .filter(({ event }) => {
-            return (
-                !event ||
-                typeof event.event !== 'string' ||
-                !event.event.trim() ||
-                typeof event.timeMs !== 'number' ||
-                !isFinite(event.timeMs)
-            );
-        });
+        .filter(({ event }) => !isValidEvent(event));
 };
+
+const isValidEvent = (event) => (
+    !!event &&
+    typeof event.event === 'string' &&
+    !!event.event.trim() &&
+    typeof event.timeMs === 'number' &&
+    isFinite(event.timeMs)
+);
+
 // XML utility functions
 import { escapeXml, logger } from './formatUtils.js';
 import { notificationService } from '../services/notificationService.js';
 
+const CLIP_LEAD_SECONDS = 5;
+const CLIP_LAG_SECONDS = 5;
+
+const formatSeconds = (seconds) => seconds.toFixed(2);
+
 /**
- * Generates plain XML from event data
- * @param {Array} events - Array of event objects
- * @returns {string} Generated XML string
+ * Builds a complete Sportscode XML document from event data.
+ * Each event becomes an instance with a clip window around the event time,
+ * and each distinct code becomes a row referenced by the instance's code_id.
+ * @param {Array} events - Array of event objects ({ event, timeMs })
+ * @returns {string} Sportscode XML document
  */
-export const generatePlainXml = (events) => {
-    return events.map((logEntry, index) => {
-        const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000);
-        const startSeconds = Math.max(0, eventTimeSeconds - 5);
-        const endSeconds = eventTimeSeconds + 5;
-        const eventCode = escapeXml(logEntry.event);
-        return `<instance><ID>${index + 1}</ID><start>${startSeconds}</start><end>${endSeconds}</end><code>${eventCode}</code></instance>`;
-    }).join('\n');
+export const generateSportscodeXml = (events) => {
+    const validEvents = (Array.isArray(events) ? events : []).filter(isValidEvent);
+    const rowIds = new Map();
+
+    const instances = validEvents.map((logEntry, index) => {
+        const code = logEntry.event;
+        if (!rowIds.has(code)) {
+            rowIds.set(code, rowIds.size + 1);
+        }
+        const eventSeconds = logEntry.timeMs / 1000;
+        const start = Math.max(0, eventSeconds - CLIP_LEAD_SECONDS);
+        const end = eventSeconds + CLIP_LAG_SECONDS;
+        return [
+            '    <instance>',
+            `      <ID>${index + 1}</ID>`,
+            `      <start>${formatSeconds(start)}</start>`,
+            `      <end>${formatSeconds(end)}</end>`,
+            `      <code_id>${rowIds.get(code)}</code_id>`,
+            `      <code>${escapeXml(code)}</code>`,
+            '    </instance>'
+        ].join('\n');
+    });
+
+    const rows = Array.from(rowIds.entries()).map(([code, id]) => [
+        '    <row>',
+        `      <id>${id}</id>`,
+        `      <name>${escapeXml(code)}</name>`,
+        '    </row>'
+    ].join('\n'));
+
+    const section = (tag, items) => items.length > 0
+        ? `  <${tag}>\n${items.join('\n')}\n  </${tag}>`
+        : `  <${tag} />`;
+
+    return [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<file>',
+        section('ALL_INSTANCES', instances),
+        section('ROWS', rows),
+        '</file>'
+    ].join('\n');
 };
 
 /**
@@ -57,6 +98,57 @@ export const copyXmlToClipboard = (xmlContent) => {
         });
 };
 
+const childElements = (node, tagName) =>
+    Array.from(node?.children || []).filter(child => child.nodeName === tagName);
+
+const childText = (node, tagName) => {
+    const child = childElements(node, tagName)[0];
+    return child ? child.textContent.trim() : undefined;
+};
+
+/**
+ * Returns the ALL_INSTANCES element if the document is a Sportscode file, otherwise null
+ * @param {Document} xmlDoc - Parsed XML document
+ * @returns {Element|null}
+ */
+const getSportscodeInstancesElement = (xmlDoc) => {
+    const root = xmlDoc?.documentElement;
+    if (!root || root.nodeName !== 'file') return null;
+    return childElements(root, 'ALL_INSTANCES')[0] || null;
+};
+
+/**
+ * Reads the raw fields of a Sportscode instance element
+ * @param {Element} node - <instance> element
+ * @returns {Object} Instance fields with numeric start/end
+ */
+const readSportscodeInstance = (node) => {
+    const startText = childText(node, 'start');
+    const endText = childText(node, 'end');
+    return {
+        id: childText(node, 'ID'),
+        code: childText(node, 'code'),
+        codeId: childText(node, 'code_id'),
+        start: startText ? Number(startText) : NaN,
+        end: endText ? Number(endText) : NaN
+    };
+};
+
+/**
+ * Converts an instance clip window back to an event time in milliseconds.
+ * Clips that start at 0 and are no longer than the export window are treated as
+ * clamped exports, so the event time is recovered from the end of the clip.
+ * @param {number} start - Clip start in seconds
+ * @param {number} end - Clip end in seconds
+ * @returns {number} Event time in milliseconds
+ */
+const instanceTimeMs = (start, end) => {
+    if (start === 0 && end <= CLIP_LEAD_SECONDS + CLIP_LAG_SECONDS) {
+        return Math.round(Math.max(0, end - CLIP_LAG_SECONDS) * 1000);
+    }
+    return Math.round(((start + end) / 2) * 1000);
+};
+
 /**
  * Parses XML content to extract event data
  * @param {string} xmlContent - XML content to parse
@@ -66,7 +158,18 @@ export const parseXmlToEvents = (xmlContent) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
 
-    // Try to extract teams info from the game element if available
+    const instancesElement = getSportscodeInstancesElement(xmlDoc);
+    if (instancesElement) {
+        return childElements(instancesElement, 'instance')
+            .map(readSportscodeInstance)
+            .filter(({ code, start, end }) => code && isFinite(start) && isFinite(end))
+            .map(({ code, start, end }) => ({
+                event: code,
+                timeMs: instanceTimeMs(start, end)
+            }));
+    }
+
+    // Legacy custom export format: <game teams=".."><events><event event=".." timeMs=".." /></events></game>
     let teamsAttribute = null;
     const gameElement = xmlDoc.querySelector('game');
     if (gameElement && gameElement.hasAttribute('teams')) {
@@ -75,14 +178,12 @@ export const parseXmlToEvents = (xmlContent) => {
 
     let events = [];
 
-    // First try to parse the new export format (<event> elements with attributes)
     const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
 
     if (eventNodes.length > 0) {
         events = eventNodes.map(node => {
             const eventName = node.getAttribute('event');
             const timeMs = node.getAttribute('timeMs');
-            // Read the 'favourite' attribute (optional)
             const favouriteAttr = node.getAttribute('favourite');
             if (eventName && timeMs) {
                 const eventObj = {
@@ -97,33 +198,67 @@ export const parseXmlToEvents = (xmlContent) => {
             return null;
         }).filter(Boolean);
     } else {
-        // If no <event> elements, try the legacy format (<instance> elements with child tags)
+        // Loose <instance> elements without a <file> root
         const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
 
         events = instanceNodes.map(node => {
             const code = node.getElementsByTagName('code')[0]?.textContent;
-            const start = node.getElementsByTagName('start')[0]?.textContent;
-            const end = node.getElementsByTagName('end')[0]?.textContent;
+            const start = parseFloat(node.getElementsByTagName('start')[0]?.textContent);
+            const end = parseFloat(node.getElementsByTagName('end')[0]?.textContent);
 
-            if (code && start && end) {
-                const startMs = parseInt(start, 10) * 1000;
-                const endMs = parseInt(end, 10) * 1000;
-                const eventTimeInMilliseconds = (startMs + endMs) / 2;
+            if (code && isFinite(start) && isFinite(end)) {
                 return {
                     event: code,
-                    timeMs: eventTimeInMilliseconds
+                    timeMs: instanceTimeMs(start, end)
                 };
             }
             return null;
         }).filter(Boolean);
     }
 
-    // Attach the teams attribute to the events array for later use
     if (teamsAttribute) {
         events.teamsAttribute = teamsAttribute;
     }
 
     return events;
+};
+
+/**
+ * Validates a Sportscode document's instances against its rows
+ * @param {Document} xmlDoc - Parsed XML document
+ * @param {Element} instancesElement - ALL_INSTANCES element
+ * @throws {Error} If any instance is invalid or none are present
+ */
+const validateSportscodeDocument = (xmlDoc, instancesElement) => {
+    const instanceNodes = childElements(instancesElement, 'instance');
+    if (instanceNodes.length === 0) {
+        throw new Error('No instances found in the Sportscode XML file.');
+    }
+
+    const rowsElement = childElements(xmlDoc.documentElement, 'ROWS')[0];
+    const rowIds = new Set(
+        childElements(rowsElement, 'row')
+            .map(row => childText(row, 'id'))
+            .filter(Boolean)
+    );
+
+    instanceNodes.forEach((node, index) => {
+        const { id, code, codeId, start, end } = readSportscodeInstance(node);
+        const label = id ? `instance ${id}` : `instance #${index + 1}`;
+
+        if (!id || !code) {
+            throw new Error(`Invalid ${label}: ID and code are required.`);
+        }
+        if (!isFinite(start) || !isFinite(end)) {
+            throw new Error(`Invalid ${label}: start and end must be numbers.`);
+        }
+        if (end < start) {
+            throw new Error(`Invalid ${label}: end must not be before start.`);
+        }
+        if (codeId !== undefined && !rowIds.has(codeId)) {
+            throw new Error(`Invalid ${label}: code_id ${codeId} has no matching row.`);
+        }
+    });
 };
 
 /**
@@ -140,23 +275,23 @@ export const validateXmlStructure = (xmlContent) => {
         throw new Error('Invalid XML format.');
     }
 
-    // Check for new format (<event> elements)
+    const instancesElement = getSportscodeInstancesElement(xmlDoc);
+    if (instancesElement) {
+        validateSportscodeDocument(xmlDoc, instancesElement);
+        return xmlDoc;
+    }
+
+    // Legacy custom export format (<event> elements)
     const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
 
     if (eventNodes.length > 0) {
-        // New format validation (relaxed: skip invalid events, don't throw)
+        // Relaxed: skip invalid events, only fail if none are valid
         let validEventFound = false;
         eventNodes.forEach(node => {
             const eventName = node.getAttribute('event');
             const timeMs = node.getAttribute('timeMs');
 
-            if (!eventName || !timeMs) {
-                // skip invalid event
-                return;
-            }
-
-            if (isNaN(parseInt(timeMs, 10))) {
-                // skip invalid event
+            if (!eventName || !timeMs || isNaN(parseInt(timeMs, 10))) {
                 return;
             }
             validEventFound = true;
@@ -165,7 +300,7 @@ export const validateXmlStructure = (xmlContent) => {
             throw new Error('No valid events found in XML.');
         }
     } else {
-        // Legacy format validation (<instance> elements)
+        // Loose <instance> elements without a <file> root
         const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
         if (instanceNodes.length === 0) {
             throw new Error('No events or instances found in the XML file.');
@@ -187,32 +322,10 @@ export const validateXmlStructure = (xmlContent) => {
 };
 
 /**
- * Generate XML for a complete game suitable for export
- * @param {Object} game - Game data object containing events, timestamp, etc.
- * @param {string|number} gameTitle - Display name or index of the game
- * @returns {string} Complete XML representation of the game
+ * Generate Sportscode XML for a complete game suitable for export.
+ * Game-level metadata (teams, date) and favourites are not part of the Sportscode format.
+ * @param {Object} game - Game data object containing events
+ * @param {string|number} [gameTitle] - Display name or index of the game (unused)
+ * @returns {string} Sportscode XML document for the game
  */
-export const generateGameXml = (game, gameTitle) => {
-    // Helper to check if a date is valid
-    const isValidDate = (d) => d instanceof Date && !isNaN(d);
-    let dateObj = new Date(game.timestamp);
-    if (!isValidDate(dateObj)) {
-        // Fallback: use today, or you could use '' if you want blank
-        dateObj = new Date();
-    }
-    const gameDate = dateObj.toISOString().split('T')[0];
-    const gameTeams = game.teams || `Game ${gameTitle}`;
-
-    // No longer block or notify on invalid events; allow export (UI handles confirmation)
-
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<game date="${gameDate}" teams="${escapeXml(gameTeams)}">
-    <events>
-${game.events.map(event => {
-        // Add favourite attribute only if true
-        const favouriteAttr = event.favourite ? ' favourite="true"' : '';
-        return `        <event event="${escapeXml(event.event)}" timeMs="${event.timeMs}"${favouriteAttr} />`;
-    }).join('\n')}
-    </events>
-</game>`;
-};
+export const generateGameXml = (game, gameTitle) => generateSportscodeXml(game?.events);

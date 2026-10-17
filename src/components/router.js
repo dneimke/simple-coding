@@ -49,10 +49,15 @@ export class Router {
      */
     _handleHashChange() {
         // Get the hash without the # character
-        const hash = window.location.hash.substring(1); if (hash) {
+        const fullHash = window.location.hash.substring(1);
+        const [hash, param] = fullHash.split('/');
+        if (hash) {
             const viewName = this.hashToViewMap[hash];
             if (viewName) {
-                if (viewName === 'Log') {
+                const savedGameId = viewName === 'Log' && param ? decodeURIComponent(param) : null;
+                stateService.setState('ui.logGameId', savedGameId);
+
+                if (viewName === 'Log' && !savedGameId) {
                     // Check if there's an active game via state service instead of localStorage
                     const hasActiveGame = stateService.getState('game.hasCurrentGame');
                     if (!hasActiveGame) {

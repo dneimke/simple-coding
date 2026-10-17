@@ -159,3 +159,147 @@ describe('Game management functions', () => {
         }).toThrow();
     });
 });
+
+describe('event filters', () => {
+    const GAME_ID = 'game-1';
+    let mod;
+
+    const filterMarkup = `
+        <div id="timeline-empty-state" class="hidden"></div>
+        <div id="favorites-empty-state" class="hidden"></div>
+        <div id="timeline-filters" class="hidden">
+            <button id="show-all-events" class="bg-blue-500 text-white"></button>
+            <button id="show-favorites" class="bg-gray-200 text-gray-700"></button>
+            <button id="filter-dropdown-button" aria-expanded="false"><span id="selected-filters-text">All events</span></button>
+            <div id="filter-dropdown-panel" class="hidden">
+                <div>
+                    <input id="filter-option-all" type="checkbox" class="filter-checkbox" data-filter="all" checked>
+                    <label id="filter-option-all-label" for="filter-option-all">All events</label>
+                </div>
+                <div id="filter-options-container"></div>
+            </div>
+            <div id="selected-filters-tags"></div>
+        </div>
+        <div id="timeline-events" class="hidden"></div>
+    `;
+
+    const seedEvents = () => [
+        { id: 'e1', event: 'goal', timeMs: 1000, isFavorite: true },
+        { id: 'e2', event: 'foul', timeMs: 2000, isFavorite: false },
+        { id: 'e3', event: 'corner', timeMs: 3000, isFavorite: true },
+        { id: 'e4', event: 'goal', timeMs: 4000, isFavorite: false }
+    ];
+
+    const renderedIds = () =>
+        Array.from(document.querySelectorAll('#timeline-events .timeline-event')).map(el => el.dataset.eventId);
+
+    const typeLabel = (type) => {
+        const checkbox = document.querySelector(`#filter-options-container .filter-checkbox[data-filter="${type}"]`);
+        return document.querySelector(`label[for="${checkbox.id}"]`);
+    };
+
+    const typeCheckbox = (type) =>
+        document.querySelector(`#filter-options-container .filter-checkbox[data-filter="${type}"]`);
+
+    beforeEach(() => {
+        jest.spyOn(console, 'log').mockImplementation(() => {});
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        document.body.innerHTML = filterMarkup;
+        localStorage.clear();
+        localStorage.setItem('fieldHockeyGames_v1', JSON.stringify([
+            { id: GAME_ID, teams: 'A vs B', events: seedEvents(), metadata: {} }
+        ]));
+        jest.isolateModules(() => {
+            mod = require('../../src/js/timeline-video.js');
+        });
+        mod.loadGame(GAME_ID);
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    test('clicking a type label applies the filter and clicking again removes it', () => {
+        typeLabel('goal').click();
+        expect(renderedIds()).toEqual(['e1', 'e4']);
+        expect(document.getElementById('filter-option-all').checked).toBe(false);
+        expect(document.getElementById('selected-filters-text').textContent).toBe('1 filter selected');
+
+        typeLabel('goal').click();
+        expect(renderedIds()).toEqual(['e1', 'e2', 'e3', 'e4']);
+        expect(document.getElementById('filter-option-all').checked).toBe(true);
+        expect(document.getElementById('selected-filters-text').textContent).toBe('All events');
+    });
+
+    test('clicking the row padding applies the filter', () => {
+        typeCheckbox('foul').parentElement.click();
+        expect(typeCheckbox('foul').checked).toBe(true);
+        expect(renderedIds()).toEqual(['e2']);
+    });
+
+    test('type filters survive toggling favorites on and off', () => {
+        typeLabel('goal').click();
+        typeLabel('corner').click();
+        expect(renderedIds()).toEqual(['e1', 'e3', 'e4']);
+
+        mod.setFavoritesOnly(true);
+        expect(renderedIds()).toEqual(['e1', 'e3']);
+
+        mod.setFavoritesOnly(false);
+        expect(renderedIds()).toEqual(['e1', 'e3', 'e4']);
+        expect(typeCheckbox('goal').checked).toBe(true);
+        expect(typeCheckbox('corner').checked).toBe(true);
+    });
+
+    test('removing a tag updates the filter', () => {
+        typeLabel('goal').click();
+        typeLabel('foul').click();
+        const removeGoal = document.querySelector('#selected-filters-tags button[aria-label="Remove Goal filter"]');
+        removeGoal.click();
+        expect(renderedIds()).toEqual(['e2']);
+        expect(typeCheckbox('goal').checked).toBe(false);
+    });
+
+    test('rebuilding the filter options keeps the current selection', () => {
+        typeLabel('foul').click();
+        mod.updateEventFilters();
+        expect(typeCheckbox('foul').checked).toBe(true);
+        expect(document.getElementById('filter-option-all').checked).toBe(false);
+    });
+
+    test('deleting an event keeps the selection and drops types that no longer exist', () => {
+        jest.spyOn(window, 'confirm').mockReturnValue(true);
+        typeLabel('goal').click();
+        typeLabel('foul').click();
+
+        mod.deleteEvent('e2');
+        expect(typeCheckbox('foul')).toBeNull();
+        expect(typeCheckbox('goal').checked).toBe(true);
+        expect(renderedIds()).toEqual(['e1', 'e4']);
+    });
+
+    test('toggling a favorite keeps the type filter applied', () => {
+        typeLabel('goal').click();
+        mod.toggleFavorite('e4');
+        expect(renderedIds()).toEqual(['e1', 'e4']);
+    });
+
+    test('the "All" checkbox renders once per click after repeated rebuilds', () => {
+        typeLabel('goal').click();
+        mod.updateEventFilters();
+        mod.updateEventFilters();
+        mod.updateEventFilters();
+        console.log.mockClear();
+
+        document.getElementById('filter-option-all-label').click();
+        const renders = console.log.mock.calls.filter(([msg]) => String(msg).startsWith('Timeline rendered'));
+        expect(renders).toHaveLength(1);
+        expect(renderedIds()).toEqual(['e1', 'e2', 'e3', 'e4']);
+    });
+
+    test('unchecking "All" with nothing selected re-checks it', () => {
+        document.getElementById('filter-option-all').click();
+        expect(document.getElementById('filter-option-all').checked).toBe(true);
+        expect(renderedIds()).toEqual(['e1', 'e2', 'e3', 'e4']);
+    });
+});

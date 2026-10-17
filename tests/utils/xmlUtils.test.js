@@ -1,11 +1,15 @@
 /**
  * Tests for xmlUtils.js functionality
  */
-import { parseXmlToEvents, validateXmlStructure, generateGameXml } from '../../src/utils/xmlUtils.js';
+import {
+    parseXmlToEvents,
+    validateXmlStructure,
+    generateGameXml,
+    generateSportscodeXml
+} from '../../src/utils/xmlUtils.js';
 
-// Mock dependencies
 jest.mock('../../src/utils/formatUtils.js', () => ({
-    escapeXml: jest.fn(str => str),
+    ...jest.requireActual('../../src/utils/formatUtils.js'),
     logger: {
         log: jest.fn(),
         warn: jest.fn(),
@@ -19,214 +23,187 @@ jest.mock('../../src/services/notificationService.js', () => ({
     }
 }));
 
+const parse = (xml) => new DOMParser().parseFromString(xml, 'application/xml');
+const texts = (doc, selector) => Array.from(doc.querySelectorAll(selector)).map(n => n.textContent);
+
+const USER_EXAMPLE = `<?xml version="1.0" encoding="utf-8"?>
+<file>
+  <ALL_INSTANCES>
+    <instance>
+      <ID>1</ID>
+      <start>142.50</start>
+      <end>150.25</end>
+      <code_id>10</code_id>
+      <code>Shot on Target</code>
+      <label>
+        <group>Player</group>
+        <text>Striker 9</text>
+      </label>
+      <label>
+        <group>Outcome</group>
+        <text>Saved</text>
+      </label>
+    </instance>
+  </ALL_INSTANCES>
+  <ROWS>
+    <row>
+      <id>10</id>
+      <name>Shot on Target</name>
+    </row>
+  </ROWS>
+</file>`;
+
+const sportscodeWithInstance = (instanceXml, rowsXml = '<row><id>1</id><name>GOAL_FOR</name></row>') =>
+    `<?xml version="1.0" encoding="utf-8"?><file><ALL_INSTANCES>${instanceXml}</ALL_INSTANCES><ROWS>${rowsXml}</ROWS></file>`;
+
 describe('XML Utils', () => {
-    // Mock DOMParser for testing
-    const originalDOMParser = global.DOMParser;
+    describe('generateSportscodeXml', () => {
+        const events = [
+            { event: 'GOAL_FOR', timeMs: 60000 },
+            { event: 'FOUL', timeMs: 120500 },
+            { event: 'GOAL_FOR', timeMs: 180000 }
+        ];
 
-    beforeAll(() => {
-        // Mock DOMParser implementation
-        global.DOMParser = class {
-            parseFromString(content) {
-                if (content.includes('parsererror')) {
-                    const mockDoc = {
-                        querySelector: (selector) => selector === 'parsererror' ? {} : null
-                    };
-                    return mockDoc;
-                }
+        test('produces a complete, well-formed Sportscode document', () => {
+            const xml = generateSportscodeXml(events);
+            expect(xml.startsWith('<?xml version="1.0" encoding="utf-8"?>')).toBe(true);
 
-                // Create a simple mock document based on the content
-                if (content.includes('<event ')) {
-                    // New format with <event> elements
-                    const mockDoc = {
-                        querySelector: (selector) => {
-                            if (selector === 'game') {
-                                return {
-                                    hasAttribute: () => true,
-                                    getAttribute: () => 'Test Teams'
-                                };
-                            }
-                            return null;
-                        },
-                        getElementsByTagName: (tag) => {
-                            if (tag === 'event') {
-                                return [
-                                    {
-                                        getAttribute: (attr) => {
-                                            if (attr === 'event') return 'GOAL_FOR';
-                                            if (attr === 'timeMs') return '60000';
-                                            return null;
-                                        }
-                                    },
-                                    {
-                                        getAttribute: (attr) => {
-                                            if (attr === 'event') return 'FOUL';
-                                            if (attr === 'timeMs') return '120000';
-                                            return null;
-                                        }
-                                    }
-                                ];
-                            }
-                            return [];
-                        }
-                    };
-                    return mockDoc;
-                } else {
-                    // Legacy format with <instance> elements
-                    const mockDoc = {
-                        querySelector: (selector) => {
-                            if (selector === 'game') {
-                                return {
-                                    hasAttribute: () => true,
-                                    getAttribute: () => 'Legacy Teams'
-                                };
-                            }
-                            return null;
-                        },
-                        getElementsByTagName: (tag) => {
-                            if (tag === 'instance') {
-                                return [
-                                    {
-                                        getElementsByTagName: (childTag) => {
-                                            if (childTag === 'ID') return [{ textContent: '1' }];
-                                            if (childTag === 'start') return [{ textContent: '55' }];
-                                            if (childTag === 'end') return [{ textContent: '65' }];
-                                            if (childTag === 'code') return [{ textContent: 'GOAL_FOR' }];
-                                            return [];
-                                        }
-                                    },
-                                    {
-                                        getElementsByTagName: (childTag) => {
-                                            if (childTag === 'ID') return [{ textContent: '2' }];
-                                            if (childTag === 'start') return [{ textContent: '115' }];
-                                            if (childTag === 'end') return [{ textContent: '125' }];
-                                            if (childTag === 'code') return [{ textContent: 'FOUL' }];
-                                            return [];
-                                        }
-                                    }
-                                ];
-                            }
-                            return [];
-                        }
-                    };
-                    return mockDoc;
-                }
-            }
-        };
-    });
-
-    afterAll(() => {
-        global.DOMParser = originalDOMParser;
-    });
-
-    describe('parseXmlToEvents', () => {
-        test('should parse new format XML with <event> elements', () => {
-            const xmlContent = `
-                <?xml version="1.0" encoding="UTF-8"?>
-                <game date="2025-05-10" teams="Team A vs Team B">
-                    <events>
-                        <event event="GOAL_FOR" timeMs="60000" />
-                        <event event="FOUL" timeMs="120000" />
-                    </events>
-                </game>
-            `;
-
-            const events = parseXmlToEvents(xmlContent);
-
-            expect(events.length).toBe(2);
-            expect(events[0].event).toBe('GOAL_FOR');
-            expect(events[0].timeMs).toBe(60000);
-            expect(events[1].event).toBe('FOUL');
-            expect(events[1].timeMs).toBe(120000);
-            expect(events.teamsAttribute).toBe('Test Teams');
+            const doc = parse(xml);
+            expect(doc.querySelector('parsererror')).toBeNull();
+            expect(doc.documentElement.nodeName).toBe('file');
+            expect(doc.querySelectorAll('file > ALL_INSTANCES > instance')).toHaveLength(3);
+            expect(doc.querySelectorAll('file > ROWS > row')).toHaveLength(2);
         });
 
-        test('should parse legacy format XML with <instance> elements', () => {
-            const xmlContent = `
-                <instance><ID>1</ID><start>55</start><end>65</end><code>GOAL_FOR</code></instance>
-                <instance><ID>2</ID><start>115</start><end>125</end><code>FOUL</code></instance>
-            `;
-
-            const events = parseXmlToEvents(xmlContent);
-
-            expect(events.length).toBe(2);
-            expect(events[0].event).toBe('GOAL_FOR');
-            // Legacy format converts seconds to milliseconds and calculates average of start+end
-            expect(events[0].timeMs).toBe(60000); // (55+65)/2 * 1000
-            expect(events[1].event).toBe('FOUL');
-            expect(events[1].timeMs).toBe(120000); // (115+125)/2 * 1000
-            expect(events.teamsAttribute).toBe('Legacy Teams');
-        });
-    });
-
-    describe('validateXmlStructure', () => {
-        test('should validate new format XML with <event> elements', () => {
-            const xmlContent = `
-                <?xml version="1.0" encoding="UTF-8"?>
-                <game date="2025-05-10" teams="Team A vs Team B">
-                    <events>
-                        <event event="GOAL_FOR" timeMs="60000" />
-                        <event event="FOUL" timeMs="120000" />
-                    </events>
-                </game>
-            `;
-
-            expect(() => {
-                validateXmlStructure(xmlContent);
-            }).not.toThrow();
+        test('assigns code_id values that match row ids, sharing rows for repeated codes', () => {
+            const doc = parse(generateSportscodeXml(events));
+            expect(texts(doc, 'instance > ID')).toEqual(['1', '2', '3']);
+            expect(texts(doc, 'instance > code_id')).toEqual(['1', '2', '1']);
+            expect(texts(doc, 'row > id')).toEqual(['1', '2']);
+            expect(texts(doc, 'row > name')).toEqual(['GOAL_FOR', 'FOUL']);
         });
 
-        test('should validate legacy format XML with <instance> elements', () => {
-            const xmlContent = `
-                <instance><ID>1</ID><start>55</start><end>65</end><code>GOAL_FOR</code></instance>
-                <instance><ID>2</ID><start>115</start><end>125</end><code>FOUL</code></instance>
-            `;
-
-            expect(() => {
-                validateXmlStructure(xmlContent);
-            }).not.toThrow();
+        test('writes clip windows in seconds with 2 decimals, clamping start at 0', () => {
+            const doc = parse(generateSportscodeXml([...events, { event: 'KICKOFF', timeMs: 2000 }]));
+            expect(texts(doc, 'instance > start')).toEqual(['55.00', '115.50', '175.00', '0.00']);
+            expect(texts(doc, 'instance > end')).toEqual(['65.00', '125.50', '185.00', '7.00']);
         });
 
-        test('should throw error for invalid XML', () => {
-            const xmlContent = '<parsererror>Invalid XML</parsererror>';
+        test('escapes special characters in codes', () => {
+            const xml = generateSportscodeXml([{ event: 'A & B <C>', timeMs: 10000 }]);
+            expect(xml).toContain('<code>A &amp; B &lt;C&gt;</code>');
+            expect(xml).toContain('<name>A &amp; B &lt;C&gt;</name>');
+            expect(texts(parse(xml), 'instance > code')).toEqual(['A & B <C>']);
+        });
 
-            expect(() => {
-                validateXmlStructure(xmlContent);
-            }).toThrow('Invalid XML format.');
+        test('skips invalid events and produces empty sections when there are none', () => {
+            const xml = generateSportscodeXml([{ event: '', timeMs: 1000 }, { event: 'X', timeMs: NaN }]);
+            expect(xml).toContain('<ALL_INSTANCES />');
+            expect(xml).toContain('<ROWS />');
+            expect(parse(xml).querySelector('parsererror')).toBeNull();
+        });
+
+        test('does not write labels, teams, date or favourite', () => {
+            const xml = generateGameXml({
+                teams: 'Team A vs Team B',
+                timestamp: '2025-05-10T12:00:00Z',
+                events: [{ event: 'GOAL_FOR', timeMs: 60000, favourite: true }]
+            }, 1);
+            expect(xml).not.toMatch(/label|Team A|2025-05-10|favourite/);
         });
     });
 
     describe('generateGameXml', () => {
-        test('should generate correctly formatted XML for a game', () => {
-            const mockGame = {
-                teams: 'Team A vs Team B',
-                timestamp: '2025-05-10T12:00:00Z',
-                events: [
-                    { event: 'GOAL_FOR', timeMs: 60000 },
-                    { event: 'FOUL', timeMs: 120000 }
-                ]
-            };
+        test('returns the Sportscode document for the game events', () => {
+            const game = { events: [{ event: 'GOAL_FOR', timeMs: 60000 }] };
+            expect(generateGameXml(game, 1)).toBe(generateSportscodeXml(game.events));
+        });
+    });
 
-            const result = generateGameXml(mockGame, 1);
-
-            expect(result).toContain('<?xml version="1.0" encoding="UTF-8"?>');
-            expect(result).toContain('<game date="2025-05-10" teams="Team A vs Team B">');
-            expect(result).toContain('<event event="GOAL_FOR" timeMs="60000" />');
-            expect(result).toContain('<event event="FOUL" timeMs="120000" />');
-            expect(result).toContain('</events>');
-            expect(result).toContain('</game>');
+    describe('parseXmlToEvents', () => {
+        test('parses the Sportscode example, keeping decimal times and ignoring labels', () => {
+            const events = parseXmlToEvents(USER_EXAMPLE);
+            expect(events).toEqual([{ event: 'Shot on Target', timeMs: 146375 }]);
+            expect(events.teamsAttribute).toBeUndefined();
         });
 
-        test('should use game index when teams name is not available', () => {
-            const mockGame = {
-                timestamp: '2025-05-10T12:00:00Z',
-                events: [
-                    { event: 'GOAL_FOR', timeMs: 60000 }
-                ]
-            };
+        test('round-trips events through export and import', () => {
+            const events = [
+                { event: 'KICKOFF', timeMs: 0 },
+                { event: 'EARLY', timeMs: 3000 },
+                { event: 'GOAL_FOR', timeMs: 60000 },
+                { event: 'A & B', timeMs: 125250 }
+            ];
+            const xml = generateSportscodeXml(events);
+            expect(() => validateXmlStructure(xml)).not.toThrow();
+            expect(parseXmlToEvents(xml)).toEqual(events);
+        });
 
-            const result = generateGameXml(mockGame, 3);
+        test('parses legacy <game> format with teams and favourites', () => {
+            const events = parseXmlToEvents(`<?xml version="1.0" encoding="UTF-8"?>
+                <game date="2025-05-10" teams="Team A vs Team B">
+                    <events>
+                        <event event="GOAL_FOR" timeMs="60000" favourite="true" />
+                        <event event="FOUL" timeMs="120000" />
+                    </events>
+                </game>`);
 
-            expect(result).toContain('teams="Game 3"');
+            expect([...events]).toEqual([
+                { event: 'GOAL_FOR', timeMs: 60000, favourite: true },
+                { event: 'FOUL', timeMs: 120000 }
+            ]);
+            expect(events.teamsAttribute).toBe('Team A vs Team B');
+        });
+
+        test('parses loose <instance> elements without a <file> root', () => {
+            const events = parseXmlToEvents(
+                '<root><instance><ID>1</ID><start>55</start><end>65</end><code>GOAL_FOR</code></instance></root>'
+            );
+            expect(events).toEqual([{ event: 'GOAL_FOR', timeMs: 60000 }]);
+        });
+    });
+
+    describe('validateXmlStructure', () => {
+        test('accepts the Sportscode example', () => {
+            expect(() => validateXmlStructure(USER_EXAMPLE)).not.toThrow();
+        });
+
+        test('accepts legacy <game> format', () => {
+            expect(() => validateXmlStructure(
+                '<game teams="A vs B"><events><event event="GOAL_FOR" timeMs="60000" /></events></game>'
+            )).not.toThrow();
+        });
+
+        test('throws for malformed XML', () => {
+            expect(() => validateXmlStructure('<file><ALL_INSTANCES>')).toThrow('Invalid XML format.');
+        });
+
+        test('throws when a Sportscode file has no instances', () => {
+            expect(() => validateXmlStructure(sportscodeWithInstance(''))).toThrow('No instances found');
+        });
+
+        test('throws when an instance is missing required fields', () => {
+            expect(() => validateXmlStructure(sportscodeWithInstance(
+                '<instance><ID>1</ID><start>1</start><end>2</end><code_id>1</code_id></instance>'
+            ))).toThrow('Invalid instance 1: ID and code are required.');
+        });
+
+        test('throws when start or end is not a number', () => {
+            expect(() => validateXmlStructure(sportscodeWithInstance(
+                '<instance><ID>1</ID><start>abc</start><end>2</end><code>GOAL_FOR</code></instance>'
+            ))).toThrow('start and end must be numbers');
+        });
+
+        test('throws when end is before start', () => {
+            expect(() => validateXmlStructure(sportscodeWithInstance(
+                '<instance><ID>1</ID><start>10</start><end>2</end><code>GOAL_FOR</code></instance>'
+            ))).toThrow('end must not be before start');
+        });
+
+        test('throws when code_id has no matching row', () => {
+            expect(() => validateXmlStructure(sportscodeWithInstance(
+                '<instance><ID>1</ID><start>1</start><end>2</end><code_id>99</code_id><code>GOAL_FOR</code></instance>'
+            ))).toThrow('code_id 99 has no matching row');
         });
     });
 });

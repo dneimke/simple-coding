@@ -2,17 +2,10 @@
 function generateEventId() {
     return 'evt-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
 }
-// --- Game selection helpers for legacy event modal logic ---
-function getSelectedGameId() {
-    const sel = document.getElementById('game-selector');
-    return sel && sel.value !== 'default' ? sel.value : null;
-}
-
 function getCurrentGame() {
     const games = getSavedGames();
-    const id = getSelectedGameId();
-    if (!Array.isArray(games)) return null;
-    return games.find(g => g.id === id) || null;
+    if (!Array.isArray(games) || !currentGameId) return null;
+    return games.find(g => g.id === currentGameId) || null;
 }
 // --- Timeline Video: Add Event FAB, Modal, and Persistent Event Logic ---
 
@@ -119,46 +112,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initial render of timeline events for selected game
-    function renderForSelectedGame() {
-        const game = getCurrentGame();
-        if (game && Array.isArray(game.events)) {
-            timelineEvents = game.events;
-            showAllEvents();
-        } else {
-            timelineEvents = [];
-            renderTimelineEvents();
-        }
-    }
-
-    // Listen for game selection changes
-    const gameSelector = document.getElementById('game-selector');
-    if (gameSelector) {
-        gameSelector.addEventListener('change', renderForSelectedGame);
-    }
-
-    // On load, render all events for selected game by default
-    renderForSelectedGame();
-    // Also ensure "All Events" is selected in the UI
-    const showAllBtn = document.getElementById('show-all-events');
-    const showFavoritesBtn = document.getElementById('show-favorites');
-    if (showAllBtn && showFavoritesBtn) {
-        showAllBtn.classList.add('bg-blue-500', 'text-white');
-        showAllBtn.classList.remove('bg-gray-200', 'text-gray-700');
-        showFavoritesBtn.classList.add('bg-gray-200', 'text-gray-700');
-        showFavoritesBtn.classList.remove('bg-blue-500', 'text-white');
-    }
+    updateFavoritesToggleUI();
 });
 import { renderTimeline } from './timeline.js';
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
+import { generateGameId } from '../services/gameStorageManager.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
-// Helper: normalize whatever is stored into an array of game objects
-// Generate a stable-ish game id when missing
-function generateGameId() {
-    return 'game-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
-}
 
 // Helper: normalize whatever is stored into an array of game objects
 // Returns an object { games, changed } where changed=true if we assigned ids or converted shape
@@ -328,7 +289,7 @@ function togglePresentationMode() {
         currentPlaylistIndex = 0;
         updatePlaylistCounter();
         // Render timeline filtered to favorites before jumping
-        renderTimelineEvents(true);
+        setFavoritesOnly(true);
         if (favoriteEvents.length > 0) {
             setTimeout(() => {
                 jumpToEventTime(favoriteEvents[0]);
@@ -451,42 +412,12 @@ function highlightTimelineEvent(eventId) {
 
 // Show all events (disable favorites filter)
 function showAllEvents() {
-    const showAllBtn = document.getElementById('show-all-events');
-    const showFavoritesBtn = document.getElementById('show-favorites');
-
-    // Update UI state
-    showAllBtn.classList.replace('bg-gray-200', 'bg-blue-500');
-    showAllBtn.classList.replace('text-gray-700', 'text-white');
-    showFavoritesBtn.classList.replace('bg-blue-500', 'bg-gray-200');
-    showFavoritesBtn.classList.replace('text-white', 'text-gray-700');
-
-    // Hide favorites empty state if visible
-    const favoritesEmptyState = document.getElementById('favorites-empty-state');
-    if (favoritesEmptyState) {
-        favoritesEmptyState.classList.add('hidden');
-    }
-
-    // Show timeline events
-    renderTimelineEvents();
+    setFavoritesOnly(false);
 }
 
 // Show only favorited events
 function showFavoritesOnly() {
-    const showAllBtn = document.getElementById('show-all-events');
-    const showFavoritesBtn = document.getElementById('show-favorites');
-    const filterContainer = document.getElementById('timeline-filters');
-
-    // Update UI state
-    showFavoritesBtn.classList.replace('bg-gray-200', 'bg-blue-500');
-    showFavoritesBtn.classList.replace('text-gray-700', 'text-white');
-    showAllBtn.classList.replace('bg-blue-500', 'bg-gray-200');
-    showAllBtn.classList.replace('text-white', 'text-gray-700');
-
-    // Make sure filter container is visible
-    if (filterContainer) filterContainer.classList.remove('hidden');
-
-    // Show only favorites
-    renderTimelineEvents(true);
+    setFavoritesOnly(true);
 }
 
 // Use the notification service for notifications
@@ -598,14 +529,15 @@ function loadGame(gameId) {
             updateEventFilters();
             renderTimelineEvents();
 
-            // Update game selector to show current selection
-            const gameSelector = document.getElementById('game-selector');
-            if (gameSelector) {
-                gameSelector.value = gameId;
+            const displayName = game.teams || gameId;
+            const gameTitle = document.getElementById('review-game-title');
+            if (gameTitle) {
+                gameTitle.textContent = displayName;
+                gameTitle.classList.remove('hidden');
             }
+            updateFabVisibility();
 
             // Display success message using teams name if available
-            const displayName = game.teams || gameId;
             showNotification(`Game "${displayName}" loaded successfully`);
 
             return true;
@@ -624,6 +556,42 @@ function loadGame(gameId) {
 
 
 let timelineEvents = [];
+// Event types selected in the filter dropdown; empty means all types
+let activeTypeFilters = new Set();
+let favoritesOnly = false;
+
+// Events that pass both the type filter and the favorites toggle
+function getVisibleEvents() {
+    return timelineEvents.filter(event =>
+        (activeTypeFilters.size === 0 || activeTypeFilters.has(event.event)) &&
+        (!favoritesOnly || event.isFavorite)
+    );
+}
+
+function setTypeFilters(types) {
+    activeTypeFilters = new Set(types);
+    renderTimelineEvents();
+}
+
+function setFavoritesOnly(value) {
+    favoritesOnly = value;
+    updateFavoritesToggleUI();
+    renderTimelineEvents();
+}
+
+function updateFavoritesToggleUI() {
+    const showAllBtn = document.getElementById('show-all-events');
+    const showFavoritesBtn = document.getElementById('show-favorites');
+    if (!showAllBtn || !showFavoritesBtn) return;
+
+    const [activeBtn, inactiveBtn] = favoritesOnly
+        ? [showFavoritesBtn, showAllBtn]
+        : [showAllBtn, showFavoritesBtn];
+    activeBtn.classList.add('bg-blue-500', 'text-white');
+    activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+    inactiveBtn.classList.add('bg-gray-200', 'text-gray-700');
+    inactiveBtn.classList.remove('bg-blue-500', 'text-white');
+}
 
 // Delete event by id, update storage, re-render, and notify
 function deleteEvent(eventId) {
@@ -639,26 +607,24 @@ function deleteEvent(eventId) {
     const metadata = { ...game.metadata, teams: game.teams };
     saveGame(game.id, game.events, metadata);
     timelineEvents = game.events;
-    const showFavoritesBtn = document.getElementById('show-favorites');
-    const isFavoritesMode = showFavoritesBtn && showFavoritesBtn.classList.contains('bg-blue-500');
-    renderTimelineEvents(isFavoritesMode);
+    updateEventFilters();
+    renderTimelineEvents();
     showNotification('Event deleted', 'info');
 }
 
 // Render timeline with current events (sorted with earliest events at the top)
-function renderTimelineEvents(favoritesOnly = false) {
+function renderTimelineEvents() {
     const timelineContainerId = 'timeline-events';
     const timelineContainer = document.getElementById(timelineContainerId);
     const favoritesEmptyState = document.getElementById('favorites-empty-state');
     const timelineEmptyState = document.getElementById('timeline-empty-state');
 
+    syncFilterUI();
+
     if (!timelineContainer) return;
 
     try {
-        // Filter events if showing favorites only
-        const eventsToRender = favoritesOnly ?
-            timelineEvents.filter(event => event.isFavorite) :
-            timelineEvents;
+        const eventsToRender = getVisibleEvents();
 
         // Check if there are events to display
         if (timelineEvents.length === 0) {
@@ -674,7 +640,12 @@ function renderTimelineEvents(favoritesOnly = false) {
             }
 
             return;
-        }        // There are events, but need to check if favorites mode has events
+        }
+
+        const filterContainer = document.getElementById('timeline-filters');
+        if (filterContainer) filterContainer.classList.remove('hidden');
+
+        // There are events, but need to check if favorites mode has events
         if (favoritesOnly && eventsToRender.length === 0) {
             // No favorites - show favorites empty state
             if (favoritesEmptyState) {
@@ -782,14 +753,6 @@ function renderTimelineEvents(favoritesOnly = false) {
 
 
         console.log(`Timeline rendered with ${eventsToRender.length} events${favoritesOnly ? ' (favorites only)' : ''}`);
-
-        // Hide filter container if no events
-        if (timelineEvents.length === 0) {
-            const filterContainer = document.getElementById('timeline-filters');
-            if (filterContainer) {
-                filterContainer.classList.add('hidden');
-            }
-        }
     } catch (error) {
         console.error("Error rendering timeline:", error);
         // Display an error message to the user in the timeline container
@@ -832,151 +795,111 @@ function formatEventTypeName(eventType) {
 }
 
 // Update filter dropdown based on available event types
+// Rebuilds the type options; listeners that live outside the list are bound once in initFilterUI()
 function updateEventFilters() {
-    if (timelineEvents.length === 0) return;
+    const optionsContainer = document.getElementById('filter-options-container');
+    if (!optionsContainer) return;
 
-    // Get unique event types
-    let eventTypes = getUniqueEventTypes(timelineEvents);
+    const eventTypes = getUniqueEventTypes(timelineEvents);
     eventTypes.sort((a, b) => formatEventTypeName(a).localeCompare(formatEventTypeName(b)));
 
-    const filterContainer = document.getElementById('timeline-filters');
-    if (!filterContainer) return;
+    // Keep selections that still exist (e.g. after adding or deleting an event)
+    activeTypeFilters = new Set(eventTypes.filter(type => activeTypeFilters.has(type)));
 
-    // Show the filter container
-    filterContainer.classList.remove('hidden');
-
-    // Get references to our filter elements
-    const dropdownButton = document.getElementById('filter-dropdown-button');
-    const dropdownPanel = document.getElementById('filter-dropdown-panel');
-    const optionsContainer = document.getElementById('filter-options-container');
-    const selectedFiltersText = document.getElementById('selected-filters-text');
-    const selectedFiltersTags = document.getElementById('selected-filters-tags');
-    // No Apply Filters button in auto-apply mode
-    const allCheckbox = document.getElementById('filter-option-all');
-
-    // Clear any existing options (except the "All" option which is static)
     optionsContainer.innerHTML = '';
 
-    // Create a checkbox for each event type
-    eventTypes.forEach(eventType => {
+    eventTypes.forEach((eventType, index) => {
         const optionWrapper = document.createElement('div');
         optionWrapper.className = 'flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer';
 
+        // Index-based id: event types may contain spaces or collide with "all"
+        const checkboxId = `filter-option-type-${index}`;
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.id = `filter-option-${eventType}`;
+        checkbox.id = checkboxId;
         checkbox.className = 'filter-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded';
         checkbox.setAttribute('data-filter', eventType);
 
         const label = document.createElement('label');
-        label.htmlFor = `filter-option-${eventType}`;
+        label.htmlFor = checkboxId;
         label.className = 'ml-3 block text-sm font-medium text-gray-700 cursor-pointer w-full';
         label.textContent = formatEventTypeName(eventType);
 
         optionWrapper.appendChild(checkbox);
         optionWrapper.appendChild(label);
 
-        // Make the entire div clickable
+        // The label toggles the checkbox natively; click() on the row padding so `change` still fires
         optionWrapper.addEventListener('click', (e) => {
-            if (e.target !== checkbox) {
-                e.preventDefault();
-                checkbox.checked = !checkbox.checked;
-            }
+            if (e.target === optionWrapper) checkbox.click();
         });
 
-        // Auto-apply filter on change, but keep dropdown open
         checkbox.addEventListener('change', () => {
-            // If individual filter is checked, uncheck "All"
-            if (checkbox.checked && allCheckbox.checked) {
-                allCheckbox.checked = false;
-            }
-
-            // If no filters are selected, check "All"
-            const anyChecked = Array.from(optionsContainer.querySelectorAll('.filter-checkbox'))
-                .some(cb => cb.checked);
-            if (!anyChecked && !allCheckbox.checked) {
-                allCheckbox.checked = true;
-            }
-
-            // Gather selected filters
-            let selectedFilters = [];
-            if (allCheckbox.checked) {
-                selectedFilters = ['all'];
+            const next = new Set(activeTypeFilters);
+            if (checkbox.checked) {
+                next.add(eventType);
             } else {
-                const checkedBoxes = document.querySelectorAll('#filter-options-container .filter-checkbox:checked');
-                selectedFilters = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-filter'));
-                if (selectedFilters.length === 0) {
-                    selectedFilters = ['all'];
-                    allCheckbox.checked = true;
-                }
+                next.delete(eventType);
             }
-            updateSelectedFiltersDisplay(selectedFilters);
-            applyTimelineFilter(selectedFilters);
-            // Do NOT close the dropdown here; keep it open for multi-select
+            setTypeFilters(next);
         });
 
         optionsContainer.appendChild(optionWrapper);
     });
 
-    // Only add dropdown toggle listeners once
-    if (!dropdownButton._dropdownListenerAdded) {
-        dropdownButton.addEventListener('click', () => {
-            const expanded = dropdownButton.getAttribute('aria-expanded') === 'true';
-            dropdownButton.setAttribute('aria-expanded', !expanded);
-            dropdownPanel.classList.toggle('hidden');
-        });
-        dropdownButton._dropdownListenerAdded = true;
-    }
+    syncFilterUI();
+}
 
-    if (!document._dropdownOutsideListenerAdded) {
-        document.addEventListener('click', (e) => {
-            const dropdownPanel = document.getElementById('filter-dropdown-panel');
-            const dropdownButton = document.getElementById('filter-dropdown-button');
-            if (!dropdownButton.contains(e.target) && !dropdownPanel.contains(e.target)) {
-                dropdownButton.setAttribute('aria-expanded', 'false');
-                dropdownPanel.classList.add('hidden');
-            }
-        });
-        document._dropdownOutsideListenerAdded = true;
-    }
+// Bind filter listeners that must only be attached once per page load
+function initFilterUI() {
+    const dropdownButton = document.getElementById('filter-dropdown-button');
+    const dropdownPanel = document.getElementById('filter-dropdown-panel');
+    const allCheckbox = document.getElementById('filter-option-all');
+    if (!dropdownButton || !dropdownPanel || !allCheckbox) return;
 
-    // Handle "All" checkbox behavior (auto-apply)
-    allCheckbox.addEventListener('change', () => {
-        if (allCheckbox.checked) {
-            // If "All" is checked, uncheck individual filters
-            const individualCheckboxes = optionsContainer.querySelectorAll('.filter-checkbox');
-            individualCheckboxes.forEach(cb => {
-                cb.checked = false;
-            });
-            updateSelectedFiltersDisplay(['all']);
-            applyTimelineFilter(['all']);
+    dropdownButton.addEventListener('click', () => {
+        const expanded = dropdownButton.getAttribute('aria-expanded') === 'true';
+        dropdownButton.setAttribute('aria-expanded', String(!expanded));
+        dropdownPanel.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!dropdownButton.contains(e.target) && !dropdownPanel.contains(e.target)) {
+            dropdownButton.setAttribute('aria-expanded', 'false');
+            dropdownPanel.classList.add('hidden');
         }
     });
 
-    // No Apply Filters button in auto-apply mode
+    // "All" is only uncheckable when nothing else is selected, so both directions mean "show all"
+    allCheckbox.addEventListener('change', () => {
+        setTypeFilters([]);
+    });
 
-    // Initialize with "All" selected
-    updateSelectedFiltersDisplay(['all']);
+    syncFilterUI();
 }
 
-// Update the selected filters display text and tags
-function updateSelectedFiltersDisplay(selectedFilters) {
+// Reflect activeTypeFilters in the checkboxes, button text and tags
+function syncFilterUI() {
+    const allCheckbox = document.getElementById('filter-option-all');
     const selectedFiltersText = document.getElementById('selected-filters-text');
     const selectedFiltersTags = document.getElementById('selected-filters-tags');
 
-    if (selectedFilters.includes('all') || selectedFilters.length === 0) {
+    if (allCheckbox) allCheckbox.checked = activeTypeFilters.size === 0;
+    document.querySelectorAll('#filter-options-container .filter-checkbox').forEach(cb => {
+        cb.checked = activeTypeFilters.has(cb.getAttribute('data-filter'));
+    });
+
+    if (!selectedFiltersText || !selectedFiltersTags) return;
+
+    selectedFiltersTags.innerHTML = '';
+    if (activeTypeFilters.size === 0) {
         selectedFiltersText.textContent = 'All events';
-        selectedFiltersTags.innerHTML = '';
         return;
     }
 
-    // Update dropdown button text
-    selectedFiltersText.textContent = `${selectedFilters.length} filter${selectedFilters.length > 1 ? 's' : ''} selected`;
+    const count = activeTypeFilters.size;
+    selectedFiltersText.textContent = `${count} filter${count > 1 ? 's' : ''} selected`;
 
-    // Update tags display
-    selectedFiltersTags.innerHTML = '';
-
-    selectedFilters.forEach(filter => {
+    activeTypeFilters.forEach(filter => {
         const tag = document.createElement('div');
         tag.className = 'bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center';
 
@@ -988,26 +911,10 @@ function updateSelectedFiltersDisplay(selectedFilters) {
         removeButton.innerHTML = '&times;';
         removeButton.setAttribute('aria-label', `Remove ${formatEventTypeName(filter)} filter`);
 
-        // Remove filter when clicking the X
         removeButton.addEventListener('click', () => {
-            const checkbox = document.querySelector(`.filter-checkbox[data-filter="${filter}"]`);
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-
-            // Re-apply filters
-            const newSelection = selectedFilters.filter(f => f !== filter);
-            if (newSelection.length === 0) {
-                const allCheckbox = document.getElementById('filter-option-all');
-                if (allCheckbox) {
-                    allCheckbox.checked = true;
-                }
-                updateSelectedFiltersDisplay(['all']);
-                applyTimelineFilter(['all']);
-            } else {
-                updateSelectedFiltersDisplay(newSelection);
-                applyTimelineFilter(newSelection);
-            }
+            const next = new Set(activeTypeFilters);
+            next.delete(filter);
+            setTypeFilters(next);
         });
 
         tag.appendChild(tagText);
@@ -1016,80 +923,27 @@ function updateSelectedFiltersDisplay(selectedFilters) {
     });
 }
 
-// Apply timeline filtering
-function applyTimelineFilter(filterTypes) {
-    const timelineContainerId = 'timeline-events';
-    const container = document.getElementById(timelineContainerId);
-
-    if (!container) return;
-
-    // Check if we're in favorites mode
-    const showFavoritesBtn = document.getElementById('show-favorites');
-    const isFavoritesMode = showFavoritesBtn?.classList.contains('bg-blue-500');
-
-    // If "all" is selected, show all events (respecting favorites mode)
-    if (filterTypes.includes('all')) {
-        renderTimelineEvents(isFavoritesMode);
-        return;
-    }
-
-    // Otherwise, filter events by type
-    const allEvents = [...timelineEvents]; // Create a copy to avoid modifying the original
-    const filteredEvents = allEvents.filter(event =>
-        filterTypes.includes(event.event) &&
-        (!isFavoritesMode || event.isFavorite)
-    );
-
-    // Store filtered events temporarily and render
-    const originalEvents = [...timelineEvents];
-    timelineEvents = filteredEvents;
-    renderTimelineEvents(false);
-    timelineEvents = originalEvents; // Restore original events
-}
-
-// Toggle empty state message
-function toggleEmptyState(isEmpty) {
-    const emptyStateElement = document.getElementById('timeline-empty-state');
-    const timelineContainerElement = document.getElementById('timeline-events');
-
-    if (emptyStateElement && timelineContainerElement) {
-        if (isEmpty) {
-            emptyStateElement.classList.remove('hidden');
-            timelineContainerElement.classList.add('hidden');
-        } else {
-            emptyStateElement.classList.add('hidden');
-            timelineContainerElement.classList.remove('hidden');
-        }
-    }
-}
-
 /**
- * Toggle visibility of the no-games state message
- * @param {boolean} show Whether to show the no-games state message
+ * Show the "no game selected" message in place of the timeline
  */
-function toggleNoGamesState(show) {
-    const noGamesStateElement = document.getElementById('no-games-state');
+function showNoGameSelectedState() {
+    const noGameStateElement = document.getElementById('no-game-selected-state');
     const emptyStateElement = document.getElementById('timeline-empty-state');
     const timelineContainerElement = document.getElementById('timeline-events');
 
-    if (noGamesStateElement) {
-        if (show) {
-            // Show no-games message, hide other states
-            noGamesStateElement.classList.remove('hidden');
+    if (noGameStateElement) noGameStateElement.classList.remove('hidden');
+    if (emptyStateElement) emptyStateElement.classList.add('hidden');
+    if (timelineContainerElement) timelineContainerElement.classList.add('hidden');
+}
 
-            // Hide the timeline-empty-state when showing the no-games state
-            if (emptyStateElement) {
-                emptyStateElement.classList.add('hidden');
-            }
+// Show the add-event button only when both a video and a game are loaded
+function updateFabVisibility() {
+    const fab = document.getElementById('add-event-fab');
+    const video = document.getElementById('video-player');
+    if (!fab) return;
 
-            // Hide the timeline events container
-            if (timelineContainerElement) {
-                timelineContainerElement.classList.add('hidden');
-            }
-        } else {
-            noGamesStateElement.classList.add('hidden');
-        }
-    }
+    const videoLoaded = video && (video.currentSrc || video.querySelector('source')) && video.readyState > 0;
+    fab.classList.toggle('hidden', !(videoLoaded && currentGameId));
 }
 
 // Toggle favorite status for an event
@@ -1111,26 +965,7 @@ function toggleFavorite(eventId) {
         saveGame(currentGameId, timelineEvents, metadata);
     }
 
-    // --- Maintain current filter state after toggling favorite ---
-    // Determine if we are in favorites mode
-    const showFavoritesBtn = document.getElementById('show-favorites');
-    const isFavoritesMode = showFavoritesBtn && showFavoritesBtn.classList.contains('bg-blue-500');
-
-    // Get current filter selection from the filter UI
-    // (selected event types, or 'all')
-    let selectedFilters = ['all'];
-    const allCheckbox = document.getElementById('filter-option-all');
-    if (allCheckbox && !allCheckbox.checked) {
-        // Gather checked event type filters
-        const checkedBoxes = document.querySelectorAll('#filter-options-container .filter-checkbox:checked');
-        selectedFilters = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-filter'));
-        if (selectedFilters.length === 0) {
-            selectedFilters = ['all'];
-        }
-    }
-
-    // Re-apply the current filter (and favorites mode) to keep UI and list in sync
-    applyTimelineFilter(selectedFilters);
+    renderTimelineEvents();
 
     // Show confirmation
     if (event.isFavorite) {
@@ -1151,9 +986,16 @@ function domReady(callback) {
 domReady(() => {
     console.log('DOM fully loaded and parsed');
 
-    toggleEmptyState(true);
-    populateGameSelector();
-    setupGameControls();    // --- Video Upload Setup ---
+    const video = document.getElementById('video-player');
+    if (video) {
+        video.addEventListener('loadeddata', updateFabVisibility);
+        video.addEventListener('emptied', updateFabVisibility);
+    }
+
+    initFilterUI();
+    loadGameFromQuery();
+
+    // --- Video Upload Setup ---
     const videoUploadInput = document.getElementById('video-upload');
     if (videoUploadInput) {
         videoUploadInput.addEventListener('change', (e) => {
@@ -1267,88 +1109,11 @@ domReady(() => {
     }
 });
 
-// Populate game selector dropdown
-function populateGameSelector() {
-    const gameSelector = document.getElementById('game-selector');
-    if (!gameSelector) return;
-
-    // Clear existing options except the default one
-    while (gameSelector.options.length > 1) {
-        gameSelector.remove(1);
-    }
-
-    const savedGames = getSavedGames();
-    const noGamesNotification = document.getElementById('no-games-notification');
-    const hasGames = Array.isArray(savedGames) && savedGames.length > 0;
-
-    // Show/hide the no games notification
-    if (noGamesNotification) {
-        if (!hasGames) {
-            noGamesNotification.classList.remove('hidden');
-        } else {
-            noGamesNotification.classList.add('hidden');
-        }
-    }
-
-    // Toggle game selector state
-    if (!hasGames) {
-        gameSelector.disabled = true;
-        gameSelector.classList.add('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
-
-        // Show the no-games state
-        toggleNoGamesState(true);
-    } else {
-        gameSelector.disabled = false;
-        gameSelector.classList.remove('bg-gray-100', 'text-gray-500', 'cursor-not-allowed');
-
-        // Hide the no-games state
-        toggleNoGamesState(false);
-
-        // Add each saved game as an option (most recent first)
-        // Ensure every game has an id; if not, assign one and persist the list
-        let needsPersist = false;
-        const gamesToUse = savedGames.map(g => {
-            if (!g.id) {
-                g.id = generateGameId();
-                needsPersist = true;
-            }
-            return g;
-        });
-
-        if (needsPersist) {
-            try {
-                storageService.setItem(LOCAL_STORAGE_KEY_GAMES, gamesToUse);
-            } catch (e) {
-                console.warn('Could not persist generated game ids', e);
-            }
-        }
-
-        gamesToUse.forEach(game => {
-            const option = document.createElement('option');
-            option.value = game.id;
-
-            // Use teams attribute if available, otherwise use the id
-            option.textContent = game.teams || game.id;
-
-            gameSelector.appendChild(option);
-        });
-    }
-}
-
-function setupGameControls() {
-    // Game selector change handler
-    const gameSelector = document.getElementById('game-selector');
-    if (gameSelector) {
-        gameSelector.addEventListener('change', (e) => {
-            const gameId = e.target.value;
-            if (gameId && gameId !== 'default') {
-                loadGame(gameId);
-            } else {
-                // Reset to empty state if "Choose a game" is selected
-                timelineEvents = [];
-                renderTimelineEvents();
-            }
-        });
+// Load the game named by the ?game=<id> query parameter, set by the Saved Games list
+function loadGameFromQuery() {
+    const gameId = new URLSearchParams(window.location.search).get('game');
+    if (!gameId || !loadGame(gameId)) {
+        showNoGameSelectedState();
     }
 }
 
@@ -1382,3 +1147,5 @@ function jumpToVideoTime(timeMs) {
         videoPlayer.play().catch(e => console.error("Error playing video:", e));
     }
 }
+
+export { getVisibleEvents, setTypeFilters, setFavoritesOnly, updateEventFilters, loadGame, deleteEvent, toggleFavorite };

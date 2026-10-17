@@ -27,9 +27,11 @@ Deep linking allows users to navigate directly to specific views using URL hash 
 Available deep links include:
 
 - `index.html#event-capture` - Event Capture view
-- `index.html#log` - Log view (requires active game)
+- `index.html#log` - Log view for the game in progress (requires active game)
+- `index.html#log/<id>` - Read-only Log view for the saved game with the given id (no active game needed)
 - `index.html#configure` - Configure view
-- `index.html#saved-games` - Saved Games view
+- `index.html#saved-games` - Saved Games view (the entry point for Match Review)
+- `timeline-video.html?game=<id>` - Match Review with the given saved game loaded
 
 ## View Mapping
 
@@ -98,19 +100,25 @@ The router converts the hash fragment `"configure"` to the internal view name `"
 
 ### 4. Prerequisites Check
 
-For certain views, the router checks if prerequisites are met. For example, the Log view requires an active game:
+For certain views, the router checks if prerequisites are met. The hash is split on `/`, so `log/<id>` maps to the Log view with a saved game id. The id is stored in `ui.logGameId` (or `null` for every other route), and only the plain `#log` route requires an active game:
 
 ```javascript
-if (viewName === 'Log') {
-    const hasActiveGame = localStorage.getItem('currentGame') !== null;
+const [hash, param] = window.location.hash.substring(1).split('/');
+const savedGameId = viewName === 'Log' && param ? decodeURIComponent(param) : null;
+stateService.setState('ui.logGameId', savedGameId);
+
+if (viewName === 'Log' && !savedGameId) {
+    const hasActiveGame = stateService.getState('game.hasCurrentGame');
     if (!hasActiveGame) {
         // Default to EventCapture if no active game
-        this._updateHashSilently('event-capture');
-        this.showView('EventCapture');
+        this._updateHashSilently(hash);
+        this.showView('event-capture');
         return;
     }
 }
 ```
+
+When the Log view is shown, `main.js` renders either the saved game's `events` (with a "Saved game" banner and a Back to Saved Games button) or the live game's `loggedEvents`. Viewing a saved game never changes the live game state.
 
 ### 5. State Update
 
@@ -159,9 +167,9 @@ The user now sees the Configure view, with the "Configure" navigation button hig
 The router implements a simple "route guard" pattern to prevent access to views that require certain prerequisites:
 
 ```javascript
-// Example: Log view requires an active game
-if (viewName === 'Log') {
-    const hasActiveGame = localStorage.getItem('currentGame') !== null;
+// Example: the live Log view requires an active game; #log/<id> for a saved game does not
+if (viewName === 'Log' && !savedGameId) {
+    const hasActiveGame = stateService.getState('game.hasCurrentGame');
     if (!hasActiveGame) {
         // Redirect to default view
         this._updateHashSilently('event-capture');
@@ -181,6 +189,8 @@ When navigating between separate HTML pages (e.g., from `index.html` to `timelin
 ```
 
 This ensures that when users navigate from the Match Review page back to the main application, they land directly on their intended view.
+
+Match Review has no navigation item of its own. Selecting a game in the Saved Games view navigates to `timeline-video.html?game=<id>`, and the review page selects that game on load. Games without an `id` are assigned one when the Saved Games list is rendered.
 
 ## Best Practices Implemented
 

@@ -16,7 +16,7 @@ export {
 
 // Re-export from xmlUtils
 export {
-    generatePlainXml,
+    generateSportscodeXml,
     copyXmlToClipboard,
     parseXmlToEvents,
     validateXmlStructure

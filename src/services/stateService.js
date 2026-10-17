@@ -20,7 +20,8 @@ export const stateService = {
         },
         ui: {
             currentView: 'EventCapture',
-            currentTab: 'timelineView'
+            currentTab: 'timelineView',
+            logGameId: null
         }
     },
 

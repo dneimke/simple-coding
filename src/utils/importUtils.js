@@ -100,7 +100,7 @@ export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = nu
 };
 
 /**
- * Generates sample XML data in the modern format (export-compatible)
+ * Generates sample XML data in Sportscode format (export-compatible)
  * @returns {string} Sample XML content
  */
 export const generateSampleXml = () => {

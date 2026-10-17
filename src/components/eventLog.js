@@ -1,6 +1,18 @@
 import { escapeXml } from '../utils/formatUtils.js';
 import { computeGameStatistics } from '../utils/gameUtils.js';
 import { createLogEntry, createLogContainer } from './ui/index.js';
+import { generateSportscodeXml } from '../utils/xmlUtils.js';
+
+// The rendered textContent must equal the XML string so Copy XML yields a valid document.
+const highlightXml = (xml) => xml
+    .split(/(<[^>]+>)/)
+    .map(token => {
+        if (!token) return '';
+        if (token.startsWith('<')) return `<span class="xml-tag">${escapeXml(token)}</span>`;
+        if (!token.trim()) return token;
+        return `<span class="xml-text">${escapeXml(token)}</span>`;
+    })
+    .join('');
 
 export class EventLog {
     constructor(timelineContainer, xmlContainer, statisticsContainer) {
@@ -21,15 +33,7 @@ export class EventLog {
 
         this.renderTimeline(events);
 
-        let styledXmlString = '';
-        events.forEach((logEntry, index) => {
-            const eventTimeSeconds = Math.floor(logEntry.timeMs / 1000);
-            const startSeconds = Math.max(0, eventTimeSeconds - 5);
-            const endSeconds = eventTimeSeconds + 5;
-            const eventCode = escapeXml(logEntry.event);
-            styledXmlString += `<span class="xml-tag">&lt;instance&gt;</span><span class="xml-tag">&lt;ID&gt;</span><span class="xml-text">${index + 1}</span><span class="xml-tag">&lt;/ID&gt;</span><span class="xml-tag">&lt;start&gt;</span><span class="xml-text">${startSeconds}</span><span class="xml-tag">&lt;/start&gt;</span><span class="xml-tag">&lt;end&gt;</span><span class="xml-text">${endSeconds}</span><span class="xml-tag">&lt;/end&gt;</span><span class="xml-tag">&lt;code&gt;</span><span class="xml-text">${eventCode}</span><span class="xml-tag">&lt;/code&gt;</span><span class="xml-tag">&lt;/instance&gt;</span>\n`;
-        });
-        this.xmlContainer.innerHTML = styledXmlString;
+        this.xmlContainer.innerHTML = highlightXml(generateSportscodeXml(events));
 
         // Render statistics
         this.statisticsContainer.innerHTML = '';

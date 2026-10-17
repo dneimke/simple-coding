@@ -6,7 +6,8 @@ import { stateService } from '../../src/services/stateService.js';
 jest.mock('../../src/services/stateService.js', () => ({
     stateService: {
         subscribe: jest.fn(),
-        setState: jest.fn()
+        setState: jest.fn(),
+        getState: jest.fn()
     }
 }));
 
@@ -150,6 +151,48 @@ describe('Router', () => {
             'configure': 'Config',
             'log': 'Log',
             'saved-games': 'SavedGames'
+        });
+    });
+
+    describe('Log route guard', () => {
+        test('#log without an active game redirects to Event Capture', () => {
+            stateService.getState.mockReturnValue(false);
+            window.location.hash = 'log';
+
+            router._handleHashChange();
+
+            expect(stateService.setState).toHaveBeenCalledWith('ui.logGameId', null);
+            expect(stateService.setState).not.toHaveBeenCalledWith('ui.currentView', 'Log');
+            expect(window.location.hash).toBe('#event-capture');
+        });
+
+        test('#log with an active game shows the live Log view', () => {
+            stateService.getState.mockReturnValue(true);
+            window.location.hash = 'log';
+
+            router._handleHashChange();
+
+            expect(stateService.setState).toHaveBeenCalledWith('ui.logGameId', null);
+            expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'Log');
+        });
+
+        test('#log/<id> shows a saved game log without an active game', () => {
+            stateService.getState.mockReturnValue(false);
+            window.location.hash = 'log/game-abc%20123';
+
+            router._handleHashChange();
+
+            expect(stateService.setState).toHaveBeenCalledWith('ui.logGameId', 'game-abc 123');
+            expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'Log');
+        });
+
+        test('other views clear the saved game id', () => {
+            window.location.hash = 'saved-games';
+
+            router._handleHashChange();
+
+            expect(stateService.setState).toHaveBeenCalledWith('ui.logGameId', null);
+            expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'SavedGames');
         });
     });
 });

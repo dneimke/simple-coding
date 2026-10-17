@@ -1,4 +1,4 @@
-import { EventButtons, EventLog, GameState, Router, ChatConfigManager } from './components/index.js';
+import { EventButtons, EventLog, GameState, Router } from './components/index.js';
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility, showElement, hideElement } from './utils/domUtils.js';
@@ -6,7 +6,7 @@ import { logger } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, saveConfiguration, resetConfiguration } from './components/config.js';
+import { loadConfiguration, saveConfiguration, listNamedConfigs, saveNamedConfig, activateNamedConfig } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -23,7 +23,10 @@ const navContainer = document.querySelector('nav');
 const codingButtonsContainer = document.getElementById('coding-buttons-container');
 const configJsonInput = document.getElementById('configJsonInput');
 const saveConfigButton = document.getElementById('saveConfigButton');
-const loadDefaultConfigButton = document.getElementById('loadDefaultConfigButton');
+const savedConfigSelect = document.getElementById('savedConfigSelect');
+const loadNamedConfigButton = document.getElementById('loadNamedConfigButton');
+const configNameInput = document.getElementById('configNameInput');
+const saveNamedConfigButton = document.getElementById('saveNamedConfigButton');
 const configMessage = document.getElementById('configMessage');
 const importXmlButton = document.getElementById('importXmlButton');
 const xmlFileInput = document.getElementById('xmlFileInput');
@@ -37,6 +40,9 @@ const xmlViewPanel = document.getElementById('xmlView');
 const statisticsViewPanel = document.getElementById('statisticsView');
 const xmlOutputContainer = xmlViewPanel.querySelector('.xml-output');
 const copyXmlButton = document.getElementById('copyXmlButton');
+const savedGameLogBanner = document.getElementById('savedGameLogBanner');
+const savedGameLogTitle = document.getElementById('savedGameLogTitle');
+const backToSavedGamesButton = document.getElementById('backToSavedGamesButton');
 
 // Mobile Navigation Elements
 const mobileMenuButton = document.getElementById('mobileMenuButton');
@@ -63,7 +69,7 @@ function renderSavedGames() {
 
     try {
         logger.log('Loading saved games from localStorage...');
-        const savedGames = gameStorageManager.getAllGames();
+        const savedGames = gameStorageManager.ensureGameIds();
         checkStorageQuota(80);
 
         // Add export all button if there are games
@@ -77,6 +83,12 @@ function renderSavedGames() {
                 const gameCard = createGameCard({
                     game,
                     index,
+                    onSelect: () => {
+                        window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}`;
+                    },
+                    onViewLog: () => {
+                        window.location.hash = `log/${encodeURIComponent(game.id)}`;
+                    },
                     onRename: () => {
                         // Get the current name or use a placeholder
                         const currentName = game.teams || `Game ${index + 1}`;
@@ -133,6 +145,60 @@ function createExportButton() {
     }
 }
 
+/**
+ * Renders the Log view for either a saved game (when ui.logGameId is set) or the live game.
+ * Viewing a saved game never touches the live game state.
+ */
+function renderLogView() {
+    const savedGameId = stateService.getState('ui.logGameId');
+    let events;
+
+    if (savedGameId) {
+        const game = gameStorageManager.getGameById(savedGameId);
+        if (!game) {
+            notificationService.notify('That saved game could not be found.', 'error');
+            router.showView('SavedGames', renderSavedGames);
+            return;
+        }
+        events = game.events || [];
+        savedGameLogTitle.textContent = game.teams || 'Game';
+        savedGameLogBanner.classList.remove('hidden');
+    } else {
+        events = stateService.getState('game.loggedEvents') || [];
+        savedGameLogBanner.classList.add('hidden');
+    }
+
+    eventLog.render(events);
+    copyXmlButton.disabled = events.length === 0;
+}
+
+function renderSavedConfigOptions(selectedName = savedConfigSelect.value) {
+    const names = listNamedConfigs();
+    savedConfigSelect.innerHTML = '';
+    names.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        savedConfigSelect.appendChild(option);
+    });
+    if (names.includes(selectedName)) {
+        savedConfigSelect.value = selectedName;
+    }
+}
+
+function showConfigView() {
+    configJsonInput.value = JSON.stringify(loadConfiguration(), null, 2);
+    renderSavedConfigOptions();
+}
+
+function parseEditorConfig() {
+    const parsedConfig = JSON.parse(configJsonInput.value);
+    if (!parsedConfig || !Array.isArray(parsedConfig.rowDefs)) {
+        throw new Error("Invalid configuration structure.");
+    }
+    return parsedConfig;
+}
+
 function initializeApplication() {
     // Load configuration
     const currentConfig = loadConfiguration();
@@ -160,9 +226,7 @@ function initializeApplication() {
 
     registerEventListeners();
     eventButtons.initialize(currentConfig);
-
-    // Initialize chat configuration manager
-    const chatConfigManager = new ChatConfigManager(configJsonInput, configMessage, eventButtons);
+    renderSavedConfigOptions();
 
     const hasCurrentGame = stateService.getState('game.hasCurrentGame');
     updateNavbarVisibility(hasCurrentGame);
@@ -193,13 +257,13 @@ function registerEventListeners() {
             if (viewName === 'SavedGames') {
                 renderSavedGames();
             } else if (viewName === 'Config') {
-                const currentConfig = loadConfiguration();
-                configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+                showConfigView();
             }
         });
+    });
 
-        const gameState = stateService.getState('game');
-        copyXmlButton.disabled = gameState.loggedEvents.length === 0;
+    backToSavedGamesButton.addEventListener('click', () => {
+        router.showView('SavedGames', renderSavedGames);
     });
 
 
@@ -283,20 +347,14 @@ function registerEventListeners() {
     // Save configuration button
     saveConfigButton.addEventListener('click', () => {
         try {
-            const jsonString = configJsonInput.value;
-            const parsedConfig = JSON.parse(jsonString);
+            const parsedConfig = parseEditorConfig();
+            const isSaved = saveConfiguration(parsedConfig);
 
-            if (parsedConfig && Array.isArray(parsedConfig.rowDefs)) {
-                const isSaved = saveConfiguration(parsedConfig);
-
-                if (isSaved) {
-                    showMessage(configMessage, "Configuration saved successfully!", false);
-                    eventButtons.initialize(parsedConfig);
-                } else {
-                    showMessage(configMessage, "Failed to save configuration.", true);
-                }
+            if (isSaved) {
+                showMessage(configMessage, "Configuration saved successfully!", false);
+                eventButtons.initialize(parsedConfig);
             } else {
-                throw new Error("Invalid configuration structure.");
+                showMessage(configMessage, "Failed to save configuration.", true);
             }
         } catch (error) {
             logger.error("Invalid JSON:", error);
@@ -304,10 +362,37 @@ function registerEventListeners() {
         }
     });
 
-    loadDefaultConfigButton.addEventListener('click', () => {
-        const defaultConfig = resetConfiguration();
-        configJsonInput.value = JSON.stringify(defaultConfig, null, 2);
-        showMessage(configMessage, "Default configuration loaded into editor. Click 'Save Configuration' to apply.", false);
+    loadNamedConfigButton.addEventListener('click', () => {
+        const name = savedConfigSelect.value;
+        try {
+            const config = activateNamedConfig(name);
+            configJsonInput.value = JSON.stringify(config, null, 2);
+            configNameInput.value = name;
+            eventButtons.initialize(config);
+            showMessage(configMessage, `Configuration "${name}" loaded and set as active.`, false);
+        } catch (error) {
+            logger.error("Failed to load named configuration:", error);
+            showMessage(configMessage, error.message, true);
+        }
+    });
+
+    saveNamedConfigButton.addEventListener('click', () => {
+        const name = configNameInput.value.trim();
+        try {
+            if (!name) {
+                throw new Error("Enter a name for this configuration.");
+            }
+            const parsedConfig = parseEditorConfig();
+            if (!saveNamedConfig(name, parsedConfig)) {
+                throw new Error("Failed to save configuration.");
+            }
+            renderSavedConfigOptions(name);
+            eventButtons.initialize(parsedConfig);
+            showMessage(configMessage, `Configuration "${name}" saved and set as active.`, false);
+        } catch (error) {
+            logger.error("Failed to save named configuration:", error);
+            showMessage(configMessage, error.message, true);
+        }
     });
 
     importXmlButton.addEventListener('click', () => {
@@ -321,6 +406,9 @@ function registerEventListeners() {
                 const xmlContent = await file.text();
                 validateXmlStructure(xmlContent);
                 const events = parseXmlToEvents(xmlContent);
+                if (!events.teamsAttribute) {
+                    events.teamsAttribute = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim() || null;
+                }
 
                 showPreview(previewContainer, events, LOCAL_STORAGE_KEY_GAMES, (e) => {
                     if (e.importedFileCount > 0) {
@@ -360,6 +448,12 @@ const eventLog = new EventLog(timelineViewPanel, xmlOutputContainer, statisticsV
 const eventButtons = new EventButtons(codingButtonsContainer);
 const gameState = new GameState(timerDisplay, eventLog, eventButtons);
 
+stateService.subscribe('ui.currentView', (viewName) => {
+    if (viewName === 'Log') {
+        renderLogView();
+    }
+});
+
 // Initial navigation based on URL hash or defaults to EventCapture
 document.addEventListener('DOMContentLoaded', () => {
     // The Router class now handles initial hash-based navigation
@@ -370,8 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hash === 'saved-games') {
         renderSavedGames();
     } else if (hash === 'configure') {
-        const currentConfig = loadConfiguration();
-        configJsonInput.value = JSON.stringify(currentConfig, null, 2);
+        showConfigView();
     }
 
     // Initialize mobile menu functionality

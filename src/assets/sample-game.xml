@@ -1,12 +1,84 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<game date="2025-05-07" teams="Team A vs Team B" location="Sports Complex">
-    <events>
-        <event event="KICKOFF" timeMs="0" />
-        <event event="SHOT_WIDE" timeMs="330000" />
-        <event event="GOAL_FOR" timeMs="615000" />
-        <event event="GREEN_CARD" timeMs="945000" />
-        <event event="SUBSTITUTION" timeMs="1200000" />
-        <event event="GOAL_AGAINST" timeMs="1710000" />
-        <event event="QUARTER_BREAK" timeMs="2100000" />
-    </events>
-</game>
+<?xml version="1.0" encoding="utf-8"?>
+<file>
+  <ALL_INSTANCES>
+    <instance>
+      <ID>1</ID>
+      <start>0.00</start>
+      <end>5.00</end>
+      <code_id>1</code_id>
+      <code>KICKOFF</code>
+    </instance>
+    <instance>
+      <ID>2</ID>
+      <start>325.00</start>
+      <end>335.00</end>
+      <code_id>2</code_id>
+      <code>SHOT_WIDE</code>
+    </instance>
+    <instance>
+      <ID>3</ID>
+      <start>610.00</start>
+      <end>620.00</end>
+      <code_id>3</code_id>
+      <code>GOAL_FOR</code>
+    </instance>
+    <instance>
+      <ID>4</ID>
+      <start>940.00</start>
+      <end>950.00</end>
+      <code_id>4</code_id>
+      <code>GREEN_CARD</code>
+    </instance>
+    <instance>
+      <ID>5</ID>
+      <start>1195.00</start>
+      <end>1205.00</end>
+      <code_id>5</code_id>
+      <code>SUBSTITUTION</code>
+    </instance>
+    <instance>
+      <ID>6</ID>
+      <start>1705.00</start>
+      <end>1715.00</end>
+      <code_id>6</code_id>
+      <code>GOAL_AGAINST</code>
+    </instance>
+    <instance>
+      <ID>7</ID>
+      <start>2095.00</start>
+      <end>2105.00</end>
+      <code_id>7</code_id>
+      <code>QUARTER_BREAK</code>
+    </instance>
+  </ALL_INSTANCES>
+  <ROWS>
+    <row>
+      <id>1</id>
+      <name>KICKOFF</name>
+    </row>
+    <row>
+      <id>2</id>
+      <name>SHOT_WIDE</name>
+    </row>
+    <row>
+      <id>3</id>
+      <name>GOAL_FOR</name>
+    </row>
+    <row>
+      <id>4</id>
+      <name>GREEN_CARD</name>
+    </row>
+    <row>
+      <id>5</id>
+      <name>SUBSTITUTION</name>
+    </row>
+    <row>
+      <id>6</id>
+      <name>GOAL_AGAINST</name>
+    </row>
+    <row>
+      <id>7</id>
+      <name>QUARTER_BREAK</name>
+    </row>
+  </ROWS>
+</file>

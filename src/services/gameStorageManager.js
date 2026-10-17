@@ -11,6 +11,10 @@ import { storageService } from './storageService.js';
 import { logger } from '../utils/formatUtils.js';
 import { notificationService } from './notificationService.js';
 
+export function generateGameId() {
+    return 'game-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
+}
+
 export class GameStorageManager {
     /**
      * Initialize the GameStorageManager
@@ -38,7 +42,7 @@ export class GameStorageManager {
             const games = this.getAllGames();
 
             // Add new game at the beginning (most recent first)
-            games.unshift({ ...game });
+            games.unshift({ id: generateGameId(), ...game });
 
             // Prune if exceeding max limit
             if (games.length > this.MAX_GAMES) {
@@ -80,6 +84,29 @@ export class GameStorageManager {
     }
 
     /**
+     * Gets all saved games, assigning and persisting an id for any game without one
+     * @returns {Array} Array of game objects, each with an id
+     */
+    ensureGameIds() {
+        const games = this.getAllGames();
+        let changed = false;
+        games.forEach(game => {
+            if (game && !game.id) {
+                game.id = generateGameId();
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            const result = storageService.setItem(this.STORAGE_KEY, games);
+            if (result !== true) {
+                logger.error('Error persisting game ids:', result.message);
+            }
+        }
+        return games;
+    }
+
+    /**
      * Gets a specific game by index
      * @param {number} index - Index of the game to retrieve
      * @returns {Object|null} Game object if found, null otherwise
@@ -87,6 +114,16 @@ export class GameStorageManager {
     getGameByIndex(index) {
         const games = this.getAllGames();
         return (index >= 0 && index < games.length) ? games[index] : null;
+    }
+
+    /**
+     * Gets a specific game by its id
+     * @param {string} id - Id of the game to retrieve
+     * @returns {Object|null} Game object if found, null otherwise
+     */
+    getGameById(id) {
+        if (!id) return null;
+        return this.ensureGameIds().find(game => game && game.id === id) || null;
     }
 
     /**

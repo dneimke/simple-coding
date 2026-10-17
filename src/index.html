@@ -53,10 +53,6 @@
                         <i class="fas fa-list-ul text-sm" aria-hidden="true"></i>
                         <span>Log</span>
                     </a>
-                    <a href="timeline-video.html" class="nav-link flex items-center gap-2 px-2">
-                        <i class="fas fa-video text-sm" aria-hidden="true"></i>
-                        <span>Match Review</span>
-                    </a>
                     <a href="#saved-games" id="navSavedGames" class="nav-link flex items-center gap-2 px-2">
                         <i class="fas fa-save text-sm" aria-hidden="true"></i>
                         <span>Saved Games</span>
@@ -101,9 +97,14 @@
             <!-- Configuration View -->
             <div id="config-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure Event Buttons</h1>
-                <div class="flex mb-4 space-x-2">
-                    <button id="textConfigTabButton" class="tab-button tab-button-active">Text Editor</button>
-                    <button id="chatConfigTabButton" class="tab-button">Chat Interface</button>
+                <div class="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
+                    <div class="flex-1">
+                        <label for="savedConfigSelect" class="block text-gray-700 font-medium mb-2">Saved
+                            configurations</label>
+                        <select id="savedConfigSelect"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                    <button id="loadNamedConfigButton" class="event-button btn-blue px-6 py-2">Load</button>
                 </div>
                 <p class="mb-4 text-gray-600">
                     Edit the JSON below to define the button layout. Buttons defined in 'leftColumn' and 'rightColumn'
@@ -119,63 +120,34 @@
                     <textarea id="configJsonInput" placeholder="Enter your configuration JSON here"></textarea>
                 </div>
                 <div id="configMessage" class="config-message hidden"></div>
-                <div class="flex space-x-4">
+                <div class="flex flex-col sm:flex-row sm:items-end gap-3">
                     <button id="saveConfigButton" class="event-button btn-green px-6 py-2">Save Configuration</button>
-                    <button id="loadDefaultConfigButton" class="event-button btn-gray px-6 py-2">Load Default</button>
-                </div>
-                <p class="mt-4 text-sm text-gray-500">Configuration is saved in your browser's local storage. Changes
-                    will be applied after saving.</p>
-            </div>
-
-            <!-- Chat Configuration View -->
-            <div id="chat-config-view" class="hidden">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure with Chat</h1>
-
-                <div id="chat-container" class="border rounded-lg h-96 flex flex-col">
-                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
-
-                    <div class="border-t p-4 bg-gray-50">
-                        <form id="chat-form" class="flex space-x-2">
-                            <input type="text" id="chat-input"
-                                class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Ask me to help configure your event buttons...">
-                            <button type="submit"
-                                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                aria-label="Send message">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </form>
+                    <div class="flex-1">
+                        <label for="configNameInput" class="block text-gray-700 font-medium mb-2">Configuration
+                            name</label>
+                        <input type="text" id="configNameInput" placeholder="e.g. hockey-one"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
+                    <button id="saveNamedConfigButton" class="event-button btn-blue px-6 py-2">Save as named
+                        config</button>
                 </div>
-
-                <div class="mt-6">
-                    <h2 class="text-lg font-medium mb-2">Suggested Phrases:</h2>
-                    <div class="flex flex-wrap gap-2">
-                        <button
-                            class="suggestion-chip bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-sm">Create
-                            a button for goal scored</button>
-                        <button class="suggestion-chip bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-sm">I
-                            need buttons for penalties</button>
-                        <button
-                            class="suggestion-chip bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-sm">Show me
-                            my current configuration</button>
-                    </div>
-                </div>
-
-                <div class="mt-6">
-                    <div class="flex justify-between items-center mb-2">
-                        <h2 class="text-lg font-medium">Configuration Preview:</h2>
-                        <button id="applyConfigButton" class="event-button btn-green px-4 py-1">Apply Changes</button>
-                    </div>
-                    <div id="config-preview" class="border rounded-lg p-4 bg-gray-50 h-40 overflow-auto">
-                        <p class="text-gray-400 italic">Your configuration will appear here</p>
-                    </div>
-                </div>
+                <p class="mt-4 text-sm text-gray-500">Configurations are saved in your browser's local storage. Loading
+                    or saving a configuration makes it the active layout on the Event Capture page.</p>
             </div>
 
             <!-- Log View -->
             <div id="log-view" class="hidden">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Event Log</h1>
+                <div id="savedGameLogBanner"
+                    class="hidden mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-md flex items-center justify-between gap-3">
+                    <p class="text-blue-900 font-medium">
+                        <i class="fas fa-save mr-2" aria-hidden="true"></i>Saved game: <span
+                            id="savedGameLogTitle"></span>
+                    </p>
+                    <button id="backToSavedGamesButton" type="button"
+                        class="text-sm text-blue-700 underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">Back
+                        to Saved Games</button>
+                </div>
                 <div class="group-container">
                     <div class="border-b border-gray-200">
                         <nav class="-mb-px flex space-x-4" aria-label="Tabs">

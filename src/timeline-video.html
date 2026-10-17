@@ -73,12 +73,8 @@
                         <i class="fas fa-list-ul text-sm" aria-hidden="true"></i>
                         <span>Log</span>
                     </a>
-                    <a href="timeline-video.html" id="navTimelineVideo"
+                    <a href="index.html#saved-games" id="navSavedGames"
                         class="nav-link nav-link-active flex items-center gap-2 px-2" aria-current="page">
-                        <i class="fas fa-video text-sm" aria-hidden="true"></i>
-                        <span>Match Review</span>
-                    </a>
-                    <a href="index.html#saved-games" id="navSavedGames" class="nav-link flex items-center gap-2 px-2">
                         <i class="fas fa-save text-sm" aria-hidden="true"></i>
                         <span>Saved Games</span>
                     </a>
@@ -101,43 +97,28 @@
                 <!-- Left Pane: Timeline -->
                 <div id="timeline-container"
                     class="w-full md:w-1/3 lg:w-1/4 h-1/2 md:h-full overflow-y-auto bg-white p-5 border border-gray-200 rounded-lg shadow-sm flex flex-col">
-                    <div class="mb-2 pb-3">
-                        <div class="flex flex-col space-y-3">
-                            <label for="game-selector" class="text-sm font-medium text-gray-700">Select Game</label>
-                            <select id="game-selector"
-                                class="border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="default">Choose a game</option>
-                                <!-- Saved games will be populated here by JS -->
-                            </select>
-                            <!-- No games notification that appears when there are no saved games -->
-                            <div id="no-games-notification"
-                                class="hidden mt-1 text-amber-600 flex items-center text-sm">
-                                <i class="fas fa-exclamation-triangle h-5 w-5 mr-1"></i>
-                                No saved games found
-                            </div>
-                        </div>
-                    </div>
+                    <h2 id="review-game-title" class="hidden mb-4 pb-3 text-lg font-bold text-gray-800 border-b border-gray-200"></h2>
 
-                    <!-- No games state message -->
-                    <div id="no-games-state"
+                    <!-- Shown when no game was opened from Saved Games -->
+                    <div id="no-game-selected-state"
                         class="hidden flex flex-col items-center justify-center py-10 my-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                        <i class="fas fa-check-circle h-14 w-14 text-gray-300 mb-4"></i>
-                        <p class="text-gray-700 mb-3 font-medium">No saved games available</p>
-                        <p class="text-sm text-gray-500 mb-6 max-w-xs">To review match events, you first need to capture
-                            them during a game</p>
-                        <a href="index.html"
+                        <i class="fas fa-save h-14 w-14 text-gray-300 mb-4"></i>
+                        <p class="text-gray-700 mb-3 font-medium">No game selected</p>
+                        <p class="text-sm text-gray-500 mb-6 max-w-xs">Choose a game from Saved Games to review its
+                            events</p>
+                        <a href="index.html#saved-games"
                             class="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">
-                            <i class="fas fa-plus h-4 w-4 mr-2"></i>
-                            Create New Game
+                            <i class="fas fa-save h-4 w-4 mr-2"></i>
+                            Go to Saved Games
                         </a>
                     </div>
 
-                    <!-- Empty state message for when a game is selected but has no events -->
+                    <!-- Empty state message for when a game is loaded but has no events -->
                     <div id="timeline-empty-state"
-                        class="flex flex-col items-center justify-center py-10 my-4 text-center bg-gray-50 rounded-lg">
+                        class="hidden flex flex-col items-center justify-center py-10 my-4 text-center bg-gray-50 rounded-lg">
                         <i class="fas fa-inbox h-14 w-14 text-gray-300 mb-4"></i>
                         <p class="text-gray-600 mb-3 font-medium">No timeline events to display</p>
-                        <p class="text-sm text-gray-500">Select a saved game to view events</p>
+                        <p class="text-sm text-gray-500">This game has no recorded events yet</p>
                     </div> <!-- Empty state message for when favorites mode is active but no favorites exist -->
                     <div id="favorites-empty-state"
                         class="hidden flex flex-col items-center justify-center py-6 my-3 mt-1 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
@@ -188,7 +169,7 @@
                                 <div class="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer">
                                     <input id="filter-option-all" type="checkbox"
                                         class="filter-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                        data-filter="all" checked aria-labelledby="filter-option-all-label">
+                                        data-filter="all" checked autocomplete="off" aria-labelledby="filter-option-all-label">
                                     <label id="filter-option-all-label" for="filter-option-all"
                                         class="ml-3 block text-sm font-medium text-gray-700 cursor-pointer w-full">
                                         All events
@@ -370,34 +351,6 @@
     </div>
     </div>
 
-    <!-- Link to your JavaScript file -->
-    <script type="module">
-        import './js/timeline-video.js';
-        // FAB show/hide logic
-        const fab = document.getElementById('add-event-fab');
-        const video = document.getElementById('video-player');
-        const gameSelector = document.getElementById('game-selector');
-
-        function updateFabVisibility() {
-            // Check if a video is loaded (has a source or file loaded)
-            const videoLoaded = video && (video.currentSrc || video.querySelector('source')) && video.readyState > 0;
-            // Check if a game is selected (not default)
-            const gameLoaded = gameSelector && gameSelector.value && gameSelector.value !== 'default';
-            if (videoLoaded && gameLoaded) {
-                fab.classList.remove('hidden');
-            } else {
-                fab.classList.add('hidden');
-            }
-        }
-
-        // Listen for video load
-        video.addEventListener('loadeddata', updateFabVisibility);
-        video.addEventListener('emptied', updateFabVisibility);
-        // Listen for game selection
-        gameSelector.addEventListener('change', updateFabVisibility);
-        // Also check on DOMContentLoaded
-        document.addEventListener('DOMContentLoaded', updateFabVisibility);
-    </script>
     <script type="module" src="js/timeline-video.js"></script>
 </body>
 

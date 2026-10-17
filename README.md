@@ -27,7 +27,7 @@ The **Field Hockey Event Tracker** is a modern web application for coaches, anal
 - **Customizable Interface**: Configure event buttons to match your team's specific tracking needs
 - **Multiple Analysis Views**: Review events as lists, timelines, or aggregated statistics
 - **Video Synchronization**: Link recorded events with video footage for in-depth analysis
-- **Data Portability**: Export data in XML format for compatibility with other analysis tools
+- **Data Portability**: Import and export games as Sportscode XML for compatibility with other analysis tools
 - **Offline Functionality**: Works without internet connection, storing data in browser local storage
 
 ### Game Management
@@ -52,9 +52,9 @@ The primary interface for recording live game events with:
 
 ![Event Capture Page](images/field-hockey-tracker.png)
 
-### 2. Match Review Page
+### 2. Saved Games and Match Review
 
-For analyzing recorded events with video synchronization:
+Saved Games is the single entry point for reviewing matches. It lists every saved game with Export, Rename, and Delete actions; selecting a game opens it in Match Review for analysis with video synchronization:
 
 - Timeline view of all events
 - Video player synchronized with event timestamps
@@ -67,8 +67,8 @@ For analyzing recorded events with video synchronization:
 Customize the application to match specific tracking needs:
 
 - JSON editor for button configuration
-- Save/load multiple layouts
-- Preview changes before applying
+- Save multiple layouts as named configurations (for example, `hockey-one`)
+- Load a saved configuration to make it the active button layout
 
 ### 4. Log Page with Multiple Views
 
@@ -83,10 +83,40 @@ Review and export recorded game data in various formats:
 
 **XML View**:
 
-- Structured data export for integration with external tools
+- Complete Sportscode XML document for integration with external tools
 - Copy-to-clipboard functionality
 
 ![XML View](images/xml-view.png)
+
+#### XML format
+
+XML View, Copy XML, Export XML and Import XML all use the Sportscode XML format: a `<file>` root containing `<ALL_INSTANCES>` and `<ROWS>`.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<file>
+  <ALL_INSTANCES>
+    <instance>
+      <ID>1</ID>
+      <start>55.00</start>
+      <end>65.00</end>
+      <code_id>1</code_id>
+      <code>GOAL_FOR</code>
+    </instance>
+  </ALL_INSTANCES>
+  <ROWS>
+    <row>
+      <id>1</id>
+      <name>GOAL_FOR</name>
+    </row>
+  </ROWS>
+</file>
+```
+
+- Each event is exported as an instance with a 10-second clip centred on the event time (start is clamped at 0). Times are in seconds with 2 decimal places.
+- Each distinct event code becomes a row, and each instance's `code_id` refers to its row's `id`.
+- Teams, date and favourites are not included in exports. On import, the teams prompt defaults to the file name.
+- Imported instance labels are ignored. Files in the older `<game><events><event .../>` format can still be imported.
 
 **Statistics View**:
 

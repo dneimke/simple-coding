@@ -76,13 +76,17 @@ export const createCard = ({
  * @param {number} options.index - Index of the game in the list
  * @param {Function} options.onDelete - Delete game handler
  * @param {Function} options.onRename - Rename game handler
+ * @param {Function} [options.onSelect] - Called when the game's icon or details are activated
+ * @param {Function} [options.onViewLog] - Called when the View Log button is clicked
  * @returns {HTMLDivElement} The created game card element
  */
 export const createGameCard = ({
     game,
     index,
     onDelete,
-    onRename
+    onRename,
+    onSelect,
+    onViewLog
 }) => {
     const gameCard = document.createElement('div');
     gameCard.className = 'saved-game-card flex items-center p-4 mb-4 bg-gray-100 rounded-lg shadow-md hover:shadow-lg transition-shadow';
@@ -141,6 +145,26 @@ export const createGameCard = ({
     eventCount.textContent = `Events: ${game.events.length}`;
 
     gameDetails.append(gameTitleRow, gameTimestamp, eventCount);
+
+    if (onSelect) {
+        const title = game.teams ? game.teams : `Game ${index + 1}`;
+        gameDetails.classList.add('cursor-pointer', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500', 'rounded');
+        gameDetails.setAttribute('role', 'button');
+        gameDetails.setAttribute('tabindex', '0');
+        gameDetails.setAttribute('aria-label', `Review ${title}`);
+        gameDetails.title = 'Open in Match Review';
+        gameDetails.addEventListener('click', onSelect);
+        gameDetails.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelect(e);
+            }
+        });
+
+        icon.classList.add('cursor-pointer');
+        icon.addEventListener('click', onSelect);
+    }
+
     const exportButton = createButton({
         text: 'Export XML',
         type: 'secondary',
@@ -199,7 +223,17 @@ export const createGameCard = ({
         onClick: onDelete
     });    // Add all elements to card
 
-    gameCard.append(icon, gameDetails, exportButton, renameButton, deleteButton);
+    const viewLogButton = onViewLog ? createButton({
+        text: 'View Log',
+        type: 'secondary',
+        className: 'px-4 py-2 text-sm ml-2',
+        onClick: (e) => {
+            e.stopPropagation();
+            onViewLog(e);
+        }
+    }) : null;
+
+    gameCard.append(...[icon, gameDetails, viewLogButton, exportButton, renameButton, deleteButton].filter(Boolean));
 
     // Modal for invalid events (one per page, reused)
     if (!document.getElementById('invalid-events-modal')) {
