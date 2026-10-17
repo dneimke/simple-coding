@@ -62,8 +62,10 @@ export class GameState {
      * @param {Array} session.events - Events logged so far
      * @param {number} session.elapsedTime - Clock banked before the current run (ms)
      * @param {number|null} session.runningSince - Epoch ms the clock last started, or null when paused
+     * @param {Array<{code: string, color: string}>|null} [session.teams] - Team 1 and Team 2 for team boards
+     * @param {string|null} [session.activeZone] - Sticky zone from Team 1's perspective
      */
-    restoreSession({ events, elapsedTime, runningSince }) {
+    restoreSession({ events, elapsedTime, runningSince, teams = null, activeZone = null }) {
         this._stopTimerUpdate();
 
         const isRunning = typeof runningSince === 'number';
@@ -74,7 +76,9 @@ export class GameState {
             isActive: true,
             isRunning,
             elapsedTime,
-            loggedEvents: events
+            loggedEvents: events,
+            teams,
+            activeZone
         });
 
         if (isRunning) {
@@ -95,15 +99,25 @@ export class GameState {
 
     /**
      * Snapshot of the capture in progress for the draft store
-     * @returns {{events: Array, elapsedTime: number, runningSince: number|null}}
+     * @returns {{events: Array, elapsedTime: number, runningSince: number|null, teams: Array|null, activeZone: string|null}}
      */
     getDraftSnapshot() {
         const gameState = stateService.getState('game');
         return {
             events: gameState.loggedEvents,
             elapsedTime: gameState.elapsedTime,
-            runningSince: gameState.isRunning ? this.startTime : null
+            runningSince: gameState.isRunning ? this.startTime : null,
+            teams: gameState.teams ?? null,
+            activeZone: gameState.activeZone ?? null
         };
+    }
+
+    /**
+     * Set the sticky zone (from Team 1's perspective) used by zoned buttons
+     * @param {string} zone
+     */
+    setActiveZone(zone) {
+        stateService.setState('game.activeZone', zone);
     }
 
     /**
@@ -122,7 +136,12 @@ export class GameState {
         return true;
     }
 
-    newGame() {
+    /**
+     * @param {Object} [options]
+     * @param {Array<{code: string, color: string}>|null} [options.teams] - Team 1 and Team 2 for team boards
+     * @param {string|null} [options.activeZone] - Starting sticky zone
+     */
+    newGame({ teams = null, activeZone = null } = {}) {
         this._stopTimerUpdate();
 
         stateService.setState('game', {
@@ -130,7 +149,9 @@ export class GameState {
             isActive: true,
             isRunning: true,
             elapsedTime: 0,
-            loggedEvents: []
+            loggedEvents: [],
+            teams,
+            activeZone
         });
 
         this.startTime = Date.now();
@@ -166,7 +187,9 @@ export class GameState {
             isActive: false,
             isRunning: false,
             hasCurrentGame: false,
-            loggedEvents: []
+            loggedEvents: [],
+            teams: null,
+            activeZone: null
         }, true);
 
         this.resetTimer();

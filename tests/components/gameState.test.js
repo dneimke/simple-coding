@@ -47,11 +47,38 @@ describe('GameState capture clock', () => {
     test('getDraftSnapshot records runningSince only while running', () => {
         gameState.newGame();
         const startedAt = Date.now();
-        expect(gameState.getDraftSnapshot()).toEqual({ events: [], elapsedTime: 0, runningSince: startedAt });
+        expect(gameState.getDraftSnapshot()).toEqual({
+            events: [], elapsedTime: 0, runningSince: startedAt, teams: null, activeZone: null
+        });
 
         jest.advanceTimersByTime(10000);
         gameState.pauseResume();
-        expect(gameState.getDraftSnapshot()).toEqual({ events: [], elapsedTime: 10000, runningSince: null });
+        expect(gameState.getDraftSnapshot()).toEqual({
+            events: [], elapsedTime: 10000, runningSince: null, teams: null, activeZone: null
+        });
+    });
+
+    test('newGame keeps teams and zone, and setActiveZone updates the snapshot', () => {
+        const teams = [{ code: 'FIRE', color: 'red' }, { code: 'TIGERS', color: 'yellow' }];
+        gameState.newGame({ teams, activeZone: '1' });
+        gameState.setActiveZone('3');
+
+        expect(gameState.getDraftSnapshot()).toEqual(expect.objectContaining({ teams, activeZone: '3' }));
+    });
+
+    test('restoreSession round-trips teams and zone', () => {
+        const teams = [{ code: 'MELB', color: 'navy' }, { code: 'PERTH', color: 'orange' }];
+        gameState.restoreSession({ events: [], elapsedTime: 0, runningSince: null, teams, activeZone: '4' });
+
+        expect(stateService.getState('game.teams')).toEqual(teams);
+        expect(gameState.getDraftSnapshot()).toEqual(expect.objectContaining({ teams, activeZone: '4' }));
+    });
+
+    test('restoreSession from an old draft leaves teams and zone empty', () => {
+        gameState.restoreSession({ events: [], elapsedTime: 0, runningSince: null });
+
+        expect(stateService.getState('game.teams')).toBeNull();
+        expect(stateService.getState('game.activeZone')).toBeNull();
     });
 
     test('restoreSession with runningSince counts the outage and keeps the clock running', () => {
@@ -100,5 +127,13 @@ describe('GameState capture clock', () => {
 
         expect(stateService.getState('game.loggedEvents')).toEqual([]);
         expect(stateService.getState('game.hasCurrentGame')).toBe(false);
+    });
+
+    test('completeGame clears teams and zone', () => {
+        gameState.newGame({ teams: [{ code: 'A', color: 'red' }, { code: 'B', color: 'navy' }], activeZone: '2' });
+        gameState.completeGame();
+
+        expect(stateService.getState('game.teams')).toBeNull();
+        expect(stateService.getState('game.activeZone')).toBeNull();
     });
 });
