@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype: Sticky Zone Board</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../../../src/styles.css">
+    <style>
+        .zone-button {
+            flex: 1 1 0;
+            min-width: 0;
+            padding: 0.5rem 0.25rem;
+            border-radius: 0.5rem;
+            border: 2px solid #d1d5db;
+            background: #ffffff;
+            color: #6b7280;
+            font-weight: 700;
+            font-size: 0.875rem;
+            transition: all 150ms ease;
+        }
+
+        .zone-button:hover {
+            border-color: #3b82f6;
+            color: #1f2937;
+        }
+
+        .zone-button.is-active {
+            background: #111827;
+            border-color: #111827;
+            color: #ffffff;
+            box-shadow: 0 0 0 4px #3b82f6;
+        }
+
+        .zone-banner.zone-flash {
+            animation: zoneFlash 450ms ease-out;
+        }
+
+        @keyframes zoneFlash {
+            from {
+                background-color: #3b82f6;
+            }
+
+            to {
+                background-color: #111827;
+            }
+        }
+
+        .team-toggle {
+            padding: 0.15rem 0.6rem;
+            border-radius: 9999px;
+            border: 2px solid #d1d5db;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #6b7280;
+            background: #ffffff;
+        }
+
+        .swatch {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 9999px;
+            border: 2px solid rgba(0, 0, 0, 0.15);
+        }
+
+        .swatch.is-selected {
+            box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #111827;
+        }
+
+        .swatch:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+
+        .phone-frame {
+            width: 390px;
+            max-width: 100%;
+            margin: 0 auto;
+            border: 10px solid #111827;
+            border-radius: 2rem;
+            padding: 0.75rem;
+            background: #ffffff;
+        }
+
+        /* Phone preview: mirror the max-width 640px rules from src/styles.css, which never fire on a desktop viewport */
+        .phone-frame .event-button[data-event] {
+            font-size: 0.7rem;
+            line-height: 1rem;
+            padding: 0.375rem 0.5rem;
+        }
+
+        .phone-frame .button-grid {
+            gap: 0.125rem;
+        }
+
+        .phone-frame #timer {
+            font-size: 1.5rem;
+            padding: 0.25rem 0.75rem;
+        }
+
+        .phone-frame .zone-button {
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="max-w-7xl mx-auto">
+        <div class="mb-4 rounded-lg bg-amber-100 border border-amber-300 text-amber-900 px-4 py-2 text-sm">
+            <strong>Prototype only.</strong> Nothing here is saved or connected to the app. Read the
+            <a class="underline" href="spec.md">spec</a> for context and open questions.
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-[1fr_340px]">
+            <!-- Board -->
+            <div id="boardFrame" class="bg-white p-4 sm:p-6 rounded-lg shadow-xl">
+                <div class="flex justify-center items-center mb-4">
+                    <div class="flex flex-row flex-wrap w-full max-w-md justify-between items-center gap-2">
+                        <div id="timer"
+                            class="text-3xl font-mono font-bold bg-gray-800 text-white px-4 py-1 rounded-lg shadow">
+                            00:00</div>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="startButton" class="event-button btn-green px-4 py-2">Start</button>
+                            <button id="pauseButton" class="event-button btn-yellow px-4 py-2 hidden">Pause</button>
+                            <button id="completeButton"
+                                class="event-button btn-blue px-4 py-2 hidden">Complete</button>
+                            <button id="discardButton" class="event-button btn-red px-4 py-2 hidden">Discard</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="matchup" class="text-center text-sm font-bold tracking-wider mb-2"></div>
+
+                <div id="zoneBar" class="group-container">
+                    <div id="zoneBanner"
+                        class="zone-banner mb-1 rounded-md bg-gray-900 text-white text-center font-bold tracking-widest py-1">
+                    </div>
+                    <div id="zoneCaption" class="text-center text-xs text-gray-500 mb-2"></div>
+                    <div id="zoneButtons" class="flex gap-2"></div>
+                </div>
+
+                <div id="board"></div>
+            </div>
+
+            <!-- Side panel -->
+            <div class="space-y-4">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h2 class="font-bold text-gray-800 mb-3">Variants</h2>
+                    <div class="space-y-3 text-sm">
+                        <label class="block">
+                            <span class="text-gray-600">Layout</span>
+                            <select data-setting="layout" class="mt-1 block w-full border border-gray-300 rounded px-2 py-1">
+                                <option value="proposed">Proposed (sticky zone)</option>
+                                <option value="current">Current (hockey-one)</option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="text-gray-600">Team 2 zones</span>
+                            <select data-setting="zonePerspective" class="mt-1 block w-full border border-gray-300 rounded px-2 py-1">
+                                <option value="mirrored">Mirrored (each team's own perspective)</option>
+                                <option value="pitch">Same as Team 1 (fixed pitch zones)</option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="text-gray-600">Scoring and cards</span>
+                            <select data-setting="scoringMode" class="mt-1 block w-full border border-gray-300 rounded px-2 py-1">
+                                <option value="per-team">Per-team rows</option>
+                                <option value="shared">Shared rows + sticky team</option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="text-gray-600">Width preview</span>
+                            <select data-setting="width" class="mt-1 block w-full border border-gray-300 rounded px-2 py-1">
+                                <option value="full">Full width</option>
+                                <option value="phone">Phone (390px)</option>
+                            </select>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" data-setting="showZoneLabel">
+                            <span>Show zone on zoned buttons (BS·2)</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" data-setting="logZoneChanges">
+                            <span>Log zone changes as events</span>
+                        </label>
+                    </div>
+                    <p class="mt-3 text-xs text-gray-500">Keys <kbd>1</kbd>-<kbd>4</kbd> switch zone, <kbd>T</kbd>
+                        switches the sticky team in shared scoring mode.</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="font-bold text-gray-800">Event log <span id="eventCount"
+                                class="text-gray-400 font-normal text-sm"></span></h2>
+                        <button id="undoButton"
+                            class="text-sm px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40">Undo
+                            last</button>
+                    </div>
+                    <ol id="eventLog" class="text-sm divide-y divide-gray-100"></ol>
+                </div>
+
+                <details class="bg-white p-4 rounded-lg shadow text-sm">
+                    <summary class="font-bold text-gray-800 cursor-pointer">Config shape</summary>
+                    <pre id="configPreview" class="mt-2 text-xs overflow-auto max-h-96 bg-gray-50 p-2 rounded"></pre>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team setup dialog, shown when a game starts -->
+    <div id="teamDialog" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <form id="teamForm" class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">New game</h2>
+            <p class="text-sm text-gray-500 mb-4">Every team event is coded with these, e.g. <code>FIRE BS2</code>.</p>
+            <div class="mb-4">
+                <label for="team1Input" class="text-sm font-medium text-gray-700">Team 1 code</label>
+                <input id="team1Input" maxlength="12" autocomplete="off"
+                    class="mt-1 block w-full border border-gray-300 rounded px-3 py-2 uppercase focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <div class="swatches mt-2 flex flex-wrap gap-2" data-slot="0" role="group" aria-label="Team 1 colour"></div>
+            </div>
+            <div class="mb-4">
+                <label for="team2Input" class="text-sm font-medium text-gray-700">Team 2 code</label>
+                <input id="team2Input" maxlength="12" autocomplete="off"
+                    class="mt-1 block w-full border border-gray-300 rounded px-3 py-2 uppercase focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <div class="swatches mt-2 flex flex-wrap gap-2" data-slot="1" role="group" aria-label="Team 2 colour"></div>
+            </div>
+            <p id="teamError" class="text-sm text-red-600 mb-3 hidden"></p>
+            <div class="flex justify-end gap-2">
+                <button type="button" id="teamCancel"
+                    class="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100">Cancel</button>
+                <button type="submit" class="event-button btn-green px-4 py-2">Start game</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'stickyZonePrototype_v3';
+        const TEAMS_STORAGE_KEY = 'stickyZonePrototype_teams_v2';
+        const LOG_LIMIT = 15;
+        const DEFAULT_SETTINGS = {
+            layout: 'proposed',
+            zonePerspective: 'mirrored',
+            scoringMode: 'per-team',
+            width: 'full',
+            showZoneLabel: true,
+            logZoneChanges: false
+        };
+
+        const PALETTE = [
+            { id: 'red', name: 'Red', from: '#ef4444', to: '#dc2626', border: '#b91c1c', text: '#ffffff', label: '#dc2626' },
+            { id: 'maroon', name: 'Maroon', from: '#9f1239', to: '#881337', border: '#4c0519', text: '#ffffff', label: '#881337' },
+            { id: 'orange', name: 'Orange', from: '#f97316', to: '#ea580c', border: '#c2410c', text: '#ffffff', label: '#ea580c' },
+            { id: 'yellow', name: 'Yellow', from: '#facc15', to: '#eab308', border: '#ca8a04', text: '#000000', label: '#ca8a04' },
+            { id: 'green', name: 'Green', from: '#22c55e', to: '#16a34a', border: '#15803d', text: '#ffffff', label: '#16a34a' },
+            { id: 'teal', name: 'Teal', from: '#14b8a6', to: '#0d9488', border: '#0f766e', text: '#ffffff', label: '#0d9488' },
+            { id: 'sky', name: 'Sky blue', from: '#38bdf8', to: '#0ea5e9', border: '#0284c7', text: '#000000', label: '#0284c7' },
+            { id: 'navy', name: 'Navy', from: '#1e40af', to: '#1e3a8a', border: '#172554', text: '#ffffff', label: '#1e3a8a' },
+            { id: 'purple', name: 'Purple', from: '#a855f7', to: '#9333ea', border: '#7e22ce', text: '#ffffff', label: '#9333ea' },
+            { id: 'black', name: 'Black', from: '#374151', to: '#111827', border: '#030712', text: '#ffffff', label: '#111827' }
+        ];
+        const DEFAULT_TEAMS = [{ code: 'FIRE', color: 'red' }, { code: 'TIGERS', color: 'yellow' }];
+
+        const ZONES = ['1', '2', '3', '4'];
+        const TEAM_ACTIONS = [
+            { code: 'BS', zoned: true },
+            { code: 'BW', zoned: true },
+            { code: 'OH' },
+            { code: 'A25E' },
+            { code: 'CE' },
+            { code: 'SHOT' },
+            { code: 'ASC' },
+            { code: 'PC' }
+        ];
+        const SCORING = ['APS', 'PS', 'GOAL', 'SO'];
+        const CARDS = ['GREEN', 'YELLOW', 'RED'];
+
+        const $ = (id) => document.getElementById(id);
+        const el = (tag, className, text) => {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined) node.textContent = text;
+            return node;
+        };
+        const paletteColor = (id) => PALETTE.find(color => color.id === id);
+        const colorClass = (id) => `team-color-${id}`;
+        const teams = () => state.teams.map((team, index) => ({ ...team, index, palette: paletteColor(team.color) }));
+
+        const settings = { ...DEFAULT_SETTINGS, ...loadJson(STORAGE_KEY, {}) };
+        const state = {
+            started: false,
+            running: false,
+            elapsedMs: 0,
+            runningSince: null,
+            zone: '1',
+            teamIndex: 0,
+            teams: loadTeams(),
+            events: []
+        };
+
+        function loadJson(key, fallback) {
+            try {
+                return JSON.parse(localStorage.getItem(key)) ?? fallback;
+            } catch {
+                return fallback;
+            }
+        }
+
+        function saveJson(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch {
+                // Persistence is optional for the prototype
+            }
+        }
+
+        function loadTeams() {
+            const stored = loadJson(TEAMS_STORAGE_KEY, null);
+            const valid = Array.isArray(stored) && stored.length === 2 &&
+                stored.every(team => team?.code && paletteColor(team.color));
+            return valid ? stored : DEFAULT_TEAMS.map(team => ({ ...team }));
+        }
+
+        function injectPaletteStyles() {
+            const style = document.createElement('style');
+            style.textContent = PALETTE.map(color => `
+                .${colorClass(color.id)} { background-image: linear-gradient(to bottom, ${color.from}, ${color.to}); border-color: ${color.border}; color: ${color.text}; }
+                .${colorClass(color.id)}:hover { filter: brightness(0.92); }
+            `).join('');
+            document.head.append(style);
+        }
+
+        // --- Zones -------------------------------------------------------------
+
+        // Zones are selected from Team 1's perspective; with 4 zones, Team 2's zone n is Team 1's zone 5 - n
+        const mirrorZone = (zone) => String(ZONES.length + 1 - Number(zone));
+        const isMirrored = (teamIndex) => settings.zonePerspective === 'mirrored' && teamIndex === 1;
+        const zoneForTeam = (teamIndex) => isMirrored(teamIndex) ? mirrorZone(state.zone) : state.zone;
+
+        // --- Configs -----------------------------------------------------------
+
+        const matchControlRow = () => ({
+            gridCols: 'grid-cols-3',
+            buttons: ['START', 'END', 'UMP'].map(code => ({ event: code, text: code, color: 'btn-gray' }))
+        });
+
+        function buildProposedConfig() {
+            const teamButtons = (team, codes) => codes.map(code => ({ event: `${team.code} ${code}`, text: code, color: colorClass(team.color) }));
+            const sharedButtons = (codes) => codes.map(code => ({ event: code, text: code, teamed: true }));
+
+            const rowDefs = [
+                matchControlRow(),
+                ...teams().map(team => ({
+                    label: team.code,
+                    teamIndex: team.index,
+                    grids: [{
+                        gridCols: 'grid-cols-8',
+                        buttons: TEAM_ACTIONS.map(action => ({
+                            event: `${team.code} ${action.code}`,
+                            text: action.code,
+                            color: colorClass(team.color),
+                            ...(action.zoned && { zoned: true })
+                        }))
+                    }]
+                }))
+            ];
+
+            if (settings.scoringMode === 'shared') {
+                rowDefs.push({
+                    teamToggle: true,
+                    grids: [
+                        { gridCols: 'grid-cols-4', buttons: sharedButtons(SCORING) },
+                        { gridCols: 'grid-cols-3', buttons: sharedButtons(CARDS) }
+                    ]
+                });
+            } else {
+                teams().forEach(team => rowDefs.push({
+                    label: team.code,
+                    teamIndex: team.index,
+                    grids: [
+                        { gridCols: 'grid-cols-4', buttons: teamButtons(team, SCORING) },
+                        { gridCols: 'grid-cols-3', buttons: teamButtons(team, CARDS) }
+                    ]
+                }));
+            }
+
+            return {
+                zones: { values: ZONES, default: '1', perspective: settings.zonePerspective },
+                teams: state.teams,
+                rowDefs
+            };
+        }
+
+        // Mirrors HOCKEY_ONE_CONFIG in src/components/config.js, with the entered team codes and colours
+        function buildCurrentConfig() {
+            const teamRows = (gridCols, codes) => teams().map(team => ({
+                grids: [{
+                    gridCols,
+                    buttons: codes.map(code => ({ event: `${team.code} ${code}`, text: `${team.code} ${code}`, color: colorClass(team.color) }))
+                }]
+            }));
+            return {
+                rowDefs: [
+                    { grids: [matchControlRow()] },
+                    ...teamRows('grid-cols-4', ['BS1', 'BS2', 'BS3', 'BS4']),
+                    ...teamRows('grid-cols-4', ['CE', 'SHOT', 'ASC', 'PC']),
+                    ...teamRows('grid-cols-3', ['APS', 'PS', 'GOAL']),
+                    ...teamRows('grid-cols-3', ['GREEN', 'YELLOW', 'RED']),
+                    { grids: [{ gridCols: 'grid-cols-2', buttons: teams().map(team => ({ event: `SO ${team.code}`, text: `SO ${team.code}`, color: colorClass(team.color) })) }] }
+                ]
+            };
+        }
+
+        function activeConfig() {
+            const config = settings.layout === 'proposed' ? buildProposedConfig() : buildCurrentConfig();
+            config.rowDefs = config.rowDefs.map(row => row.grids ? row : { grids: [row] });
+            return config;
+        }
+
+        // --- Rendering ---------------------------------------------------------
+
+        function renderBoard() {
+            const config = activeConfig();
+            const phone = settings.width === 'phone';
+
+            $('boardFrame').classList.toggle('phone-frame', phone);
+            $('zoneBar').classList.toggle('hidden', !config.zones);
+            if (config.zones) renderZoneBar();
+
+            renderMatchup();
+            $('board').replaceChildren(...config.rowDefs.map(row => renderRow(row, phone)));
+            $('configPreview').textContent = JSON.stringify(config, null, 2);
+            updateButtonStates();
+        }
+
+        function teamLabel(team, className = '') {
+            const label = el('span', className, team.code);
+            label.style.color = team.palette.label;
+            return label;
+        }
+
+        function renderMatchup() {
+            const [team1, team2] = teams();
+            $('matchup').replaceChildren(teamLabel(team1), el('span', 'text-gray-400 mx-2', 'vs'), teamLabel(team2));
+        }
+
+        function renderZoneBar() {
+            const [team1, team2] = teams();
+            const mirrored = settings.zonePerspective === 'mirrored';
+            const phone = settings.width === 'phone';
+
+            $('zoneBanner').textContent = mirrored
+                ? `${team1.code} ZONE ${state.zone} · ${team2.code} ZONE ${mirrorZone(state.zone)}`
+                : `ZONE ${state.zone} ACTIVE`;
+
+            $('zoneCaption').replaceChildren(
+                el('span', '', 'Zones from '), teamLabel(team1, 'font-bold'), el('span', '', "'s perspective"),
+                ...(mirrored ? [el('span', '', ', '), teamLabel(team2, 'font-bold'), el('span', '', ' zones are mirrored')] : [])
+            );
+
+            $('zoneButtons').replaceChildren(...ZONES.map(zone => {
+                const button = el('button', `zone-button${zone === state.zone ? ' is-active' : ''}`);
+                button.dataset.zone = zone;
+                button.append(el('span', 'block', phone ? `Z${zone}` : `Zone ${zone}`));
+                if (mirrored) {
+                    button.append(el('span', 'block truncate text-[10px] font-semibold opacity-70', `${team2.code} ${mirrorZone(zone)}`));
+                }
+                return button;
+            }));
+        }
+
+        function renderRow(row, phone) {
+            const container = el('div', 'group-container space-y-1');
+
+            if (row.label) {
+                container.append(teamLabel(teams()[row.teamIndex], 'block text-xs font-bold tracking-wider'));
+            }
+
+            if (row.teamToggle) {
+                const header = el('div', 'flex items-center gap-2');
+                header.append(el('span', 'text-xs font-bold tracking-wider text-gray-500', 'TEAM'));
+                teams().forEach(team => {
+                    const toggle = el('button', 'team-toggle', team.code);
+                    toggle.dataset.teamIndex = String(team.index);
+                    header.append(toggle);
+                });
+                container.append(header);
+            }
+
+            row.grids.forEach(gridDef => {
+                // Phone preview cannot rely on sm: breakpoints because the viewport is still wide
+                const cols = Number(gridDef.gridCols.match(/\d+/)[0]);
+                const mobileCols = `grid-cols-${Math.min(cols, 4)}`;
+                const grid = el('div', `button-grid ${phone ? mobileCols : `${mobileCols} sm:${gridDef.gridCols}`}`);
+
+                gridDef.buttons.forEach(config => {
+                    const button = el('button', `event-button ${config.color || ''} rounded text-center`);
+                    button.dataset.event = config.event;
+                    button.dataset.text = config.text;
+                    if (row.teamIndex !== undefined) button.dataset.teamIndex = String(row.teamIndex);
+                    if (config.zoned) button.dataset.zoned = 'true';
+                    if (config.teamed) button.dataset.teamed = 'true';
+                    grid.append(button);
+                });
+
+                container.append(grid);
+            });
+
+            return container;
+        }
+
+        function updateTeamToggles() {
+            teams().forEach(team => {
+                document.querySelectorAll(`.team-toggle[data-team-index="${team.index}"]`).forEach(toggle => {
+                    const active = team.index === state.teamIndex;
+                    toggle.style.background = active ? team.palette.to : '';
+                    toggle.style.borderColor = active ? team.palette.border : '';
+                    toggle.style.color = active ? team.palette.text : '';
+                });
+            });
+        }
+
+        function updateButtonStates() {
+            $('board').querySelectorAll('.event-button[data-event]').forEach(button => {
+                button.disabled = !state.running;
+                button.title = resolveEventName(button);
+
+                const zoned = button.dataset.zoned === 'true';
+                const zone = zoneForTeam(Number(button.dataset.teamIndex));
+                button.textContent = zoned && settings.showZoneLabel ? `${button.dataset.text}·${zone}` : button.dataset.text;
+
+                if (button.dataset.teamed) {
+                    teams().forEach(team => button.classList.toggle(colorClass(team.color), team.index === state.teamIndex));
+                }
+            });
+
+            updateTeamToggles();
+            $('startButton').classList.toggle('hidden', state.started);
+            ['pauseButton', 'completeButton', 'discardButton'].forEach(id => $(id).classList.toggle('hidden', !state.started));
+            $('pauseButton').textContent = state.running ? 'Pause' : 'Resume';
+        }
+
+        function renderLog() {
+            const recent = state.events.slice(-LOG_LIMIT).reverse();
+            $('eventCount').textContent = `(${state.events.length})`;
+            $('undoButton').disabled = state.events.length === 0;
+
+            if (recent.length === 0) {
+                $('eventLog').replaceChildren(el('li', 'py-2 text-gray-400', 'Press Start, then code some events.'));
+                return;
+            }
+
+            $('eventLog').replaceChildren(...recent.map(entry => {
+                const item = el('li', 'py-1 flex items-center gap-2');
+                item.append(el('span', 'font-mono text-gray-500 w-12', formatTime(entry.timeMs)));
+                item.append(el('span', 'font-semibold text-gray-800', entry.event));
+                if (entry.badge) {
+                    item.append(el('span', 'ml-auto text-xs rounded bg-blue-100 text-blue-700 px-1', entry.badge));
+                }
+                return item;
+            }));
+        }
+
+        // --- Behaviour ---------------------------------------------------------
+
+        function resolveEventName(button) {
+            const { event, zoned, teamed, teamIndex } = button.dataset;
+            if (zoned) return `${event}${zoneForTeam(Number(teamIndex))}`;
+            if (teamed) return `${state.teams[state.teamIndex].code} ${event}`;
+            return event;
+        }
+
+        function eventBadge(button) {
+            if (button.dataset.zoned) return isMirrored(Number(button.dataset.teamIndex)) ? 'zone mirrored' : 'zone inferred';
+            if (button.dataset.teamed) return 'team inferred';
+            return null;
+        }
+
+        function elapsed() {
+            return state.elapsedMs + (state.running ? Date.now() - state.runningSince : 0);
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
+        function addEvent(event, badge = null) {
+            if (!state.running) return;
+            state.events.push({ event, timeMs: elapsed(), badge });
+            renderLog();
+        }
+
+        function setZone(zone) {
+            if (zone === state.zone) return;
+            state.zone = zone;
+            if (settings.logZoneChanges) addEvent(`ZONE ${zone}`);
+            renderZoneBar();
+            updateButtonStates();
+
+            const banner = $('zoneBanner');
+            banner.classList.remove('zone-flash');
+            void banner.offsetWidth;
+            banner.classList.add('zone-flash');
+        }
+
+        function setTeam(index) {
+            state.teamIndex = index;
+            updateButtonStates();
+        }
+
+        // --- Team setup dialog -------------------------------------------------
+
+        const normaliseCode = (value) => value.trim().toUpperCase().replace(/\s+/g, '');
+        let draftColors = [];
+
+        function renderSwatches() {
+            document.querySelectorAll('.swatches').forEach(container => {
+                const slot = Number(container.dataset.slot);
+                const takenByOther = draftColors[1 - slot];
+
+                container.replaceChildren(...PALETTE.map(color => {
+                    const swatch = el('button', `swatch${draftColors[slot] === color.id ? ' is-selected' : ''}`);
+                    swatch.type = 'button';
+                    swatch.dataset.color = color.id;
+                    swatch.style.backgroundImage = `linear-gradient(to bottom, ${color.from}, ${color.to})`;
+                    swatch.title = color.id === takenByOther ? `${color.name} (used by the other team)` : color.name;
+                    swatch.setAttribute('aria-label', color.name);
+                    swatch.setAttribute('aria-pressed', String(draftColors[slot] === color.id));
+                    swatch.disabled = color.id === takenByOther;
+                    return swatch;
+                }));
+            });
+        }
+
+        function openTeamDialog() {
+            $('team1Input').value = state.teams[0].code;
+            $('team2Input').value = state.teams[1].code;
+            draftColors = state.teams.map(team => team.color);
+            renderSwatches();
+            $('teamError').classList.add('hidden');
+            $('teamDialog').classList.remove('hidden');
+            $('team1Input').select();
+        }
+
+        function closeTeamDialog() {
+            $('teamDialog').classList.add('hidden');
+        }
+
+        document.querySelectorAll('.swatches').forEach(container => {
+            container.addEventListener('click', (event) => {
+                const swatch = event.target.closest('.swatch');
+                if (!swatch || swatch.disabled) return;
+                draftColors[Number(container.dataset.slot)] = swatch.dataset.color;
+                renderSwatches();
+            });
+        });
+
+        $('teamForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const codes = [normaliseCode($('team1Input').value), normaliseCode($('team2Input').value)];
+
+            let error = null;
+            if (codes.some(code => !code)) error = 'Both team codes are required.';
+            else if (codes[0] === codes[1]) error = 'Team codes must be different.';
+            else if (draftColors[0] === draftColors[1]) error = 'Teams must use different colours.';
+            if (error) {
+                $('teamError').textContent = error;
+                $('teamError').classList.remove('hidden');
+                return;
+            }
+
+            state.teams = codes.map((code, index) => ({ code, color: draftColors[index] }));
+            saveJson(TEAMS_STORAGE_KEY, state.teams);
+            closeTeamDialog();
+
+            Object.assign(state, { started: true, running: true, elapsedMs: 0, runningSince: Date.now(), events: [], teamIndex: 0 });
+            renderBoard();
+            renderLog();
+        });
+
+        $('teamCancel').addEventListener('click', closeTeamDialog);
+
+        // --- Controls ----------------------------------------------------------
+
+        $('startButton').addEventListener('click', openTeamDialog);
+
+        $('pauseButton').addEventListener('click', () => {
+            if (state.running) {
+                state.elapsedMs = elapsed();
+                state.running = false;
+            } else {
+                state.runningSince = Date.now();
+                state.running = true;
+            }
+            updateButtonStates();
+        });
+
+        $('completeButton').addEventListener('click', () => {
+            state.elapsedMs = elapsed();
+            Object.assign(state, { started: false, running: false });
+            updateButtonStates();
+        });
+
+        $('discardButton').addEventListener('click', () => {
+            if (!confirm('Discard this game?')) return;
+            Object.assign(state, { started: false, running: false, elapsedMs: 0, events: [] });
+            updateButtonStates();
+            renderLog();
+        });
+
+        $('undoButton').addEventListener('click', () => {
+            state.events.pop();
+            renderLog();
+        });
+
+        $('zoneButtons').addEventListener('click', (event) => {
+            const button = event.target.closest('.zone-button');
+            if (button) setZone(button.dataset.zone);
+        });
+
+        $('board').addEventListener('click', (event) => {
+            const toggle = event.target.closest('.team-toggle');
+            if (toggle) {
+                setTeam(Number(toggle.dataset.teamIndex));
+                return;
+            }
+
+            const button = event.target.closest('.event-button[data-event]');
+            if (!button || button.disabled) return;
+            addEvent(resolveEventName(button), eventBadge(button));
+        });
+
+        document.querySelectorAll('[data-setting]').forEach(input => {
+            const key = input.dataset.setting;
+            if (input.type === 'checkbox') {
+                input.checked = Boolean(settings[key]);
+            } else {
+                input.value = String(settings[key]);
+            }
+
+            input.addEventListener('change', () => {
+                settings[key] = input.type === 'checkbox' ? input.checked : input.value;
+                saveJson(STORAGE_KEY, settings);
+                renderBoard();
+            });
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (!$('teamDialog').classList.contains('hidden')) {
+                if (event.key === 'Escape') closeTeamDialog();
+                return;
+            }
+            if (event.target.closest('input, select, textarea') || event.ctrlKey || event.metaKey || event.altKey) return;
+
+            if (settings.layout === 'proposed' && ZONES.includes(event.key)) {
+                setZone(event.key);
+            } else if (event.key.toLowerCase() === 't' && settings.layout === 'proposed' && settings.scoringMode === 'shared') {
+                setTeam(state.teamIndex === 0 ? 1 : 0);
+            }
+        });
+
+        setInterval(() => {
+            $('timer').textContent = formatTime(elapsed());
+        }, 250);
+
+        injectPaletteStyles();
+        renderBoard();
+        renderLog();
+    </script>
+</body>
+
+</html>
