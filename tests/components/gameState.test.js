@@ -121,6 +121,36 @@ describe('GameState capture clock', () => {
         expect(stateService.getState('game.loggedEvents')).toHaveLength(1);
     });
 
+    test('removeEvent removes the event at an index and returns it', () => {
+        gameState.newGame();
+        ['A', 'B', 'C'].forEach(event => gameState.addEvent({ event, timeMs: 0 }));
+
+        expect(gameState.removeEvent(1)).toEqual({ event: 'B', timeMs: 0 });
+        expect(stateService.getState('game.loggedEvents').map(e => e.event)).toEqual(['A', 'C']);
+    });
+
+    test('removeLastEvent removes the newest event, including while paused', () => {
+        gameState.newGame();
+        gameState.addEvent({ event: 'A', timeMs: 0 });
+        gameState.addEvent({ event: 'B', timeMs: 1000 });
+        gameState.pauseResume();
+
+        expect(gameState.removeLastEvent()).toEqual({ event: 'B', timeMs: 1000 });
+        expect(stateService.getState('game.loggedEvents').map(e => e.event)).toEqual(['A']);
+    });
+
+    test('removeEvent and removeLastEvent return null when nothing can be removed', () => {
+        expect(gameState.removeLastEvent()).toBeNull();
+
+        gameState.newGame();
+        expect(gameState.removeLastEvent()).toBeNull();
+        gameState.addEvent({ event: 'A', timeMs: 0 });
+        expect(gameState.removeEvent(5)).toBeNull();
+        expect(gameState.removeEvent(-1)).toBeNull();
+        expect(gameState.removeEvent('0')).toBeNull();
+        expect(stateService.getState('game.loggedEvents')).toHaveLength(1);
+    });
+
     test('completeGame clears logged events', () => {
         gameState.newGame();
         gameState.addEvent({ event: 'GOAL', timeMs: 0 });

@@ -109,19 +109,15 @@ export class Router {
      * @private
      */
     _handleTabChange = (tabName) => {
-        const isTimelineView = tabName === 'timelineView';
-        const isXmlView = tabName === 'xmlView';
-        const isStatisticsView = tabName === 'statisticsView';
-
-        const { timeline, xml, statistics, timelineView, xmlView, statisticsView } = this.tabs;
-
-        timeline.classList.toggle('tab-button-active', isTimelineView);
-        xml.classList.toggle('tab-button-active', isXmlView);
-        statistics.classList.toggle('tab-button-active', isStatisticsView);
-
-        timelineView.classList.toggle('hidden', !isTimelineView);
-        xmlView.classList.toggle('hidden', !isXmlView);
-        statisticsView.classList.toggle('hidden', !isStatisticsView);
+        // Tabs come in pairs: a button under `name` and its panel under `${name}View`
+        Object.entries(this.tabs)
+            .filter(([name]) => !name.endsWith('View') && this.tabs[`${name}View`])
+            .forEach(([name, button]) => {
+                const panelName = `${name}View`;
+                const isActive = tabName === panelName;
+                button.classList.toggle('tab-button-active', isActive);
+                this.tabs[panelName].classList.toggle('hidden', !isActive);
+            });
     };
 
     switchTab = (tabToShow) => {

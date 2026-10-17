@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Field Hockey Event Capture</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css?v=20261017b">
+    <link rel="stylesheet" href="styles.css?v=20261017c">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
@@ -100,6 +100,16 @@
                         or discarded</span>
                 </div>
 
+                <div id="lastEventBar"
+                    class="hidden flex items-center justify-between gap-2 mb-3 mx-1 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                    <span class="truncate text-gray-700">Last: <span id="lastEventLabel"
+                            class="font-semibold text-gray-900"></span></span>
+                    <button id="undoEventButton" type="button" title="Remove the last event (Ctrl+Z)"
+                        class="shrink-0 px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-800 font-semibold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i class="fas fa-undo mr-1" aria-hidden="true"></i>Undo
+                    </button>
+                </div>
+
                 <div id="coding-buttons-container" class="max-w-full mx-auto px-1">
                 </div>
             </div>
@@ -191,6 +201,7 @@
                 <div class="group-container">
                     <div class="border-b border-gray-200">
                         <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                            <button id="tabButtonRecent" class="tab-button" data-tab="recentView">Recent</button>
                             <button id="tabButtonTimeline" class="tab-button tab-button-active"
                                 data-tab="timelineView">Timeline View</button>
                             <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
@@ -199,6 +210,7 @@
                         </nav>
                     </div>
                     <div>
+                        <div id="recentView" class="tab-content hidden"></div>
                         <div id="timelineView" class="tab-content">
                             <div class="timeline-output-container">
                                 <div class="timeline-output">
@@ -235,7 +247,7 @@
 
 
     </div>
-    <script type="module" src="main.js?v=20261017b"></script>
+    <script type="module" src="main.js?v=20261017c"></script>
 
     <!-- Team setup for boards with team rows -->
     <div id="teamSetupModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden"

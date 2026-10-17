@@ -17,6 +17,9 @@ The current user experience for creating and retrieving games follows this lifec
 
 3. **Recording Events**:
    - During the session, the user can log events by clicking the event buttons. These events are recorded with timestamps relative to the session's elapsed time.
+   - A "Last" strip above the buttons shows the most recent event. **Undo** (or Ctrl+Z / Cmd+Z) removes it straight away, while running or paused, and a message confirms what was removed.
+   - The **Recent** tab on the Log view (the default for the live game) lists the last 10 events, newest first, each with a **Delete** button. Saved games' logs don't show this tab, so they stay read-only.
+   - The Event Capture page has extra space below the buttons so you can scroll the menu off screen while capturing.
 
 4. **Completing a Game**:
    - Once the session is complete, the user clicks the "Complete" button (replacing the Reset button on the Event Capture page). This action:
