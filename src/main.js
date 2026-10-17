@@ -2,7 +2,7 @@ import { EventButtons, EventLog, GameState, Router } from './components/index.js
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility, showElement, hideElement } from './utils/domUtils.js';
-import { logger } from './utils/formatUtils.js';
+import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
@@ -10,6 +10,7 @@ import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, f
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
+import { draftService, finishCapture } from './services/draftService.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
@@ -18,6 +19,7 @@ const timerDisplay = document.getElementById('timer');
 const newGameButton = document.getElementById('newGameButton');
 const pauseResumeButton = document.getElementById('pauseResumeButton');
 const completeGameButton = document.getElementById('completeGameButton');
+const discardGameButton = document.getElementById('discardGameButton');
 const tabNavContainer = document.querySelector('#log-view nav');
 const navContainer = document.querySelector('nav');
 const codingButtonsContainer = document.getElementById('coding-buttons-container');
@@ -275,9 +277,91 @@ function initializeApplication() {
     registerEventListeners();
     eventButtons.initialize(currentConfig);
     showConfigView();
+    restoreCaptureDraft();
 
     const hasCurrentGame = stateService.getState('game.hasCurrentGame');
     updateNavbarVisibility(hasCurrentGame);
+}
+
+function saveCaptureDraft() {
+    draftService.saveDraft(gameState.getDraftSnapshot());
+}
+
+function describeCapture() {
+    const count = (stateService.getState('game.loggedEvents') || []).length;
+    const clock = formatTime(gameState.getLiveElapsedTime());
+    return `${count} event${count === 1 ? '' : 's'}, clock at ${clock}`;
+}
+
+function updatePauseResumeLabel() {
+    pauseResumeButton.textContent = stateService.getState('game.isRunning') ? 'Pause' : 'Resume';
+}
+
+function showCaptureControls() {
+    hideElement(newGameButton);
+    showElement(pauseResumeButton);
+    showElement(completeGameButton);
+    showElement(discardGameButton);
+    updatePauseResumeLabel();
+    updateNavbarVisibility(true);
+}
+
+function showStartControls() {
+    showElement(newGameButton);
+    hideElement(pauseResumeButton);
+    hideElement(completeGameButton);
+    hideElement(discardGameButton);
+    pauseResumeButton.textContent = 'Pause';
+    updateNavbarVisibility(false);
+}
+
+function restoreCaptureDraft() {
+    const draft = draftService.loadDraft();
+    if (!draft) return;
+
+    gameState.restoreSession(draft);
+    showCaptureControls();
+    notificationService.notify(`Restored capture in progress: ${describeCapture()}`, 'success', 6000);
+}
+
+function completeCapture() {
+    const elapsedTime = gameState.getLiveElapsedTime();
+    const userConfirmed = notificationService.confirm(
+        'Are you sure you want to complete the game? It will be saved to Saved Games and the capture will reset.'
+    );
+    if (!userConfirmed) return;
+
+    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
+    const result = finishCapture({
+        events: stateService.getState('game.loggedEvents'),
+        elapsedTime,
+        timestamp: new Date().toISOString(),
+        teams: teamsName ? teamsName.trim() : null
+    }, gameStorageManager);
+
+    if (!result.success) {
+        notificationService.notify(
+            `Failed to save game: ${result.message}. Your capture is still here; try Complete again.`,
+            'error',
+            8000
+        );
+        return;
+    }
+
+    checkStorageQuota();
+    gameState.completeGame();
+    showStartControls();
+}
+
+function discardCapture() {
+    const userConfirmed = notificationService.confirm(
+        `Discard ${describeCapture()}? This cannot be undone.`
+    );
+    if (!userConfirmed) return;
+
+    gameState.completeGame();
+    draftService.clearDraft();
+    showStartControls();
 }
 
 function registerEventListeners() {
@@ -320,12 +404,9 @@ function registerEventListeners() {
         if (!button) return; // Ignore clicks on unrelated elements
 
         const eventName = button.dataset.event;
-        const currentGameState = stateService.getState('game');
-        const currentElapsedTimeMs = currentGameState.isRunning
-            ? currentGameState.elapsedTime + (Date.now() - gameState.startTime)
-            : currentGameState.elapsedTime;
-
-        gameState.addEvent({ event: eventName, timeMs: currentElapsedTimeMs });
+        if (gameState.addEvent({ event: eventName, timeMs: gameState.getLiveElapsedTime() })) {
+            saveCaptureDraft();
+        }
     });
 
     trackerView.addEventListener('click', (event) => {
@@ -334,52 +415,19 @@ function registerEventListeners() {
         switch (id) {
             case 'newGameButton':
                 gameState.newGame();
-                hideElement(newGameButton);
-                showElement(pauseResumeButton);
-                showElement(completeGameButton);
-                updateNavbarVisibility(true);
+                saveCaptureDraft();
+                showCaptureControls();
                 break;
             case 'pauseResumeButton':
                 gameState.pauseResume();
-                const isPaused = !stateService.getState('game.isRunning');
-                pauseResumeButton.textContent = isPaused ? 'Resume' : 'Pause';
-                break; case 'completeGameButton': const userConfirmed = notificationService.confirm(
-                    'Are you sure you want to complete the game? This will reset all progress.'
-                );
-
-                if (userConfirmed) {
-                    const currentGameState = stateService.getState('game');
-                    const { loggedEvents: events, elapsedTime } = currentGameState;
-                    const timestamp = new Date().toISOString();
-                    // Ask for teams information
-                    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', '');
-                    const gameSnapshot = {
-                        events,
-                        elapsedTime,
-                        timestamp,
-                        teams: teamsName ? teamsName.trim() : null
-                    };
-
-                    try {
-                        const result = gameStorageManager.saveGame(gameSnapshot);
-                        if (result !== true) {
-                            // Handle non-true result (error object)
-                            const errorMsg = result.message || 'Unknown error';
-                            notificationService.notify(`Failed to save game: ${errorMsg}`, 'error');
-                        } else {
-                            // Check storage quota after saving
-                            checkStorageQuota();
-                        }
-                    } catch (error) {
-                        notificationService.notify(`Error saving game: ${error.message}`, 'error');
-                    }
-
-                    gameState.completeGame();
-                    showElement(newGameButton);
-                    hideElement(pauseResumeButton);
-                    hideElement(completeGameButton);
-                    updateNavbarVisibility(false);
-                }
+                saveCaptureDraft();
+                updatePauseResumeLabel();
+                break;
+            case 'completeGameButton':
+                completeCapture();
+                break;
+            case 'discardGameButton':
+                discardCapture();
                 break;
             default:
                 break;

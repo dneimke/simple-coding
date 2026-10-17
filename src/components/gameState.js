@@ -55,16 +55,71 @@ export class GameState {
         }
     }
 
+    /**
+     * Restore a capture in progress. A clock that was running keeps counting from
+     * runningSince, so time spent offline or reloading is included.
+     * @param {Object} session
+     * @param {Array} session.events - Events logged so far
+     * @param {number} session.elapsedTime - Clock banked before the current run (ms)
+     * @param {number|null} session.runningSince - Epoch ms the clock last started, or null when paused
+     */
+    restoreSession({ events, elapsedTime, runningSince }) {
+        this._stopTimerUpdate();
+
+        const isRunning = typeof runningSince === 'number';
+        this.startTime = isRunning ? runningSince : 0;
+
+        stateService.setState('game', {
+            hasCurrentGame: true,
+            isActive: true,
+            isRunning,
+            elapsedTime,
+            loggedEvents: events
+        });
+
+        if (isRunning) {
+            this._startTimerUpdate();
+        }
+        this._paintTimer();
+    }
+
+    /**
+     * Elapsed match time including the current run
+     * @returns {number} Elapsed time in ms
+     */
+    getLiveElapsedTime() {
+        const gameState = stateService.getState('game');
+        if (!gameState.isRunning) return gameState.elapsedTime;
+        return gameState.elapsedTime + Math.max(0, Date.now() - this.startTime);
+    }
+
+    /**
+     * Snapshot of the capture in progress for the draft store
+     * @returns {{events: Array, elapsedTime: number, runningSince: number|null}}
+     */
+    getDraftSnapshot() {
+        const gameState = stateService.getState('game');
+        return {
+            events: gameState.loggedEvents,
+            elapsedTime: gameState.elapsedTime,
+            runningSince: gameState.isRunning ? this.startTime : null
+        };
+    }
+
+    /**
+     * @returns {boolean} True if the event was logged
+     */
     addEvent(event) {
         const gameState = stateService.getState('game');
 
         if (!gameState.isActive || !gameState.isRunning) {
             logger.warn("Timer not started. Event not logged.");
-            return;
+            return false;
         }
 
         const events = [...gameState.loggedEvents, event];
         stateService.setState('game.loggedEvents', events);
+        return true;
     }
 
     newGame() {
@@ -110,7 +165,8 @@ export class GameState {
         stateService.setState('game', {
             isActive: false,
             isRunning: false,
-            hasCurrentGame: false
+            hasCurrentGame: false,
+            loggedEvents: []
         }, true);
 
         this.resetTimer();
@@ -133,15 +189,19 @@ export class GameState {
         if (this.timerInterval) return;
 
         this.timerInterval = setInterval(() => {
-            const gameState = stateService.getState('game');
-            if (!gameState.isRunning) return;
-
-            if (this.timerDisplay) {
-                const currentTime = Date.now();
-                const currentElapsedTime = gameState.elapsedTime + (currentTime - this.startTime);
-                this.timerDisplay.textContent = formatTime(currentElapsedTime);
-            }
+            if (!stateService.getState('game.isRunning')) return;
+            this._paintTimer();
         }, 1000);
+    }
+
+    /**
+     * Show the live elapsed time on the timer display
+     * @private
+     */
+    _paintTimer() {
+        if (this.timerDisplay) {
+            this.timerDisplay.textContent = formatTime(this.getLiveElapsedTime());
+        }
     }
 
     /**
