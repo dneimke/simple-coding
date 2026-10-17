@@ -1,6 +1,6 @@
 # Sticky Zone Board
 
-**Status:** Prototype, awaiting feedback
+**Status:** In app (trial alongside hockey-one). Pick `hockey-one-zoned` from the Board selector on Event Capture.
 **Prototype:** [prototype.html](prototype.html)
 
 ## Problem
@@ -190,6 +190,8 @@ _Record feedback from trying the prototype here._
 | Team names | Entered as codes when a game starts |
 | Team colours | Picked per team from a 10-colour palette when a game starts |
 | Zone perspective | Zone bar is selected from Team 1's perspective |
-| Per-team or shared scoring and cards | |
-| Show zone on zoned buttons | |
-| Log zone changes | |
+| Per-team or shared scoring and cards | Per-team rows; no shared team toggle |
+| Show zone on zoned buttons | Yes; BS and BW show each team's current zone |
+| Log zone changes | No; zone changes are not logged as events |
+| Board switching | Both boards are built-in named configs; switch from the Board selector on Event Capture (locked during a game) or from Configure |
+| Changing zone | Tap a zone, or press 1-4 on a keyboard |

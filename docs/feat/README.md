@@ -6,4 +6,4 @@ Nothing in this folder is deployed: GitHub Pages only publishes `src/`.
 
 | Feature | Status |
 | --- | --- |
-| [Sticky zone board](sticky-zones/spec.md) | Prototype, awaiting feedback |
+| [Sticky zone board](sticky-zones/spec.md) | In app (trial alongside hockey-one) |
