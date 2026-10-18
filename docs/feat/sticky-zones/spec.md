@@ -1,6 +1,6 @@
 # Sticky Zone Board
 
-**Status:** In app (trial alongside hockey-one). Pick `hockey-one-zoned` from the Board selector on Event Capture.
+**Status:** In app. `hockey-one-zoned` is the default board.
 **Prototype:** [prototype.html](prototype.html)
 
 ## Problem
@@ -193,5 +193,5 @@ _Record feedback from trying the prototype here._
 | Per-team or shared scoring and cards | Shared: one `APS PS GOAL SO` / `GREEN YELLOW RED` set with a sticky team toggle (tap or press T) |
 | Show zone on zoned buttons | Yes; BS and BW show each team's current zone |
 | Log zone changes | No; zone changes are not logged as events |
-| Board switching | Both boards are built-in named configs; switch from the Board selector on Event Capture (locked during a game) or from Configure |
+| Board switching | `hockey-one-zoned` is the only built-in board and the default; other layouts are saved configurations, switched from the Board selector on Event Capture (locked during a game) or from Configure |
 | Changing zone | Tap a zone, or press 1-4 on a keyboard |

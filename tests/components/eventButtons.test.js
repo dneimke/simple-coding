@@ -14,7 +14,9 @@ describe('EventButtons', () => {
     });
 
     test('renders flat boards as before', () => {
-        eventButtons.initialize(getNamedConfig('hockey-one'));
+        eventButtons.initialize({
+            rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'FIRE GOAL', text: 'FIRE GOAL', color: 'btn-red' }] }]
+        });
 
         expect(container.querySelector('.zone-bar')).toBeNull();
         expect(container.querySelector('[data-event="FIRE GOAL"]')).not.toBeNull();

@@ -10,7 +10,8 @@ import {
     findNamedConfigName,
     validateConfig,
     rowGrids,
-    usesTeams
+    usesTeams,
+    RETIRED_BUILT_IN_CONFIGS
 } from '../../src/components/config.js';
 
 const ACTIVE_KEY = 'fieldHockeyConfig_v1';
@@ -29,9 +30,29 @@ describe('named configurations', () => {
         console.error.mockRestore();
     });
 
-    test('seeds the built-in default, hockey-one and hockey-one-zoned configurations', () => {
-        expect(listNamedConfigs()).toEqual(['default', 'hockey-one', 'hockey-one-zoned']);
-        expect(JSON.parse(localStorage.getItem(NAMED_KEY))).toHaveProperty('hockey-one-zoned');
+    test('seeds hockey-one-zoned as the only built-in and uses it as the default', () => {
+        expect(listNamedConfigs()).toEqual(['hockey-one-zoned']);
+        expect(loadConfiguration()).toEqual(getNamedConfig('hockey-one-zoned'));
+        expect(usesTeams(loadConfiguration())).toBe(true);
+        expect(findNamedConfigName(loadConfiguration())).toBe('hockey-one-zoned');
+    });
+
+    test('replaces an active board that is still a retired built-in', () => {
+        localStorage.setItem(ACTIVE_KEY, JSON.stringify(RETIRED_BUILT_IN_CONFIGS['hockey-one']));
+
+        expect(loadConfiguration()).toEqual(getNamedConfig('hockey-one-zoned'));
+        expect(JSON.parse(localStorage.getItem(ACTIVE_KEY))).toEqual(getNamedConfig('hockey-one-zoned'));
+    });
+
+    test('removes previously seeded default and hockey-one boards that are still the original', () => {
+        localStorage.setItem(NAMED_KEY, JSON.stringify({
+            default: RETIRED_BUILT_IN_CONFIGS.default,
+            'hockey-one': RETIRED_BUILT_IN_CONFIGS['hockey-one']
+        }));
+
+        expect(listNamedConfigs()).toEqual(['hockey-one-zoned']);
+        expect(JSON.parse(localStorage.getItem(NAMED_KEY))).not.toHaveProperty('default');
+        expect(JSON.parse(localStorage.getItem(NAMED_KEY))).not.toHaveProperty('hockey-one');
     });
 
     test('hockey-one-zoned has four mirrored zones, per-team action rows and one shared scoring row', () => {
@@ -73,27 +94,18 @@ describe('named configurations', () => {
     });
 
     test('usesTeams is false for boards without team rows', () => {
-        expect(usesTeams(getNamedConfig('hockey-one'))).toBe(false);
-        expect(usesTeams(loadConfiguration())).toBe(false);
+        const flat = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'GOAL', text: 'GOAL' }] }] };
+        expect(usesTeams(flat)).toBe(false);
         expect(usesTeams(null)).toBe(false);
-    });
-
-    test('hockey-one uses team codes and excludes ball wins', () => {
-        const events = eventsOf(getNamedConfig('hockey-one'));
-
-        expect(events).toEqual(expect.arrayContaining([
-            'START', 'END', 'UMP', 'FIRE GOAL', 'TIGERS YELLOW', 'FIRE BS1', 'TIGERS ASC', 'SO FIRE', 'SO TASSIE'
-        ]));
-        expect(events).toHaveLength(33);
-        expect(events.some(event => /BW\d/.test(event))).toBe(false);
     });
 
     test('does not overwrite a user-saved built-in name', () => {
         const custom = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'X', text: 'X', color: 'btn-blue' }] }] };
-        localStorage.setItem(NAMED_KEY, JSON.stringify({ 'hockey-one': custom }));
+        localStorage.setItem(NAMED_KEY, JSON.stringify({ 'hockey-one-zoned': custom, 'hockey-one': custom }));
 
+        expect(getNamedConfig('hockey-one-zoned')).toEqual(custom);
         expect(getNamedConfig('hockey-one')).toEqual(custom);
-        expect(listNamedConfigs()).toContain('default');
+        expect(listNamedConfigs()).toEqual(['hockey-one', 'hockey-one-zoned']);
     });
 
     test('saveNamedConfig stores the config under a trimmed name and makes it active', () => {
@@ -111,7 +123,7 @@ describe('named configurations', () => {
     });
 
     test('activateNamedConfig writes the named config to the active slot', () => {
-        const config = activateNamedConfig('hockey-one');
+        const config = activateNamedConfig('hockey-one-zoned');
 
         expect(JSON.parse(localStorage.getItem(ACTIVE_KEY))).toEqual(config);
         expect(loadConfiguration()).toEqual(config);
@@ -122,8 +134,8 @@ describe('named configurations', () => {
     });
 
     test('findNamedConfigName returns the saved name matching a layout', () => {
-        expect(findNamedConfigName(getNamedConfig('hockey-one'))).toBe('hockey-one');
-        expect(findNamedConfigName(loadConfiguration())).toBe('default');
+        expect(findNamedConfigName(getNamedConfig('hockey-one-zoned'))).toBe('hockey-one-zoned');
+        expect(findNamedConfigName(loadConfiguration())).toBe('hockey-one-zoned');
     });
 
     test('findNamedConfigName returns null for unnamed or invalid layouts', () => {

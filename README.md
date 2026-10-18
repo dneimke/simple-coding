@@ -67,7 +67,7 @@ Saved Games is the single entry point for reviewing matches. It lists every save
 Customize the application to match specific tracking needs:
 
 - JSON editor for button configuration
-- Save multiple layouts as named configurations (for example, `hockey-one`)
+- Save multiple layouts as named configurations (for example, `my-board`)
 - Load a saved configuration to make it the active button layout
 
 ### 4. Log Page with Multiple Views

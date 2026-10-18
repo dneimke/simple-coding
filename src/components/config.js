@@ -5,7 +5,8 @@
 const LOCAL_STORAGE_KEY_CONFIG = 'fieldHockeyConfig_v1';
 const LOCAL_STORAGE_KEY_NAMED_CONFIGS = 'fieldHockeyNamedConfigs_v1';
 
-const DEFAULT_CONFIG = {
+// Earlier built-in. Kept so a previously seeded copy can be recognised and removed.
+const LEGACY_DEFAULT_CONFIG = {
     rowDefs: [
         { gridCols: "grid-cols-2", buttons: [{ event: "OUTLET", text: "OUTLET", color: "btn-blue" }, { event: "PRESS", text: "PRESS", color: "btn-blue" }] },
         { gridCols: "grid-cols-4", buttons: [{ event: "DEF 25 ENTRY", text: "DEF 25 ENTRY", color: "btn-red" }, { event: "DEF CIRC ENTRY", text: "DEF CIRC ENTRY", color: "btn-red" }, { event: "SHOT AG", text: "SHOT AG", color: "btn-red" }, { event: "GOAL AG", text: "GOAL AG", color: "btn-red" }] },
@@ -26,6 +27,7 @@ const teamRows = (gridCols, codes) => [
     { gridCols, buttons: teamButtons("TIGERS", codes, "btn-yellow") }
 ];
 
+// Earlier built-in. Kept so a previously seeded copy can be recognised and removed.
 const HOCKEY_ONE_CONFIG = {
     rowDefs: [
         { gridCols: "grid-cols-3", buttons: ["START", "END", "UMP"].map(code => ({ event: code, text: code, color: "btn-gray" })) },
@@ -80,10 +82,16 @@ const HOCKEY_ONE_ZONED_CONFIG = {
     ]
 };
 
+const DEFAULT_CONFIG = HOCKEY_ONE_ZONED_CONFIG;
+
 const BUILT_IN_NAMED_CONFIGS = {
-    default: DEFAULT_CONFIG,
-    'hockey-one': HOCKEY_ONE_CONFIG,
     'hockey-one-zoned': HOCKEY_ONE_ZONED_CONFIG
+};
+
+// Names that used to be seeded. An unchanged copy is removed; a saved edit under that name is kept.
+export const RETIRED_BUILT_IN_CONFIGS = {
+    default: LEGACY_DEFAULT_CONFIG,
+    'hockey-one': HOCKEY_ONE_CONFIG
 };
 
 const isValidConfig = (config) => Boolean(config && Array.isArray(config.rowDefs));
@@ -148,11 +156,19 @@ export function validateConfig(config) {
 
 const cloneConfig = (config) => JSON.parse(JSON.stringify(config));
 
-// Utility function to load configuration from localStorage or return the default
+const isRetiredBuiltIn = (config) =>
+    Object.values(RETIRED_BUILT_IN_CONFIGS).some(retired => JSON.stringify(retired) === JSON.stringify(config));
+
+// Utility function to load configuration from localStorage or return the default.
+// An active board that is still an unchanged retired built-in is replaced with the current default.
 export function loadConfiguration() {
     try {
         const storedConfig = localStorage.getItem(LOCAL_STORAGE_KEY_CONFIG);
-        return storedConfig ? JSON.parse(storedConfig) : DEFAULT_CONFIG;
+        if (!storedConfig) return DEFAULT_CONFIG;
+        const parsed = JSON.parse(storedConfig);
+        if (!isRetiredBuiltIn(parsed)) return parsed;
+        saveConfiguration(DEFAULT_CONFIG);
+        return DEFAULT_CONFIG;
     } catch (error) {
         console.error('Error loading configuration:', error);
         return DEFAULT_CONFIG;
@@ -193,6 +209,14 @@ function readNamedConfigs() {
         console.error('Error loading named configurations:', error);
     }
 
+    let changed = false;
+    for (const [name, retired] of Object.entries(RETIRED_BUILT_IN_CONFIGS)) {
+        if (stored[name] && JSON.stringify(stored[name]) === JSON.stringify(retired)) {
+            delete stored[name];
+            changed = true;
+        }
+    }
+
     let seeded = false;
     for (const [name, config] of Object.entries(BUILT_IN_NAMED_CONFIGS)) {
         if (!isValidConfig(stored[name])) {
@@ -201,7 +225,7 @@ function readNamedConfigs() {
         }
     }
 
-    if (seeded) {
+    if (seeded || changed) {
         writeNamedConfigs(stored);
     }
     return stored;
