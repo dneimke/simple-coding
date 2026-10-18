@@ -5,7 +5,7 @@
 The current user experience for creating and retrieving games follows this lifecycle:
 
 1. **Choosing a board**:
-   - The **Board** selector above the buttons on the Event Capture page lists the saved configurations, including the built-in `hockey-one` and `hockey-one-zoned`. Picking one makes it the active configuration (the same as saving it on the Configure page).
+   - The **Board** selector above the buttons on the Event Capture page lists the saved configurations. A first visit opens on the built-in `hockey-one-zoned` board. Picking another saved configuration makes it the active configuration (the same as saving it on the Configure page).
    - The selector is locked while a game is in progress; complete or discard the game to change board.
    - `hockey-one-zoned` is the [sticky zone board](feat/sticky-zones/spec.md): a zone bar (Zones 1-4, from Team 1's perspective) replaces the per-zone BS buttons. BS and BW log the active zone, mirrored for Team 2, e.g. `FIRE BS2` and `TIGERS BS3`. Tap a zone or press 1-4 to change it. Zone changes are not logged.
    - On `hockey-one-zoned` the scoring and card buttons (APS, PS, GOAL, SO, GREEN, YELLOW, RED) are a single set with a team toggle. Tap a team (or press T) and the buttons log for that team, e.g. `PERTH GOAL`, until you switch again.
