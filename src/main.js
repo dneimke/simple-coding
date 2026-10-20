@@ -16,6 +16,7 @@ import { openCompleteGameDialog } from './components/completeGameDialog.js';
 import { bindFinishMenu, syncCaptureChrome } from './components/captureChrome.js';
 import { resolveEventName } from './utils/zoneUtils.js';
 import { renderRecentEvents } from './components/recentEvents.js';
+import { checkAndApplyMockSeed } from './utils/seedData.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
@@ -359,6 +360,9 @@ function parseEditorConfig() {
 }
 
 function initializeApplication() {
+    // Check for seeded mock state (?mock=sample, ?mock=active, ?seed=sample)
+    checkAndApplyMockSeed();
+
     // Load configuration
     const currentConfig = loadConfiguration();
 
