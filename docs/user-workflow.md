@@ -22,9 +22,9 @@ The current user experience for creating and retrieving games follows this lifec
    - The Event Capture page has extra space below the buttons so you can scroll the menu off screen while capturing.
 
 4. **Completing a Game**:
-   - Once the session is complete, the user clicks the "Complete" button (replacing the Reset button on the Event Capture page). This action:
-     - Saves the current game state (events and elapsed time) to `localStorage`.
-     - Resets the game to its default, empty state, clearing the timer and event log.
+   - Once the session is complete, the user clicks the "Complete" button on the Event Capture page. A dialog shows the event count and clock, and asks for the game name. On a team board the name is filled in from the team codes (for example `FIRE vs TIGERS`).
+   - Cancel or Escape leaves the capture in progress.
+   - Complete saves the game to Saved Games under that name, or with no name if the field is left blank, then resets the capture: the timer and event log return to empty.
 
 5. **Loading a Game**:
    - If no session is currently active (i.e., the timer is stopped and no elapsed time is recorded), the "Load Game" button on the Log page becomes available.
