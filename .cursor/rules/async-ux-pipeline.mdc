@@ -1,51 +1,54 @@
 ---
-description: Async UX-to-Code Pipeline. Evaluates raw feedback, generates deterministic specs test-first, and automates visual proof.
-globs: src/**/*,tests/**/*,scripts/**/*
-alwaysApply: true
+description: Async UX-to-Code Pipeline for Coaches Dashboard and simple-coding. Use when reporting UI/UX friction, implementing component changes, or dispatching asynchronous coding tasks without manual browser hovering.
+globs: src/**/*, components/**/*, app/**/*, pages/**/*, scripts/**/*
 ---
 
-# Async UX-to-Code Pipeline
+# Cursor Rule: Async UX-to-Code Pipeline
 
-Eliminate **"glue toil"** and enable **"Asynchronous Dispatch"**: the user spots friction on mobile or desktop, sends a 2-second screenshot or brief note, and walks away. The agent implements the smallest valid change, runs deterministic tests, captures automated Playwright visual snapshots, and opens a pull request ready for a 5-second review.
+## 1. Operating Mindset: Asynchronous Execution
+You are operating as an autonomous software engineer in an **asynchronous dispatch pipeline**. The human founder dispatches a task and closes their laptop to reclaim daylight.
 
-## Repository Binding
+Your mandate is to take a raw friction report (screenshot, voice note, or bullet points), translate it into a formal specification, implement it test-first, and produce an **automated visual proof artifact** so the founder never has to manually refresh Chrome, log in, or click through test states.
 
-Read `AGENTS.md` (personas, journeys, push-back rules, 4-step blueprint) and `docs/design-language.md` (`.cursor/rules/design-language.mdc`) before changing markup, CSS, or JavaScript.
+## 2. The 4-Stage Execution Pipeline
 
 ### Stage 1: Autonomous Spec Generation from Raw Feedback
-When the user provides raw, subjective, or high-level feedback (e.g. "Users can't find menu options" or "This screen feels crowded"):
+When the user provides raw, subjective, or high-level feedback (e.g. "Users can't find menu options" or "This screen feels crowded") or a 5-part brief:
+1. **Investigate Current State**: Inspect the relevant UI components, route tables, or layout files in the repo before forming a plan.
+2. **Diagnose the Root Friction**: Identify why the current implementation causes that symptom (e.g. deep menu nesting, ambiguous labels, lack of visual hierarchy).
+3. **Auto-Generate the 5-Part Spec**: Explicitly formulate and output the 5-part contract in your thinking trace:
+   - **Goal**: 1-sentence concrete outcome.
+   - **Decisions**: Specific UI pattern chosen (e.g. Command palette, flattened top-bar, contextual floating action).
+   - **Invariants**: Business rules, existing routes, or timers that must not break.
+   - **Specific Next Step**: The exact component test to write first.
+   - **Traps to Avoid**: Edge cases to steer clear of.
+4. **Self-Direct Execution**: Proceed immediately to Stage 2, using your own generated spec as the deterministic boundary.
 
-1. **Investigate Current State**: 
-   - Inspect the relevant UI components, route tables, or layout styles in the repo before forming a plan.
-2. **Diagnose the Root Friction**: 
-   - Identify why the current implementation causes that symptom (e.g. deep nesting, ambiguous labels, lack of visual hierarchy).
-   - Evaluate against the target persona and push-back rules in `AGENTS.md` (e.g. eyes-on-pitch, config-over-code).
-3. **Auto-Generate the 5-Part Spec**: 
-   - Explicitly formulate and print the 5-part contract in your thinking trace:
-     • **Goal**: 1-sentence concrete UX fix.
-     • **Decisions**: Specific design pattern chosen (e.g. Command palette, flattened top-bar, contextual floating action).
-     • **Invariants**: Business rules, existing routes, or timers that must not break.
-     • **Specific Next Step**: The exact component test to write first.
-     • **Traps to Avoid**: Edge cases to steer clear of.
-4. **Self-Direct Execution**: 
-   - Proceed immediately to Stage 2, using your own generated spec as the deterministic boundary.
+### Stage 2: Design Token & UI Primitive Enforcement
+Do not invent arbitrary styles or nested CSS abstractions.
+* **Component Primitives**: Always reuse existing UI components and primitives (`<CodingButton />`, `<Badge />`, `<Table />`, `<Tabs />`).
+* **Tailwind Consistency**: Use project token scales for spacing (`p-2`, `p-4`, `gap-3`), typography (`text-xs`, `text-sm`, `font-semibold`), and elevation (`bg-slate-900`, `border-slate-800`).
+* **Ergonomics**: Maintain high contrast for sunlight readability and ensure touch targets $\ge$ 48px.
 
-### Stage 2: Design Language (Tokens Over Debate)
-Follow `docs/design-language.md`:
-- CSS tokens and semantic classes in `src/styles.css` (e.g. `btn-blue`, `team-color-*`, `--touch-min`).
-- Tailwind utilities for layout and spacing only.
-- $\ge 44\text{px}$ touch targets for all live-capture elements.
-- Never invent new ad-hoc color classes or styling abstractions.
+### Stage 3: Test-First Agent Handoff (The Deterministic Gate)
+Before touching production component code:
+1. **Write or Update a Component Test**: Create a Vitest/Jest test asserting the desired behavior (use `vi.useFakeTimers()` or Jest fake timers for clocks/timers).
+2. **Verify Failure**: Run the test to ensure it fails on the current implementation.
+3. **Implement Minimum Code**: Write the cleanest solution to make the test pass. Do not touch unreachable code or add speculative features.
 
-### Stage 3: Test-First Discipline (Prevent Code Drift)
-For behaviour (click handlers, state management, storage, DOM output):
-1. Add or update a Jest test under `tests/` that mirrors the component in `src/`.
-2. Run `npm test` and verify the test fails for the current behavior.
-3. Implement the smallest change to make the test pass.
-4. Run `npm test` to confirm all suites pass.
+### Stage 4: Automated Visual Verification (No Manual Chrome Clicking)
+Never ask the user to "open localhost:3000 and click through to verify."
+1. **Support Seeded Mock Routes**: Ensure dev preview routes support query-state seeding (e.g., `/dev/preview?state=double-up-selections` or `?mock=pc-counter`).
+2. **Generate a Playwright / Puppeteer Screenshot**: Execute an automated script to load the dev URL, wait for network idle, take a focused snapshot of the modified component or screen, and save it to `./diff.png`.
+3. **Output the Visual Proof**: State clearly in your final response:
+   - Test suite status (all green).
+   - File path to the generated `./diff.png` screenshot for instant 5-second human inspection.
 
-### Stage 4: Automated Visual Proof (`npm run test:visual`)
-Do not ask the user to open the app, refresh, or click through states. Use direct seeded URLs and run `npm run test:visual`.
-
-### Stage 5: Pull Request & Zero-Toil Review
-Every change ships through a pull request on `feature/<short-name>`. Never commit or push to `main`.
+## 3. Completion Checklist (Self-Gate Before Replying)
+Before concluding your task, verify:
+* [ ] No regression on existing unit or integration tests (`npm test`).
+* [ ] Invariants preserved (timer integrity, event schemas, double-up tags).
+* [ ] Zero arbitrary inline styles or unvetted CSS classes.
+* [ ] Seeded mock test state loads cleanly without auth blockers.
+* [ ] Visual diff artifact generated and saved to disk.
+* [ ] Summary provided in under 10 lines of concise markdown.
