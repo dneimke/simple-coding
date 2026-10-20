@@ -1,26 +1,20 @@
 ---
 name: async-ux-pipeline
 description: >-
-  Turns a UI friction report into a short spec, implements it test-first
-  against this repo's design language, and proves the result in the browser
-  without asking the user to click through. Use when the user reports UI
-  friction, requests a component or layout change, dispatches a feature to
-  finish while they are away, or mentions the async UX pipeline.
+  Turns a UI friction report into a short spec, implements it against this
+  repo's design language, and proves the result in the browser without asking
+  the user to click through. Use when the user reports UI friction, requests
+  a component or layout change, dispatches a feature to finish while they are
+  away, or mentions the async UX pipeline.
 ---
 
 # Async UX-to-Code Pipeline
 
-Finish the UI change while the user is away. Take a raw friction report (screenshot, note, or bullets), write a short spec, implement it test-first, and leave proof. Do not ask them to open the app, refresh, log in, or click through states.
+Finish the UI change while the user is away. Take a raw friction report (screenshot, note, or bullets), write a short spec, implement the smallest change, and leave proof. Do not ask them to open the app, refresh, log in, or click through states.
 
 ## Repository binding
 
-This app is the Field Hockey Event Tracker: static HTML, vanilla JavaScript, Jest, and the design language in `docs/design-language.md`. The rule `.cursor/rules/design-language.mdc` applies to UI edits. When this skill and that design language disagree, follow the design language.
-
-- Reuse `createButton({ type })` and `createCard()` from `src/components/ui/`, plus semantic classes (`page`, `surface`, `btn`, `tabs`, `modal`, `banner`). Tailwind is layout and spacing only.
-- Do not add Radix, shadcn, a new component library, Tailwind colour utilities, or hex colours.
-- Tests are Jest under `tests/`. Run them with `npm test`. There is no Vitest and no Playwright suite.
-- Do not break board colour class names (`btn-blue`, `btn-red`, `btn-green`, `btn-yellow`, `btn-orange`, `btn-gray`), `team-color-*`, saved-game JSON, 44px touch targets, offline local storage, or `#tracker-view` bottom padding.
-- The capture screen is used one-handed on a phone during a match. Keep controls high contrast and at least `--touch-min`.
+This app is the Field Hockey Event Tracker: static HTML, vanilla JavaScript, and Jest. UI rules live in `.cursor/rules/design-language.mdc` and `docs/design-language.md`. Follow those for colour, components, touch size, and breakpoints. This skill does not restate them.
 
 ## Stage 1: Friction intake
 
@@ -28,27 +22,41 @@ Before writing code, state three lines:
 
 - **Problem**: what is clunky or high-effort.
 - **Target state**: what the screen does after the change.
-- **Verification**: the assertion that proves it.
+- **Verification**: the check that proves it.
+
+Use the full pipeline for a screen or interaction change. For a copy or token tweak, skip the failing-test step and still do the browser check.
 
 ## Stage 2: Design language
 
-Read `docs/design-language.md` before changing markup, CSS, or JavaScript that builds UI. Reuse existing classes. Prefer a dense, scannable layout over a new modal. If no token fits, add one to `:root` in `src/styles.css` and list it in the design-language doc.
+Read `docs/design-language.md` before changing markup, CSS, or JavaScript that builds UI.
 
-## Stage 3: Test first
+## Stage 3: Tests
 
-1. Add or update a Jest test for the verification line. Mirror the existing file layout (`tests/` matches `src/`).
-2. Run that test and confirm it fails for the current behaviour.
-3. Write the smallest change that makes it pass. Do not add speculative features.
-4. Run `npm test` and keep the suite green.
+Behaviour (what a click does, what gets saved, what the DOM shows): add or update a Jest test under `tests/` that mirrors `src/`. Run it and confirm it fails for the current behaviour, then write the smallest change that makes it pass. Run `npm test`.
+
+Look and layout (spacing, contrast, tap size, breakpoint): do not add a Jest test. The browser check is the proof.
 
 ## Stage 4: Visual proof
 
-Do this yourself. Serve `src/` (`python -m http.server --directory src 8080`), open it in the browser tools, and exercise the changed flow: main path, empty or error states the change touches, and about 390px, 768px, and 1280px when layout changed. Capture a screenshot.
+Serve `src/` (`python -m http.server --directory src 8080`) and open the view directly:
+
+| View | URL |
+| --- | --- |
+| Event Capture | `index.html#event-capture` |
+| Configure | `index.html#configure` |
+| Saved Games | `index.html#saved-games` |
+| Log for a saved game | `index.html#log/<id>` |
+| Match Review | `timeline-video.html?game=<id>` |
+
+`#log` with no id opens only while a game is in progress. Otherwise the app returns to Event Capture.
+
+A fresh browser has no saved games. Log, a Saved Games row, and Match Review read `localStorage` key `fieldHockeyGames_v1`, a JSON array of `{ id, timestamp, events }`. Import `src/assets/sample-game.xml` from Saved Games, or write that array in the page, then open `#log/<id>` or `timeline-video.html?game=<id>` for the id you stored. Copy the object shape from `tests/js/timeline-video.test.js` when writing it by hand.
+
+Exercise the changed flow, including empty or error states the change touches. When layout changed, check about 390px, 768px, and 1280px. Capture a screenshot.
 
 ## Done when
 
-- [ ] `npm test` is green
-- [ ] Design-language invariants still hold
-- [ ] No new hex colours or Tailwind colour utilities
-- [ ] The browser check was done by the agent
-- [ ] The reply is under 10 lines: what changed, test result, what the screen showed
+- Behaviour changes have a green `npm test`
+- The design-language rule still holds
+- The browser check used the direct URL, with a saved game when the view needs one
+- The reply leads with what changed, the test result, and what the screen showed
