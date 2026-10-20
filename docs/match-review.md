@@ -29,10 +29,10 @@ The video player section allows you to:
 ## How to Use
 
 1. **Select a Game**:
-   - Open **Saved Games** from the navigation bar and click a game's name or details
+   - Open **Saved Games** from the navigation bar and click **Review** (or the game's name)
    - Match Review opens at `timeline-video.html?game=<id>` with that game's events in the timeline
    - To review another match, go back to Saved Games and choose it there
-   - Export, Rename, and Delete remain available on the Saved Games list
+   - View log, Export XML, Rename, and Delete are in each game's **More** menu on the Saved Games list
 
 2. **Filter Events** (if needed):
    - Click the filter dropdown to select specific event types

@@ -27,11 +27,19 @@ ${game.events.map((event, i) => `    <instance><ID>${i + 1}</ID><code>${event.ev
 // Mock button creation function
 jest.mock('../../../src/components/ui/button.js');
 
-// Buttons live in the card's .saved-game-actions row
-const findActionButton = (card, text) => {
-    const actions = card.append.mock.calls[0].find(el => el.className === 'saved-game-actions');
-    return actions.append.mock.calls[0].find(el => el.textContent === text);
+// Review and the More menu live in the card's .saved-game-actions row
+const getActions = (card) =>
+    card.append.mock.calls[0].find(el => el.className === 'saved-game-actions').append.mock.calls[0];
+
+const findReviewButton = (card) => getActions(card).find(el => el.textContent === 'Review');
+
+const getMenuParts = (card) => {
+    const wrapper = getActions(card).find(el => el.className === 'saved-game-more');
+    const [toggle, menu] = wrapper.append.mock.calls[0];
+    return { toggle, menu, items: menu.append.mock.calls[0] };
 };
+
+const findMenuItem = (card, text) => getMenuParts(card).items.find(el => el.textContent === text);
 
 // Set up before tests run
 beforeAll(() => {
@@ -45,6 +53,13 @@ beforeAll(() => {
             setAttribute: jest.fn(),
             appendChild: jest.fn(),
             append: jest.fn(),
+            addEventListener: jest.fn(),
+            querySelector: jest.fn(() => null),
+            focus: jest.fn(),
+            classList: {
+                add: jest.fn(),
+                remove: jest.fn()
+            },
             style: {},
             href: '',
             download: '',
@@ -67,12 +82,17 @@ beforeAll(() => {
     });
 
     // Set up mock implementation for button
-    const { createButton } = require('../../../src/components/ui/button.js');
+    const { createButton, createIconButton } = require('../../../src/components/ui/button.js');
     createButton.mockImplementation(options => {
         const mockButton = document.createElement('button');
         mockButton.textContent = options.text;
         mockButton.className = options.className || '';
         mockButton.onclick = options.onClick;
+        return mockButton;
+    });
+    createIconButton.mockImplementation(({ ariaLabel }) => {
+        const mockButton = document.createElement('button');
+        mockButton.setAttribute('aria-label', ariaLabel);
         return mockButton;
     });
 });
@@ -116,24 +136,24 @@ describe('Export XML Functionality', () => {
         document.body.removeChild = jest.fn();
     });
 
-    test('Export XML button should be created with the card', () => {
+    test('Export XML is an item in the More menu', () => {
         const card = createGameCard({
             game: mockGame,
             index: 0,
             ...mockHandlers
         });
 
-        expect(findActionButton(card, 'Export XML')).toBeDefined();
+        expect(findMenuItem(card, 'Export XML')).toBeDefined();
     });
 
-    test('Export XML button click should generate XML file and trigger download', () => {
+    test('Export XML click should generate XML file and trigger download', () => {
         const card = createGameCard({
             game: mockGame,
             index: 0,
             ...mockHandlers
         });
 
-        const exportButton = findActionButton(card, 'Export XML');
+        const exportButton = findMenuItem(card, 'Export XML');
 
         // Simulate click on export button
         const mockStopPropagation = jest.fn();
@@ -172,30 +192,90 @@ describe('Export XML Functionality', () => {
     });
 });
 
-describe('View Log button', () => {
+describe('Saved game actions', () => {
     const game = {
         teams: 'Test Team vs Opponent',
         timestamp: '2025-05-10T14:30:00Z',
         events: [{ event: 'GOAL_FOR', timeMs: 60000 }]
     };
 
+    let handlers;
+
     beforeEach(() => {
         jest.clearAllMocks();
+        handlers = {
+            onSelect: jest.fn(),
+            onViewLog: jest.fn(),
+            onRename: jest.fn(),
+            onDelete: jest.fn()
+        };
     });
 
-    test('is not rendered without an onViewLog handler', () => {
-        const card = createGameCard({ game, index: 0, onRename: jest.fn(), onDelete: jest.fn() });
-        expect(findActionButton(card, 'View Log')).toBeUndefined();
+    test('the row shows only Review and the More toggle', () => {
+        const card = createGameCard({ game, index: 0, ...handlers });
+
+        const actions = getActions(card);
+        expect(actions).toHaveLength(2);
+        expect(actions[0].textContent).toBe('Review');
+        expect(actions[1].className).toBe('saved-game-more');
     });
 
-    test('calls onViewLog and stops propagation when clicked', () => {
-        const onViewLog = jest.fn();
-        const card = createGameCard({ game, index: 0, onRename: jest.fn(), onDelete: jest.fn(), onViewLog });
+    test('Review opens the game and stops propagation', () => {
+        const card = createGameCard({ game, index: 0, ...handlers });
 
         const stopPropagation = jest.fn();
-        findActionButton(card, 'View Log').onclick({ stopPropagation });
+        findReviewButton(card).onclick({ stopPropagation });
 
         expect(stopPropagation).toHaveBeenCalled();
-        expect(onViewLog).toHaveBeenCalledTimes(1);
+        expect(handlers.onSelect).toHaveBeenCalledTimes(1);
+    });
+
+    test('Review is not rendered without an onSelect handler', () => {
+        const { onSelect, ...rest } = handlers;
+        const card = createGameCard({ game, index: 0, ...rest });
+        expect(findReviewButton(card)).toBeUndefined();
+    });
+
+    test('the menu starts hidden and lists View log, Export XML, Rename, Delete', () => {
+        const card = createGameCard({ game, index: 0, ...handlers });
+
+        const { toggle, menu, items } = getMenuParts(card);
+        expect(menu.className).toContain('hidden');
+        expect(toggle.setAttribute).toHaveBeenCalledWith('aria-expanded', 'false');
+        expect(toggle.setAttribute).toHaveBeenCalledWith('aria-label', 'More actions for Test Team vs Opponent');
+        expect(items.map(item => item.textContent)).toEqual(['View log', 'Export XML', 'Rename', 'Delete']);
+        expect(findMenuItem(card, 'Delete').className).toContain('saved-game-menu-item-danger');
+    });
+
+    test('the toggle opens and closes the menu', () => {
+        const card = createGameCard({ game, index: 0, ...handlers });
+        const { toggle, menu } = getMenuParts(card);
+
+        toggle.onclick({ stopPropagation: jest.fn() });
+        expect(menu.classList.remove).toHaveBeenCalledWith('hidden');
+        expect(toggle.setAttribute).toHaveBeenCalledWith('aria-expanded', 'true');
+
+        toggle.onclick({ stopPropagation: jest.fn() });
+        expect(menu.classList.add).toHaveBeenCalledWith('hidden');
+    });
+
+    test('View log is not listed without an onViewLog handler', () => {
+        const { onViewLog, ...rest } = handlers;
+        const card = createGameCard({ game, index: 0, ...rest });
+        expect(findMenuItem(card, 'View log')).toBeUndefined();
+    });
+
+    test.each([
+        ['View log', 'onViewLog'],
+        ['Rename', 'onRename'],
+        ['Delete', 'onDelete']
+    ])('%s calls %s and stops propagation', (text, handlerName) => {
+        const card = createGameCard({ game, index: 0, ...handlers });
+
+        const stopPropagation = jest.fn();
+        findMenuItem(card, text).onclick({ stopPropagation });
+
+        expect(stopPropagation).toHaveBeenCalled();
+        expect(handlers[handlerName]).toHaveBeenCalledTimes(1);
     });
 });

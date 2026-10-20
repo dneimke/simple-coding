@@ -42,9 +42,9 @@ The current user experience for creating and retrieving games follows this lifec
    - The navigation system will automatically redirect to the Event Capture view if trying to access the Log view without an active game.
 
 7. **Reviewing a Game**:
-   - The user opens the Saved Games view and selects a game, which opens it in Match Review (`timeline-video.html?game=<id>`). Match Review is not a separate navigation item.
-   - Clicking **View Log** on a saved game opens the Log view (Timeline, XML, and Statistics tabs) for that game at `index.html#log/<id>`. A banner names the saved game and links back to Saved Games. This is read-only and does not replace a game in progress.
-   - Export, Rename, and Delete actions remain on the Saved Games list.
+   - The user opens the Saved Games view and clicks **Review** (or the game's name) to open it in Match Review (`timeline-video.html?game=<id>`). Match Review is not a separate navigation item.
+   - Each saved game's **More** menu (the ⋮ button) holds View log, Export XML, Rename, and Delete.
+   - **View log** opens the Log view (Timeline, XML, and Statistics tabs) for that game at `index.html#log/<id>`. A banner names the saved game and links back to Saved Games. This is read-only and does not replace a game in progress.
    - **Export XML** downloads the game as a Sportscode XML file (`<file>` with `<ALL_INSTANCES>` and `<ROWS>`). Teams, date and favourites are not included.
    - **Import XML** accepts Sportscode XML files, as well as files in the older `<game><events>` format. Because Sportscode files carry no teams, the teams prompt defaults to the file name.
    - The timeline panel displays all recorded events, and the video player allows synchronized playback of the match footage.

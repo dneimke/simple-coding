@@ -2,8 +2,106 @@
  * Card UI components
  * @module components/ui/card
  */
-import { createButton } from './button.js';
+import { createButton, createIconButton } from './button.js';
 import { generateGameXml, getInvalidEvents } from '../../utils/xmlUtils.js';
+
+let openGameMenu = null;
+
+const closeGameMenu = () => {
+    if (!openGameMenu) return;
+    const { menu, toggle } = openGameMenu;
+    menu.classList.add('hidden');
+    toggle.setAttribute('aria-expanded', 'false');
+    openGameMenu = null;
+    document.removeEventListener('click', onDocumentClick, true);
+    document.removeEventListener('keydown', onDocumentKeydown);
+};
+
+function onDocumentClick(e) {
+    if (openGameMenu && !openGameMenu.wrapper.contains(e.target)) {
+        closeGameMenu();
+    }
+}
+
+function onDocumentKeydown(e) {
+    if (e.key !== 'Escape' || !openGameMenu) return;
+    const { toggle } = openGameMenu;
+    closeGameMenu();
+    toggle.focus();
+}
+
+const openMenu = (wrapper, toggle, menu) => {
+    closeGameMenu();
+    menu.classList.remove('hidden');
+    toggle.setAttribute('aria-expanded', 'true');
+    openGameMenu = { wrapper, toggle, menu };
+    // Capture phase, because card buttons stop propagation of their clicks
+    document.addEventListener('click', onDocumentClick, true);
+    document.addEventListener('keydown', onDocumentKeydown);
+    menu.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+    menu.scrollIntoView?.({ block: 'nearest' });
+};
+
+/**
+ * Builds the overflow menu for a saved game's secondary actions
+ * @param {string} title - Game name, used in the toggle's accessible label
+ * @param {Array<{text: string, onClick: Function, danger?: boolean}>} items - Menu items in display order
+ * @returns {HTMLDivElement} Wrapper holding the toggle and the menu
+ */
+const createGameMenu = (title, items) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'saved-game-more';
+
+    const menu = document.createElement('div');
+    menu.className = 'saved-game-menu hidden';
+    menu.setAttribute('role', 'menu');
+
+    const toggle = createIconButton({
+        icon: '<i class="fas fa-ellipsis-vertical" aria-hidden="true"></i>',
+        ariaLabel: `More actions for ${title}`,
+        type: 'ghost'
+    });
+    toggle.type = 'button';
+    toggle.setAttribute('aria-haspopup', 'menu');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.onclick = (e) => {
+        e.stopPropagation();
+        if (openGameMenu && openGameMenu.menu === menu) {
+            closeGameMenu();
+        } else {
+            openMenu(wrapper, toggle, menu);
+        }
+    };
+
+    const menuItems = items.map(({ text, onClick, danger }) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = danger ? 'saved-game-menu-item saved-game-menu-item-danger' : 'saved-game-menu-item';
+        item.setAttribute('role', 'menuitem');
+        item.textContent = text;
+        item.onclick = (e) => {
+            e.stopPropagation();
+            closeGameMenu();
+            onClick(e);
+        };
+        return item;
+    });
+
+    menu.onkeydown = (e) => {
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        const current = menuItems.indexOf(document.activeElement);
+        const next = current === -1
+            ? (step > 0 ? 0 : menuItems.length - 1)
+            : (current + step + menuItems.length) % menuItems.length;
+        menuItems[next].focus();
+    };
+
+    menu.append(...menuItems);
+    wrapper.append(toggle, menu);
+    return wrapper;
+};
 
 /**
  * Creates a basic card container with Tailwind styling
@@ -76,8 +174,8 @@ export const createCard = ({
  * @param {number} options.index - Index of the game in the list
  * @param {Function} options.onDelete - Delete game handler
  * @param {Function} options.onRename - Rename game handler
- * @param {Function} [options.onSelect] - Called when the game's icon or details are activated
- * @param {Function} [options.onViewLog] - Called when the View Log button is clicked
+ * @param {Function} [options.onSelect] - Opens the game in Match Review, from the Review button, icon, or details
+ * @param {Function} [options.onViewLog] - Called when View log is chosen from the More menu
  * @returns {HTMLDivElement} The created game card element
  */
 export const createGameCard = ({
@@ -105,8 +203,9 @@ export const createGameCard = ({
     const gameTitleRow = document.createElement('div');
     gameTitleRow.className = 'flex flex-wrap items-center gap-x-2';
 
+    const title = game.teams ? game.teams : `Game ${index + 1}`;
     const gameTitle = document.createElement('h3');
-    gameTitle.textContent = game.teams ? game.teams : `Game ${index + 1}`;
+    gameTitle.textContent = title;
     gameTitleRow.appendChild(gameTitle);
 
     // Check for invalid events
@@ -144,7 +243,6 @@ export const createGameCard = ({
     gameDetails.append(gameTitleRow, gameTimestamp, eventCount);
 
     if (onSelect) {
-        const title = game.teams ? game.teams : `Game ${index + 1}`;
         gameDetails.classList.add('cursor-pointer');
         gameDetails.setAttribute('role', 'button');
         gameDetails.setAttribute('tabindex', '0');
@@ -162,73 +260,64 @@ export const createGameCard = ({
         icon.addEventListener('click', onSelect);
     }
 
-    const exportButton = createButton({
-        text: 'Export XML',
-        type: 'secondary',
-        onClick: (e) => {
-            e.stopPropagation();
-
-            // Check for invalid events before exporting
-            const invalidEvents = getInvalidEvents(game);
-            if (invalidEvents.length > 0) {
-                // Show a confirmation dialog
-                const proceed = window.confirm(
-                    `Warning: This game has ${invalidEvents.length} invalid event(s).\n` +
-                    `Invalid events may be missing required fields or have invalid data.\n` +
-                    `Do you want to proceed with the export?`
-                );
-                if (!proceed) {
-                    // Explicitly abort export and do not trigger download or toast
-                    return;
-                }
+    const exportGame = () => {
+        // Check for invalid events before exporting
+        const invalidEvents = getInvalidEvents(game);
+        if (invalidEvents.length > 0) {
+            // Show a confirmation dialog
+            const proceed = window.confirm(
+                `Warning: This game has ${invalidEvents.length} invalid event(s).\n` +
+                `Invalid events may be missing required fields or have invalid data.\n` +
+                `Do you want to proceed with the export?`
+            );
+            if (!proceed) {
+                // Explicitly abort export and do not trigger download or toast
+                return;
             }
-
-            // Generate XML content using the utility function
-            const xmlContent = generateGameXml(game, index + 1);
-
-            // Create and trigger download
-            const blob = new Blob([xmlContent], { type: 'application/xml' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            const fileName = (game.teams || `game-${index + 1}`).toLowerCase().replace(/\s+/g, '-');
-
-            a.href = url;
-            a.download = `${fileName}.xml`;
-            document.body.appendChild(a);
-            a.click();
-
-            // Clean up
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 0);
         }
-    });
 
-    const renameButton = createButton({
-        text: 'Rename',
-        type: 'secondary',
-        onClick: onRename
-    });
+        // Generate XML content using the utility function
+        const xmlContent = generateGameXml(game, index + 1);
 
-    const deleteButton = createButton({
-        text: 'Delete',
-        type: 'danger',
-        onClick: onDelete
-    });
+        // Create and trigger download
+        const blob = new Blob([xmlContent], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const fileName = (game.teams || `game-${index + 1}`).toLowerCase().replace(/\s+/g, '-');
 
-    const viewLogButton = onViewLog ? createButton({
-        text: 'View Log',
-        type: 'secondary',
+        a.href = url;
+        a.download = `${fileName}.xml`;
+        document.body.appendChild(a);
+        a.click();
+
+        // Clean up
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 0);
+    };
+
+    const reviewButton = onSelect ? createButton({
+        text: 'Review',
+        type: 'primary',
+        icon: '<i class="fas fa-film" aria-hidden="true"></i>',
+        className: 'saved-game-review',
         onClick: (e) => {
             e.stopPropagation();
-            onViewLog(e);
+            onSelect(e);
         }
     }) : null;
 
+    const menu = createGameMenu(title, [
+        onViewLog && { text: 'View log', onClick: onViewLog },
+        { text: 'Export XML', onClick: exportGame },
+        { text: 'Rename', onClick: onRename },
+        { text: 'Delete', onClick: onDelete, danger: true }
+    ].filter(Boolean));
+
     const actions = document.createElement('div');
     actions.className = 'saved-game-actions';
-    actions.append(...[viewLogButton, exportButton, renameButton, deleteButton].filter(Boolean));
+    actions.append(...[reviewButton, menu].filter(Boolean));
 
     gameCard.append(icon, gameDetails, actions);
 
