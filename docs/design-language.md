@@ -85,7 +85,7 @@ Feature areas own their own classes, built from tokens: `capture-toolbar`, `capt
 
 - `createButton({ type })` maps `type` to `btn btn-<type>` (`primary`, `secondary`, `success`, `warning`, `danger`, `ghost`; anything else is `secondary`).
 - `createCard()` returns a `surface`.
-- `createGameCard()` returns a `saved-game-card` with a `saved-game-actions` row.
+- `createGameCard()` returns a `saved-game-card` whose `saved-game-actions` row holds a primary Review button and a `saved-game-more` overflow menu (`saved-game-menu`, `saved-game-menu-item`, `saved-game-menu-item-danger`) for the secondary actions.
 
 ## Recipes
 
