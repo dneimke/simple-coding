@@ -118,6 +118,7 @@ import { renderTimeline } from './timeline.js';
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
 import { generateGameId } from '../services/gameStorageManager.js';
+import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
@@ -1113,7 +1114,11 @@ domReady(() => {
 
 // Load the game named by the ?game=<id> query parameter, set by the Saved Games list
 function loadGameFromQuery() {
+    checkAndApplyMockSeed();
     const gameId = new URLSearchParams(window.location.search).get('game');
+    if (gameId === SAMPLE_GAME_ID) {
+        ensureSampleGameExists();
+    }
     if (!gameId || !loadGame(gameId)) {
         showNoGameSelectedState();
     }

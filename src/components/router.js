@@ -1,5 +1,6 @@
 import { logger } from '../utils/formatUtils.js';
 import { stateService } from '../services/stateService.js';
+import { ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
 
 export class Router {
     constructor(views, tabs) {
@@ -56,6 +57,9 @@ export class Router {
             if (viewName) {
                 const savedGameId = viewName === 'Log' && param ? decodeURIComponent(param) : null;
                 stateService.setState('ui.logGameId', savedGameId);
+                if (savedGameId === SAMPLE_GAME_ID) {
+                    ensureSampleGameExists();
+                }
 
                 if (viewName === 'Log' && !savedGameId) {
                     // Check if there's an active game via state service instead of localStorage

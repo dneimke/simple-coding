@@ -42,3 +42,5 @@ docs/myva-lead-lag-times.md
 *.swo
 *.tmp
 *.temp
+# Visual snapshots
+.visual-proof/

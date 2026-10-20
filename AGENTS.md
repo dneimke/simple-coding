@@ -1,6 +1,39 @@
 # Field Hockey Event Tracker — Agent Context
 
-Static client-side web app (`src/index.html`, `src/timeline-video.html`, ES6 modules, Tailwind for layout/spacing, semantic CSS tokens in `src/styles.css`, Jest tests in `tests/`).
+Static client-side web app (`src/index.html`, `src/timeline-video.html`, ES6 modules, Tailwind for layout/spacing, semantic CSS tokens in `src/styles.css`, Jest tests in `tests/`, Playwright visual verification in `scripts/visual-snapshot.js`).
+
+---
+
+## Operating Philosophy: Eliminating "Glue Toil" via Asynchronous Dispatch
+
+The hidden tax of AI-assisted engineering is **"glue toil"**: the human spending 45 minutes acting as middleware—typing long problem descriptions, debating layout in chat, refreshing dev servers, clicking through 4 screens to reproduce state, and manually testing edge cases.
+
+Our goal is **Asynchronous Dispatch**:
+1. Spot friction on a phone or laptop.
+2. Provide a 2-second screenshot or brief note.
+3. Dispatch the agent and step away (to the garden or garage).
+4. Return to an open Pull Request with **green deterministic tests** and **automated visual snapshots** ready for a 5-second review and 1-tap merge.
+
+### Zero-Toil Measurement: Cycle Latency via Git Branches
+Do not track time manually. Measure **Cycle Latency** via Git branches:
+- Always branch from `main` using: `feature/<short-name>`.
+- The delta between first commit/dispatch and merged PR represents end-to-end cycle time. The objective is collapsing hours of hovering down to a fast, asynchronous handoff.
+
+---
+
+## The 4-Step Optimization Blueprint
+
+1. **Step 1: Input Optimization (The "Screenshot Drop")**
+   - Skip three-paragraph layout essays. A visual snippet, circled screenshot, or raw bullet list feeds directly into triage (`a → b → c`).
+2. **Step 2: Leverage Design Tokens (Zero UI Debate)**
+   - Strict design tokens in `src/styles.css` and `docs/design-language.md`. Semantic classes (`btn-blue`, `team-color-*`, `--touch-min`) are protected. Agents never invent styling abstractions.
+3. **Step 3: Test-First Handoff (Prevent Code Drift)**
+   - Logic, state, and DOM changes begin with a failing Jest test in `tests/`. The task is finished when the test suite is green.
+4. **Step 4: Verification Optimization (Seeded URLs & Automated Visual Demos)**
+   - **Direct Seeded URLs**: Query parameters (`?mock=active`, `?mock=sample`, `?seed=sample`) instantly initialize application state without clicking through setup modals or menus.
+   - **Automated Visual Snapshots**: `npm run test:visual` executes headless Chromium via Playwright, generating high-fidelity mobile (390px) and desktop (1280px) screenshots into `.visual-proof/`.
+
+---
 
 ## Operating Loop (`a → b → c → d`)
 
@@ -24,13 +57,16 @@ When the user provides feedback, a pain point, or a feature idea:
 
 ---
 
-## Core Journeys & Entry Points
+## Core Journeys, Deep Links & Seeded URLs
 
-1. **Live Capture (`index.html#event-capture`)**: Pick board (`#boardSelect`, locked once started) → `Start` (prompts for Team 1 & Team 2 codes/colours when `usesTeams(config)` is true) → log events (`1`–`4` changes sticky zone from Team 1's perspective, mirrored `5 - zone` for Team 2 on `"zoned": true` buttons; `T` toggles team on `"team": "selected"` rows) → `Finish` (`Complete` saves to `fieldHockeyGames_v1` and resets; `Discard` clears draft).
-2. **In-Game Recovery & Halftime Check (`index.html#log`)**: Opened from `Log` in the clock bar while a game is active (redirects to `#event-capture` if no active game). Defaults to `Recent` tab (delete any of last 10 events); `Timeline`, `XML` (`Copy XML`), and `Statistics` tabs.
-3. **Saved Games & XML Handoff (`index.html#saved-games` & `index.html#log/<id>`)**: Lists saved games. Primary action (`Review` or card click) opens `timeline-video.html?game=<id>`. Overflow menu (`⋮`) holds `View log` (read-only `#log/<id>`, hides `Recent` tab, never touches live game state), `Export XML` (downloads Sportscode `<file><ALL_INSTANCES><ROWS>`), `Rename`, and `Delete`. `Import XML` accepts Sportscode XML and legacy `<game><events>` XML.
-4. **Match Review (`timeline-video.html?game=<id>`)**: Loads game from `fieldHockeyGames_v1`, uploads local video (`MP4`/`WebM` client-side), filters by event type or `★ Favorites`, seeks video on tag click, adds post-match tags/notes (`#add-event-fab`), and runs full-width **Presentation Mode** (`< 1/N >` playlist + `#presentation-overlay`).
-5. **Board Configuration (`index.html#configure`)**: Power-user JSON editor (`rowDefs`, `zones`, `team`, `lead`/`lag`). Validated by `validateConfig` in `src/components/config.js`; stored in `fieldHockeyConfig_v1` (active) and `fieldHockeyNamedConfigs_v1` (named presets).
+| Journey | Direct View URL | Instant Mock / Seed URL | Behavior |
+| :--- | :--- | :--- | :--- |
+| **1. Live Capture** | `index.html#event-capture` | `index.html#event-capture?mock=active` | Boots with 4 logged events, timer at 07:05, FIRE vs TIGERS teams loaded. |
+| **2. In-Game Log** | `index.html#log` | `index.html#log?mock=active` | Shows live recent events, undo/delete tabs without needing to click Start. |
+| **3. Saved Games** | `index.html#saved-games` | `index.html#saved-games?mock=sample` | Seeds sample game into storage so cards and export/review actions are live. |
+| **4. Saved Game Log** | `index.html#log/<id>` | `index.html#log/sample-game` | Read-only match log for `sample-game` (auto-seeded if missing). |
+| **5. Match Review** | `timeline-video.html?game=<id>` | `timeline-video.html?game=sample-game` | Loads timeline with 8 tactical events, favorites, and video player UI. |
+| **6. Configuration** | `index.html#configure` | `index.html#configure` | Power-user JSON editor for button board schemas. |
 
 ---
 
@@ -41,5 +77,5 @@ When the user provides feedback, a pain point, or a feature idea:
 3. **Persona isolation**: Never degrade the *Drafted Helper* or *Bench Coach* experience to serve an *Expert Analyst* edge case—isolate advanced complexity behind named board configurations or progressive disclosure.
 4. **Protected contracts**:
    - Never rename board colour classes (`btn-blue`, `btn-red`, `btn-green`, `btn-yellow`, `btn-orange`, `btn-gray`) or `team-color-*`.
-   - Never break `localStorage` keys (`fieldHockeyGames_v1`, `fieldHockeyConfig_v1`, `fieldHockeyNamedConfigs_v1`) or Sportscode XML `<ALL_INSTANCES>` / `<ROWS>` structure.
+   - Never break `localStorage` keys (`fieldHockeyGames_v1`, `fieldHockeyConfig_v1`, `fieldHockeyNamedConfigs_v1`, `fieldHockeyCaptureDraft_v1`) or Sportscode XML `<ALL_INSTANCES>` / `<ROWS>` structure.
    - Follow `docs/design-language.md` and `.cursor/rules/design-language.mdc` for all UI changes (tokens in `src/styles.css`, Tailwind for layout/spacing only).
