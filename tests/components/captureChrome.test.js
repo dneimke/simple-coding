@@ -11,6 +11,7 @@ const markup = () => {
         </div>
         <select id="boardSelect"></select>
         <button id="newGameButton" type="button">Start</button>
+        <a id="captureLogButton" class="btn btn-secondary hidden" href="#log">Log</a>
         <button id="pauseResumeButton" type="button" class="hidden">Pause</button>
         <div id="finishGameMenu" class="hidden">
             <button id="finishGameButton" type="button" aria-expanded="false" aria-controls="finishGameList">Finish</button>
@@ -33,6 +34,7 @@ describe('syncCaptureChrome', () => {
         expect(hidden('captureContext')).toBe(false);
         expect(hidden('newGameButton')).toBe(false);
         expect(hidden('pauseResumeButton')).toBe(true);
+        expect(hidden('captureLogButton')).toBe(true);
         expect(hidden('finishGameMenu')).toBe(true);
         expect(hidden('lastEventBar')).toBe(true);
         expect(document.getElementById('boardSelect').disabled).toBe(false);
@@ -45,6 +47,7 @@ describe('syncCaptureChrome', () => {
         expect(hidden('newGameButton')).toBe(true);
         expect(hidden('pauseResumeButton')).toBe(false);
         expect(document.getElementById('pauseResumeButton').textContent).toBe('Pause');
+        expect(hidden('captureLogButton')).toBe(false);
         expect(hidden('finishGameMenu')).toBe(false);
         expect(hidden('lastEventBar')).toBe(false);
         expect(document.getElementById('lastEventLabel').textContent).toBe('FIRE GOAL · 00:57');
@@ -54,8 +57,9 @@ describe('syncCaptureChrome', () => {
     test('a game with no codes yet keeps the last-event slot out of the bar', () => {
         syncCaptureChrome({ hasGame: true, isRunning: false, lastEventText: '' });
 
-        expect(hidden('captureContext')).toBe(true);
+        expect(hidden('captureContext')).toBe(false);
         expect(hidden('lastEventBar')).toBe(true);
+        expect(hidden('captureLogButton')).toBe(false);
         expect(document.getElementById('pauseResumeButton').textContent).toBe('Resume');
     });
 
@@ -69,6 +73,7 @@ describe('syncCaptureChrome', () => {
 
         expect(hidden('finishGameList')).toBe(true);
         expect(document.getElementById('finishGameButton').getAttribute('aria-expanded')).toBe('false');
+        expect(hidden('captureLogButton')).toBe(true);
         expect(hidden('captureBoard')).toBe(false);
     });
 });

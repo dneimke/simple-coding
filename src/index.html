@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b1220">
     <title>Field Hockey Event Capture</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css?v=20261020d">
+    <link rel="stylesheet" href="styles.css?v=20261020e">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -50,10 +50,6 @@
                             <i class="fas fa-stopwatch text-sm" aria-hidden="true"></i>
                             <span>Event Capture</span>
                         </a>
-                        <a href="#log" id="navLog" class="nav-link hidden" data-requires-game>
-                            <i class="fas fa-list-ul text-sm" aria-hidden="true"></i>
-                            <span>Log</span>
-                        </a>
                         <a href="#saved-games" id="navSavedGames" class="nav-link">
                             <i class="fas fa-folder-open text-sm" aria-hidden="true"></i>
                             <span>Saved Games</span>
@@ -85,6 +81,7 @@
                                 <label for="boardSelect" class="field-label mb-0">Board</label>
                                 <select id="boardSelect" class="field field-inline"></select>
                             </div>
+                            <a id="captureLogButton" href="#log" class="btn btn-secondary hidden shrink-0">Log</a>
                             <div id="lastEventBar" class="last-event-bar hidden">
                                 <span class="truncate">Last: <span id="lastEventLabel" class="font-semibold"></span></span>
                                 <button id="undoEventButton" type="button" title="Remove the last event (Ctrl+Z)"
@@ -190,6 +187,7 @@
                 <div id="log-view" class="hidden">
                     <header class="page-header">
                         <h1 class="page-title">Event Log</h1>
+                        <a id="backToCaptureButton" href="#event-capture" class="btn btn-secondary">Back to capture</a>
                     </header>
                     <div id="savedGameLogBanner" class="banner banner-info hidden mb-4">
                         <p class="font-medium">
@@ -257,7 +255,7 @@
             </div>
         </main>
     </div>
-    <script type="module" src="main.js?v=20261020d"></script>
+    <script type="module" src="main.js?v=20261020g"></script>
 
     <!-- Team setup for boards with team rows -->
     <div id="teamSetupModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="teamSetupTitle">

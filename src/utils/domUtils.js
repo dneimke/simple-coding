@@ -36,8 +36,8 @@ export function updateNavbarVisibility(isVisible) {
                 button.style.display = 'inline-block';
             }
         } else {
-            // Hide completely
             button.classList.add('hidden');
+            button.style.display = '';
         }
     });
 }

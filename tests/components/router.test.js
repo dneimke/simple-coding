@@ -116,6 +116,18 @@ describe('Router', () => {
         router.showView('Config');
         expect(window.location.hash).toBe('#configure');
     });
+
+    test('a view with no nav button still switches', () => {
+        const logView = { classList: { add: jest.fn(), remove: jest.fn() } };
+        const logRouter = new Router({
+            ...mockViews,
+            Log: { view: logView, button: null }
+        }, mockTabs);
+
+        expect(() => logRouter._handleViewChange('Log')).not.toThrow();
+        expect(logView.classList.remove).toHaveBeenCalledWith('hidden');
+        expect(mockViews.EventCapture.button.removeAttribute).toHaveBeenCalledWith('aria-current');
+    });
     test('_handleTabChange should update tab visibility', () => {
         const handleTabChange = router._handleTabChange;
         handleTabChange('timelineView');
