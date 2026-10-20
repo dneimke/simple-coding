@@ -27,7 +27,7 @@ Deep linking allows users to navigate directly to specific views using URL hash 
 Available deep links include:
 
 - `index.html#event-capture` - Event Capture view
-- `index.html#log` - Log view for the game in progress (requires active game)
+- `index.html#log` - Log view for the game in progress (opened from **Log** on the clock bar while a game is running; not a main-menu item; requires an active game)
 - `index.html#log/<id>` - Read-only Log view for the saved game with the given id (no active game needed)
 - `index.html#configure` - Configure view
 - `index.html#saved-games` - Saved Games view (the entry point for Match Review)
@@ -118,7 +118,7 @@ if (viewName === 'Log' && !savedGameId) {
 }
 ```
 
-When the Log view is shown, `main.js` renders either the saved game's `events` (with a "Saved game" banner and a Back to Saved Games button) or the live game's `loggedEvents`. Viewing a saved game never changes the live game state.
+When the Log view is shown, `main.js` renders either the saved game's `events` (with a "Saved game" banner and a Back to Saved Games button) or the live game's `loggedEvents` (with a Back to capture link). Viewing a saved game never changes the live game state. The Log view has no main-menu button. A live log keeps Event Capture current; a saved-game log keeps Saved Games current.
 
 ### 5. State Update
 

@@ -132,6 +132,7 @@ export class Router {
     _handleViewChange = (viewName) => {
         Object.values(this.views).forEach(({ view, button }) => {
             view.classList.add('hidden');
+            if (!button) return;
 
             // Remove active classes for both old and new styles
             button.classList.remove('text-white', 'hover:text-white');
@@ -151,6 +152,7 @@ export class Router {
         }
 
         selectedView.view.classList.remove('hidden');
+        if (!selectedView.button) return;
 
         // Apply active styles for both old and new navigation styles
         selectedView.button.classList.add('text-white', 'hover:text-white', 'nav-link-active');

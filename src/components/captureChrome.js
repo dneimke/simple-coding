@@ -1,7 +1,7 @@
 /**
  * Shows the capture bar for the current game.
  * Before a game: board selector and Start.
- * During a game: Pause, Finish, and the last code when there is one. The board is hidden.
+ * During a game: Log beside the last code, plus Pause and Finish. The board is hidden.
  * @param {{ hasGame: boolean, isRunning: boolean, lastEventText: string }} state
  */
 export function syncCaptureChrome({ hasGame, isRunning, lastEventText }) {
@@ -11,19 +11,21 @@ export function syncCaptureChrome({ hasGame, isRunning, lastEventText }) {
     const lastLabel = document.getElementById('lastEventLabel');
     const boardSelect = document.getElementById('boardSelect');
     const start = document.getElementById('newGameButton');
+    const log = document.getElementById('captureLogButton');
     const pause = document.getElementById('pauseResumeButton');
     const finish = document.getElementById('finishGameMenu');
 
     const showLast = Boolean(hasGame && lastEventText);
     board.classList.toggle('hidden', hasGame);
     last.classList.toggle('hidden', !showLast);
-    context.classList.toggle('hidden', hasGame && !showLast);
+    context.classList.remove('hidden');
     lastLabel.textContent = showLast ? lastEventText : '';
 
     boardSelect.disabled = hasGame;
     boardSelect.title = hasGame ? 'Complete or discard the game to change board' : 'Choose the button board';
 
     start.classList.toggle('hidden', hasGame);
+    log.classList.toggle('hidden', !hasGame);
     pause.classList.toggle('hidden', !hasGame);
     pause.textContent = hasGame && !isRunning ? 'Resume' : 'Pause';
     finish.classList.toggle('hidden', !hasGame);

@@ -58,6 +58,7 @@ const copyXmlButton = document.getElementById('copyXmlButton');
 const savedGameLogBanner = document.getElementById('savedGameLogBanner');
 const savedGameLogTitle = document.getElementById('savedGameLogTitle');
 const backToSavedGamesButton = document.getElementById('backToSavedGamesButton');
+const backToCaptureButton = document.getElementById('backToCaptureButton');
 
 // Mobile Navigation Elements
 const mobileMenuButton = document.getElementById('mobileMenuButton');
@@ -67,7 +68,6 @@ const navEventCaptureMobile = document.getElementById('navEventCaptureMobile');
 // Navigation Elements
 const navEventCapture = document.getElementById('navEventCapture');
 const navConfig = document.getElementById('navConfig');
-const navLog = document.getElementById('navLog');
 const navStats = document.getElementById('navStats');
 const navSavedGames = document.getElementById('navSavedGames');
 
@@ -178,6 +178,7 @@ function renderLogView() {
         events = game.events || [];
         savedGameLogTitle.textContent = game.teams || 'Game';
         savedGameLogBanner.classList.remove('hidden');
+        backToCaptureButton.classList.add('hidden');
         // Saved logs are read-only, so they have no Recent tab with Delete buttons
         tabButtonRecent.classList.add('hidden');
         recentViewPanel.innerHTML = '';
@@ -187,6 +188,7 @@ function renderLogView() {
     } else {
         events = stateService.getState('game.loggedEvents') || [];
         savedGameLogBanner.classList.add('hidden');
+        backToCaptureButton.classList.remove('hidden');
         tabButtonRecent.classList.remove('hidden');
         renderRecentEvents(recentViewPanel, events);
         router.switchTab('recentView');
@@ -813,7 +815,7 @@ const router = new Router(
     {
         EventCapture: { view: trackerView, button: navEventCapture },
         Config: { view: configView, button: navConfig },
-        Log: { view: logView, button: navLog },
+        Log: { view: logView, button: null },
         SavedGames: { view: savedGamesView, button: navSavedGames }
     },
     {
@@ -833,9 +835,12 @@ const eventButtons = new EventButtons(codingButtonsContainer);
 const gameState = new GameState(timerDisplay, eventLog, eventButtons);
 
 stateService.subscribe('ui.currentView', (viewName) => {
-    if (viewName === 'Log') {
-        renderLogView();
-    }
+    if (viewName !== 'Log') return;
+    renderLogView();
+    if (stateService.getState('ui.currentView') !== 'Log') return;
+    const button = stateService.getState('ui.logGameId') ? navSavedGames : navEventCapture;
+    button.classList.add('nav-link-active');
+    button.setAttribute('aria-current', 'page');
 });
 
 // Child-path changes (game.loggedEvents) and whole-game replacements (newGame, restore, complete) both notify 'game'

@@ -18,7 +18,7 @@ The current user experience for creating and retrieving games follows this lifec
 3. **Recording Events**:
    - During the session, the user can log events by clicking the event buttons. These events are recorded with timestamps relative to the session's elapsed time.
    - The clock bar shows the most recent event beside the timer. **Undo** (or Ctrl+Z / Cmd+Z) removes it straight away, while running or paused, and a message confirms what was removed.
-   - The **Recent** tab on the Log view (the default for the live game) lists the last 10 events, newest first, each with a **Delete** button. Saved games' logs don't show this tab, so they stay read-only.
+   - **Log** on the clock bar opens the live log while a game is running. It is not in the main menu, and it leaves with the game when you complete or discard. The **Recent** tab (the default for the live game) lists the last 10 events, newest first, each with a **Delete** button. **Back to capture** returns to the board. Saved games' logs don't show this tab, so they stay read-only.
    - The Event Capture page has extra space below the buttons so you can scroll the menu off screen while capturing.
 
 4. **Completing a Game**:
@@ -35,7 +35,7 @@ The current user experience for creating and retrieving games follows this lifec
    - Users can bookmark specific views or share links that go directly to a particular view.
    - Available deep links:
      - `index.html#event-capture` - Navigate to the Event Capture view
-     - `index.html#log` - Navigate to the Log view (requires an active game)
+     - `index.html#log` - Navigate to the Log view for the game in progress (opened from **Log** on the clock bar; requires an active game)
      - `index.html#log/<id>` - Navigate to the read-only Log view for a saved game
      - `index.html#configure` - Navigate to the Configure view
      - `index.html#saved-games` - Navigate to the Saved Games view
