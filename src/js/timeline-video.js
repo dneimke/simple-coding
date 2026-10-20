@@ -258,7 +258,6 @@ function togglePresentationMode() {
     const presentationModeBtn = document.getElementById('presentation-mode');
     const playlistControls = document.getElementById('playlist-controls');
     const timelineContainer = document.getElementById('timeline-container');
-    const videoContainer = document.getElementById('video-container');
 
     if (presentationModeActive) {
         // First, filter out only favorite events
@@ -277,13 +276,12 @@ function togglePresentationMode() {
         }
 
         // Enter presentation mode
-        presentationModeBtn.classList.replace('bg-purple-600', 'bg-purple-800');
+        presentationModeBtn.classList.add('is-active');
+        presentationModeBtn.setAttribute('aria-pressed', 'true');
         playlistControls.classList.replace('hidden', 'flex');
 
-        // Make video larger
-        timelineContainer.classList.add('md:hidden');
-        videoContainer.classList.replace('md:w-2/3', 'md:w-full');
-        videoContainer.classList.replace('lg:w-3/4', 'lg:w-full');
+        // Give the video the full width
+        timelineContainer.classList.add('hidden');
 
         // Reset playlist position and navigate to first favorite
         currentPlaylistIndex = 0;
@@ -297,13 +295,12 @@ function togglePresentationMode() {
         }
     } else {
         // Exit presentation mode
-        presentationModeBtn.classList.replace('bg-purple-800', 'bg-purple-600');
+        presentationModeBtn.classList.remove('is-active');
+        presentationModeBtn.setAttribute('aria-pressed', 'false');
         playlistControls.classList.replace('flex', 'hidden');
 
         // Restore original layout
-        timelineContainer.classList.remove('md:hidden');
-        videoContainer.classList.replace('md:w-full', 'md:w-2/3');
-        videoContainer.classList.replace('lg:w-full', 'lg:w-3/4');
+        timelineContainer.classList.remove('hidden');
 
         // Hide overlay when exiting presentation mode
         updatePresentationOverlay(null);
@@ -589,10 +586,10 @@ function updateFavoritesToggleUI() {
     const [activeBtn, inactiveBtn] = favoritesOnly
         ? [showFavoritesBtn, showAllBtn]
         : [showAllBtn, showFavoritesBtn];
-    activeBtn.classList.add('bg-blue-500', 'text-white');
-    activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
-    inactiveBtn.classList.add('bg-gray-200', 'text-gray-700');
-    inactiveBtn.classList.remove('bg-blue-500', 'text-white');
+    activeBtn.classList.add('is-active');
+    activeBtn.setAttribute('aria-pressed', 'true');
+    inactiveBtn.classList.remove('is-active');
+    inactiveBtn.setAttribute('aria-pressed', 'false');
 }
 
 // Delete event by id, update storage, re-render, and notify

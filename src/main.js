@@ -140,11 +140,11 @@ function renderSavedGames() {
                 savedGamesList.appendChild(gameCard);
             });
         } else {
-            savedGamesList.innerHTML = '<p class="text-gray-500 text-center">No saved games available.</p>';
+            savedGamesList.innerHTML = '<div class="surface empty-state">No saved games yet. Complete a game on Event Capture or import an XML file.</div>';
         }
     } catch (error) {
         logger.error('Error loading games from localStorage:', error);
-        savedGamesList.innerHTML = '<p class="text-red-500 text-center">Failed to load saved games.</p>';
+        savedGamesList.innerHTML = '<div class="banner banner-error">Failed to load saved games.</div>';
     }
 }
 

@@ -3,13 +3,14 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1220">
     <title>Field Hockey Event Capture</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css?v=20261017c">
+    <link rel="stylesheet" href="styles.css?v=20261020a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
@@ -21,271 +22,276 @@
     <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/site-icon-large.png">
 </head>
 
-<body class="p-4 sm:p-8">
-    <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-xl">
-        <!-- Responsive Navigation -->
-        <nav class="border-b border-slate-700 bg-slate-950 text-white">
-            <!-- Mobile menu button -->
-            <div class="flex justify-between items-center p-4 md:hidden">
-                <a href="#event-capture" id="navEventCaptureMobile"
-                    class="text-white hover:text-white font-medium flex items-center gap-1">
-                    <i class="fas fa-hockey-puck text-sm" aria-hidden="true"></i>
-                    <span>Event Capture</span>
-                </a>
-                <button id="mobileMenuButton"
-                    class="text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded-md p-1.5 hover:bg-slate-800 transition-colors"
-                    aria-label="Toggle menu" aria-controls="mainMenu">
-                    <i class="fas fa-bars text-xl" aria-hidden="true"></i>
-                </button>
-            </div>
-
-            <!-- Desktop and mobile menu (hidden by default on mobile) -->
-            <div id="mainMenu"
-                class="hidden md:flex md:justify-between md:items-center md:p-4 flex-col md:flex-row transform transition-all duration-300 ease-in-out opacity-100 md:opacity-100">
-                <div
-                    class="flex flex-col md:flex-row md:space-x-6 space-y-3 md:space-y-0 w-full md:w-auto py-3 md:py-0 px-4 md:px-0">
-                    <a href="#event-capture" id="navEventCapture"
-                        class="nav-link nav-link-active flex items-center gap-2 px-2" aria-current="page">
-                        <i class="fas fa-hockey-puck text-sm" aria-hidden="true"></i>
-                        <span>Event Capture</span>
+<body>
+    <div class="app-shell">
+        <nav class="app-nav" aria-label="Main">
+            <div class="app-nav-inner">
+                <!-- Mobile bar -->
+                <div class="app-nav-bar md:hidden">
+                    <a href="#event-capture" id="navEventCaptureMobile" class="app-brand">
+                        <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
+                        <span>Hockey Tracker</span>
                     </a>
-                    <a href="#log" id="navLog" class="nav-link hidden flex items-center gap-2 px-2" data-requires-game>
-                        <i class="fas fa-list-ul text-sm" aria-hidden="true"></i>
-                        <span>Log</span>
-                    </a>
-                    <a href="#saved-games" id="navSavedGames" class="nav-link flex items-center gap-2 px-2">
-                        <i class="fas fa-save text-sm" aria-hidden="true"></i>
-                        <span>Saved Games</span>
-                    </a>
-                    <a href="#configure" id="navConfig" class="nav-link flex items-center gap-2 px-2">
-                        <i class="fas fa-cog text-sm" aria-hidden="true"></i>
-                        <span>Configure</span>
-                    </a>
-                </div>
-                <div class="flex md:justify-end px-4 md:px-0 pb-4 md:pb-0">
-                    <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
-                        title="Visit the GitHub repository"
-                        class="text-gray-200 hover:text-white transition-colors duration-200">
-                        <i class="fab fa-github text-xl"></i>
-                    </a>
-                </div>
-            </div>
-        </nav>
-        <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-xl"> <!-- Event Capture View -->
-            <div id="tracker-view">
-                <!-- Title removed to optimize space as requested -->
-                <div class="flex justify-center items-center mb-4 sm:mb-5">
-                    <div class="flex flex-row w-full max-w-md justify-between items-center">
-                        <div id="timer"
-                            class="text-3xl sm:text-4xl font-mono font-bold bg-gray-800 text-white px-4 sm:px-6 py-1 sm:py-2 rounded-lg shadow">
-                            00:00</div>
-                        <div class="flex space-x-2">
-                            <button id="newGameButton"
-                                class="event-button btn-green px-4 py-2 text-base sm:text-lg">Start</button>
-                            <button id="pauseResumeButton"
-                                class="event-button btn-yellow px-4 py-2 text-base sm:text-lg hidden">Pause</button>
-                            <button id="completeGameButton"
-                                class="event-button btn-blue px-4 py-2 text-base sm:text-lg hidden">Complete</button>
-                            <button id="discardGameButton"
-                                class="event-button btn-red px-4 py-2 text-base sm:text-lg hidden">Discard</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2 mb-3 px-1">
-                    <label for="boardSelect" class="text-sm font-medium text-gray-700">Board</label>
-                    <select id="boardSelect"
-                        class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"></select>
-                    <span id="boardLockedHint" class="text-xs text-gray-500 hidden">Locked until the game is completed
-                        or discarded</span>
-                </div>
-
-                <div id="lastEventBar"
-                    class="hidden flex items-center justify-between gap-2 mb-3 mx-1 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-sm">
-                    <span class="truncate text-gray-700">Last: <span id="lastEventLabel"
-                            class="font-semibold text-gray-900"></span></span>
-                    <button id="undoEventButton" type="button" title="Remove the last event (Ctrl+Z)"
-                        class="shrink-0 px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-800 font-semibold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <i class="fas fa-undo mr-1" aria-hidden="true"></i>Undo
+                    <button id="mobileMenuButton" type="button" class="app-nav-icon-button" aria-label="Toggle menu"
+                        aria-controls="mainMenu">
+                        <i class="fas fa-bars text-xl" aria-hidden="true"></i>
                     </button>
                 </div>
 
-                <div id="coding-buttons-container" class="max-w-full mx-auto px-1">
+                <!-- Desktop bar and mobile menu (hidden by default on mobile) -->
+                <div id="mainMenu" class="hidden md:flex md:h-14 md:items-center md:justify-between flex-col md:flex-row">
+                    <div class="app-nav-links flex flex-col md:flex-row md:items-center gap-1">
+                        <span class="app-brand hidden md:inline-flex md:mr-4">
+                            <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
+                            <span>Hockey Tracker</span>
+                        </span>
+                        <a href="#event-capture" id="navEventCapture" class="nav-link nav-link-active"
+                            aria-current="page">
+                            <i class="fas fa-stopwatch text-sm" aria-hidden="true"></i>
+                            <span>Event Capture</span>
+                        </a>
+                        <a href="#log" id="navLog" class="nav-link hidden" data-requires-game>
+                            <i class="fas fa-list-ul text-sm" aria-hidden="true"></i>
+                            <span>Log</span>
+                        </a>
+                        <a href="#saved-games" id="navSavedGames" class="nav-link">
+                            <i class="fas fa-folder-open text-sm" aria-hidden="true"></i>
+                            <span>Saved Games</span>
+                        </a>
+                        <a href="#configure" id="navConfig" class="nav-link">
+                            <i class="fas fa-sliders text-sm" aria-hidden="true"></i>
+                            <span>Configure</span>
+                        </a>
+                    </div>
+                    <div class="flex mt-1 md:mt-0">
+                        <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
+                            title="Visit the GitHub repository" aria-label="GitHub repository"
+                            class="app-nav-icon-button">
+                            <i class="fab fa-github text-xl" aria-hidden="true"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
+        </nav>
 
-            <!-- Configuration View -->
-            <div id="config-view" class="hidden">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Configure Coding Window</h1>
-                <div class="mb-6">
-                    <label for="savedConfigSelect" class="block text-gray-700 font-medium mb-2">Saved
-                        configuration</label>
-                    <select id="savedConfigSelect"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
-                </div>
-                <div class="config-editor mb-4">
-                    <div class="config-editor-header">
-                        <label for="configJsonInput" class="config-editor-title">
-                            <i class="fas fa-code" aria-hidden="true"></i> Configuration JSON
-                        </label>
-                        <div class="config-editor-actions">
-                            <span id="configDirtyIndicator" class="config-editor-dirty hidden">Unsaved changes</span>
-                            <button id="copyConfigButton" type="button" class="config-editor-action"
-                                title="Copy the configuration JSON to the clipboard">
-                                <i class="fas fa-copy" aria-hidden="true"></i> Copy
-                            </button>
-                            <button id="replaceConfigButton" type="button" class="config-editor-action"
-                                title="Replace the configuration JSON with the clipboard contents">
-                                <i class="fas fa-paste" aria-hidden="true"></i> Replace from clipboard
-                            </button>
+        <main class="app-main">
+            <div class="page">
+                <!-- Event Capture View -->
+                <div id="tracker-view">
+                    <section class="surface capture-toolbar" aria-label="Game clock">
+                        <div id="timer" class="capture-timer" role="timer" aria-live="off">00:00</div>
+                        <div class="capture-actions">
+                            <button id="newGameButton" class="event-button btn-green">Start</button>
+                            <button id="pauseResumeButton" class="event-button btn-yellow hidden">Pause</button>
+                            <button id="completeGameButton" class="event-button btn-blue hidden">Complete</button>
+                            <button id="discardGameButton" class="event-button btn-red hidden">Discard</button>
                         </div>
+                    </section>
+
+                    <div class="capture-meta">
+                        <label for="boardSelect" class="field-label mb-0">Board</label>
+                        <select id="boardSelect" class="field field-inline"></select>
+                        <span id="boardLockedHint" class="help-text hidden">Locked until the game is completed or
+                            discarded</span>
                     </div>
-                    <details class="config-editor-help">
-                        <summary>JSON format help</summary>
-                        <p>
-                            Each entry in <code>rowDefs</code> is one row of buttons on the Event Capture page, with an
-                            optional <code>gridCols</code> (e.g. <code>"grid-cols-4"</code>) and an array of
-                            <code>buttons</code>. Each button needs an <code>event</code> (unique identifier),
-                            <code>text</code> (display label), and <code>color</code> (<code>btn-blue</code>,
-                            <code>btn-red</code>, <code>btn-green</code>, <code>btn-yellow</code>,
-                            <code>btn-orange</code>, <code>btn-gray</code>). Buttons can also set
-                            <code>lead</code> and <code>lag</code>: the seconds of video to include before and after
-                            the press in the exported clip (default 5).
-                        </p>
-                        <p>
-                            Team boards (like <code>hockey-one-zoned</code>) add a <code>zones</code> block and rows
-                            with <code>"team": 1</code> or <code>2</code>. A team row can hold several
-                            <code>grids</code>; its buttons take the team's colour and code (e.g. <code>FIRE BS</code>),
-                            and buttons with <code>"zoned": true</code> also add the active zone (<code>FIRE BS2</code>).
-                            A row with <code>"team": "selected"</code> shows a team toggle and logs for the selected team.
-                        </p>
-                    </details>
-                    <textarea id="configJsonInput" placeholder="Enter your configuration JSON here" spellcheck="false"
-                        autocomplete="off" autocapitalize="off"></textarea>
+
+                    <div id="lastEventBar" class="surface last-event-bar hidden">
+                        <span class="truncate text-muted">Last: <span id="lastEventLabel"
+                                class="font-semibold text-slate-900"></span></span>
+                        <button id="undoEventButton" type="button" title="Remove the last event (Ctrl+Z)"
+                            class="btn btn-secondary shrink-0">
+                            <i class="fas fa-undo" aria-hidden="true"></i>Undo
+                        </button>
+                    </div>
+
+                    <div id="coding-buttons-container"></div>
                 </div>
-                <div id="configMessage" class="config-message hidden"></div>
-                <div class="flex flex-col sm:flex-row sm:items-end gap-3">
-                    <button id="saveConfigButton" class="event-button btn-green px-6 py-2">Save</button>
-                    <button id="saveAsConfigButton" class="event-button btn-blue px-6 py-2">Save as</button>
-                    <div id="saveAsConfigForm" class="hidden flex-1">
-                        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
-                            <div class="flex-1">
-                                <label for="configNameInput" class="block text-gray-700 font-medium mb-2">New
-                                    name</label>
-                                <input type="text" id="configNameInput" placeholder="e.g. my-board"
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+                <!-- Configuration View -->
+                <div id="config-view" class="hidden">
+                    <header class="page-header">
+                        <div>
+                            <h1 class="page-title">Configure</h1>
+                            <p class="page-subtitle">Edit the button boards used on Event Capture</p>
+                        </div>
+                    </header>
+                    <div class="mb-5 max-w-md">
+                        <label for="savedConfigSelect" class="field-label">Saved configuration</label>
+                        <select id="savedConfigSelect" class="field"></select>
+                    </div>
+                    <div class="config-editor mb-4">
+                        <div class="config-editor-header">
+                            <label for="configJsonInput" class="config-editor-title">
+                                <i class="fas fa-code" aria-hidden="true"></i> Configuration JSON
+                            </label>
+                            <div class="config-editor-actions">
+                                <span id="configDirtyIndicator" class="config-editor-dirty hidden">Unsaved
+                                    changes</span>
+                                <button id="copyConfigButton" type="button" class="config-editor-action"
+                                    title="Copy the configuration JSON to the clipboard">
+                                    <i class="fas fa-copy" aria-hidden="true"></i> Copy
+                                </button>
+                                <button id="replaceConfigButton" type="button" class="config-editor-action"
+                                    title="Replace the configuration JSON with the clipboard contents">
+                                    <i class="fas fa-paste" aria-hidden="true"></i> Replace from clipboard
+                                </button>
                             </div>
-                            <button id="confirmSaveAsConfigButton" class="event-button btn-green px-6 py-2">Save</button>
-                            <button id="cancelSaveAsConfigButton" class="event-button btn-gray px-6 py-2">Cancel</button>
+                        </div>
+                        <details class="config-editor-help">
+                            <summary>JSON format help</summary>
+                            <p>
+                                Each entry in <code>rowDefs</code> is one row of buttons on the Event Capture page, with
+                                an optional <code>gridCols</code> (e.g. <code>"grid-cols-4"</code>) and an array of
+                                <code>buttons</code>. Each button needs an <code>event</code> (unique identifier),
+                                <code>text</code> (display label), and <code>color</code> (<code>btn-blue</code>,
+                                <code>btn-red</code>, <code>btn-green</code>, <code>btn-yellow</code>,
+                                <code>btn-orange</code>, <code>btn-gray</code>). Buttons can also set
+                                <code>lead</code> and <code>lag</code>: the seconds of video to include before and
+                                after the press in the exported clip (default 5).
+                            </p>
+                            <p>
+                                Team boards (like <code>hockey-one-zoned</code>) add a <code>zones</code> block and rows
+                                with <code>"team": 1</code> or <code>2</code>. A team row can hold several
+                                <code>grids</code>; its buttons take the team's colour and code (e.g.
+                                <code>FIRE BS</code>), and buttons with <code>"zoned": true</code> also add the active
+                                zone (<code>FIRE BS2</code>). A row with <code>"team": "selected"</code> shows a team
+                                toggle and logs for the selected team.
+                            </p>
+                        </details>
+                        <textarea id="configJsonInput" placeholder="Enter your configuration JSON here"
+                            spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+                    </div>
+                    <div id="configMessage" class="config-message hidden"></div>
+                    <div class="flex flex-col sm:flex-row sm:items-end gap-3 mt-4">
+                        <button id="saveConfigButton" type="button" class="btn btn-success">Save</button>
+                        <button id="saveAsConfigButton" type="button" class="btn btn-secondary">Save as</button>
+                        <div id="saveAsConfigForm" class="hidden flex-1">
+                            <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+                                <div class="flex-1">
+                                    <label for="configNameInput" class="field-label">New name</label>
+                                    <input type="text" id="configNameInput" placeholder="e.g. my-board" class="field">
+                                </div>
+                                <button id="confirmSaveAsConfigButton" type="button"
+                                    class="btn btn-success">Save</button>
+                                <button id="cancelSaveAsConfigButton" type="button"
+                                    class="btn btn-secondary">Cancel</button>
+                            </div>
                         </div>
                     </div>
+                    <p class="mt-4 help-text">Configurations are saved in your browser's local storage. Changing the
+                        selection loads it into the editor. Save updates the selected configuration and applies it on
+                        the Event Capture page; Save as stores the editor under a new name.</p>
                 </div>
-                <p class="mt-4 text-sm text-gray-500">Configurations are saved in your browser's local storage. Changing
-                    the selection loads it into the editor. Save updates the selected configuration and applies it on
-                    the Event Capture page; Save as stores the editor under a new name.</p>
-            </div>
 
-            <!-- Log View -->
-            <div id="log-view" class="hidden">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Event Log</h1>
-                <div id="savedGameLogBanner"
-                    class="hidden mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-md flex items-center justify-between gap-3">
-                    <p class="text-blue-900 font-medium">
-                        <i class="fas fa-save mr-2" aria-hidden="true"></i>Saved game: <span
-                            id="savedGameLogTitle"></span>
-                    </p>
-                    <button id="backToSavedGamesButton" type="button"
-                        class="text-sm text-blue-700 underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">Back
-                        to Saved Games</button>
-                </div>
-                <div class="group-container">
-                    <div class="border-b border-gray-200">
-                        <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                <!-- Log View -->
+                <div id="log-view" class="hidden">
+                    <header class="page-header">
+                        <h1 class="page-title">Event Log</h1>
+                    </header>
+                    <div id="savedGameLogBanner" class="banner banner-info hidden mb-4">
+                        <p class="font-medium">
+                            <i class="fas fa-folder-open mr-2" aria-hidden="true"></i>Saved game: <span
+                                id="savedGameLogTitle"></span>
+                        </p>
+                        <button id="backToSavedGamesButton" type="button" class="link-button">Back to Saved
+                            Games</button>
+                    </div>
+                    <div class="surface overflow-hidden">
+                        <nav class="tabs px-2" aria-label="Tabs">
                             <button id="tabButtonRecent" class="tab-button" data-tab="recentView">Recent</button>
                             <button id="tabButtonTimeline" class="tab-button tab-button-active"
-                                data-tab="timelineView">Timeline View</button>
-                            <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML View</button>
+                                data-tab="timelineView">Timeline</button>
+                            <button id="tabButtonXml" class="tab-button" data-tab="xmlView">XML</button>
                             <button id="tabButtonStatistics" class="tab-button"
                                 data-tab="statisticsView">Statistics</button>
                         </nav>
-                    </div>
-                    <div>
-                        <div id="recentView" class="tab-content hidden"></div>
-                        <div id="timelineView" class="tab-content">
-                            <div class="timeline-output-container">
-                                <div class="timeline-output">
-                                    <p class="text-gray-500 text-center">No events recorded yet.</p>
+                        <div>
+                            <div id="recentView" class="tab-content hidden"></div>
+                            <div id="timelineView" class="tab-content">
+                                <div class="timeline-output-container">
+                                    <div class="timeline-output">
+                                        <p class="empty-state">No events recorded yet.</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div id="xmlView" class="tab-content hidden">
-                            <div class="xml-output-container">
-                                <div class="xml-output">
-                                    <p class="text-gray-500 text-center">No events recorded yet.</p>
+                            <div id="xmlView" class="tab-content hidden">
+                                <div class="xml-output-container">
+                                    <div class="xml-output">
+                                        <p class="empty-state">No events recorded yet.</p>
+                                    </div>
                                 </div>
+                                <button id="copyXmlButton" type="button" class="btn btn-primary w-full">
+                                    <i class="fas fa-copy" aria-hidden="true"></i>Copy XML
+                                </button>
                             </div>
-                            <button id="copyXmlButton" class="event-button btn-blue w-full py-2">Copy XML</button>
-                        </div>
-                        <div id="statisticsView" class="tab-content hidden">
-                            <div id="statsContainer" class="overflow-x-auto">
-                                <!-- Statistics table will be injected here -->
+                            <div id="statisticsView" class="tab-content hidden">
+                                <div id="statsContainer" class="overflow-x-auto">
+                                    <!-- Statistics table will be injected here -->
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Saved Games View -->
+                <div id="saved-games-view" class="hidden">
+                    <header class="page-header">
+                        <div>
+                            <h1 class="page-title">Saved Games</h1>
+                            <p class="page-subtitle">Open a game to review it against video</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="importXmlButton" type="button" class="btn btn-primary">
+                                <i class="fas fa-file-import" aria-hidden="true"></i>Import XML
+                            </button>
+                        </div>
+                    </header>
+                    <div id="savedGamesList" class="saved-games-list"></div>
+                    <label for="xmlFileInput" class="sr-only">Upload XML File</label>
+                    <input id="xmlFileInput" type="file" accept=".xml" class="hidden"
+                        title="Choose an XML file to upload">
+                </div>
             </div>
-
-            <!-- Saved Games View -->
-            <div id="saved-games-view" class="hidden">
-                <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800">Saved Games</h1>
-                <div id="savedGamesList" class="mb-4"></div>
-                <button id="importXmlButton" class="event-button btn-blue px-6 py-2">Import XML</button>
-                <label for="xmlFileInput" class="sr-only">Upload XML File</label>
-                <input id="xmlFileInput" type="file" accept=".xml" class="hidden" title="Choose an XML file to upload">
-            </div>
-        </div>
-
-
+        </main>
     </div>
-    <script type="module" src="main.js?v=20261017c"></script>
+    <script type="module" src="main.js?v=20261020a"></script>
 
     <!-- Team setup for boards with team rows -->
-    <div id="teamSetupModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden"
-        role="dialog" aria-modal="true" aria-labelledby="teamSetupTitle">
-        <form id="teamSetupForm" class="bg-white rounded-lg p-6 max-w-md w-full mx-4" novalidate>
-            <h2 id="teamSetupTitle" class="text-xl font-bold mb-1">Teams for this game</h2>
-            <p class="text-sm text-gray-500 mb-4">Codes prefix every event, e.g. <code>FIRE BS2</code>. Zones are
-                chosen from Team 1's perspective.</p>
-            <div class="mb-4">
-                <label for="teamCode1" class="block text-gray-700 font-medium mb-1">Team 1</label>
+    <div id="teamSetupModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="teamSetupTitle">
+        <form id="teamSetupForm" class="modal-panel max-w-md" novalidate>
+            <h2 id="teamSetupTitle" class="modal-title">Teams for this game</h2>
+            <p class="help-text mb-5">Codes prefix every event, e.g. <code>FIRE BS2</code>. Zones are chosen from
+                Team 1's perspective.</p>
+            <div class="mb-5">
+                <label for="teamCode1" class="field-label">Team 1</label>
                 <input id="teamCode1" type="text" maxlength="12" autocomplete="off" autocapitalize="characters"
-                    class="block w-full px-3 py-2 mb-2 border border-gray-300 rounded-md uppercase focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    class="field uppercase mb-3">
                 <div id="teamSwatches1" class="flex flex-wrap gap-2" role="group" aria-label="Team 1 colour"></div>
             </div>
-            <div class="mb-4">
-                <label for="teamCode2" class="block text-gray-700 font-medium mb-1">Team 2</label>
+            <div class="mb-2">
+                <label for="teamCode2" class="field-label">Team 2</label>
                 <input id="teamCode2" type="text" maxlength="12" autocomplete="off" autocapitalize="characters"
-                    class="block w-full px-3 py-2 mb-2 border border-gray-300 rounded-md uppercase focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    class="field uppercase mb-3">
                 <div id="teamSwatches2" class="flex flex-wrap gap-2" role="group" aria-label="Team 2 colour"></div>
             </div>
-            <p id="teamSetupError" class="text-sm text-red-600 mb-3 hidden" role="alert"></p>
-            <div class="flex justify-end gap-2">
-                <button id="teamSetupCancel" type="button" class="event-button btn-gray px-4 py-2">Cancel</button>
-                <button type="submit" class="event-button btn-green px-4 py-2">Start</button>
+            <p id="teamSetupError" class="banner banner-error hidden mt-3" role="alert"></p>
+            <div class="modal-actions">
+                <button id="teamSetupCancel" type="button" class="btn btn-secondary">Cancel</button>
+                <button type="submit" class="event-button btn-green">Start</button>
             </div>
         </form>
     </div>
 
-    <!-- Step 5: Preview and Confirmation -->
-    <div id="previewModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
-        <div class="bg-white rounded-lg p-6 max-w-lg w-full">
-            <h2 class="text-xl font-bold mb-4">Preview Imported Events</h2>
-            <div id="previewContainer" class="max-h-60 overflow-y-auto mb-4">
+    <!-- Import preview and confirmation -->
+    <div id="previewModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+        <div class="modal-panel">
+            <h2 id="previewTitle" class="modal-title mb-4">Preview Imported Events</h2>
+            <div id="previewContainer" class="surface-muted max-h-72 overflow-y-auto">
                 <!-- Preview content will be dynamically injected here -->
             </div>
-            <div class="flex justify-end">
-                <button id="confirmImportButton" class="event-button btn-green px-4 py-2 mr-2">Confirm</button>
-                <button id="cancelImportButton" class="event-button btn-red px-4 py-2">Cancel</button>
+            <div class="modal-actions">
+                <button id="cancelImportButton" type="button" class="btn btn-secondary">Cancel</button>
+                <button id="confirmImportButton" type="button" class="btn btn-success">Confirm</button>
             </div>
         </div>
     </div>

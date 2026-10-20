@@ -3,13 +3,14 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1220">
     <title>Field Hockey Match Review</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20261020a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
@@ -19,336 +20,243 @@
     <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/site-icon.png">
     <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/site-icon-large.png">
-    <style>
-        /* Optional: Add a subtle scrollbar style if desired */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-    </style>
 </head>
 
-<body class="p-0">
-    <div class="w-full bg-white rounded-lg shadow-xl">
-        <!-- Responsive Navigation -->
-        <nav class="border-b border-slate-700 bg-slate-950 text-white">
-            <!-- Mobile menu button -->
-            <div class="flex justify-between items-center p-4 md:hidden">
-                <a href="index.html#event-capture" id="navEventCaptureMobile"
-                    class="text-white hover:text-white font-medium flex items-center gap-1">
-                    <i class="fas fa-hockey-puck text-sm" aria-hidden="true"></i>
-                    <span>Event Capture</span>
-                </a>
-                <button id="mobileMenuButton"
-                    class="text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded-md p-1.5 hover:bg-slate-800 transition-colors"
-                    aria-label="Toggle menu" aria-controls="mainMenu">
-                    <i class="fas fa-bars text-xl" aria-hidden="true"></i>
-                </button>
-            </div>
-
-            <!-- Desktop and mobile menu (hidden by default on mobile) -->
-            <div id="mainMenu"
-                class="hidden md:flex md:justify-between md:items-center md:p-4 flex-col md:flex-row transform transition-all duration-300 ease-in-out opacity-100 md:opacity-100">
-                <div
-                    class="flex flex-col md:flex-row md:space-x-6 space-y-3 md:space-y-0 w-full md:w-auto py-3 md:py-0 px-4 md:px-0">
-                    <a href="index.html#event-capture" id="navEventCapture"
-                        class="nav-link flex items-center gap-2 px-2">
-                        <i class="fas fa-hockey-puck text-sm" aria-hidden="true"></i>
-                        <span>Event Capture</span>
+<body>
+    <div class="app-shell">
+        <nav class="app-nav" aria-label="Main">
+            <div class="app-nav-inner">
+                <!-- Mobile bar -->
+                <div class="app-nav-bar md:hidden">
+                    <a href="index.html#event-capture" id="navEventCaptureMobile" class="app-brand">
+                        <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
+                        <span>Hockey Tracker</span>
                     </a>
-                    <a href="index.html#log" id="navLog" class="nav-link hidden flex items-center gap-2 px-2"
-                        data-requires-game>
-                        <i class="fas fa-list-ul text-sm" aria-hidden="true"></i>
-                        <span>Log</span>
-                    </a>
-                    <a href="index.html#saved-games" id="navSavedGames"
-                        class="nav-link nav-link-active flex items-center gap-2 px-2" aria-current="page">
-                        <i class="fas fa-save text-sm" aria-hidden="true"></i>
-                        <span>Saved Games</span>
-                    </a>
-                    <a href="index.html#configure" id="navConfig" class="nav-link flex items-center gap-2 px-2">
-                        <i class="fas fa-cog text-sm" aria-hidden="true"></i>
-                        <span>Configure</span>
-                    </a>
+                    <button id="mobileMenuButton" type="button" class="app-nav-icon-button" aria-label="Toggle menu"
+                        aria-controls="mainMenu">
+                        <i class="fas fa-bars text-xl" aria-hidden="true"></i>
+                    </button>
                 </div>
-                <div class="flex md:justify-end px-4 md:px-0 pb-4 md:pb-0">
-                    <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
-                        title="Visit the GitHub repository"
-                        class="text-gray-200 hover:text-white transition-colors duration-200">
-                        <i class="fab fa-github text-xl"></i>
-                    </a>
+
+                <!-- Desktop bar and mobile menu (hidden by default on mobile) -->
+                <div id="mainMenu" class="hidden md:flex md:h-14 md:items-center md:justify-between flex-col md:flex-row">
+                    <div class="app-nav-links flex flex-col md:flex-row md:items-center gap-1">
+                        <span class="app-brand hidden md:inline-flex md:mr-4">
+                            <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
+                            <span>Hockey Tracker</span>
+                        </span>
+                        <a href="index.html#event-capture" id="navEventCapture" class="nav-link">
+                            <i class="fas fa-stopwatch text-sm" aria-hidden="true"></i>
+                            <span>Event Capture</span>
+                        </a>
+                        <a href="index.html#log" id="navLog" class="nav-link hidden" data-requires-game>
+                            <i class="fas fa-list-ul text-sm" aria-hidden="true"></i>
+                            <span>Log</span>
+                        </a>
+                        <a href="index.html#saved-games" id="navSavedGames" class="nav-link nav-link-active"
+                            aria-current="page">
+                            <i class="fas fa-folder-open text-sm" aria-hidden="true"></i>
+                            <span>Saved Games</span>
+                        </a>
+                        <a href="index.html#configure" id="navConfig" class="nav-link">
+                            <i class="fas fa-sliders text-sm" aria-hidden="true"></i>
+                            <span>Configure</span>
+                        </a>
+                    </div>
+                    <div class="flex mt-1 md:mt-0">
+                        <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
+                            title="Visit the GitHub repository" aria-label="GitHub repository"
+                            class="app-nav-icon-button">
+                            <i class="fab fa-github text-xl" aria-hidden="true"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
         </nav>
-        <div class="w-full bg-white p-8">
-            <div class="flex flex-col md:flex-row h-[calc(100vh-9rem)] overflow-hidden gap-6">
-                <!-- Left Pane: Timeline -->
-                <div id="timeline-container"
-                    class="w-full md:w-1/3 lg:w-1/4 h-1/2 md:h-full overflow-y-auto bg-white p-5 border border-gray-200 rounded-lg shadow-sm flex flex-col">
-                    <h2 id="review-game-title" class="hidden mb-4 pb-3 text-lg font-bold text-gray-800 border-b border-gray-200"></h2>
 
-                    <!-- Shown when no game was opened from Saved Games -->
-                    <div id="no-game-selected-state"
-                        class="hidden flex flex-col items-center justify-center py-10 my-4 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                        <i class="fas fa-save h-14 w-14 text-gray-300 mb-4"></i>
-                        <p class="text-gray-700 mb-3 font-medium">No game selected</p>
-                        <p class="text-sm text-gray-500 mb-6 max-w-xs">Choose a game from Saved Games to review its
-                            events</p>
-                        <a href="index.html#saved-games"
-                            class="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">
-                            <i class="fas fa-save h-4 w-4 mr-2"></i>
-                            Go to Saved Games
-                        </a>
-                    </div>
+        <main class="app-main">
+            <div class="page">
+                <div class="review-layout">
+                    <!-- Timeline -->
+                    <div id="timeline-container" class="surface review-timeline">
+                        <h2 id="review-game-title"
+                            class="hidden mb-4 pb-3 text-lg font-bold text-slate-900 border-b border-slate-200"></h2>
 
-                    <!-- Empty state message for when a game is loaded but has no events -->
-                    <div id="timeline-empty-state"
-                        class="hidden flex flex-col items-center justify-center py-10 my-4 text-center bg-gray-50 rounded-lg">
-                        <i class="fas fa-inbox h-14 w-14 text-gray-300 mb-4"></i>
-                        <p class="text-gray-600 mb-3 font-medium">No timeline events to display</p>
-                        <p class="text-sm text-gray-500">This game has no recorded events yet</p>
-                    </div> <!-- Empty state message for when favorites mode is active but no favorites exist -->
-                    <div id="favorites-empty-state"
-                        class="hidden flex flex-col items-center justify-center py-6 my-3 mt-1 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                        <i class="far fa-star h-12 w-12 text-gray-300 mb-3"></i>
-                        <p class="text-gray-600 mb-2 font-medium">No favorites added yet</p>
-                        <p class="text-sm text-gray-500">Mark key moments as favorites to create a playlist</p>
-                    </div>
-
-                    <!-- Timeline filters - Advanced dropdown multi-select -->
-                    <div id="timeline-filters" class="mb-6 border-b border-gray-200 pb-5 hidden">
-                        <div class="flex justify-between items-center mb-3">
-                            <label for="filter-dropdown" class="text-sm font-medium text-gray-700">Filter
-                                events:</label>
-
-                            <!-- Favorites toggle -->
-                            <div class="flex items-center space-x-2">
-                                <button id="show-all-events"
-                                    class="text-xs py-1 px-2 bg-blue-500 text-white rounded-l-md">
-                                    All Events
-                                </button> <button id="show-favorites"
-                                    class="text-xs py-1 px-2 bg-gray-200 text-gray-700 rounded-r-md flex items-center">
-                                    <i class="far fa-star h-3 w-3 mr-1"></i>
-                                    Favorites
-                                </button>
-                            </div>
+                        <!-- Shown when no game was opened from Saved Games -->
+                        <div id="no-game-selected-state"
+                            class="hidden flex flex-col items-center justify-center py-10 my-4 text-center surface-muted border-dashed">
+                            <i class="fas fa-folder-open text-4xl text-slate-300 mb-4" aria-hidden="true"></i>
+                            <p class="font-semibold text-slate-700 mb-2">No game selected</p>
+                            <p class="help-text mb-6 max-w-xs">Choose a game from Saved Games to review its events</p>
+                            <a href="index.html#saved-games" class="btn btn-primary">
+                                <i class="fas fa-folder-open" aria-hidden="true"></i>Go to Saved Games
+                            </a>
                         </div>
 
-                        <!-- Multi-select dropdown trigger -->
-                        <div class="relative">
-                            <button id="filter-dropdown-button"
-                                class="w-full flex justify-between items-center px-4 py-2.5 text-sm bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                aria-haspopup="listbox" aria-expanded="false">
-                                <span id="selected-filters-text">All events</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400"
-                                    viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd"
-                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                            </button>
-
-                            <!-- Dropdown panel with checkboxes -->
-                            <div id="filter-dropdown-panel"
-                                class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm hidden"
-                                aria-label="Filter event types">
-
-                                <!-- "All" option is special -->
-                                <div class="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer">
-                                    <input id="filter-option-all" type="checkbox"
-                                        class="filter-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                        data-filter="all" checked autocomplete="off" aria-labelledby="filter-option-all-label">
-                                    <label id="filter-option-all-label" for="filter-option-all"
-                                        class="ml-3 block text-sm font-medium text-gray-700 cursor-pointer w-full">
-                                        All events
-                                    </label>
-                                </div>
-
-                                <!-- Divider -->
-                                <div class="border-t border-gray-200 my-1"></div>
-
-                                <!-- Filter options will be dynamically added here -->
-                                <div id="filter-options-container">
-                                    <!-- Dynamic content goes here -->
-                                </div>
-
-                                <!-- Apply filters button -->
-                                <div class="border-t border-gray-200 mt-1 pt-1 px-3 py-2">
-                                    <!-- Auto-apply: No Apply Filters button needed -->
-                                </div>
-                            </div>
+                        <!-- Empty state message for when a game is loaded but has no events -->
+                        <div id="timeline-empty-state"
+                            class="hidden flex flex-col items-center justify-center py-10 my-4 text-center surface-muted">
+                            <i class="fas fa-inbox text-4xl text-slate-300 mb-4" aria-hidden="true"></i>
+                            <p class="font-semibold text-slate-700 mb-2">No timeline events to display</p>
+                            <p class="help-text">This game has no recorded events yet</p>
                         </div>
 
-                        <!-- Selected filters tags display -->
-                        <div id="selected-filters-tags" class="flex flex-wrap gap-2 mt-3">
-                            <!-- Tags with selected filters will appear here -->
-                        </div>
-                    </div> <!-- Timeline events will be loaded here -->
-                    <div id="timeline-events" class="overflow-y-auto flex-grow hidden space-y-3 px-1">
-                        <!-- Events will be generated by JS -->
-                    </div>
-                </div> <!-- Right Pane: Video Player -->
-
-                <section id="video-container"
-                    class="w-full md:w-2/3 lg:w-3/4 h-1/2 md:h-full bg-gray-900 flex flex-col items-center justify-center p-6 border border-gray-200 rounded-lg shadow-sm relative">
-                    <div class="w-full flex justify-end mb-4">
-                        <!-- Video navigation controls to move forward or backwards by 10 seconds -->
-                        <div class="flex items-center mr-auto space-x-3">
-                            <button id="presentation-mode"
-                                class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-3 rounded text-sm flex items-center transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-                                </svg>
-                                Presentation Mode
-                            </button>
-                            <!-- Video navigation controls -->
-                            <div class="flex items-center space-x-2 ml-3">
-                                <button id="rewind-10s"
-                                    class="bg-gray-700 hover:bg-gray-600 text-white py-2 px-3 rounded text-sm flex items-center transition-colors"
-                                    aria-label="Rewind 10 seconds">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
-                                    </svg>
-                                    -10s
-                                </button>
-                                <button id="forward-10s"
-                                    class="bg-gray-700 hover:bg-gray-600 text-white py-2 px-3 rounded text-sm flex items-center transition-colors"
-                                    aria-label="Forward 10 seconds">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.334-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.334-4z" />
-                                    </svg>
-                                    +10s
-                                </button>
-                            </div>
-                            <!-- Playlist controls for presentation mode -->
-                            <div id="playlist-controls" class="hidden items-center">
-                                <button id="prev-favorite" class="text-white bg-gray-700 hover:bg-gray-600 p-1 rounded"
-                                    aria-label="Previous favorite">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M15 19l-7-7 7-7" />
-                                    </svg>
-                                </button>
-                                <span id="playlist-counter" class="text-white mx-2 text-sm">0/0</span>
-                                <button id="next-favorite" class="text-white bg-gray-700 hover:bg-gray-600 p-1 rounded"
-                                    aria-label="Next favorite">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </div>
+                        <!-- Empty state message for when favorites mode is active but no favorites exist -->
+                        <div id="favorites-empty-state"
+                            class="hidden flex flex-col items-center justify-center py-6 my-3 text-center surface-muted border-dashed">
+                            <i class="far fa-star text-3xl text-slate-300 mb-3" aria-hidden="true"></i>
+                            <p class="font-semibold text-slate-700 mb-2">No favorites added yet</p>
+                            <p class="help-text">Mark key moments as favorites to create a playlist</p>
                         </div>
 
-                        <label for="video-upload"
-                            class="cursor-pointer bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded text-sm flex items-center transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
-                            Upload Video
-                        </label>
-                        <input type="file" id="video-upload" class="hidden" accept="video/*">
-                    </div> <video id="video-player" class="w-full max-h-full aspect-video rounded-lg shadow-md" controls
-                        preload="metadata" aria-label="Video player">
-                        <!-- You can add your own video files to assets/videos/ -->
-                        <!-- Example: <source src="assets/videos/your-video.mp4" type="video/mp4"> -->
-                        <p class="text-white text-center p-6">
-                            Please upload a video using the button above, or add video files to the assets/videos
-                            folder.
-                        </p>
-                        <!-- Fallback text for browsers that don't support the video tag -->
-                        Your browser does not support the video tag.
-                    </video>
+                        <!-- Timeline filters - multi-select dropdown -->
+                        <div id="timeline-filters" class="mb-4 border-b border-slate-200 pb-4 hidden">
+                            <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+                                <label for="filter-dropdown-button" class="field-label mb-0">Filter events</label>
 
-                    <!-- Floating Action Button (FAB) for adding/tagging new events -->
-                    <button id="add-event-fab" type="button"
-                        class="fixed md:absolute bottom-8 right-8 z-30 bg-blue-600 bg-opacity-80 hover:bg-blue-700 hover:bg-opacity-100 text-white rounded-full shadow-lg p-4 flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 hidden"
-                        aria-label="Add new event">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                    </button>
+                                <!-- Favorites toggle -->
+                                <div class="segmented" role="group" aria-label="Show events">
+                                    <button id="show-all-events" type="button" class="is-active">All</button>
+                                    <button id="show-favorites" type="button">
+                                        <i class="far fa-star mr-1" aria-hidden="true"></i>Favorites
+                                    </button>
+                                </div>
+                            </div>
 
-                    <!-- Modal for adding a new event -->
-                    <div id="add-event-modal"
-                        class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-40 hidden"
-                        role="dialog" aria-modal="true" aria-labelledby="add-event-modal-title">
-                        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative">
-                            <h2 id="add-event-modal-title" class="text-lg font-semibold mb-4 text-gray-800">Add New
-                                Event</h2>
-                            <form id="add-event-form" class="space-y-4">
-                                <div>
-                                    <label for="event-type" class="block text-sm font-medium text-gray-700">Event
-                                        Type</label>
-                                    <input id="event-type" name="event-type" type="text" required autocomplete="off"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                        placeholder="e.g., Goal, Foul, Custom...">
-                                </div>
-                                <div>
-                                    <label for="event-note" class="block text-sm font-medium text-gray-700">Note <span
-                                            class="text-gray-400">(optional)</span></label>
-                                    <input id="event-note" name="event-note" type="text" autocomplete="off"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                        placeholder="Add details (optional)">
-                                </div>
-                                <div>
-                                    <label for="event-timestamp"
-                                        class="block text-sm font-medium text-gray-700">Timestamp</label>
-                                    <input id="event-timestamp" name="event-timestamp" type="text" readonly
-                                        class="mt-1 block w-full rounded-md border-gray-200 bg-gray-100 text-gray-700 text-sm cursor-not-allowed">
-                                </div>
-                                <div class="flex justify-end gap-2 mt-6">
-                                    <button type="button" id="cancel-add-event"
-                                        class="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition">Cancel</button>
-                                    <!-- Presentation overlay for tag/description (hidden by default) -->
-                                    <div id="presentation-overlay"
-                                        class="absolute top-6 left-1/2 transform -translate-x-1/2 z-40 bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg shadow-lg text-center max-w-lg w-full pointer-events-none hidden"
-                                        role="status" aria-live="polite">
-                                        <h3 id="presentation-tag" class="text-lg font-bold mb-1"></h3>
-                                        <p id="presentation-description" class="text-sm text-gray-200"></p>
+                            <!-- Multi-select dropdown trigger -->
+                            <div class="relative">
+                                <button id="filter-dropdown-button" type="button"
+                                    class="field flex justify-between items-center text-left"
+                                    aria-haspopup="listbox" aria-expanded="false">
+                                    <span id="selected-filters-text">All events</span>
+                                    <i class="fas fa-chevron-down text-slate-400 text-sm" aria-hidden="true"></i>
+                                </button>
+
+                                <!-- Dropdown panel with checkboxes -->
+                                <div id="filter-dropdown-panel"
+                                    class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-lg py-1 ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none text-sm hidden"
+                                    aria-label="Filter event types">
+
+                                    <!-- "All" option is special -->
+                                    <div class="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                                        <input id="filter-option-all" type="checkbox"
+                                            class="filter-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                            data-filter="all" checked autocomplete="off"
+                                            aria-labelledby="filter-option-all-label">
+                                        <label id="filter-option-all-label" for="filter-option-all"
+                                            class="ml-3 block text-sm font-medium text-gray-700 cursor-pointer w-full">
+                                            All events
+                                        </label>
                                     </div>
-                                    <button type="submit"
-                                        class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition">Add
-                                        Event</button>
+
+                                    <div class="border-t border-gray-200 my-1"></div>
+
+                                    <!-- Filter options will be dynamically added here -->
+                                    <div id="filter-options-container"></div>
                                 </div>
-                            </form>
-                            <button type="button" id="close-add-event-modal"
-                                class="absolute top-2 right-2 text-gray-400 hover:text-gray-600" aria-label="Close">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
+                            </div>
+
+                            <!-- Selected filters tags display -->
+                            <div id="selected-filters-tags" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+
+                        <!-- Timeline events will be loaded here -->
+                        <div id="timeline-events" class="overflow-y-auto flex-grow hidden space-y-3 px-1">
                         </div>
                     </div>
-            </div>
 
-        </div>
+                    <!-- Video player -->
+                    <section id="video-container" class="review-video" aria-label="Video">
+                        <div class="review-video-toolbar">
+                            <button id="presentation-mode" type="button" class="btn btn-accent-purple">
+                                <i class="fas fa-film" aria-hidden="true"></i>
+                                <span>Presentation</span>
+                            </button>
+                            <button id="rewind-10s" type="button" class="btn btn-dark" aria-label="Rewind 10 seconds">
+                                <i class="fas fa-backward" aria-hidden="true"></i>-10s
+                            </button>
+                            <button id="forward-10s" type="button" class="btn btn-dark"
+                                aria-label="Forward 10 seconds">
+                                +10s<i class="fas fa-forward" aria-hidden="true"></i>
+                            </button>
+                            <!-- Playlist controls for presentation mode -->
+                            <div id="playlist-controls" class="hidden items-center gap-1">
+                                <button id="prev-favorite" type="button" class="btn btn-dark btn-icon"
+                                    aria-label="Previous favorite">
+                                    <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                                </button>
+                                <span id="playlist-counter" class="text-white mx-2 text-sm tabular-nums">0/0</span>
+                                <button id="next-favorite" type="button" class="btn btn-dark btn-icon"
+                                    aria-label="Next favorite">
+                                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                                </button>
+                            </div>
+
+                            <label for="video-upload" class="btn btn-dark review-upload cursor-pointer">
+                                <i class="fas fa-upload" aria-hidden="true"></i>Upload Video
+                            </label>
+                            <input type="file" id="video-upload" class="hidden" accept="video/*">
+                        </div>
+
+                        <video id="video-player" controls preload="metadata" playsinline aria-label="Video player">
+                            <p class="text-white text-center p-6">
+                                Please upload a video using the button above, or add video files to the assets/videos
+                                folder.
+                            </p>
+                            Your browser does not support the video tag.
+                        </video>
+
+                        <!-- Presentation overlay for tag/description (hidden by default) -->
+                        <div id="presentation-overlay"
+                            class="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg shadow-lg text-center max-w-lg w-[90%] pointer-events-none hidden"
+                            role="status" aria-live="polite">
+                            <h3 id="presentation-tag" class="text-lg font-bold mb-1"></h3>
+                            <p id="presentation-description" class="text-sm text-gray-200"></p>
+                        </div>
+
+                        <!-- Floating Action Button (FAB) for adding/tagging new events -->
+                        <button id="add-event-fab" type="button"
+                            class="fixed md:absolute bottom-6 right-6 z-30 w-14 h-14 rounded-full shadow-lg flex items-center justify-center btn-primary hidden"
+                            aria-label="Add new event">
+                            <i class="fas fa-plus text-xl" aria-hidden="true"></i>
+                        </button>
+                    </section>
+                </div>
+            </div>
+        </main>
     </div>
+
+    <!-- Modal for adding a new event -->
+    <div id="add-event-modal" class="modal hidden" role="dialog" aria-modal="true"
+        aria-labelledby="add-event-modal-title">
+        <div class="modal-panel max-w-md relative">
+            <h2 id="add-event-modal-title" class="modal-title mb-4">Add New Event</h2>
+            <form id="add-event-form" class="space-y-4">
+                <div>
+                    <label for="event-type" class="field-label">Event Type</label>
+                    <input id="event-type" name="event-type" type="text" required autocomplete="off" class="field"
+                        placeholder="e.g., Goal, Foul, Custom...">
+                </div>
+                <div>
+                    <label for="event-note" class="field-label">Note <span
+                            class="font-normal text-muted">(optional)</span></label>
+                    <input id="event-note" name="event-note" type="text" autocomplete="off" class="field"
+                        placeholder="Add details (optional)">
+                </div>
+                <div>
+                    <label for="event-timestamp" class="field-label">Timestamp</label>
+                    <input id="event-timestamp" name="event-timestamp" type="text" readonly class="field">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancel-add-event" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Event</button>
+                </div>
+            </form>
+            <button type="button" id="close-add-event-modal" class="btn btn-ghost btn-icon absolute top-3 right-3"
+                aria-label="Close">
+                <i class="fas fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
     </div>
 
     <script type="module" src="js/timeline-video.js"></script>

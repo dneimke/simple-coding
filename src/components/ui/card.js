@@ -22,12 +22,12 @@ export const createCard = ({
     className = ''
 }) => {
     const card = document.createElement('div');
-    card.className = `bg-white rounded-lg shadow-md overflow-hidden ${className}`;
+    card.className = `surface overflow-hidden ${className}`;
 
     // Add header if provided
     if (header) {
         const headerElement = document.createElement('div');
-        headerElement.className = 'px-4 py-3 border-b border-gray-200 bg-gray-50';
+        headerElement.className = 'card-header';
 
         if (typeof header === 'string') {
             headerElement.innerHTML = header;
@@ -41,7 +41,7 @@ export const createCard = ({
     // Add body if provided
     if (body) {
         const bodyElement = document.createElement('div');
-        bodyElement.className = 'p-4';
+        bodyElement.className = 'card-body';
 
         if (typeof body === 'string') {
             bodyElement.innerHTML = body;
@@ -55,7 +55,7 @@ export const createCard = ({
     // Add footer if provided
     if (footer) {
         const footerElement = document.createElement('div');
-        footerElement.className = 'px-4 py-3 border-t border-gray-200 bg-gray-50';
+        footerElement.className = 'card-footer';
 
         if (typeof footer === 'string') {
             footerElement.innerHTML = footer;
@@ -89,24 +89,23 @@ export const createGameCard = ({
     onViewLog
 }) => {
     const gameCard = document.createElement('div');
-    gameCard.className = 'saved-game-card flex items-center p-4 mb-4 bg-gray-100 rounded-lg shadow-md hover:shadow-lg transition-shadow';
+    gameCard.className = 'saved-game-card';
 
     // Create icon section
     const icon = document.createElement('div');
-    icon.className = 'saved-game-icon flex-shrink-0 w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center mr-4';
-    icon.innerHTML = `<i class="fas fa-hockey-puck text-xl"></i>`;
+    icon.className = 'saved-game-icon';
+    icon.innerHTML = `<i class="fas fa-hockey-puck" aria-hidden="true"></i>`;
 
     // Create game details section
     const gameDetails = document.createElement('div');
-    gameDetails.className = 'saved-game-details flex-grow';
+    gameDetails.className = 'saved-game-details';
 
 
     // Game title row (with warning if invalid events)
     const gameTitleRow = document.createElement('div');
-    gameTitleRow.className = 'flex items-center';
+    gameTitleRow.className = 'flex flex-wrap items-center gap-x-2';
 
     const gameTitle = document.createElement('h3');
-    gameTitle.className = 'text-lg font-bold text-gray-800';
     gameTitle.textContent = game.teams ? game.teams : `Game ${index + 1}`;
     gameTitleRow.appendChild(gameTitle);
 
@@ -115,7 +114,7 @@ export const createGameCard = ({
     if (invalidEvents.length > 0) {
         // Warning icon
         const warningIcon = document.createElement('span');
-        warningIcon.className = 'ml-2 text-amber-600';
+        warningIcon.className = 'saved-game-warning';
         warningIcon.title = 'This game has invalid events';
         warningIcon.setAttribute('aria-label', 'Warning');
         warningIcon.setAttribute('role', 'img');
@@ -124,7 +123,7 @@ export const createGameCard = ({
 
         // View Issues button
         const viewIssuesBtn = document.createElement('button');
-        viewIssuesBtn.className = 'ml-2 text-xs text-blue-600 underline focus:outline-none';
+        viewIssuesBtn.className = 'link-button saved-game-issues';
         viewIssuesBtn.textContent = 'View Issues';
         viewIssuesBtn.type = 'button';
         viewIssuesBtn.onclick = (e) => {
@@ -136,19 +135,17 @@ export const createGameCard = ({
 
     // Timestamp
     const gameTimestamp = document.createElement('p');
-    gameTimestamp.className = 'text-sm text-gray-600';
     gameTimestamp.textContent = `Saved on: ${new Date(game.timestamp).toLocaleString()}`;
 
     // Event count
     const eventCount = document.createElement('p');
-    eventCount.className = 'text-sm text-gray-600';
     eventCount.textContent = `Events: ${game.events.length}`;
 
     gameDetails.append(gameTitleRow, gameTimestamp, eventCount);
 
     if (onSelect) {
         const title = game.teams ? game.teams : `Game ${index + 1}`;
-        gameDetails.classList.add('cursor-pointer', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500', 'rounded');
+        gameDetails.classList.add('cursor-pointer');
         gameDetails.setAttribute('role', 'button');
         gameDetails.setAttribute('tabindex', '0');
         gameDetails.setAttribute('aria-label', `Review ${title}`);
@@ -168,7 +165,6 @@ export const createGameCard = ({
     const exportButton = createButton({
         text: 'Export XML',
         type: 'secondary',
-        className: 'px-4 py-2 text-sm ml-2',
         onClick: (e) => {
             e.stopPropagation();
 
@@ -211,41 +207,44 @@ export const createGameCard = ({
 
     const renameButton = createButton({
         text: 'Rename',
-        type: 'warning',
-        className: 'px-4 py-2 text-sm ml-2',
+        type: 'secondary',
         onClick: onRename
     });
 
     const deleteButton = createButton({
         text: 'Delete',
         type: 'danger',
-        className: 'px-4 py-2 text-sm ml-2',
         onClick: onDelete
-    });    // Add all elements to card
+    });
 
     const viewLogButton = onViewLog ? createButton({
         text: 'View Log',
         type: 'secondary',
-        className: 'px-4 py-2 text-sm ml-2',
         onClick: (e) => {
             e.stopPropagation();
             onViewLog(e);
         }
     }) : null;
 
-    gameCard.append(...[icon, gameDetails, viewLogButton, exportButton, renameButton, deleteButton].filter(Boolean));
+    const actions = document.createElement('div');
+    actions.className = 'saved-game-actions';
+    actions.append(...[viewLogButton, exportButton, renameButton, deleteButton].filter(Boolean));
+
+    gameCard.append(icon, gameDetails, actions);
 
     // Modal for invalid events (one per page, reused)
     if (!document.getElementById('invalid-events-modal')) {
         const modal = document.createElement('div');
         modal.id = 'invalid-events-modal';
-        modal.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden z-50';
+        modal.className = 'modal hidden';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
         modal.innerHTML = `
-            <div class="bg-white rounded-lg p-6 max-w-lg w-full">
-                <h2 class="text-xl font-bold mb-4">Invalid Events</h2>
-                <div id="invalid-events-list" class="max-h-60 overflow-y-auto mb-4"></div>
-                <div class="flex justify-end">
-                    <button id="closeInvalidEventsModal" class="event-button btn-blue px-4 py-2">Close</button>
+            <div class="modal-panel">
+                <h2 class="modal-title mb-4">Invalid Events</h2>
+                <div id="invalid-events-list" class="max-h-60 overflow-y-auto"></div>
+                <div class="modal-actions">
+                    <button id="closeInvalidEventsModal" type="button" class="btn btn-primary">Close</button>
                 </div>
             </div>
         `;
@@ -261,9 +260,9 @@ export const createGameCard = ({
         const list = document.getElementById('invalid-events-list');
         if (!modal || !list) return;
         list.innerHTML = invalidEvents.map(({ event, idx }) => {
-            const eventName = event && typeof event.event === 'string' ? event.event : '<span class="text-red-600">(missing name)</span>';
-            const time = (event && typeof event.timeMs === 'number' && isFinite(event.timeMs)) ? event.timeMs : '<span class="text-red-600">(invalid time)</span>';
-            return `<div class="mb-2 p-2 bg-red-50 rounded"><strong>Event #${idx + 1}:</strong> Name: ${eventName}, Time: ${time}</div>`;
+            const eventName = event && typeof event.event === 'string' ? event.event : '<strong>(missing name)</strong>';
+            const time = (event && typeof event.timeMs === 'number' && isFinite(event.timeMs)) ? event.timeMs : '<strong>(invalid time)</strong>';
+            return `<div class="banner banner-error mb-2"><span><strong>Event #${idx + 1}:</strong> Name: ${eventName}, Time: ${time}</span></div>`;
         }).join('');
         modal.classList.remove('hidden');
     }
