@@ -1,7 +1,7 @@
 import { EventButtons, EventLog, GameState, Router } from './components/index.js';
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
-import { updateNavbarVisibility, showElement, hideElement } from './utils/domUtils.js';
+import { updateNavbarVisibility } from './utils/domUtils.js';
 import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
@@ -13,6 +13,7 @@ import { checkStorageQuota } from './utils/storageWarningUtils.js';
 import { draftService, finishCapture } from './services/draftService.js';
 import { openTeamSetupDialog, loadLastTeams, saveLastTeams } from './components/teamSetupDialog.js';
 import { openCompleteGameDialog } from './components/completeGameDialog.js';
+import { bindFinishMenu, syncCaptureChrome } from './components/captureChrome.js';
 import { resolveEventName } from './utils/zoneUtils.js';
 import { renderRecentEvents } from './components/recentEvents.js';
 
@@ -20,19 +21,13 @@ const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
 // DOM Elements
 const timerDisplay = document.getElementById('timer');
-const newGameButton = document.getElementById('newGameButton');
-const pauseResumeButton = document.getElementById('pauseResumeButton');
-const completeGameButton = document.getElementById('completeGameButton');
-const discardGameButton = document.getElementById('discardGameButton');
 const tabNavContainer = document.querySelector('#log-view nav');
 const navContainer = document.querySelector('nav');
 const codingButtonsContainer = document.getElementById('coding-buttons-container');
 const boardSelect = document.getElementById('boardSelect');
-const boardLockedHint = document.getElementById('boardLockedHint');
+const finishGameList = document.getElementById('finishGameList');
 const teamSetupModal = document.getElementById('teamSetupModal');
 const completeGameModal = document.getElementById('completeGameModal');
-const lastEventBar = document.getElementById('lastEventBar');
-const lastEventLabel = document.getElementById('lastEventLabel');
 const undoEventButton = document.getElementById('undoEventButton');
 const configJsonInput = document.getElementById('configJsonInput');
 const configDirtyIndicator = document.getElementById('configDirtyIndicator');
@@ -305,23 +300,7 @@ function renderBoardOptions() {
         boardSelect.appendChild(option);
     });
     boardSelect.value = activeName ?? CUSTOM_BOARD_VALUE;
-    updateBoardLock();
-}
-
-function updateBoardLock() {
-    const locked = Boolean(stateService.getState('game.hasCurrentGame'));
-    boardSelect.disabled = locked;
-    boardSelect.title = locked ? 'Complete or discard the game to change board' : 'Choose the button board';
-    boardLockedHint.classList.toggle('hidden', !locked);
-}
-
-const describeEvent = (event) => `${event.event} (${formatTime(event.timeMs)})`;
-
-function updateLastEventBar() {
-    const events = stateService.getState('game.loggedEvents') || [];
-    const lastEvent = stateService.getState('game.hasCurrentGame') ? events.at(-1) : null;
-    lastEventBar.classList.toggle('hidden', !lastEvent);
-    lastEventLabel.textContent = lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : '';
+    syncChrome();
 }
 
 function notifyRemoved(event) {
@@ -421,30 +400,28 @@ function describeCapture() {
     return `${count} event${count === 1 ? '' : 's'}, clock at ${clock}`;
 }
 
-function updatePauseResumeLabel() {
-    pauseResumeButton.textContent = stateService.getState('game.isRunning') ? 'Pause' : 'Resume';
+const describeEvent = (event) => `${event.event} (${formatTime(event.timeMs)})`;
+
+function syncChrome() {
+    const hasGame = Boolean(stateService.getState('game.hasCurrentGame'));
+    const events = stateService.getState('game.loggedEvents') || [];
+    const lastEvent = hasGame ? events.at(-1) : null;
+    syncCaptureChrome({
+        hasGame,
+        isRunning: Boolean(stateService.getState('game.isRunning')),
+        lastEventText: lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : ''
+    });
+    return hasGame;
 }
 
 function showCaptureControls() {
-    hideElement(newGameButton);
-    showElement(pauseResumeButton);
-    showElement(completeGameButton);
-    showElement(discardGameButton);
-    updatePauseResumeLabel();
+    syncChrome();
     updateNavbarVisibility(true);
-    updateBoardLock();
-    updateLastEventBar();
 }
 
 function showStartControls() {
-    showElement(newGameButton);
-    hideElement(pauseResumeButton);
-    hideElement(completeGameButton);
-    hideElement(discardGameButton);
-    pauseResumeButton.textContent = 'Pause';
+    syncChrome();
     updateNavbarVisibility(false);
-    updateBoardLock();
-    updateLastEventBar();
 }
 
 function restoreCaptureDraft() {
@@ -509,6 +486,7 @@ function discardCapture() {
 }
 
 function registerEventListeners() {
+    bindFinishMenu();
 
     tabNavContainer.addEventListener('click', (event) => {
         const button = event.target.closest('.tab-button');
@@ -581,7 +559,7 @@ function registerEventListeners() {
             case 'pauseResumeButton':
                 gameState.pauseResume();
                 saveCaptureDraft();
-                updatePauseResumeLabel();
+                syncChrome();
                 break;
             case 'completeGameButton':
                 completeCapture();
@@ -606,7 +584,7 @@ function registerEventListeners() {
     document.addEventListener('keydown', (event) => {
         if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
         if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (captureDialogOpen()) return;
+        if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return;
         if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
 
         event.preventDefault();
@@ -633,7 +611,7 @@ function registerEventListeners() {
     document.addEventListener('keydown', (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (captureDialogOpen()) return;
+        if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return;
         if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
 
         if (event.key === 't' || event.key === 'T') {
@@ -861,7 +839,7 @@ stateService.subscribe('ui.currentView', (viewName) => {
 });
 
 // Child-path changes (game.loggedEvents) and whole-game replacements (newGame, restore, complete) both notify 'game'
-stateService.subscribe('game', updateLastEventBar);
+stateService.subscribe('game', syncChrome);
 
 // Initial navigation based on URL hash or defaults to EventCapture
 document.addEventListener('DOMContentLoaded', () => {

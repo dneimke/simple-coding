@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b1220">
     <title>Field Hockey Event Capture</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css?v=20261020b">
+    <link rel="stylesheet" href="styles.css?v=20261020d">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -80,29 +80,32 @@
                 <div id="tracker-view">
                     <section class="surface capture-toolbar" aria-label="Game clock">
                         <div id="timer" class="capture-timer" role="timer" aria-live="off">00:00</div>
+                        <div id="captureContext" class="capture-context">
+                            <div id="captureBoard" class="capture-meta">
+                                <label for="boardSelect" class="field-label mb-0">Board</label>
+                                <select id="boardSelect" class="field field-inline"></select>
+                            </div>
+                            <div id="lastEventBar" class="last-event-bar hidden">
+                                <span class="truncate">Last: <span id="lastEventLabel" class="font-semibold"></span></span>
+                                <button id="undoEventButton" type="button" title="Remove the last event (Ctrl+Z)"
+                                    class="btn btn-secondary shrink-0">
+                                    <i class="fas fa-undo" aria-hidden="true"></i>Undo
+                                </button>
+                            </div>
+                        </div>
                         <div class="capture-actions">
-                            <button id="newGameButton" class="event-button btn-green">Start</button>
-                            <button id="pauseResumeButton" class="event-button btn-yellow hidden">Pause</button>
-                            <button id="completeGameButton" class="event-button btn-blue hidden">Complete</button>
-                            <button id="discardGameButton" class="event-button btn-red hidden">Discard</button>
+                            <button id="newGameButton" type="button" class="event-button btn-green">Start</button>
+                            <button id="pauseResumeButton" type="button" class="event-button btn-yellow hidden">Pause</button>
+                            <div id="finishGameMenu" class="capture-finish hidden">
+                                <button id="finishGameButton" type="button" class="btn btn-secondary"
+                                    aria-haspopup="menu" aria-expanded="false" aria-controls="finishGameList">Finish</button>
+                                <div id="finishGameList" class="saved-game-menu hidden" role="menu" aria-label="Finish this game">
+                                    <button id="completeGameButton" type="button" class="saved-game-menu-item" role="menuitem">Complete</button>
+                                    <button id="discardGameButton" type="button" class="saved-game-menu-item saved-game-menu-item-danger" role="menuitem">Discard</button>
+                                </div>
+                            </div>
                         </div>
                     </section>
-
-                    <div class="capture-meta">
-                        <label for="boardSelect" class="field-label mb-0">Board</label>
-                        <select id="boardSelect" class="field field-inline"></select>
-                        <span id="boardLockedHint" class="help-text hidden">Locked until the game is completed or
-                            discarded</span>
-                    </div>
-
-                    <div id="lastEventBar" class="surface last-event-bar hidden">
-                        <span class="truncate text-muted">Last: <span id="lastEventLabel"
-                                class="font-semibold text-slate-900"></span></span>
-                        <button id="undoEventButton" type="button" title="Remove the last event (Ctrl+Z)"
-                            class="btn btn-secondary shrink-0">
-                            <i class="fas fa-undo" aria-hidden="true"></i>Undo
-                        </button>
-                    </div>
 
                     <div id="coding-buttons-container"></div>
                 </div>
@@ -254,7 +257,7 @@
             </div>
         </main>
     </div>
-    <script type="module" src="main.js?v=20261020c"></script>
+    <script type="module" src="main.js?v=20261020d"></script>
 
     <!-- Team setup for boards with team rows -->
     <div id="teamSetupModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="teamSetupTitle">

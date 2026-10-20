@@ -5,8 +5,8 @@
 The current user experience for creating and retrieving games follows this lifecycle:
 
 1. **Choosing a board**:
-   - The **Board** selector above the buttons on the Event Capture page lists the saved configurations. A first visit opens on the built-in `hockey-one-zoned` board. Picking another saved configuration makes it the active configuration (the same as saving it on the Configure page).
-   - The selector is locked while a game is in progress; complete or discard the game to change board.
+   - The **Board** selector in the clock bar lists the saved configurations before a game starts. A first visit opens on the built-in `hockey-one-zoned` board. Picking another saved configuration makes it the active configuration (the same as saving it on the Configure page).
+   - Once a game is in progress the selector is hidden. Complete or discard the game to choose a different board.
    - `hockey-one-zoned` is the [sticky zone board](feat/sticky-zones/spec.md): a zone bar (Zones 1-4, from Team 1's perspective) replaces the per-zone BS buttons. BS and BW log the active zone, mirrored for Team 2, e.g. `FIRE BS2` and `TIGERS BS3`. Tap a zone or press 1-4 to change it. Zone changes are not logged.
    - On `hockey-one-zoned` the scoring and card buttons (APS, PS, GOAL, SO, GREEN, YELLOW, RED) are a single set with a team toggle. Tap a team (or press T) and the buttons log for that team, e.g. `PERTH GOAL`, until you switch again.
 
@@ -17,12 +17,12 @@ The current user experience for creating and retrieving games follows this lifec
 
 3. **Recording Events**:
    - During the session, the user can log events by clicking the event buttons. These events are recorded with timestamps relative to the session's elapsed time.
-   - A "Last" strip above the buttons shows the most recent event. **Undo** (or Ctrl+Z / Cmd+Z) removes it straight away, while running or paused, and a message confirms what was removed.
+   - The clock bar shows the most recent event beside the timer. **Undo** (or Ctrl+Z / Cmd+Z) removes it straight away, while running or paused, and a message confirms what was removed.
    - The **Recent** tab on the Log view (the default for the live game) lists the last 10 events, newest first, each with a **Delete** button. Saved games' logs don't show this tab, so they stay read-only.
    - The Event Capture page has extra space below the buttons so you can scroll the menu off screen while capturing.
 
 4. **Completing a Game**:
-   - Once the session is complete, the user clicks the "Complete" button on the Event Capture page. A dialog shows the event count and clock, and asks for the game name. On a team board the name is filled in from the team codes (for example `FIRE vs TIGERS`).
+   - Once the session is complete, the user opens **Finish** in the clock bar and chooses **Complete**. A dialog shows the event count and clock, and asks for the game name. On a team board the name is filled in from the team codes (for example `FIRE vs TIGERS`).
    - Cancel or Escape leaves the capture in progress.
    - Complete saves the game to Saved Games under that name, or with no name if the field is left blank, then resets the capture: the timer and event log return to empty.
 
