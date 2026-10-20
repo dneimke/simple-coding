@@ -548,12 +548,13 @@ code {
 
 /* ===== Event Capture ===== */
 .capture-toolbar {
+    position: relative;
+    z-index: 30;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-3);
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
     margin-bottom: var(--space-3);
 }
 
@@ -579,8 +580,15 @@ code {
 
 .capture-actions {
     display: flex;
-    flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-2);
+    margin-left: auto;
+    order: 2;
+}
+
+.capture-actions .event-button,
+.capture-toolbar .btn {
+    min-height: var(--touch-min);
 }
 
 .capture-actions .event-button {
@@ -588,22 +596,74 @@ code {
     font-size: 0.9375rem;
 }
 
+/* Board before a game, last code during one. On a phone this wraps under the clock; from md it sits on the clock row. */
+.capture-context {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1 1 100%;
+    min-width: 0;
+    order: 3;
+}
+
+.capture-context.hidden {
+    display: none;
+}
+
+@media (min-width: 768px) {
+    .capture-context {
+        flex: 1 1 auto;
+        order: 2;
+    }
+
+    .capture-actions {
+        order: 3;
+    }
+}
+
 .capture-meta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2) var(--space-3);
-    margin-bottom: var(--space-3);
+}
+
+.capture-toolbar .capture-meta {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.capture-meta.hidden {
+    display: none;
+}
+
+.capture-finish {
+    position: relative;
+}
+
+.capture-finish.hidden {
+    display: none;
 }
 
 .last-event-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-2);
-    margin-bottom: var(--space-3);
-    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
     font-size: 0.875rem;
+}
+
+.capture-toolbar .last-event-bar {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+    padding: 0;
+    color: var(--color-muted);
+}
+
+.capture-toolbar .last-event-bar > .truncate {
+    flex: 1;
+    min-width: 0;
 }
 
 .last-event-bar.hidden {
