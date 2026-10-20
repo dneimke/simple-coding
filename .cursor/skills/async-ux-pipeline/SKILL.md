@@ -15,20 +15,24 @@ Eliminate **"glue toil"** and enable **"Asynchronous Dispatch"**: the user spots
 
 Read `AGENTS.md` (personas, journeys, push-back rules, 4-step blueprint) and `docs/design-language.md` (`.cursor/rules/design-language.mdc`) before changing markup, CSS, or JavaScript.
 
-## Stage 1: Product Triage & Spec (`a → b → c`)
+## Stage 1: Autonomous Spec Generation from Raw Feedback
 
-Before writing code, evaluate the request against `AGENTS.md`:
+When the user provides raw, subjective, or high-level feedback (e.g. "Users can't find menu options" or "This screen feels crowded"):
 
-1. **Persona & Journey (`a`)**: Identify the target persona (*Dedicated Analyst*, *Bench Coach*, *Drafted Helper*, or *Head Coach*) and journey.
-2. **Audit & Push-Back Check (`b → c`)**: Inspect current code against the persona's quality bar and the **Push-Back Rules** in `AGENTS.md`:
-   - Does it add taps, dialogs, or shifting buttons during live capture?
-   - Can it be solved purely with a board JSON configuration (use `board-config-generator` instead)?
-   - Does it help an expert persona while overloading a casual coder or halftime coach?
-   - **If a rule is violated**: Stop and push back with the concrete tradeoff and a better alternative.
-3. **Three-line spec (`c`)**: When the change is sound, state:
-   - **Problem**: which persona/journey is blocked or high-effort, and why.
-   - **Target state**: what the screen/code does after the change.
-   - **Verification**: the automated test and automated visual check that prove it.
+1. **Investigate Current State**: 
+   - Inspect the relevant UI components, route tables, or layout styles in the repo before forming a plan.
+2. **Diagnose the Root Friction**: 
+   - Identify why the current implementation causes that symptom (e.g. deep nesting, ambiguous labels, lack of visual hierarchy).
+   - Evaluate against the target persona and push-back rules in `AGENTS.md` (e.g. eyes-on-pitch, config-over-code).
+3. **Auto-Generate the 5-Part Spec**: 
+   - Explicitly formulate and print the 5-part contract in your thinking trace:
+     • **Goal**: 1-sentence concrete UX fix.
+     • **Decisions**: Specific design pattern chosen (e.g. Command palette, flattened top-bar, contextual floating action).
+     • **Invariants**: Business rules, existing routes, or timers that must not break.
+     • **Specific Next Step**: The exact component test to write first.
+     • **Traps to Avoid**: Edge cases to steer clear of.
+4. **Self-Direct Execution**: 
+   - Proceed immediately to Stage 2, using your own generated spec as the deterministic boundary.
 
 ## Stage 2: Design Language (Tokens Over Debate)
 
@@ -65,7 +69,7 @@ Run the automated visual snapshot tool:
 ```bash
 npm run test:visual
 ```
-This boots a headless Chromium instance via Playwright, renders the views across **mobile (390x844)** and **desktop (1280x800)**, and outputs PNG artifacts to `.visual-proof/`.
+This boots a headless Chromium instance via Playwright, renders the views across **mobile (390x844)** and **desktop (1280x800)**, and outputs PNG artifacts to `.visual-proof/` and `./diff.png`.
 
 ## Stage 5: Pull Request & Zero-Toil Review
 

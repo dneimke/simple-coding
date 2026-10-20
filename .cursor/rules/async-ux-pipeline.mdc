@@ -1,0 +1,51 @@
+---
+description: Async UX-to-Code Pipeline. Evaluates raw feedback, generates deterministic specs test-first, and automates visual proof.
+globs: src/**/*,tests/**/*,scripts/**/*
+alwaysApply: true
+---
+
+# Async UX-to-Code Pipeline
+
+Eliminate **"glue toil"** and enable **"Asynchronous Dispatch"**: the user spots friction on mobile or desktop, sends a 2-second screenshot or brief note, and walks away. The agent implements the smallest valid change, runs deterministic tests, captures automated Playwright visual snapshots, and opens a pull request ready for a 5-second review.
+
+## Repository Binding
+
+Read `AGENTS.md` (personas, journeys, push-back rules, 4-step blueprint) and `docs/design-language.md` (`.cursor/rules/design-language.mdc`) before changing markup, CSS, or JavaScript.
+
+### Stage 1: Autonomous Spec Generation from Raw Feedback
+When the user provides raw, subjective, or high-level feedback (e.g. "Users can't find menu options" or "This screen feels crowded"):
+
+1. **Investigate Current State**: 
+   - Inspect the relevant UI components, route tables, or layout styles in the repo before forming a plan.
+2. **Diagnose the Root Friction**: 
+   - Identify why the current implementation causes that symptom (e.g. deep nesting, ambiguous labels, lack of visual hierarchy).
+   - Evaluate against the target persona and push-back rules in `AGENTS.md` (e.g. eyes-on-pitch, config-over-code).
+3. **Auto-Generate the 5-Part Spec**: 
+   - Explicitly formulate and print the 5-part contract in your thinking trace:
+     • **Goal**: 1-sentence concrete UX fix.
+     • **Decisions**: Specific design pattern chosen (e.g. Command palette, flattened top-bar, contextual floating action).
+     • **Invariants**: Business rules, existing routes, or timers that must not break.
+     • **Specific Next Step**: The exact component test to write first.
+     • **Traps to Avoid**: Edge cases to steer clear of.
+4. **Self-Direct Execution**: 
+   - Proceed immediately to Stage 2, using your own generated spec as the deterministic boundary.
+
+### Stage 2: Design Language (Tokens Over Debate)
+Follow `docs/design-language.md`:
+- CSS tokens and semantic classes in `src/styles.css` (e.g. `btn-blue`, `team-color-*`, `--touch-min`).
+- Tailwind utilities for layout and spacing only.
+- $\ge 44\text{px}$ touch targets for all live-capture elements.
+- Never invent new ad-hoc color classes or styling abstractions.
+
+### Stage 3: Test-First Discipline (Prevent Code Drift)
+For behaviour (click handlers, state management, storage, DOM output):
+1. Add or update a Jest test under `tests/` that mirrors the component in `src/`.
+2. Run `npm test` and verify the test fails for the current behavior.
+3. Implement the smallest change to make the test pass.
+4. Run `npm test` to confirm all suites pass.
+
+### Stage 4: Automated Visual Proof (`npm run test:visual`)
+Do not ask the user to open the app, refresh, or click through states. Use direct seeded URLs and run `npm run test:visual`.
+
+### Stage 5: Pull Request & Zero-Toil Review
+Every change ships through a pull request on `feature/<short-name>`. Never commit or push to `main`.
