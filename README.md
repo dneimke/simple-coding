@@ -159,14 +159,9 @@ npm run test:coverage
 
 ## Documentation
 
-Additional documentation is available in the `docs/` directory:
-
-- [Match Review](docs/match-review.md) - Video synchronization features
-- [Navigation](docs/navigation.md) - Router implementation and deep linking
-- [Saved Games](docs/saved-games.md) - Game data storage architecture
-- [State Management](docs/state-management.md) - Application state design
-- [User Workflow](docs/user-workflow.md) - Current user experience
-- [Developer Guide](docs/developer-guide.md) - Contributing guidelines
+- [Agent Context & Product Rules](AGENTS.md) - Personas, user journeys, and product quality bars
+- [Design Language](docs/design-language.md) - CSS tokens, semantic classes, and layout rules
+- [MyVA Lead & Lag Timings](docs/myva-lead-lag-times.md) - Clip window reference for Sportscode XML exports
 
 ## License & Acknowledgments
 

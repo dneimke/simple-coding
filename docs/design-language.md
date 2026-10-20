@@ -109,7 +109,7 @@ Match Review (`body.review-page`) uses the full viewport. `review-header` / `rev
 </div>
 ```
 
-Views sit inside `<main class="app-main"><div class="page">`. Register them with the router as described in [Developer Guide](developer-guide.md#working-with-the-router).
+Views sit inside `<main class="app-main"><div class="page">`. Register them with the router in `src/main.js` and `src/components/router.js` (`viewToHashMap` and `hashToViewMap`).
 
 ### A form row
 
