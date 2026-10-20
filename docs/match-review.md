@@ -12,17 +12,18 @@ The Match Review interface combines a timeline panel that displays recorded game
 
 The Timeline panel provides a chronological view of all recorded match events:
 
-- **Game Title**: The game chosen from the Saved Games list is loaded automatically and its name is shown at the top of the panel. To review a different game, return to Saved Games
-- **Event Filtering**: Filter timeline events by type to focus on specific aspects of play
-- **Event Timeline**: Scrollable list of events showing timestamps and relevant information
-- **Event Interaction**: Click on any event to jump to that exact moment in the video
+- **Game Title**: The game chosen from the Saved Games list is loaded automatically. Its name is the page heading above the video and the tag list, kept to one line so a long name does not push the tags down. Hover the heading to read the full name. To review a different game, return to Saved Games
+- **Event Filtering**: Filter timeline events by type to focus on specific aspects of play. Active filters show as compact tags under the dropdown
+- **Saved tags**: A single-line list. Each row is the time, the tag name, a favorite star, and delete. The list scrolls inside the side panel on a laptop, and under the video on a phone
+- **Event Interaction**: Click a tag to jump to that moment in the video
 
 ### Video Player (Right Side)
 
 The video player section allows you to:
 
-- **Upload Video**: Add match footage via the "Upload Video" button in the top-right
-- **Standard Controls**: Play, pause, skip, and adjust volume using familiar video controls
+- **Upload Video**: Add match footage via the "Upload Video" button in the toolbar
+- **Add tag**: With a video loaded, "Add tag" sits in the toolbar so it does not cover the player controls
+- **Standard Controls**: Play, pause, skip, and adjust volume using the player controls under the picture
 - **Synchronized Playback**: The video automatically jumps to the timestamp of selected events
 - **Support for Common Formats**: Compatible with standard video formats (MP4, WebM, etc.)
 

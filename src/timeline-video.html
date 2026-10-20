@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b1220">
     <title>Field Hockey Match Review</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css?v=20261020b">
+    <link rel="stylesheet" href="styles.css?v=20261020c">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/site-icon-large.png">
 </head>
 
-<body>
+<body class="review-page">
     <div class="app-shell">
         <nav class="app-nav" aria-label="Main">
             <div class="app-nav-inner">
@@ -76,11 +76,15 @@
 
         <main class="app-main">
             <div class="page">
+                <header class="page-header review-header">
+                    <div class="review-heading">
+                        <p class="page-subtitle">Match review</p>
+                        <h1 id="review-game-title" class="page-title review-game-title hidden"></h1>
+                    </div>
+                </header>
                 <div class="review-layout">
                     <!-- Timeline -->
                     <div id="timeline-container" class="surface review-timeline">
-                        <h2 id="review-game-title"
-                            class="hidden mb-4 pb-3 text-lg font-bold text-slate-900 border-b border-slate-200"></h2>
 
                         <!-- Shown when no game was opened from Saved Games -->
                         <div id="no-game-selected-state"
@@ -110,7 +114,7 @@
                         </div>
 
                         <!-- Timeline filters - multi-select dropdown -->
-                        <div id="timeline-filters" class="mb-4 border-b border-slate-200 pb-4 hidden">
+                        <div id="timeline-filters" class="review-filters hidden">
                             <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
                                 <label for="filter-dropdown-button" class="field-label mb-0">Filter events</label>
 
@@ -157,11 +161,11 @@
                             </div>
 
                             <!-- Selected filters tags display -->
-                            <div id="selected-filters-tags" class="flex flex-wrap gap-2 mt-3"></div>
+                            <div id="selected-filters-tags" class="review-filter-tags"></div>
                         </div>
 
                         <!-- Timeline events will be loaded here -->
-                        <div id="timeline-events" class="overflow-y-auto flex-grow hidden space-y-3 px-1">
+                        <div id="timeline-events" class="review-tags hidden">
                         </div>
                     </div>
 
@@ -192,19 +196,27 @@
                                 </button>
                             </div>
 
-                            <label for="video-upload" class="btn btn-dark review-upload cursor-pointer">
-                                <i class="fas fa-upload" aria-hidden="true"></i>Upload Video
-                            </label>
-                            <input type="file" id="video-upload" class="hidden" accept="video/*">
+                            <div class="review-video-actions">
+                                <button id="add-event-fab" type="button" class="btn btn-primary hidden">
+                                    <i class="fas fa-tag" aria-hidden="true"></i>
+                                    <span>Add tag</span>
+                                </button>
+                                <label for="video-upload" class="btn btn-dark review-upload cursor-pointer">
+                                    <i class="fas fa-upload" aria-hidden="true"></i>Upload Video
+                                </label>
+                                <input type="file" id="video-upload" class="hidden" accept="video/*">
+                            </div>
                         </div>
 
-                        <video id="video-player" controls preload="metadata" playsinline aria-label="Video player">
-                            <p class="text-white text-center p-6">
-                                Please upload a video using the button above, or add video files to the assets/videos
-                                folder.
-                            </p>
-                            Your browser does not support the video tag.
-                        </video>
+                        <div class="review-video-stage">
+                            <video id="video-player" controls preload="metadata" playsinline aria-label="Video player">
+                                <p class="text-white text-center p-6">
+                                    Please upload a video using the button above, or add video files to the assets/videos
+                                    folder.
+                                </p>
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
 
                         <!-- Presentation overlay for tag/description (hidden by default) -->
                         <div id="presentation-overlay"
@@ -214,12 +226,6 @@
                             <p id="presentation-description" class="text-sm text-gray-200"></p>
                         </div>
 
-                        <!-- Floating Action Button (FAB) for adding/tagging new events -->
-                        <button id="add-event-fab" type="button"
-                            class="fixed md:absolute bottom-6 right-6 z-30 w-14 h-14 rounded-full shadow-lg flex items-center justify-center btn-primary hidden"
-                            aria-label="Add new event">
-                            <i class="fas fa-plus text-xl" aria-hidden="true"></i>
-                        </button>
                     </section>
                 </div>
             </div>
@@ -230,12 +236,12 @@
     <div id="add-event-modal" class="modal hidden" role="dialog" aria-modal="true"
         aria-labelledby="add-event-modal-title">
         <div class="modal-panel max-w-md relative">
-            <h2 id="add-event-modal-title" class="modal-title mb-4">Add New Event</h2>
+            <h2 id="add-event-modal-title" class="modal-title mb-4">Add tag</h2>
             <form id="add-event-form" class="space-y-4">
                 <div>
-                    <label for="event-type" class="field-label">Event Type</label>
+                    <label for="event-type" class="field-label">Tag</label>
                     <input id="event-type" name="event-type" type="text" required autocomplete="off" class="field"
-                        placeholder="e.g., Goal, Foul, Custom...">
+                        placeholder="e.g. Goal, Circle entry, Press">
                 </div>
                 <div>
                     <label for="event-note" class="field-label">Note <span
@@ -249,7 +255,7 @@
                 </div>
                 <div class="modal-actions">
                     <button type="button" id="cancel-add-event" class="btn btn-secondary">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Event</button>
+                    <button type="submit" class="btn btn-primary">Add tag</button>
                 </div>
             </form>
             <button type="button" id="close-add-event-modal" class="btn btn-ghost btn-icon absolute top-3 right-3"

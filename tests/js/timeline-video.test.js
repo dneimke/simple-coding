@@ -219,6 +219,15 @@ describe('event filters', () => {
         jest.restoreAllMocks();
     });
 
+    test('each saved tag is one row showing its time and name', () => {
+        const row = document.querySelector('#timeline-events .timeline-event');
+        expect(row.querySelector('.timeline-event-time').textContent).toBe('16:40');
+        expect(row.querySelector('.timeline-event-name').textContent).toBe('Goal');
+        expect(row.querySelector('.timeline-event-seek')).not.toBeNull();
+        expect(row.querySelector('.favorite-toggle')).not.toBeNull();
+        expect(row.querySelector('.delete-event-btn')).not.toBeNull();
+    });
+
     test('clicking a type label applies the filter and clicking again removes it', () => {
         typeLabel('goal').click();
         expect(renderedIds()).toEqual(['e1', 'e4']);

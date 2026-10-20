@@ -1318,10 +1318,41 @@ code {
 }
 
 /* ===== Match review ===== */
+.review-page .app-nav-inner,
+.review-page .page {
+    max-width: none;
+}
+
+.review-page .page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3);
+}
+
+.review-header {
+    margin-bottom: 0;
+    align-items: center;
+}
+
+.review-heading {
+    min-width: 0;
+    flex: 1;
+}
+
+.review-game-title {
+    font-size: 1.125rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .review-layout {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-3);
+    min-height: 0;
 }
 
 .review-timeline,
@@ -1336,20 +1367,18 @@ code {
 .review-timeline {
     display: flex;
     flex-direction: column;
-    padding: var(--space-4);
-    max-height: 70vh;
-    overflow-y: auto;
+    padding: var(--space-3) var(--space-3) 0;
 }
 
-/* Video first on phones; side by side from md */
+/* Video first on phones; it fills the remaining height from md */
 .review-video {
     order: -1;
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-3);
-    background-color: #0f172a;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    background-color: var(--color-ink);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
 }
@@ -1359,9 +1388,13 @@ code {
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
+    flex-shrink: 0;
 }
 
-.review-video-toolbar .review-upload {
+.review-video-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     margin-left: auto;
 }
 
@@ -1388,11 +1421,178 @@ code {
     box-shadow: 0 0 0 2px #c4b5fd;
 }
 
-.review-video video {
-    width: 100%;
-    aspect-ratio: 16 / 9;
+.review-video-stage {
     background-color: #000;
     border-radius: var(--radius-md);
+    overflow: hidden;
+    min-height: 12rem;
+}
+
+.review-video-stage video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    object-fit: contain;
+}
+
+.review-filters {
+    flex-shrink: 0;
+    padding-bottom: var(--space-3);
+}
+
+.review-filter-tags:not(:empty) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    max-width: 100%;
+    min-height: 1.75rem;
+    padding: 0 var(--space-2) 0 var(--space-3);
+    border-radius: var(--radius-full);
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent-hover);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.filter-tag-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.filter-tag-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.filter-tag-remove:hover {
+    background-color: var(--color-accent);
+    color: #ffffff;
+}
+
+.filter-tag-remove:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.review-tags {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    margin: 0 calc(var(--space-3) * -1);
+    overflow-y: auto;
+}
+
+.review-tags.hidden {
+    display: none;
+}
+
+.timeline-event {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: var(--space-1);
+    padding-left: var(--space-3);
+    border-left: 3px solid var(--color-accent);
+    border-bottom: 1px solid var(--color-line);
+    background-color: var(--color-surface);
+}
+
+.timeline-event:hover,
+.timeline-event:focus-within {
+    background-color: var(--color-surface-muted);
+}
+
+.timeline-event.is-active {
+    background-color: var(--color-accent-soft);
+}
+
+.timeline-event-seek {
+    display: grid;
+    grid-template-columns: 3.25rem minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--space-2);
+    min-width: 0;
+    min-height: 2.25rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.timeline-event-seek:focus-visible,
+.timeline-event-action:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.timeline-event-time {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-muted);
+}
+
+.timeline-event-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-ink);
+}
+
+.timeline-event-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+}
+
+.timeline-event-action:hover {
+    color: var(--color-ink);
+    background-color: var(--color-surface-muted);
+}
+
+.timeline-event-action.is-favorite,
+.timeline-event-action.is-favorite:hover {
+    color: var(--color-warning-ink);
+}
+
+.delete-event-btn:hover {
+    color: var(--color-danger);
+    background-color: var(--color-danger-soft);
 }
 
 .segmented {
@@ -1427,37 +1627,107 @@ code {
     box-shadow: inset var(--focus-ring);
 }
 
-@media (min-width: 768px) {
-    .review-layout {
-        flex-direction: row;
-        height: calc(100dvh - var(--nav-height) - 2 * var(--page-pad) - var(--space-6));
-        min-height: 28rem;
+@media (pointer: coarse) {
+    .segmented > button,
+    .timeline-event-seek,
+    .timeline-event-action,
+    .filter-tag-remove {
+        min-height: var(--touch-min);
     }
 
-    .review-timeline {
-        width: 36%;
-        max-height: none;
-        flex-shrink: 0;
+    .timeline-event-action,
+    .filter-tag-remove {
+        min-width: var(--touch-min);
+        width: var(--touch-min);
+        height: var(--touch-min);
     }
+}
 
+@media (max-width: 1023px) {
     .review-video {
-        order: 0;
-        flex: 1;
-        align-self: flex-start;
-        min-width: 0;
-        max-height: 100%;
-        padding: var(--space-4);
+        position: sticky;
+        top: 0;
+        z-index: 2;
     }
 
-    .review-video video {
-        min-height: 0;
-        object-fit: contain;
+    .review-tags {
+        overflow: visible;
+    }
+}
+
+@media (min-width: 768px) {
+    .review-game-title {
+        font-size: 1.25rem;
     }
 }
 
 @media (min-width: 1024px) {
+    .review-page {
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    .review-page .app-shell {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .review-page .app-main {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+    }
+
+    .review-page .page {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .review-layout {
+        flex: 1;
+        flex-direction: row;
+        align-items: stretch;
+    }
+
     .review-timeline {
-        width: 28%;
+        width: 18rem;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .review-video {
+        order: 0;
+        position: static;
+        flex: 1;
+        align-self: stretch;
+        min-width: 0;
+    }
+
+    .review-tags {
+        overflow-y: auto;
+    }
+
+    .review-video-stage {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+    }
+
+    .review-video-stage video {
+        flex: 1;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        aspect-ratio: auto;
+        object-position: center top;
+    }
+}
+
+@media (min-width: 1440px) {
+    .review-timeline {
+        width: 20rem;
     }
 }
 

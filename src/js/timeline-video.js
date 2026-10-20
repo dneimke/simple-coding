@@ -349,7 +349,7 @@ function jumpToEventTime(event) {
         const events = document.querySelectorAll('.timeline-event');
         for (const el of events) {
             if (el.textContent.includes(formatTime(event.timeMs))) {
-                el.classList.add('bg-blue-50', 'ring-2', 'ring-blue-500');
+                el.classList.add('is-active');
                 el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 break;
             }
@@ -393,13 +393,13 @@ function highlightTimelineEvent(eventId) {
     // Remove highlight from all events
     const events = document.querySelectorAll('.timeline-event');
     events.forEach(el => {
-        el.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-500');
+        el.classList.remove('is-active');
     });
 
     // Add highlight to current event
     const currentEvent = document.querySelector(`.timeline-event[data-event-id="${eventId}"]`);
     if (currentEvent) {
-        currentEvent.classList.add('bg-blue-50', 'ring-2', 'ring-blue-500');
+        currentEvent.classList.add('is-active');
 
         // Scroll to make event visible if needed
         currentEvent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -532,6 +532,7 @@ function loadGame(gameId) {
             const gameTitle = document.getElementById('review-game-title');
             if (gameTitle) {
                 gameTitle.textContent = displayName;
+                gameTitle.title = displayName;
                 gameTitle.classList.remove('hidden');
             }
             updateFabVisibility();
@@ -680,48 +681,52 @@ function renderTimelineEvents() {
         // Create events in timeline
         eventsToRender.forEach((event, index) => {
             const eventElement = document.createElement('div');
-            eventElement.classList.add(
-                'timeline-event',
-                'flex',
-                'items-center',
-                'justify-between',
-                'p-3',
-                'border-l-4',
-                `border-${getEventColor(event.event)}-500`,
-                'bg-white',
-                'hover:bg-gray-50',
-                'rounded',
-                'shadow-sm',
-                'mb-3',
-                'cursor-pointer'
-            );
+            eventElement.className = 'timeline-event';
             eventElement.dataset.eventId = event.id || `event-${index}`;
 
-            // Format time from milliseconds to MM:SS
             const timeFormatted = formatTime(event.timeMs);
+            const eventName = formatEventTypeName(event.event);
             const isFavorite = !!event.isFavorite;
+            const note = event.note ? String(event.note) : '';
+            eventElement.title = note ? `${eventName} — ${note}` : eventName;
 
-            // Add delete button (trash icon)
-            eventElement.innerHTML = `
-                <div class="flex-grow">
-                    <span class="text-xs text-gray-500">${timeFormatted}</span>
-                    <p class="font-medium">${formatEventTypeName(event.event)}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button class="favorite-toggle p-1 focus:outline-none ${isFavorite ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'}"
-                        data-event-id="${eventElement.dataset.eventId}"
-                        aria-label="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" ${isFavorite ? 'fill=\"currentColor\"' : 'fill=\"none\"'} viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                        </svg>
-                    </button>
-                    <button class="delete-event-btn p-1 text-gray-400 hover:text-red-600 focus:outline-none" data-event-id="${eventElement.dataset.eventId}" aria-label="Delete event">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            `;
+            const seekButton = document.createElement('button');
+            seekButton.type = 'button';
+            seekButton.className = 'timeline-event-seek';
+            seekButton.setAttribute('aria-label', `Play ${eventName} at ${timeFormatted}`);
+
+            const timeEl = document.createElement('span');
+            timeEl.className = 'timeline-event-time';
+            timeEl.textContent = timeFormatted;
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'timeline-event-name';
+            nameEl.textContent = eventName;
+
+            seekButton.append(timeEl, nameEl);
+
+            const favoriteBtn = document.createElement('button');
+            favoriteBtn.type = 'button';
+            favoriteBtn.className = `favorite-toggle timeline-event-action${isFavorite ? ' is-favorite' : ''}`;
+            favoriteBtn.dataset.eventId = eventElement.dataset.eventId;
+            favoriteBtn.setAttribute('aria-label', isFavorite ? 'Remove from favorites' : 'Add to favorites');
+            favoriteBtn.setAttribute('aria-pressed', isFavorite ? 'true' : 'false');
+            const favoriteIcon = document.createElement('i');
+            favoriteIcon.className = isFavorite ? 'fas fa-star' : 'far fa-star';
+            favoriteIcon.setAttribute('aria-hidden', 'true');
+            favoriteBtn.appendChild(favoriteIcon);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'delete-event-btn timeline-event-action';
+            deleteBtn.dataset.eventId = eventElement.dataset.eventId;
+            deleteBtn.setAttribute('aria-label', 'Delete event');
+            const deleteIcon = document.createElement('i');
+            deleteIcon.className = 'fas fa-xmark';
+            deleteIcon.setAttribute('aria-hidden', 'true');
+            deleteBtn.appendChild(deleteIcon);
+
+            eventElement.append(seekButton, favoriteBtn, deleteBtn);
 
             // Add event listener to jump to this time in video
             eventElement.addEventListener('click', (e) => {
@@ -733,15 +738,11 @@ function renderTimelineEvents() {
                 }
             });
 
-            // Add event listener for favorite toggle
-            const favoriteBtn = eventElement.querySelector('.favorite-toggle');
             favoriteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 toggleFavorite(eventElement.dataset.eventId);
             });
 
-            // Add event listener for delete button
-            const deleteBtn = eventElement.querySelector('.delete-event-btn');
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 deleteEvent(eventElement.dataset.eventId);
@@ -900,13 +901,15 @@ function syncFilterUI() {
 
     activeTypeFilters.forEach(filter => {
         const tag = document.createElement('div');
-        tag.className = 'bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded flex items-center';
+        tag.className = 'filter-tag';
 
         const tagText = document.createElement('span');
+        tagText.className = 'filter-tag-label';
         tagText.textContent = formatEventTypeName(filter);
 
         const removeButton = document.createElement('button');
-        removeButton.className = 'ml-1.5 text-blue-600 hover:text-blue-800';
+        removeButton.type = 'button';
+        removeButton.className = 'filter-tag-remove';
         removeButton.innerHTML = '&times;';
         removeButton.setAttribute('aria-label', `Remove ${formatEventTypeName(filter)} filter`);
 
@@ -1114,27 +1117,6 @@ function loadGameFromQuery() {
     if (!gameId || !loadGame(gameId)) {
         showNoGameSelectedState();
     }
-}
-
-// Get appropriate color for event type
-function getEventColor(eventType) {
-    // Map of event types to colors
-    const colorMap = {
-        goal: 'green',
-        foul: 'red',
-        penalty: 'amber',
-        substitution: 'blue',
-        injury: 'red',
-        card: 'amber',
-        timeout: 'purple',
-        possession_change: 'indigo',
-        shot_on_goal: 'blue',
-        corner: 'teal',
-        free_hit: 'sky'
-    };
-
-    // Return mapped color or default blue
-    return colorMap[eventType?.toLowerCase()] || 'blue';
 }
 
 // Jump to a specific time in the video
