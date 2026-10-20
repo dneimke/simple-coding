@@ -12,6 +12,7 @@ import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
 import { draftService, finishCapture } from './services/draftService.js';
 import { openTeamSetupDialog, loadLastTeams, saveLastTeams } from './components/teamSetupDialog.js';
+import { openCompleteGameDialog } from './components/completeGameDialog.js';
 import { resolveEventName } from './utils/zoneUtils.js';
 import { renderRecentEvents } from './components/recentEvents.js';
 
@@ -29,6 +30,7 @@ const codingButtonsContainer = document.getElementById('coding-buttons-container
 const boardSelect = document.getElementById('boardSelect');
 const boardLockedHint = document.getElementById('boardLockedHint');
 const teamSetupModal = document.getElementById('teamSetupModal');
+const completeGameModal = document.getElementById('completeGameModal');
 const lastEventBar = document.getElementById('lastEventBar');
 const lastEventLabel = document.getElementById('lastEventLabel');
 const undoEventButton = document.getElementById('undoEventButton');
@@ -455,21 +457,27 @@ function restoreCaptureDraft() {
     notificationService.notify(`Restored capture in progress: ${describeCapture()}`, 'success', 6000);
 }
 
-function completeCapture() {
-    const elapsedTime = gameState.getLiveElapsedTime();
-    const userConfirmed = notificationService.confirm(
-        'Are you sure you want to complete the game? It will be saved to Saved Games and the capture will reset.'
-    );
-    if (!userConfirmed) return;
+function captureDialogOpen() {
+    return [teamSetupModal, completeGameModal].some(modal => modal && !modal.classList.contains('hidden'));
+}
 
+async function completeCapture() {
+    const elapsedTime = gameState.getLiveElapsedTime();
+    const events = stateService.getState('game.loggedEvents') || [];
+    const count = events.length;
     const teams = stateService.getState('game.teams');
     const suggestedName = teams ? `${teams[0].code} vs ${teams[1].code}` : '';
-    const teamsName = notificationService.prompt('Enter teams for this game (e.g., "Team A vs Team B"):', suggestedName);
+    const choice = await openCompleteGameDialog({
+        summary: `Save ${count} event${count === 1 ? '' : 's'}, clock at ${formatTime(elapsedTime)}, to Saved Games. The capture will reset.`,
+        suggestedName
+    });
+    if (!choice) return;
+
     const result = finishCapture({
-        events: stateService.getState('game.loggedEvents'),
+        events,
         elapsedTime,
         timestamp: new Date().toISOString(),
-        teams: teamsName ? teamsName.trim() : null,
+        teams: choice.name ? choice.name : null,
         ...(teams && { teamCodes: teams.map(team => team.code) })
     }, gameStorageManager);
 
@@ -598,7 +606,7 @@ function registerEventListeners() {
     document.addEventListener('keydown', (event) => {
         if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
         if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (!teamSetupModal.classList.contains('hidden')) return;
+        if (captureDialogOpen()) return;
         if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
 
         event.preventDefault();
@@ -625,7 +633,7 @@ function registerEventListeners() {
     document.addEventListener('keydown', (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (!teamSetupModal.classList.contains('hidden')) return;
+        if (captureDialogOpen()) return;
         if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
 
         if (event.key === 't' || event.key === 'T') {

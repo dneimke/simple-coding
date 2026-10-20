@@ -254,7 +254,7 @@
             </div>
         </main>
     </div>
-    <script type="module" src="main.js?v=20261020b"></script>
+    <script type="module" src="main.js?v=20261020c"></script>
 
     <!-- Team setup for boards with team rows -->
     <div id="teamSetupModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="teamSetupTitle">
@@ -278,6 +278,24 @@
             <div class="modal-actions">
                 <button id="teamSetupCancel" type="button" class="btn btn-secondary">Cancel</button>
                 <button type="submit" class="event-button btn-green">Start</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Name a finished capture before it is saved -->
+    <div id="completeGameModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="completeGameTitle">
+        <form id="completeGameForm" class="modal-panel max-w-md" novalidate>
+            <h2 id="completeGameTitle" class="modal-title">Complete this game</h2>
+            <p id="completeGameSummary" class="help-text mb-5"></p>
+            <div class="mb-2">
+                <label for="completeGameName" class="field-label">Game name</label>
+                <input id="completeGameName" type="text" autocomplete="off" class="field"
+                    placeholder="Team A vs Team B">
+            </div>
+            <p class="help-text">This name is shown on Saved Games. Leave it blank to save without one.</p>
+            <div class="modal-actions">
+                <button id="completeGameCancel" type="button" class="btn btn-secondary">Cancel</button>
+                <button type="submit" class="event-button btn-blue">Complete</button>
             </div>
         </form>
     </div>
