@@ -1,34 +1,42 @@
 ---
 name: async-ux-pipeline
 description: >-
-  Turns a UI friction report into a short spec, implements it against this
-  repo's design language, proves the result in the browser without asking
-  the user to click through, and ships it as a pull request. Use when the user reports UI friction, requests
-  a component or layout change, dispatches a feature to finish while they are
-  away, or mentions the async UX pipeline.
+  Evaluates user feedback, pain points, or feature ideas against AGENTS.md
+  personas and journeys, pushes back or writes a short spec, implements it
+  against the design language, proves the result in the browser without asking
+  the user to click through, and ships a pull request. Use when the user
+  reports UI friction, shares user feedback, requests a feature or layout
+  change, or mentions the async UX pipeline.
 ---
 
 # Async UX-to-Code Pipeline
 
-Finish the UI change while the user is away. Take a raw friction report (screenshot, note, or bullets), write a short spec, implement the smallest change, leave proof, and open a pull request. Do not ask them to open the app, refresh, log in, or click through states.
+Take raw user feedback, a pain point, or a feature request, evaluate it against `AGENTS.md`, implement the smallest valid change while the user is away, verify it in the browser, and open a pull request. Do not ask the user to open the app, refresh, or click through states.
 
 ## Repository binding
 
-This app is the Field Hockey Event Tracker: static HTML, vanilla JavaScript, and Jest. UI rules live in `.cursor/rules/design-language.mdc` and `docs/design-language.md`. Follow those for colour, components, touch size, and breakpoints. This skill does not restate them.
+Read `AGENTS.md` (personas, journeys, push-back rules) and `docs/design-language.md` (`.cursor/rules/design-language.mdc`) before changing markup, CSS, or JavaScript.
 
-## Stage 1: Friction intake
+## Stage 1: Product triage & spec (`a → b → c`)
 
-Before writing code, state three lines:
+Before writing code, evaluate the request against `AGENTS.md`:
 
-- **Problem**: what is clunky or high-effort.
-- **Target state**: what the screen does after the change.
-- **Verification**: the check that proves it.
+1. **Persona & Journey (`a`)**: Name the target persona (*Dedicated Analyst*, *Bench Coach*, *Drafted Helper*, or *Head Coach*) and journey.
+2. **Audit & Push-Back Check (`b → c`)**: Inspect current code against the persona's quality bar and the **Push-Back Rules** in `AGENTS.md`:
+   - Does it add taps, dialogs, or shifting buttons during live capture?
+   - Can it be solved purely with a board JSON configuration (use `board-config-generator` instead)?
+   - Does it help an expert persona while overloading a casual coder or halftime coach?
+   - **If a rule is violated**: Stop and push back with the concrete tradeoff and a better alternative.
+3. **Three-line spec (`c`)**: When the change is sound, state:
+   - **Problem**: which persona/journey is blocked or high-effort, and why.
+   - **Target state**: what the screen/code does after the change.
+   - **Verification**: the automated test and browser check that prove it.
 
 Use the full pipeline for a screen or interaction change. For a copy or token tweak, skip the failing-test step and still do the browser check.
 
 ## Stage 2: Design language
 
-Read `docs/design-language.md` before changing markup, CSS, or JavaScript that builds UI.
+Follow `docs/design-language.md`: CSS tokens and semantic classes in `src/styles.css`, Tailwind utilities for layout and spacing only, $\ge 44\text{px}$ touch targets.
 
 ## Stage 3: Tests
 
@@ -60,13 +68,13 @@ Every change ships through a pull request. Never commit or push to `main`.
 
 1. Start from an up-to-date `main` and create `feature/<short-name>`.
 2. Commit with a message that says what the user gets, push the branch, and open a PR against `main` with `gh pr create`.
-3. In the PR body, cover the problem, what changed, behaviour that stays the same, and testing (the `npm test` count and the widths and flows checked in the browser).
+3. In the PR body, cover the persona/problem, what changed, behaviour that stays the same, and testing (the `npm test` count and the widths and flows checked in the browser).
 4. Leave merging to the user.
 
 ## Done when
 
 - Behaviour changes have a green `npm test`
-- The design-language rule still holds
+- `AGENTS.md` persona quality bars and `docs/design-language.md` rules hold
 - The browser check used the direct URL, with a saved game when the view needs one
 - A pull request is open against `main`, and nothing was pushed to `main` directly
 - The reply leads with what changed, the test result, what the screen showed, and the PR link
