@@ -27,6 +27,12 @@ ${game.events.map((event, i) => `    <instance><ID>${i + 1}</ID><code>${event.ev
 // Mock button creation function
 jest.mock('../../../src/components/ui/button.js');
 
+// Buttons live in the card's .saved-game-actions row
+const findActionButton = (card, text) => {
+    const actions = card.append.mock.calls[0].find(el => el.className === 'saved-game-actions');
+    return actions.append.mock.calls[0].find(el => el.textContent === text);
+};
+
 // Set up before tests run
 beforeAll(() => {
     // Mock DOM methods
@@ -117,16 +123,7 @@ describe('Export XML Functionality', () => {
             ...mockHandlers
         });
 
-        // Find the Export XML button among the appended elements
-        let exportButtonFound = false;
-        for (const call of card.append.mock.calls[0]) {
-            if (call.textContent === 'Export XML') {
-                exportButtonFound = true;
-                break;
-            }
-        }
-
-        expect(exportButtonFound).toBe(true);
+        expect(findActionButton(card, 'Export XML')).toBeDefined();
     });
 
     test('Export XML button click should generate XML file and trigger download', () => {
@@ -136,14 +133,7 @@ describe('Export XML Functionality', () => {
             ...mockHandlers
         });
 
-        // Find the Export XML button
-        let exportButton;
-        for (const call of card.append.mock.calls[0]) {
-            if (call.textContent === 'Export XML') {
-                exportButton = call;
-                break;
-            }
-        }
+        const exportButton = findActionButton(card, 'Export XML');
 
         // Simulate click on export button
         const mockStopPropagation = jest.fn();
@@ -189,15 +179,13 @@ describe('View Log button', () => {
         events: [{ event: 'GOAL_FOR', timeMs: 60000 }]
     };
 
-    const findButton = (card, text) => card.append.mock.calls[0].find(el => el.textContent === text);
-
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
     test('is not rendered without an onViewLog handler', () => {
         const card = createGameCard({ game, index: 0, onRename: jest.fn(), onDelete: jest.fn() });
-        expect(findButton(card, 'View Log')).toBeUndefined();
+        expect(findActionButton(card, 'View Log')).toBeUndefined();
     });
 
     test('calls onViewLog and stops propagation when clicked', () => {
@@ -205,7 +193,7 @@ describe('View Log button', () => {
         const card = createGameCard({ game, index: 0, onRename: jest.fn(), onDelete: jest.fn(), onViewLog });
 
         const stopPropagation = jest.fn();
-        findButton(card, 'View Log').onclick({ stopPropagation });
+        findActionButton(card, 'View Log').onclick({ stopPropagation });
 
         expect(stopPropagation).toHaveBeenCalled();
         expect(onViewLog).toHaveBeenCalledTimes(1);

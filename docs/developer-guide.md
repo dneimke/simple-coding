@@ -146,10 +146,11 @@ The application follows a modular ES6 architecture with:
 
 ### Modifying the UI
 
-1. Locate the relevant component in `src/components/`
-2. Update the markup and associated JavaScript
-3. Use Tailwind CSS classes for styling
-4. Test the changes both visually and with unit tests
+1. Read the [Design Language](design-language.md). It lists the tokens and semantic classes (`page`, `surface`, `btn`, `field`, `modal`, `tabs` and more) that every screen uses.
+2. Locate the relevant component in `src/components/`
+3. Update the markup and associated JavaScript, composing design language classes for colour, borders and type, and Tailwind utilities for layout and spacing only
+4. Add new colours or components to `src/styles.css` as tokens and documented classes, not as one-off hex values or Tailwind colour utilities
+5. Test the changes with unit tests and visually at phone (~390px), iPad (~768px) and laptop (~1280px) widths
 
 ### Working with the Router
 
@@ -174,14 +175,19 @@ The application implements a custom router that handles navigation between views
 4. **Example: Adding a "Help" View**:
 
    ```javascript
-   // 1. Add the view to index.html
+   // 1. Add the view to index.html, inside <div class="page">
    <div id="help-view" class="hidden">
-     <h1>Help Documentation</h1>
-     <!-- Content here -->
+     <header class="page-header">
+       <h1 class="page-title">Help</h1>
+     </header>
+     <section class="surface surface-padded"><!-- Content here --></section>
    </div>
 
-   // 2. Add a navigation link
-   <a href="#help" id="navHelp" class="text-gray-400 hover:text-white-300 font-medium">Help</a>
+   // 2. Add a navigation link inside .app-nav-links
+   <a href="#help" id="navHelp" class="nav-link">
+     <i class="fas fa-circle-question text-sm" aria-hidden="true"></i>
+     <span>Help</span>
+   </a>
 
    // 3. Update router initialization in main.js
    const router = new Router(
@@ -204,5 +210,6 @@ For more detailed information about the navigation system, see [Navigation](navi
 ## Additional Resources
 
 - Check the `README.md` for an overview of the application
+- See `docs/design-language.md` for tokens, classes and layout rules
 - See `docs/user-workflow.md` for understanding the user experience flow
 - Explore `docs/match-review.md` and `docs/saved-games.md` for feature-specific documentation

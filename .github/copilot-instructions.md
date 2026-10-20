@@ -20,9 +20,12 @@
 2. **Modern JavaScript (ES6+):**
     - All JavaScript code suggestions **must** use modern ES6+ syntax and features (e.g., `const`/`let`, arrow functions, classes, template literals, Promises, `async`/`await`, ES Modules, spread/rest operators, destructuring).
     - Avoid `var` and older patterns unless discussing compatibility or historical context.
-3. **Tailwind CSS Usage:**
-    - For styling, **prefer using Tailwind CSS utility classes** directly within the HTML markup.
-    - Avoid generating custom CSS files or `<style>` blocks unless absolutely necessary for complex scenarios not easily handled by utilities (e.g., complex animations, base styles). If custom CSS is suggested, explain *why* it's needed over Tailwind utilities.
+3. **Design Language and Tailwind CSS Usage:**
+    - Follow [`docs/design-language.md`](../docs/design-language.md). Colour, borders, elevation and type come from the CSS tokens and semantic classes in `src/styles.css` (`page`, `page-header`, `surface`, `btn btn-*`, `field`, `tabs`, `banner`, `modal`, and others).
+    - Use Tailwind utilities for **layout and spacing only** (`flex`, `grid`, `gap-*`, `mt-*`, `hidden`, responsive prefixes). Don't add Tailwind colour utilities (`bg-blue-600`, `text-gray-700`) or new hex values in markup or JavaScript.
+    - When a new colour or component is needed, add a token and a documented class to `src/styles.css` and list it in the design language doc.
+    - Never rename the board colour classes (`btn-blue`, `btn-red`, `btn-green`, `btn-yellow`, `btn-orange`, `btn-gray`) or `team-color-*`; saved board JSON depends on them.
+    - Check layouts at phone (~390px), iPad (~768px) and laptop (~1280px) widths, with 44px minimum touch targets.
 4. **Explain Decisions & Tradeoffs:**
     - When providing code snippets or architectural suggestions, **always explain the reasoning** behind the chosen approach.
     - Discuss potential **tradeoffs** (e.g., performance vs. readability, simplicity vs. extensibility).

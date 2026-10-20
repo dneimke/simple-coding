@@ -39,7 +39,7 @@ describe('Card UI Component', () => {
 
         expect(document.createElement).toHaveBeenCalledWith('div');
         expect(card.className).toContain('custom-card');
-        expect(card.className).toContain('bg-white rounded-lg');
+        expect(card.className).toContain('surface');
 
         // Should create header, body, and footer elements
         expect(document.createElement).toHaveBeenCalledTimes(4); // card + header + body + footer

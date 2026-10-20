@@ -1,0 +1,37 @@
+---
+description: Design language for UI markup, styles and JavaScript-built UI. Read docs/design-language.md before changing UI.
+globs: src/**/*.html,src/**/*.css,src/**/*.js
+alwaysApply: false
+---
+
+# Design language
+
+Full reference: `docs/design-language.md` (tokens, class catalog, recipes). Tokens and classes live in `src/styles.css`.
+
+## Rules
+
+- Colour, borders, elevation and type come from tokens (`var(--color-accent)`) and semantic classes (`page`, `page-header`, `surface`, `btn btn-*`, `field`, `tabs`, `banner`, `modal`). This applies to markup and to JavaScript that builds UI.
+- Tailwind utilities are for layout and spacing only: `flex`, `grid`, `gap-*`, `mt-*`, `hidden`, responsive prefixes.
+- No Tailwind colour utilities (`bg-blue-600`, `text-gray-700`) or new hex values outside `src/styles.css`. If no token fits, add one to `:root` and list it in the doc.
+- New component classes go in `src/styles.css` under a `/* ===== Section ===== */` heading. If the class sets `display`, add `.your-class.hidden { display: none; }`, because Tailwind's `.hidden` has the same specificity.
+- Never rename `btn-blue`, `btn-red`, `btn-green`, `btn-yellow`, `btn-orange`, `btn-gray` or `team-color-*`. Saved board JSON depends on them.
+- Tappable controls are at least `--touch-min` (44px) on touch screens, with a visible `--focus-ring`.
+- Use `createButton({ type })` and `createCard()` from `src/components/ui/` rather than hand-styling buttons and cards.
+- Keep `#tracker-view`'s bottom padding so the nav can scroll off during capture.
+
+## Example
+
+```html
+<!-- Bad -->
+<button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Save</button>
+<div class="bg-white rounded-lg shadow-md p-4">...</div>
+
+<!-- Good -->
+<button type="button" class="btn btn-primary">Save</button>
+<div class="surface surface-padded">...</div>
+```
+
+## Before finishing
+
+- Check the layout at about 390px, 768px and 1280px.
+- Update `docs/design-language.md` if you added a token or class.
