@@ -21,6 +21,53 @@ export class EventButtons {
         eventButtons.forEach(button => {
             button.disabled = !isRunning;
         });
+
+        if (Array.isArray(gameState.loggedEvents)) {
+            this.updateBadgeCounts(gameState.loggedEvents);
+        }
+    }
+
+    /**
+     * Updates badge counters on coding buttons without re-rendering the board
+     * @param {Array} events - Logged events array
+     */
+    updateBadgeCounts(events = []) {
+        const pcButtons = this.targetContainer.querySelectorAll(
+            '.event-button[data-has-counter="true"], .event-button[data-event*="PC"], .event-button[data-base-event="PC"]'
+        );
+        pcButtons.forEach(button => {
+            const badge = button.querySelector('[data-badge]') || button.querySelector('.event-counter-badge');
+            if (!badge) return;
+
+            const teamSlot = button.dataset.teamSlot;
+            const team = teamSlot && this.teams ? this.teams[Number(teamSlot) - 1] : null;
+
+            const count = events.filter(e => {
+                if (!e) return false;
+                const isPC =
+                    e.eventCode === 'PC' ||
+                    e.event === 'PC' ||
+                    e.event === 'Penalty Corner' ||
+                    (typeof e.event === 'string' && (e.event.endsWith('PC') || e.event.includes(' PC')));
+                if (!isPC) return false;
+                if (team) {
+                    if (e.team) return e.team === team.code;
+                    if (typeof e.event === 'string') return e.event.includes(team.code);
+                }
+                return true;
+            }).length;
+
+            if (typeof badge.setCount === 'function') {
+                badge.setCount(count);
+            } else {
+                badge.textContent = String(count);
+                if (count > 0) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        });
     }
 
     setConfig(config) {
@@ -108,7 +155,7 @@ export class EventButtons {
 
         const eventButtons = this.targetContainer.querySelectorAll('.event-button[data-event]');
         addVisualFeedbackToButtons(eventButtons);
-        this.setState({ isActive: false, isRunning: false });
+        this.setState({ isActive: false, isRunning: false, loggedEvents: [] });
     }
 
     /**

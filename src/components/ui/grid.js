@@ -2,6 +2,7 @@
  * Grid UI components
  * @module components/ui/grid
  */
+import { createCodingButton } from './codingButton.js';
 
 /**
  * Creates a grid layout container with specified columns
@@ -73,32 +74,17 @@ export const createButtonGrid = ({
             return;
         }
 
-        const button = document.createElement('button');
-        button.className = `event-button ${color} rounded text-center`;
-        button.textContent = buttonConfig.text;
-
-        if (buttonConfig.event) {
-            button.dataset.event = team ? `${team.code} ${buttonConfig.event}` : buttonConfig.event;
-        }
-        if (team) {
-            button.dataset.teamSlot = String(team.slot);
-            button.dataset.baseEvent = buttonConfig.event ?? '';
-            if (!buttonConfig.color) button.dataset.teamColored = 'true';
-        }
-        if (buttonConfig.zoned) {
-            button.dataset.zoned = 'true';
-        }
-
-        if (typeof buttonConfig.lead === 'number') {
-            button.dataset.lead = String(buttonConfig.lead);
-        }
-        if (typeof buttonConfig.lag === 'number') {
-            button.dataset.lag = String(buttonConfig.lag);
-        }
-
-        if (onButtonClick) {
-            button.addEventListener('click', () => onButtonClick(buttonConfig));
-        }
+        const button = createCodingButton({
+            text: buttonConfig.text,
+            event: buttonConfig.event,
+            color: buttonConfig.color,
+            team,
+            teamColored: !buttonConfig.color,
+            zoned: buttonConfig.zoned,
+            lead: buttonConfig.lead,
+            lag: buttonConfig.lag,
+            onClick: onButtonClick ? () => onButtonClick(buttonConfig) : null
+        });
 
         buttonGrid.appendChild(button);
     });

@@ -417,6 +417,7 @@ function syncChrome() {
         isRunning: Boolean(stateService.getState('game.isRunning')),
         lastEventText: lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : ''
     });
+    eventButtons.updateBadgeCounts(events);
     return hasGame;
 }
 
@@ -550,7 +551,28 @@ function registerEventListeners() {
         const clip = {};
         if (button.dataset.lead !== undefined) clip.lead = Number(button.dataset.lead);
         if (button.dataset.lag !== undefined) clip.lag = Number(button.dataset.lag);
-        if (gameState.addEvent({ event: eventName, timeMs: gameState.getLiveElapsedTime(), ...clip })) {
+
+        const timeMs = gameState.getLiveElapsedTime();
+        const teamSlot = button.dataset.teamSlot;
+        const teamCode = teamSlot && eventButtons.teams ? (eventButtons.teams[Number(teamSlot) - 1]?.code || null) : null;
+        const isPC =
+            button.dataset.baseEvent === 'PC' ||
+            (button.dataset.event && button.dataset.event.endsWith('PC')) ||
+            (button.textContent && button.textContent.includes('Penalty Corner'));
+
+        const eventPayload = {
+            id: 'pc-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+            event: eventName,
+            timeMs,
+            timestamp: formatTime(timeMs),
+            eventCode: isPC ? 'PC' : (button.dataset.baseEvent || button.dataset.event || eventName),
+            team: teamCode,
+            leadTime: isPC ? 10 : (clip.lead ?? 10),
+            lagTime: isPC ? 15 : (clip.lag ?? 15),
+            ...clip
+        };
+
+        if (gameState.addEvent(eventPayload)) {
             saveCaptureDraft();
         }
     });
