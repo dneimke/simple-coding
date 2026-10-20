@@ -48,9 +48,47 @@ export const SAMPLE_DRAFT = {
     updatedAt: Date.now()
 };
 
+export const PC_COUNTER_DRAFT = {
+    events: [
+        {
+            id: 'pc-1',
+            event: 'FIRE PC',
+            eventCode: 'PC',
+            timeMs: 435000,
+            timestamp: '07:15',
+            team: 'FIRE',
+            leadTime: 10,
+            lagTime: 15,
+            lead: 2,
+            lag: 10
+        },
+        {
+            id: 'pc-2',
+            event: 'FIRE PC',
+            eventCode: 'PC',
+            timeMs: 435000,
+            timestamp: '07:15',
+            team: 'FIRE',
+            leadTime: 10,
+            lagTime: 15,
+            lead: 2,
+            lag: 10
+        }
+    ],
+    elapsedTime: 435000,
+    runningSince: null,
+    teams: [
+        { code: 'FIRE', color: 'team-color-red' },
+        { code: 'TIGERS', color: 'team-color-yellow' }
+    ],
+    activeZone: '1',
+    selectedTeam: 1,
+    updatedAt: Date.now()
+};
+
 /**
  * Seed mock data into localStorage
- * @param {'sample'|'active'} [mockType='sample']
+ * @param {'sample'|'active'|'pc-counter'} [mockType='sample']
  * @returns {{seededGames: boolean, seededDraft: boolean}}
  */
 export function seedMockData(mockType = 'sample') {
@@ -70,6 +108,9 @@ export function seedMockData(mockType = 'sample') {
     // Seed active draft if requested
     if (mockType === 'active') {
         storageService.setItem(DRAFT_STORAGE_KEY, SAMPLE_DRAFT);
+        seededDraft = true;
+    } else if (mockType === 'pc-counter') {
+        storageService.setItem(DRAFT_STORAGE_KEY, PC_COUNTER_DRAFT);
         seededDraft = true;
     }
 
@@ -97,11 +138,22 @@ export function ensureSampleGameExists() {
  * @param {string} [searchString] - Defaults to window.location.search
  * @returns {{mockType: string, seededGames: boolean, seededDraft: boolean}|null}
  */
-export function checkAndApplyMockSeed(searchString = (typeof window !== 'undefined' ? window.location?.search : '')) {
+export function checkAndApplyMockSeed(searchString = (typeof window !== 'undefined' ? (window.location?.search || window.location?.hash || '') : '')) {
     if (!searchString) return null;
 
-    const params = new URLSearchParams(searchString);
+    let searchPart = searchString;
+    if (searchString.includes('?')) {
+        searchPart = searchString.substring(searchString.indexOf('?'));
+    }
+
+    const params = new URLSearchParams(searchPart);
     const mockVal = params.get('mock') || params.get('seed');
+    const stateVal = params.get('state');
+
+    if (mockVal === 'pc-counter' || stateVal === 'adelaide-fire') {
+        const { seededGames, seededDraft } = seedMockData('pc-counter');
+        return { mockType: 'pc-counter', seededGames, seededDraft };
+    }
 
     if (!mockVal) return null;
 

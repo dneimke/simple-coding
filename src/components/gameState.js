@@ -39,7 +39,8 @@ export class GameState {
         if (this.eventButtons) {
             this.eventButtons.setState({
                 isActive: gameState.isActive,
-                isRunning: gameState.isRunning
+                isRunning: gameState.isRunning,
+                loggedEvents: gameState.loggedEvents
             });
         }
     }

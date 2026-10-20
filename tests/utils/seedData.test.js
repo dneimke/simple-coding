@@ -56,6 +56,19 @@ describe('seedData utility', () => {
             expect(draft.teams[0].code).toBe('FIRE');
             expect(draft.teams[1].code).toBe('TIGERS');
         });
+
+        test('seeds pc-counter draft when mockType is pc-counter', () => {
+            const result = seedMockData('pc-counter');
+            expect(result.seededDraft).toBe(true);
+
+            const draft = storageService.getItem(DRAFT_STORAGE_KEY);
+            expect(draft).toBeDefined();
+            expect(draft.elapsedTime).toBe(435000);
+            expect(draft.events).toHaveLength(2);
+            expect(draft.events[0].event).toBe('FIRE PC');
+            expect(draft.events[0].timestamp).toBe('07:15');
+            expect(draft.teams[0].code).toBe('FIRE');
+        });
     });
 
     describe('checkAndApplyMockSeed', () => {
@@ -70,6 +83,16 @@ describe('seedData utility', () => {
             const result = checkAndApplyMockSeed('?mock=active');
             expect(result.mockType).toBe('active');
             expect(storageService.getItem(DRAFT_STORAGE_KEY)).not.toBeNull();
+        });
+
+        test('seeds pc-counter draft when preview URL has ?state=adelaide-fire&mock=pc-counter', () => {
+            const result = checkAndApplyMockSeed('?state=adelaide-fire&mock=pc-counter');
+            expect(result).not.toBeNull();
+            expect(result.mockType).toBe('pc-counter');
+            const draft = storageService.getItem(DRAFT_STORAGE_KEY);
+            expect(draft).toBeDefined();
+            expect(draft.elapsedTime).toBe(435000);
+            expect(draft.events[0].eventCode).toBe('PC');
         });
 
         test('returns null and does not seed when no mock/seed param is present', () => {

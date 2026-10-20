@@ -2,8 +2,9 @@
 /**
  * Automated Visual Snapshot Tool
  *
- * Runs headless Chromium via Playwright against seeded URLs (?mock=sample, ?mock=active),
- * capturing high-fidelity screenshots at mobile (390px) and desktop (1280px) viewports.
+ * Runs headless Chromium via Playwright against seeded URLs (?mock=sample, ?mock=active, /dev/preview),
+ * capturing high-fidelity screenshots at mobile (390px) and desktop (1280px) viewports,
+ * and generates diff.png of the updated button grid.
  *
  * Enables "Asynchronous Dispatch" & instant 5-second PR visual review.
  */
@@ -18,6 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SRC_DIR = path.resolve(__dirname, '../src');
 const OUTPUT_DIR = path.resolve(__dirname, '../.visual-proof');
+const DIFF_PATH = path.resolve(__dirname, '../diff.png');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -71,8 +73,10 @@ function createStaticServer() {
         const parsedUrl = new URL(req.url, 'http://localhost');
         let pathname = decodeURIComponent(parsedUrl.pathname);
 
-        if (pathname === '/' || pathname === '') {
+        if (pathname === '/' || pathname === '' || pathname === '/dev/preview' || pathname === '/dev/preview/') {
             pathname = '/index.html';
+        } else if (pathname.startsWith('/dev/')) {
+            pathname = pathname.replace(/^\/dev/, '');
         }
 
         const filePath = path.join(SRC_DIR, pathname);
@@ -87,7 +91,7 @@ function createStaticServer() {
         fs.stat(filePath, (err, stats) => {
             if (err || !stats.isFile()) {
                 res.statusCode = 404;
-                res.end('Not Found');
+                res.end('Not Found: ' + pathname);
                 return;
             }
 
@@ -120,6 +124,7 @@ async function runSnapshots() {
     const results = [];
 
     try {
+        // Capture standard seeded screens
         for (const screen of DEFAULT_SCREENS) {
             for (const vp of VIEWPORTS) {
                 const context = await browser.newContext({
@@ -159,6 +164,33 @@ async function runSnapshots() {
                 await context.close();
             }
         }
+
+        // Capture diff.png: Button grid seeded with /dev/preview?state=adelaide-fire&mock=pc-counter
+        const diffContext = await browser.newContext({
+            viewport: { width: 1280, height: 800 },
+            deviceScaleFactor: 2
+        });
+        const diffPage = await diffContext.newPage();
+        const diffUrl = `${baseUrl}/dev/preview?state=adelaide-fire&mock=pc-counter`;
+        await diffPage.goto(diffUrl, { waitUntil: 'networkidle' });
+
+        try {
+            await diffPage.waitForSelector('#coding-buttons-container button', { timeout: 5000 });
+        } catch {
+            // Continue if timeout happens
+        }
+        await diffPage.waitForTimeout(400);
+
+        const gridElement = await diffPage.$('#coding-buttons-container');
+        if (gridElement) {
+            await gridElement.screenshot({ path: DIFF_PATH });
+        } else {
+            await diffPage.screenshot({ path: DIFF_PATH, fullPage: false });
+        }
+        const diffStats = fs.statSync(DIFF_PATH);
+        console.log(`\n🎯 diff.png captured for Adelaide Fire Penalty Corner Counter: ${DIFF_PATH} (${diffStats.size} bytes)`);
+
+        await diffContext.close();
 
         console.log('\n📸 Visual Snapshots Generated:\n');
         console.table(results);
