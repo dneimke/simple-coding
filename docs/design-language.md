@@ -79,6 +79,8 @@ These match Tailwind's `sm`, `md` and `lg`. `--page-pad` grows from 12px to 20px
 
 Feature areas own their own classes, built from tokens: `capture-toolbar`, `capture-timer`, `capture-actions`, `capture-meta`, `last-event-bar`, `group-container`, `zone-*`, `team-*`, `swatch`, `config-editor*`, `saved-games-list`, `saved-game-*`, `review-*`, `xml-*`.
 
+Match Review (`body.review-page`) uses the full viewport. `review-header` / `review-game-title` is the one-line match name above the workspace. `review-layout` places `review-timeline` beside `review-video`; from the `md` breakpoint the video stage (`review-video-stage`) fills the leftover height. Saved tags are `timeline-event` rows (`timeline-event-seek`, `timeline-event-time`, `timeline-event-name`, `timeline-event-action`). Active filters use `filter-tag` / `filter-tag-remove`. Add tag sits in `review-video-actions`, in the toolbar.
+
 ### JavaScript helpers
 
 `src/components/ui/` emits the same classes, so JavaScript-built UI matches the markup:
