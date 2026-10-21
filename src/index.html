@@ -113,48 +113,46 @@
                     <header class="page-header">
                         <div>
                             <h1 class="page-title">Configure</h1>
-                            <p class="page-subtitle">Edit the button boards used on Event Capture</p>
+                            <p class="page-subtitle">Customize the button boards used on Event Capture</p>
                         </div>
                     </header>
 
                     <!-- Top Controls Card -->
-                    <div class="surface p-4 border border-subtle rounded-lg mb-4">
+                    <div class="surface p-4 border border-subtle rounded-lg mb-3">
                         <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                             <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-1.5">
-                                    <label for="savedConfigSelect" class="field-label mb-0 text-sm font-semibold">Board</label>
-                                    <span id="configProtectedBadge" class="badge badge-secondary hidden">
-                                        <i class="fas fa-lock text-xs mr-1" aria-hidden="true"></i>Protected
-                                    </span>
-                                </div>
+                                <label for="savedConfigSelect" class="field-label mb-1.5 text-sm font-semibold">Board</label>
                                 <select id="savedConfigSelect" class="field w-full text-base"></select>
                             </div>
                             <div class="flex items-center flex-wrap gap-2">
                                 <button id="duplicateConfigButton" type="button" class="btn btn-primary" title="Create an editable copy of this board">
                                     <i class="fas fa-clone mr-1" aria-hidden="true"></i>Duplicate to edit
                                 </button>
-                                <button id="saveConfigButton" type="button" class="btn btn-success hidden" title="Save changes to this board">
+                                <button id="renameConfigButton" type="button" class="btn btn-secondary hidden" title="Rename this custom board">
+                                    <i class="fas fa-pen mr-1" aria-hidden="true"></i>Rename
+                                </button>
+                                <button id="saveConfigButton" type="button" class="btn btn-success hidden" title="Save JSON changes to this board">
                                     <i class="fas fa-save mr-1" aria-hidden="true"></i>Save
                                 </button>
                                 <button id="saveAsConfigButton" type="button" class="btn btn-secondary hidden" title="Save this layout under a new name">Save as</button>
                                 <button id="deleteConfigButton" type="button" class="btn btn-danger hidden" title="Delete this custom board">
                                     <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Delete
                                 </button>
-                                <button id="toggleConfigModeButton" type="button" class="btn btn-secondary" title="Switch between Visual Preview and JSON code view">
+                                <button id="toggleConfigModeButton" type="button" class="btn btn-secondary" title="Switch between Visual Editor and JSON view">
                                     <i id="toggleConfigModeIcon" class="fas fa-code mr-1" aria-hidden="true"></i><span id="toggleConfigModeText">JSON</span>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Duplicate / Save As Form (Inline) -->
+                        <!-- Inline Rename Form -->
                         <div id="saveAsConfigForm" class="hidden mt-3 pt-3 border-t border-subtle">
                             <div class="flex flex-col sm:flex-row sm:items-end gap-2">
                                 <div class="flex-1">
-                                    <label for="configNameInput" class="field-label text-xs mb-1">New board name</label>
+                                    <label for="configNameInput" class="field-label text-xs mb-1">Board name</label>
                                     <input type="text" id="configNameInput" placeholder="e.g. Under-14s" class="field w-full">
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button id="confirmSaveAsConfigButton" type="button" class="btn btn-success">Save copy</button>
+                                    <button id="confirmSaveAsConfigButton" type="button" class="btn btn-primary">Save name</button>
                                     <button id="cancelSaveAsConfigButton" type="button" class="btn btn-secondary">Cancel</button>
                                 </div>
                             </div>
@@ -163,19 +161,67 @@
 
                     <div id="configMessage" class="config-message hidden mb-3"></div>
 
-                    <!-- Visual Preview Container -->
+                    <!-- Visual Editor / Preview Container -->
                     <div id="configVisualContainer" class="mb-4">
-                        <div id="configVisualBanner" class="banner banner-info mb-3">
-                            <span id="configVisualBannerText" class="text-sm">
-                                Visual preview of how this button board appears on Event Capture.
-                            </span>
-                        </div>
+                        <p id="configVisualBannerText" class="help-text mb-2">
+                            Read-only template. Click <strong>Duplicate to edit</strong> (or tap any button) to customize a copy.
+                        </p>
                         <div class="surface p-4 border border-subtle rounded-lg">
                             <div id="configBoardPreview"></div>
                         </div>
                     </div>
 
-                    <!-- JSON Editor Container (Hidden by default in Visual Preview mode) -->
+                    <!-- Button Editor Modal (for Visual Editing) -->
+                    <div id="buttonEditorModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="buttonEditorTitle">
+                        <div class="modal-panel">
+                            <h2 id="buttonEditorTitle" class="modal-title">Edit Button</h2>
+                            <p id="buttonEditorSubtitle" class="help-text mb-4">Customize label and video clip window for this button.</p>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="btnEditLabelInput" class="field-label">Button label / event code</label>
+                                    <input id="btnEditLabelInput" type="text" class="field w-full" placeholder="e.g. PRESS">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="btnEditLeadInput" class="field-label">Lead (sec before)</label>
+                                        <input id="btnEditLeadInput" type="number" min="0" step="1" class="field w-full" placeholder="5">
+                                    </div>
+                                    <div>
+                                        <label for="btnEditLagInput" class="field-label">Lag (sec after)</label>
+                                        <input id="btnEditLagInput" type="number" min="0" step="1" class="field w-full" placeholder="5">
+                                    </div>
+                                </div>
+                                <div id="btnEditColorGroup" class="hidden">
+                                    <label for="btnEditColorSelect" class="field-label">Button color</label>
+                                    <select id="btnEditColorSelect" class="field w-full">
+                                        <option value="btn-gray">Slate Gray</option>
+                                        <option value="btn-blue">Blue</option>
+                                        <option value="btn-red">Red</option>
+                                        <option value="btn-green">Green</option>
+                                        <option value="btn-yellow">Gold / Yellow</option>
+                                        <option value="btn-orange">Orange</option>
+                                    </select>
+                                </div>
+                                <div id="btnEditZoneGroup" class="hidden">
+                                    <label class="inline-flex items-center gap-2 cursor-pointer text-sm">
+                                        <input id="btnEditZonedCheckbox" type="checkbox" class="rounded">
+                                        <span>Include active pitch zone (1–4) when pressed</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="modal-actions justify-between mt-6">
+                                <button id="btnEditDeleteButton" type="button" class="btn btn-danger">
+                                    <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Remove
+                                </button>
+                                <div class="flex items-center gap-2 ml-auto">
+                                    <button id="btnEditCancelButton" type="button" class="btn btn-secondary">Cancel</button>
+                                    <button id="btnEditSaveButton" type="button" class="btn btn-primary">Save button</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- JSON Editor Container (Hidden by default in Visual mode) -->
                     <div id="configJsonContainer" class="hidden mb-4">
                         <div class="config-editor">
                             <div class="config-editor-header">
@@ -205,14 +251,6 @@
                                     <code>btn-orange</code>, <code>btn-gray</code>). Buttons can also set
                                     <code>lead</code> and <code>lag</code>: the seconds of video to include before and
                                     after the press in the exported clip (default 5).
-                                </p>
-                                <p>
-                                    Team boards (like <code>hockey-one-zoned</code>) add a <code>zones</code> block and rows
-                                    with <code>"team": 1</code> or <code>2</code>. A team row can hold several
-                                    <code>grids</code>; its buttons take the team's colour and code (e.g.
-                                    <code>FIRE BS</code>), and buttons with <code>"zoned": true</code> also add the active
-                                    zone (<code>FIRE BS2</code>). A row with <code>"team": "selected"</code> shows a team
-                                    toggle and logs for the selected team.
                                 </p>
                             </details>
                             <textarea id="configJsonInput" placeholder="Enter your configuration JSON here"

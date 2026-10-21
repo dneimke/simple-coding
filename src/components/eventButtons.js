@@ -104,7 +104,7 @@ export class EventButtons {
             this.targetContainer.appendChild(this._renderZoneBar(zones));
         }
 
-        const renderGroup = (group) => {
+        const renderGroup = (group, rowIndex) => {
             const grids = rowGrids(group).filter(grid => Array.isArray(grid.buttons));
             if (grids.length === 0) {
                 logger.warn("Skipping invalid group in config:", group);
@@ -125,14 +125,22 @@ export class EventButtons {
 
             const gridsContainer = document.createElement('div');
             gridsContainer.className = 'team-row-grids';
-            grids.forEach(grid => {
+            grids.forEach((grid, gridIndex) => {
                 // Use the createButtonGrid component from our UI library
-                gridsContainer.appendChild(createButtonGrid({
+                const gridEl = createButtonGrid({
                     gridCols: grid.gridCols || 'grid-cols-4', // Default if not specified
                     buttons: grid.buttons,
                     className: 'gap-2',
                     team
-                }));
+                });
+                gridEl.dataset.rowIndex = String(rowIndex);
+                gridEl.dataset.gridIndex = String(gridIndex);
+                gridEl.querySelectorAll('.event-button[data-event]').forEach((btn, buttonIndex) => {
+                    btn.dataset.rowIndex = String(rowIndex);
+                    btn.dataset.gridIndex = String(gridIndex);
+                    btn.dataset.buttonIndex = String(buttonIndex);
+                });
+                gridsContainer.appendChild(gridEl);
             });
 
             groupContainer.appendChild(gridsContainer);
