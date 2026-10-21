@@ -66,7 +66,7 @@ When the user provides feedback, a pain point, or a feature idea:
 | **3. Saved Games** | `index.html#saved-games` | `index.html#saved-games?mock=sample` | Seeds sample game into storage so cards and export/review actions are live. |
 | **4. Saved Game Log** | `index.html#log/<id>` | `index.html#log/sample-game` | Read-only match log for `sample-game` (auto-seeded if missing). |
 | **5. Match Review** | `timeline-video.html?game=<id>` | `timeline-video.html?game=sample-game` | Loads timeline with 8 tactical events, favorites, and video player UI. |
-| **6. Configuration** | `index.html#configure` | `index.html#configure` | Power-user JSON editor for button board schemas. |
+| **6. Configuration** | `index.html#configure` | `index.html#configure` | Visual button board customizer with protected templates and optional JSON view. |
 
 ---
 
@@ -79,3 +79,13 @@ When the user provides feedback, a pain point, or a feature idea:
    - Never rename board colour classes (`btn-blue`, `btn-red`, `btn-green`, `btn-yellow`, `btn-orange`, `btn-gray`) or `team-color-*`.
    - Never break `localStorage` keys (`fieldHockeyGames_v1`, `fieldHockeyConfig_v1`, `fieldHockeyNamedConfigs_v1`, `fieldHockeyCaptureDraft_v1`) or Sportscode XML `<ALL_INSTANCES>` / `<ROWS>` structure.
    - Follow `docs/design-language.md` and `.cursor/rules/design-language.mdc` for all UI changes (tokens in `src/styles.css`, Tailwind for layout/spacing only).
+
+---
+
+## Execution Protocol (Non-Negotiable)
+
+1. **Trace `Tap 1 → Tap 2 → Tap 3` First**: Never implement an entry button without implementing the complete interactive flow behind it. The target user must never hit a technical dead-end or raw JSON fallback mid-journey.
+2. **Zero Developer Jargon in UI**: User copy must never mention `localStorage`, `JSON`, `factory default`, or internal state mechanics.
+3. **Test-First State Logic**: Pure state helpers and storage contracts must be verified via unit tests (`npm test`) before UI handoff.
+4. **Multi-State Visual Proof**: `npm run test:visual` must capture every interactive state of a new flow in `.visual-proof/*.png` (desktop + `390px` mobile)—never just the static initial route.
+5. **Mandatory Vision Self-Audit**: Passing `npm run test:visual` with exit code `0` is NOT completion. You must open and inspect every generated `.visual-proof/*.png` with `read_file` before replying. If primary actions are buried below the mobile fold, classes are unstyled, banners duplicate badges, or developer jargon is visible, fix it yourself before handing the turn back.

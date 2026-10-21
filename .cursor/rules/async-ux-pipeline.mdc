@@ -1,54 +1,39 @@
 ---
-description: Async UX-to-Code Pipeline for Coaches Dashboard and simple-coding. Use when reporting UI/UX friction, implementing component changes, or dispatching asynchronous coding tasks without manual browser hovering.
+name: async-ux-pipeline
+description: Enforces the 4-stage autonomous UX & test-first development pipeline. Use whenever implementing features, resolving UX friction, or modifying UI components and state flows.
 globs: src/**/*, components/**/*, app/**/*, pages/**/*, scripts/**/*
+alwaysApply: true
 ---
+# Autonomous 4-Stage UX & Verification Pipeline
 
-# Cursor Rule: Async UX-to-Code Pipeline
+Never optimize merely for "making the static screen pass tests." Optimize for the target persona completing their actual job from Tap 1 to completion without human QA intervention.
 
-## 1. Operating Mindset: Asynchronous Execution
-You are operating as an autonomous software engineer in an **asynchronous dispatch pipeline**. The human founder dispatches a task and closes their laptop to reclaim daylight.
+## Stage 1: Autonomous Spec & 3-Tap Journey Trace
+When given raw user friction, image comments, or a 5-part brief, do not write production code until you have:
+1. **Investigated Current State**: Inspect the relevant UI components, routes, and state helpers first.
+2. **Traced the Full User Journey (`Tap 1 → Tap 2 → Tap 3`)**: Never design only the entry state. Explicitly map:
+   - **Tap 1 (Entry Trigger)**: What the user clicks/taps to start (e.g., *Duplicate to edit*).
+   - **Tap 2 (Active Manipulation)**: How the user performs the core edit/action (e.g., *Tap button on visual board → edit in modal*). Ensure the persona never hits a technical dead-end (such as raw JSON or developer instructions) on Tap 2.
+   - **Tap 3 (Persisted Outcome)**: How the change saves and reflects immediately in the UI.
+3. **Output the 5-Part Contract**: State the **Goal**, **Decisions & 3-Tap Journey**, **Invariants**, **Specific Next Step**, and **Traps to Avoid** before touching code.
+4. **Resolve Forks or Execute**: If `Tap 2` has a genuine product fork (e.g., single-item vs. mirrored behaviour), ask 1–2 concise questions alongside the 5-Part Contract. Otherwise, proceed straight through Stages 2–4 autonomously.
 
-Your mandate is to take a raw friction report (screenshot, voice note, or bullet points), translate it into a formal specification, implement it test-first, and produce an **automated visual proof artifact** so the founder never has to manually refresh Chrome, log in, or click through test states.
+## Stage 2: Design Tokens, Ergonomics & Copy Hygiene
+1. **Primary Actions Above the Fold**: Primary workflow CTAs must be immediately accessible without scrolling past dense boards or long lists on a `390px` mobile viewport.
+2. **Verified Styling**: Only use CSS classes/tokens that exist in the stylesheet. Never leave raw unstyled text or duplicate status messages (e.g., a badge and a banner repeating the same sentence).
+3. **Zero Implementation Leakage**: Never expose developer jargon (`localStorage`, `JSON`, `factory default`, `schema`, `state`) in user-facing copy. Speak strictly in the user's domain language.
 
-## 2. The 4-Stage Execution Pipeline
+## Stage 3: Test-First State Verification
+1. Write or update deterministic unit/state tests (e.g., `*.test.js` with fake timers where applicable) covering the full state transition before or alongside UI changes.
+2. All unit tests must pass with exit code `0` before running visual verification.
 
-### Stage 1: Autonomous Spec Generation from Raw Feedback
-When the user provides raw, subjective, or high-level feedback (e.g. "Users can't find menu options" or "This screen feels crowded") or a 5-part brief:
-1. **Investigate Current State**: Inspect the relevant UI components, route tables, or layout files in the repo before forming a plan.
-2. **Diagnose the Root Friction**: Identify why the current implementation causes that symptom (e.g. deep menu nesting, ambiguous labels, lack of visual hierarchy).
-3. **Auto-Generate the 5-Part Spec**: Explicitly formulate and output the 5-part contract in your thinking trace:
-   - **Goal**: 1-sentence concrete outcome.
-   - **Decisions**: Specific UI pattern chosen (e.g. Command palette, flattened top-bar, contextual floating action).
-   - **Invariants**: Business rules, existing routes, or timers that must not break.
-   - **Specific Next Step**: The exact component test to write first.
-   - **Traps to Avoid**: Edge cases to steer clear of.
-4. **Self-Direct Execution**: Proceed immediately to Stage 2, using your own generated spec as the deterministic boundary.
-
-### Stage 2: Design Token & UI Primitive Enforcement
-Do not invent arbitrary styles or nested CSS abstractions.
-* **Component Primitives**: Always reuse existing UI components and primitives (`<CodingButton />`, `<Badge />`, `<Table />`, `<Tabs />`).
-* **Tailwind Consistency**: Use project token scales for spacing (`p-2`, `p-4`, `gap-3`), typography (`text-xs`, `text-sm`, `font-semibold`), and elevation (`bg-slate-900`, `border-slate-800`).
-* **Ergonomics**: Maintain high contrast for sunlight readability and ensure touch targets $\ge$ 48px.
-
-### Stage 3: Test-First Agent Handoff (The Deterministic Gate)
-Before touching production component code:
-1. **Write or Update a Component Test**: Create a Vitest/Jest test asserting the desired behavior (use `vi.useFakeTimers()` or Jest fake timers for clocks/timers).
-2. **Verify Failure**: Run the test to ensure it fails on the current implementation.
-3. **Implement Minimum Code**: Write the cleanest solution to make the test pass. Do not touch unreachable code or add speculative features.
-
-### Stage 4: Automated Visual Verification (No Manual Chrome Clicking)
-Never ask the user to "open localhost:3000 and click through to verify."
-1. **Support Seeded Mock Routes**: Ensure dev preview routes support query-state seeding (e.g., `/dev/preview?state=double-up-selections` or `?mock=pc-counter`).
-2. **Generate a Playwright / Puppeteer Screenshot**: Execute an automated script to load the dev URL, wait for network idle, take a focused snapshot of the modified component or screen, and save it to `./diff.png`.
-3. **Output the Visual Proof**: State clearly in your final response:
-   - Test suite status (all green).
-   - File path to the generated `./diff.png` screenshot for instant 5-second human inspection.
-
-## 3. Completion Checklist (Self-Gate Before Replying)
-Before concluding your task, verify:
-* [ ] No regression on existing unit or integration tests (`npm test`).
-* [ ] Invariants preserved (timer integrity, event schemas, double-up tags).
-* [ ] Zero arbitrary inline styles or unvetted CSS classes.
-* [ ] Seeded mock test state loads cleanly without auth blockers.
-* [ ] Visual diff artifact generated and saved to disk.
-* [ ] Summary provided in under 10 lines of concise markdown.
+## Stage 4: Multi-State Visual Proof & Mandatory Vision Self-Audit
+Never ask the user to manually click through localhost in a browser, and never treat `npm run test:visual` exit code `0` as the finish line.
+1. **Snapshot Interactive States, Not Just Landing URLs**: When a feature involves a multi-step flow (e.g., duplicating, opening an edit modal, saving), update the visual snapshot script to drive through and capture each active state in `.visual-proof/` (e.g., `step-1-readonly.png`, `step-2-duplicated.png`, `step-3-edit-modal.png`).
+2. **Mandatory Multimodal Self-Audit (`read_file`)**: After running `npm run test:visual`, you **MUST** inspect every generated `.visual-proof/*.png` using `read_file` / vision tools before replying to the user.
+3. **Self-Reject & Fix Before Handoff**: If your visual inspection reveals any of the following, fix the code and re-run `npm run test:visual` before yielding your turn:
+   - Primary actions buried below the fold on `390px` mobile.
+   - Unstyled classes, broken layouts, or overlapping elements.
+   - Redundant chrome (badges and banners repeating the same message).
+   - Developer/implementation jargon in user-facing labels or helper text.
+4. **Concise Handoff**: Present your `<10-line` summary only after all unit tests and your visual self-audit pass.
