@@ -1875,3 +1875,8 @@ code {
     min-height: 48px;
     min-width: 48px;
 }
+
+.config-drag-over {
+    outline: 2px dashed var(--color-brand);
+    outline-offset: 4px;
+}

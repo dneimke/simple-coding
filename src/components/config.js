@@ -503,3 +503,153 @@ export function populateBoardSelect(selectElement, {
         selectElement.value = selectedName;
     }
 }
+
+/**
+ * Creates clean formatted JSON string for exporting a board configuration.
+ *
+ * @param {string} boardName
+ * @param {Object} config
+ * @returns {string}
+ */
+export function createBoardExportPayload(boardName, config) {
+    if (!config || !Array.isArray(config.rowDefs)) {
+        throw new Error('Invalid configuration structure.');
+    }
+    const displayName = getConfigDisplayName(boardName) || String(boardName || 'Custom Board').trim();
+    const payload = {
+        name: displayName,
+        ...(config.zones ? { zones: cloneConfig(config.zones) } : {}),
+        rowDefs: cloneConfig(config.rowDefs)
+    };
+    return JSON.stringify(payload, null, 2);
+}
+
+/**
+ * Generates a clean, web-safe filename for an exported board.
+ *
+ * @param {string} boardName
+ * @returns {string}
+ */
+export function getBoardExportFilename(boardName) {
+    const displayName = getConfigDisplayName(boardName) || String(boardName ?? '').trim();
+    const sanitized = displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return `${sanitized || 'hockey-board'}.json`;
+}
+
+/**
+ * Parses and validates an imported board file content.
+ *
+ * @param {string} rawContent
+ * @param {string} [filenameFallback='']
+ * @returns {{ name: string, config: Object }}
+ */
+export function parseBoardImport(rawContent, filenameFallback = '') {
+    if (typeof rawContent !== 'string') {
+        throw new Error('Invalid file format: content must be text.');
+    }
+    let data;
+    try {
+        data = JSON.parse(rawContent);
+    } catch {
+        throw new Error('Invalid file format: not valid JSON.');
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('This file does not contain a valid button board layout.');
+    }
+
+    let boardConfig = null;
+    let proposedName = '';
+
+    if (data.config && isValidConfig(data.config)) {
+        boardConfig = {
+            rowDefs: cloneConfig(data.config.rowDefs),
+            ...(data.config.zones ? { zones: cloneConfig(data.config.zones) } : {})
+        };
+        proposedName = data.name || data.config.name || '';
+    } else if (isValidConfig(data)) {
+        boardConfig = {
+            rowDefs: cloneConfig(data.rowDefs),
+            ...(data.zones ? { zones: cloneConfig(data.zones) } : {})
+        };
+        proposedName = data.name || '';
+    } else {
+        throw new Error('This file does not contain a valid button board layout.');
+    }
+
+    validateConfig(boardConfig);
+
+    if (!proposedName && filenameFallback) {
+        proposedName = filenameFallback
+            .replace(/\.json$/i, '')
+            .replace(/[-_]+/g, ' ')
+            .trim();
+    }
+    if (!proposedName) {
+        proposedName = 'Custom Board';
+    }
+
+    return {
+        name: proposedName.trim(),
+        config: boardConfig
+    };
+}
+
+/**
+ * Imports a board layout, protecting built-in boards and deduplicating names.
+ * Saves the imported board into Custom Boards and activates it.
+ *
+ * @param {string} rawContent
+ * @param {string} [filenameFallback='']
+ * @returns {{ name: string, config: Object }}
+ */
+export function importNamedConfig(rawContent, filenameFallback = '') {
+    const { name: parsedName, config } = parseBoardImport(rawContent, filenameFallback);
+    const existing = new Set(listNamedConfigs());
+    let targetName = parsedName;
+
+    if (isBuiltInConfig(targetName) || existing.has(targetName)) {
+        targetName = getNextCopyName(targetName);
+    }
+
+    saveNamedConfig(targetName, config);
+    activateNamedConfig(targetName);
+
+    return {
+        name: targetName,
+        config
+    };
+}
+
+/**
+ * Triggers a browser file download of text content as a file.
+ *
+ * @param {string} filename
+ * @param {string} content
+ * @param {string} [mimeType='application/json']
+ * @returns {boolean}
+ */
+export function triggerFileDownload(filename, content, mimeType = 'application/json') {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+        return false;
+    }
+    const blob = new Blob([content], { type: mimeType });
+    if (typeof window.URL?.createObjectURL === 'function') {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => {
+            try {
+                window.URL.revokeObjectURL(url);
+            } catch { }
+        }, 1000);
+        return true;
+    }
+    return false;
+}

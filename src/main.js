@@ -6,7 +6,31 @@ import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, listNamedConfigs, populateBoardSelect, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams, isBuiltInConfig, resetNamedConfigToDefault, deleteNamedConfig, getConfigDisplayName, getNextCopyName, renameNamedConfig, updateBoardButton, addBoardButton, removeBoardButton, rowGrids } from './components/config.js';
+import {
+    loadConfiguration,
+    listNamedConfigs,
+    populateBoardSelect,
+    getNamedConfig,
+    saveNamedConfig,
+    findNamedConfigName,
+    validateConfig,
+    activateNamedConfig,
+    usesTeams,
+    isBuiltInConfig,
+    resetNamedConfigToDefault,
+    deleteNamedConfig,
+    getConfigDisplayName,
+    getNextCopyName,
+    renameNamedConfig,
+    updateBoardButton,
+    addBoardButton,
+    removeBoardButton,
+    rowGrids,
+    createBoardExportPayload,
+    getBoardExportFilename,
+    importNamedConfig,
+    triggerFileDownload
+} from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -52,6 +76,9 @@ const toggleConfigModeButton = document.getElementById('toggleConfigModeButton')
 const toggleConfigModeIcon = document.getElementById('toggleConfigModeIcon');
 const toggleConfigModeText = document.getElementById('toggleConfigModeText');
 const renameConfigButton = document.getElementById('renameConfigButton');
+const importConfigButton = document.getElementById('importConfigButton');
+const exportConfigButton = document.getElementById('exportConfigButton');
+const boardFileInput = document.getElementById('boardFileInput');
 const buttonEditorModal = document.getElementById('buttonEditorModal');
 const buttonEditorTitle = document.getElementById('buttonEditorTitle');
 const btnEditLabelInput = document.getElementById('btnEditLabelInput');
@@ -339,6 +366,40 @@ function updateConfigProtectionState(name) {
             configVisualBannerText.innerHTML = 'Custom board — tap any button to edit or remove it, or tap <strong>+ Add</strong> to add a button to a row.';
         }
     }
+}
+
+function handleBoardFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const fileContent = e.target.result;
+            const imported = importNamedConfig(fileContent, file.name);
+            renderSavedConfigOptions(imported.name);
+            selectedConfigName = imported.name;
+            setEditorConfig(imported.config);
+            hideSaveAsForm();
+            updateConfigProtectionState(imported.name);
+            renderConfigVisualPreview(imported.config);
+            renderBoard(imported.config);
+            renderBoardOptions();
+            configMessage.classList.add('hidden');
+            notificationService.notify(`Imported "${imported.name}" as a custom board.`, 'success');
+        } catch (error) {
+            logger.error('Failed to import board:', error);
+            showMessage(configMessage, error.message, true);
+            notificationService.notify(`Failed to import board: ${error.message}`, 'error');
+        } finally {
+            if (boardFileInput) boardFileInput.value = '';
+        }
+    };
+    reader.onerror = () => {
+        const msg = 'Could not read the selected board file.';
+        showMessage(configMessage, msg, true);
+        notificationService.notify(msg, 'error');
+        if (boardFileInput) boardFileInput.value = '';
+    };
+    reader.readAsText(file);
 }
 
 function duplicateCurrentBoardToEdit() {
@@ -1048,6 +1109,62 @@ function registerEventListeners() {
         });
     }
 
+    if (importConfigButton) {
+        importConfigButton.addEventListener('click', () => {
+            boardFileInput?.click();
+        });
+    }
+
+    if (boardFileInput) {
+        boardFileInput.addEventListener('change', (e) => {
+            const file = e.target?.files?.[0];
+            if (file) {
+                handleBoardFile(file);
+            }
+        });
+    }
+
+    if (exportConfigButton) {
+        exportConfigButton.addEventListener('click', () => {
+            try {
+                const currentName = savedConfigSelect.value || selectedConfigName || 'Custom Board';
+                const config = parseEditorConfig();
+                const payload = createBoardExportPayload(currentName, config);
+                const filename = getBoardExportFilename(currentName);
+                const displayName = getConfigDisplayName(currentName) || currentName;
+                triggerFileDownload(filename, payload);
+                notificationService.notify(`Exported "${displayName}" board file.`, 'success');
+            } catch (error) {
+                logger.error('Failed to export board:', error);
+                showMessage(configMessage, error.message, true);
+                notificationService.notify(`Failed to export board: ${error.message}`, 'error');
+            }
+        });
+    }
+
+    if (configView) {
+        ['dragover', 'dragenter'].forEach(eventName => {
+            configView.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                configView.classList.add('config-drag-over');
+            });
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            configView.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                configView.classList.remove('config-drag-over');
+            });
+        });
+        configView.addEventListener('drop', (e) => {
+            const file = e.dataTransfer?.files?.[0];
+            if (file) {
+                handleBoardFile(file);
+            }
+        });
+    }
+
     if (configBoardPreview) {
         configBoardPreview.addEventListener('click', (event) => {
             const zoneBtn = event.target.closest('.zone-button[data-zone]');
@@ -1200,24 +1317,27 @@ const eventButtons = new EventButtons(codingButtonsContainer);
 const gameState = new GameState(timerDisplay, eventLog, eventButtons);
 
 stateService.subscribe('ui.currentView', (viewName) => {
-    if (viewName !== 'Log') return;
-    renderLogView();
-    if (stateService.getState('ui.currentView') !== 'Log') return;
-    const button = stateService.getState('ui.logGameId') ? navSavedGames : navEventCapture;
-    button.classList.add('nav-link-active');
-    button.setAttribute('aria-current', 'page');
+    if (viewName === 'Log') {
+        renderLogView();
+        if (stateService.getState('ui.currentView') !== 'Log') return;
+        const button = stateService.getState('ui.logGameId') ? navSavedGames : navEventCapture;
+        button.classList.add('nav-link-active');
+        button.setAttribute('aria-current', 'page');
+    } else if (viewName === 'Config') {
+        showConfigView();
+    } else if (viewName === 'SavedGames') {
+        renderSavedGames();
+    }
 });
 
 // Child-path changes (game.loggedEvents) and whole-game replacements (newGame, restore, complete) both notify 'game'
 stateService.subscribe('game', syncChrome);
 
 // Initial navigation based on URL hash or defaults to EventCapture
-document.addEventListener('DOMContentLoaded', () => {
-    // The Router class now handles initial hash-based navigation
-    // So we don't need to manually set the view here
-
-    // Check if we need to load content for specific views
-    const hash = window.location.hash.substring(1);
+function handleInitialNavigation() {
+    const fullHash = window.location.hash.substring(1);
+    const routeOnly = fullHash.split('?')[0];
+    const [hash] = routeOnly.split('/');
     if (hash === 'saved-games') {
         renderSavedGames();
     } else if (hash === 'configure') {
@@ -1226,7 +1346,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize mobile menu functionality
     initMobileMenu();
-});
+}
+
+if (typeof document !== 'undefined' && document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', handleInitialNavigation);
+} else {
+    handleInitialNavigation();
+}
 
 /**
  * Initialize the mobile menu toggle and its behavior
