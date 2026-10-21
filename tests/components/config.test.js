@@ -11,6 +11,8 @@ import {
     validateConfig,
     rowGrids,
     usesTeams,
+    isBuiltInConfig,
+    resetNamedConfigToDefault,
     RETIRED_BUILT_IN_CONFIGS
 } from '../../src/components/config.js';
 
@@ -30,8 +32,8 @@ describe('named configurations', () => {
         console.error.mockRestore();
     });
 
-    test('seeds hockey-one-zoned as the only built-in and uses it as the default', () => {
-        expect(listNamedConfigs()).toEqual(['hockey-one-zoned']);
+    test('seeds built-in configurations and uses hockey-one-zoned as the default', () => {
+        expect(listNamedConfigs()).toEqual(['hockey-one-zoned', 'simple-starter']);
         expect(loadConfiguration()).toEqual(getNamedConfig('hockey-one-zoned'));
         expect(usesTeams(loadConfiguration())).toBe(true);
         expect(findNamedConfigName(loadConfiguration())).toBe('hockey-one-zoned');
@@ -50,7 +52,7 @@ describe('named configurations', () => {
             'hockey-one': RETIRED_BUILT_IN_CONFIGS['hockey-one']
         }));
 
-        expect(listNamedConfigs()).toEqual(['hockey-one-zoned']);
+        expect(listNamedConfigs()).toEqual(['hockey-one-zoned', 'simple-starter']);
         expect(JSON.parse(localStorage.getItem(NAMED_KEY))).not.toHaveProperty('default');
         expect(JSON.parse(localStorage.getItem(NAMED_KEY))).not.toHaveProperty('hockey-one');
     });
@@ -70,6 +72,25 @@ describe('named configurations', () => {
             .map(button => button.event);
         expect([...new Set(zoned)]).toEqual(['BS', 'BW']);
         expect(eventsOf(config)).toEqual(expect.arrayContaining(['START', 'END', 'UMP', 'SO', 'GREEN', 'PC']));
+    });
+
+    test('simple-starter has dedicated team rows with 6 essentials and no sticky zones', () => {
+        const config = getNamedConfig('simple-starter');
+
+        expect(config.zones).toBeUndefined();
+        expect(config.rowDefs.filter(row => row.team === 1)).toHaveLength(1);
+        expect(config.rowDefs.filter(row => row.team === 2)).toHaveLength(1);
+        expect(config.rowDefs.some(row => row.team === 'selected')).toBe(false);
+        expect(usesTeams(config)).toBe(true);
+        expect(() => validateConfig(config)).not.toThrow();
+
+        const team1Buttons = config.rowDefs.find(r => r.team === 1).grids[0].buttons.map(b => b.event);
+        const team2Buttons = config.rowDefs.find(r => r.team === 2).grids[0].buttons.map(b => b.event);
+        expect(team1Buttons).toEqual(['A25E', 'CE', 'SHOT', 'PC', 'GOAL', 'CARD']);
+        expect(team2Buttons).toEqual(['A25E', 'CE', 'SHOT', 'PC', 'GOAL', 'CARD']);
+
+        const headerButtons = config.rowDefs[0].buttons.map(b => b.event);
+        expect(headerButtons).toEqual(['START', 'END']);
     });
 
     test('hockey-one-zoned buttons carry the MyVA lead and lag times', () => {
@@ -105,7 +126,38 @@ describe('named configurations', () => {
 
         expect(getNamedConfig('hockey-one-zoned')).toEqual(custom);
         expect(getNamedConfig('hockey-one')).toEqual(custom);
-        expect(listNamedConfigs()).toEqual(['hockey-one', 'hockey-one-zoned']);
+        expect(listNamedConfigs()).toEqual(['hockey-one', 'hockey-one-zoned', 'simple-starter']);
+    });
+
+    test('isBuiltInConfig returns true for built-in configurations and false for others', () => {
+        expect(isBuiltInConfig('hockey-one-zoned')).toBe(true);
+        expect(isBuiltInConfig('simple-starter')).toBe(true);
+        expect(isBuiltInConfig('custom-board')).toBe(false);
+        expect(isBuiltInConfig('')).toBe(false);
+        expect(isBuiltInConfig(null)).toBe(false);
+    });
+
+    test('saveNamedConfig rejects overwriting built-in configurations', () => {
+        const config = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'A', text: 'A', color: 'btn-red' }] }] };
+
+        expect(() => saveNamedConfig('hockey-one-zoned', config)).toThrow(
+            'Cannot overwrite built-in configuration "hockey-one-zoned". Use "Save as" to save under a new name.'
+        );
+        expect(() => saveNamedConfig('simple-starter', config)).toThrow(
+            'Cannot overwrite built-in configuration "simple-starter". Use "Save as" to save under a new name.'
+        );
+    });
+
+    test('resetNamedConfigToDefault restores a built-in configuration to factory default', () => {
+        const custom = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'OVERRIDDEN', text: 'OVERRIDDEN' }] }] };
+        localStorage.setItem(NAMED_KEY, JSON.stringify({ 'hockey-one-zoned': custom }));
+
+        expect(getNamedConfig('hockey-one-zoned')).toEqual(custom);
+        resetNamedConfigToDefault('hockey-one-zoned');
+        expect(getNamedConfig('hockey-one-zoned')).not.toEqual(custom);
+        expect(getNamedConfig('hockey-one-zoned').zones).toBeDefined();
+
+        expect(() => resetNamedConfigToDefault('unknown-name')).toThrow('"unknown-name" is not a built-in configuration.');
     });
 
     test('saveNamedConfig stores the config under a trimmed name and makes it active', () => {

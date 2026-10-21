@@ -82,11 +82,36 @@ const HOCKEY_ONE_ZONED_CONFIG = {
     ]
 };
 
+const SIMPLE_STARTER_CONFIG = {
+    rowDefs: [
+        { gridCols: "grid-cols-2", buttons: ["START", "END"].map(code => ({ event: code, text: code, color: "btn-gray", ...clipTiming(code) })) },
+        { team: 1, grids: [{ gridCols: "grid-cols-3", buttons: slotButtons(["A25E", "CE", "SHOT", "PC", "GOAL", "CARD"]) }] },
+        { team: 2, grids: [{ gridCols: "grid-cols-3", buttons: slotButtons(["A25E", "CE", "SHOT", "PC", "GOAL", "CARD"]) }] }
+    ]
+};
+
 const DEFAULT_CONFIG = HOCKEY_ONE_ZONED_CONFIG;
 
 const BUILT_IN_NAMED_CONFIGS = {
-    'hockey-one-zoned': HOCKEY_ONE_ZONED_CONFIG
+    'hockey-one-zoned': HOCKEY_ONE_ZONED_CONFIG,
+    'simple-starter': SIMPLE_STARTER_CONFIG
 };
+
+export function isBuiltInConfig(name) {
+    const trimmed = String(name ?? '').trim();
+    return Boolean(trimmed && BUILT_IN_NAMED_CONFIGS[trimmed]);
+}
+
+export function resetNamedConfigToDefault(name) {
+    const trimmed = String(name ?? '').trim();
+    if (!isBuiltInConfig(trimmed)) {
+        throw new Error(`"${trimmed}" is not a built-in configuration.`);
+    }
+    const configs = readNamedConfigs();
+    configs[trimmed] = cloneConfig(BUILT_IN_NAMED_CONFIGS[trimmed]);
+    writeNamedConfigs(configs);
+    return cloneConfig(BUILT_IN_NAMED_CONFIGS[trimmed]);
+}
 
 // Names that used to be seeded. An unchanged copy is removed; a saved edit under that name is kept.
 export const RETIRED_BUILT_IN_CONFIGS = {
@@ -268,6 +293,9 @@ export function saveNamedConfig(name, config) {
     const trimmedName = String(name ?? '').trim();
     if (!trimmedName) {
         throw new Error('Configuration name is required.');
+    }
+    if (isBuiltInConfig(trimmedName)) {
+        throw new Error(`Cannot overwrite built-in configuration "${trimmedName}". Use "Save as" to save under a new name.`);
     }
     validateConfig(config);
 

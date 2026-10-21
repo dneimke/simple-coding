@@ -6,7 +6,7 @@ import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams } from './components/config.js';
+import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams, isBuiltInConfig, resetNamedConfigToDefault } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -42,6 +42,15 @@ const configNameInput = document.getElementById('configNameInput');
 const confirmSaveAsConfigButton = document.getElementById('confirmSaveAsConfigButton');
 const cancelSaveAsConfigButton = document.getElementById('cancelSaveAsConfigButton');
 const configMessage = document.getElementById('configMessage');
+const configProtectedBadge = document.getElementById('configProtectedBadge');
+const configProtectedNotice = document.getElementById('configProtectedNotice');
+const resetConfigDefaultButton = document.getElementById('resetConfigDefaultButton');
+const templateSelect = document.getElementById('templateSelect');
+const loadTemplateButton = document.getElementById('loadTemplateButton');
+const quickAddCodeInput = document.getElementById('quickAddCodeInput');
+const quickAddColorSelect = document.getElementById('quickAddColorSelect');
+const quickAddButton = document.getElementById('quickAddButton');
+const customizeBoardLink = document.getElementById('customizeBoardLink');
 const importXmlButton = document.getElementById('importXmlButton');
 const xmlFileInput = document.getElementById('xmlFileInput');
 const previewModal = document.getElementById('previewModal');
@@ -232,6 +241,14 @@ function renderSavedConfigOptions(selectedName, includeUnsaved = false) {
         savedConfigSelect.value = selectedName;
     }
     selectedConfigName = savedConfigSelect.value;
+}
+
+function updateConfigProtectionState(name) {
+    const isBuiltIn = isBuiltInConfig(name);
+    if (configProtectedBadge) configProtectedBadge.classList.toggle('hidden', !isBuiltIn);
+    if (configProtectedNotice) configProtectedNotice.classList.toggle('hidden', !isBuiltIn);
+    if (saveConfigButton) saveConfigButton.classList.toggle('hidden', isBuiltIn);
+    if (resetConfigDefaultButton) resetConfigDefaultButton.classList.toggle('hidden', !isBuiltIn);
 }
 
 function isEditorDirty() {
@@ -775,6 +792,73 @@ function registerEventListeners() {
     });
 
     cancelSaveAsConfigButton.addEventListener('click', hideSaveAsForm);
+
+    if (resetConfigDefaultButton) {
+        resetConfigDefaultButton.addEventListener('click', () => {
+            const name = savedConfigSelect.value;
+            if (!isBuiltInConfig(name)) return;
+            if (!notificationService.confirm(`Reset "${name}" to factory default settings?`)) return;
+            try {
+                const restored = resetNamedConfigToDefault(name);
+                setEditorConfig(restored);
+                renderBoard(restored);
+                renderBoardOptions();
+                showMessage(configMessage, `Configuration "${name}" reset to factory defaults.`, false);
+            } catch (error) {
+                logger.error('Failed to reset configuration:', error);
+                showMessage(configMessage, error.message, true);
+            }
+        });
+    }
+
+    if (loadTemplateButton && templateSelect) {
+        loadTemplateButton.addEventListener('click', () => {
+            const templateName = templateSelect.value;
+            const templateConfig = getNamedConfig(templateName);
+            if (!templateConfig) return;
+            if (isEditorDirty() &&
+                !notificationService.confirm('Replace your unsaved changes with the selected template?')) {
+                return;
+            }
+            setEditorConfig(templateConfig);
+            showMessage(configMessage, `Template "${templateName}" loaded. Tap "Save as" to save under a new name.`);
+        });
+    }
+
+    if (quickAddButton && quickAddCodeInput && quickAddColorSelect) {
+        quickAddButton.addEventListener('click', () => {
+            const code = quickAddCodeInput.value.trim().toUpperCase();
+            if (!code) {
+                showMessage(configMessage, 'Enter an event code to add.', true);
+                quickAddCodeInput.focus();
+                return;
+            }
+            const color = quickAddColorSelect.value;
+            let parsed;
+            try {
+                parsed = parseEditorConfig();
+            } catch (error) {
+                showMessage(configMessage, `Cannot add button: JSON is invalid. ${error.message}`, true);
+                return;
+            }
+
+            if (!Array.isArray(parsed.rowDefs) || parsed.rowDefs.length === 0) {
+                parsed.rowDefs = [{ gridCols: 'grid-cols-4', buttons: [] }];
+            }
+            const targetRow = parsed.rowDefs[parsed.rowDefs.length - 1];
+            if (Array.isArray(targetRow.grids) && targetRow.grids.length > 0) {
+                targetRow.grids[0].buttons.push({ event: code, text: code, color });
+            } else {
+                if (!Array.isArray(targetRow.buttons)) targetRow.buttons = [];
+                targetRow.buttons.push({ event: code, text: code, color });
+            }
+
+            setEditorConfig(parsed);
+            quickAddCodeInput.value = '';
+            showMessage(configMessage, `Added button "${code}". Tap "Save as" to save your custom board.`);
+        });
+    }
+
 
     const saveAsNewName = () => {
         const name = configNameInput.value.trim();

@@ -80,6 +80,7 @@
                             <div id="captureBoard" class="capture-meta">
                                 <label for="boardSelect" class="field-label mb-0">Board</label>
                                 <select id="boardSelect" class="field field-inline"></select>
+                                <a id="customizeBoardLink" href="#configure" class="text-xs text-brand hover:underline inline-flex items-center gap-1 shrink-0" title="Customize button boards"><i class="fas fa-sliders text-xs" aria-hidden="true"></i>Customize</a>
                             </div>
                             <a id="captureLogButton" href="#log" class="btn btn-secondary hidden shrink-0">Log</a>
                             <div id="lastEventBar" class="last-event-bar hidden">
@@ -116,9 +117,42 @@
                         </div>
                     </header>
                     <div class="mb-5 max-w-md">
-                        <label for="savedConfigSelect" class="field-label">Saved configuration</label>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label for="savedConfigSelect" class="field-label mb-0">Saved configuration</label>
+                            <span id="configProtectedBadge" class="badge badge-secondary hidden"><i class="fas fa-lock text-xs mr-1" aria-hidden="true"></i>Protected (Built-in)</span>
+                        </div>
                         <select id="savedConfigSelect" class="field"></select>
                     </div>
+                    <!-- Starter Templates & Quick Add Helper -->
+                    <div class="card p-3 mb-4 bg-surface-subtle border border-subtle">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <label for="templateSelect" class="field-label mb-0 text-xs font-semibold whitespace-nowrap">Starter Template:</label>
+                                <select id="templateSelect" class="field field-inline text-xs">
+                                    <option value="simple-starter">Simple Starter (Drafted Helper · 6 Events)</option>
+                                    <option value="hockey-one-zoned">Hockey One Zoned (Dedicated Analyst)</option>
+                                </select>
+                                <button id="loadTemplateButton" type="button" class="btn btn-secondary btn-sm" title="Load selected template into editor">
+                                    Load Template
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <input type="text" id="quickAddCodeInput" placeholder="New event (TURNOVER)" class="field field-inline text-xs" />
+                                <select id="quickAddColorSelect" class="field field-inline text-xs">
+                                    <option value="btn-blue">Blue</option>
+                                    <option value="btn-green">Green</option>
+                                    <option value="btn-yellow">Yellow</option>
+                                    <option value="btn-red">Red</option>
+                                    <option value="btn-orange">Orange</option>
+                                    <option value="btn-gray">Gray</option>
+                                </select>
+                                <button id="quickAddButton" type="button" class="btn btn-secondary btn-sm" title="Add button to configuration without editing JSON">
+                                    <i class="fas fa-plus text-xs" aria-hidden="true"></i> Add Button
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="config-editor mb-4">
                         <div class="config-editor-header">
                             <label for="configJsonInput" class="config-editor-title">
@@ -165,6 +199,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-end gap-3 mt-4">
                         <button id="saveConfigButton" type="button" class="btn btn-success">Save</button>
                         <button id="saveAsConfigButton" type="button" class="btn btn-secondary">Save as</button>
+                        <button id="resetConfigDefaultButton" type="button" class="btn btn-secondary hidden" title="Restore this built-in configuration to factory defaults">Reset to default</button>
                         <div id="saveAsConfigForm" class="hidden flex-1">
                             <div class="flex flex-col sm:flex-row sm:items-end gap-3">
                                 <div class="flex-1">
