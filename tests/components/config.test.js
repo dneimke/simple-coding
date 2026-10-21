@@ -13,6 +13,7 @@ import {
     usesTeams,
     isBuiltInConfig,
     resetNamedConfigToDefault,
+    deleteNamedConfig,
     RETIRED_BUILT_IN_CONFIGS
 } from '../../src/components/config.js';
 
@@ -172,6 +173,22 @@ describe('named configurations', () => {
     test('saveNamedConfig rejects empty names and invalid configs', () => {
         expect(() => saveNamedConfig('   ', { rowDefs: [] })).toThrow('Configuration name is required.');
         expect(() => saveNamedConfig('bad', { buttons: [] })).toThrow('Invalid configuration structure.');
+    });
+
+
+    test('deleteNamedConfig deletes custom configurations', () => {
+        const config = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'A', text: 'A' }] }] };
+        saveNamedConfig('to-be-deleted', config);
+        expect(listNamedConfigs()).toContain('to-be-deleted');
+
+        expect(deleteNamedConfig('to-be-deleted')).toBe(true);
+        expect(listNamedConfigs()).not.toContain('to-be-deleted');
+        expect(deleteNamedConfig('to-be-deleted')).toBe(false);
+    });
+
+    test('deleteNamedConfig rejects deleting built-in configurations', () => {
+        expect(() => deleteNamedConfig('hockey-one-zoned')).toThrow('Cannot delete built-in configuration "hockey-one-zoned".');
+        expect(() => deleteNamedConfig('simple-starter')).toThrow('Cannot delete built-in configuration "simple-starter".');
     });
 
     test('activateNamedConfig writes the named config to the active slot', () => {

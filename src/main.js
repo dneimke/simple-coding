@@ -6,7 +6,7 @@ import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams, isBuiltInConfig, resetNamedConfigToDefault } from './components/config.js';
+import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams, isBuiltInConfig, resetNamedConfigToDefault, deleteNamedConfig } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -45,12 +45,15 @@ const configMessage = document.getElementById('configMessage');
 const configProtectedBadge = document.getElementById('configProtectedBadge');
 const configProtectedNotice = document.getElementById('configProtectedNotice');
 const resetConfigDefaultButton = document.getElementById('resetConfigDefaultButton');
-const templateSelect = document.getElementById('templateSelect');
-const loadTemplateButton = document.getElementById('loadTemplateButton');
-const quickAddCodeInput = document.getElementById('quickAddCodeInput');
-const quickAddColorSelect = document.getElementById('quickAddColorSelect');
-const quickAddButton = document.getElementById('quickAddButton');
+const duplicateConfigButton = document.getElementById('duplicateConfigButton');
+const deleteConfigButton = document.getElementById('deleteConfigButton');
 const customizeBoardLink = document.getElementById('customizeBoardLink');
+const configModeVisualBtn = document.getElementById('configModeVisualBtn');
+const configModeJsonBtn = document.getElementById('configModeJsonBtn');
+const configVisualContainer = document.getElementById('configVisualContainer');
+const configJsonContainer = document.getElementById('configJsonContainer');
+const configBoardPreview = document.getElementById('configBoardPreview');
+const configVisualBannerText = document.getElementById('configVisualBannerText');
 const importXmlButton = document.getElementById('importXmlButton');
 const xmlFileInput = document.getElementById('xmlFileInput');
 const previewModal = document.getElementById('previewModal');
@@ -243,12 +246,80 @@ function renderSavedConfigOptions(selectedName, includeUnsaved = false) {
     selectedConfigName = savedConfigSelect.value;
 }
 
+
+let previewEventButtons = null;
+let currentConfigMode = 'visual'; // 'visual' | 'json'
+
+function getPreviewEventButtons() {
+    if (!previewEventButtons && configBoardPreview) {
+        previewEventButtons = new EventButtons(configBoardPreview);
+    }
+    return previewEventButtons;
+}
+
+function renderConfigVisualPreview(config) {
+    if (!configBoardPreview) return;
+    if (!config || !Array.isArray(config.rowDefs)) {
+        configBoardPreview.innerHTML = '<p class="empty-state text-sm py-6">Invalid board configuration. Switch to JSON (Pro) to fix syntax.</p>';
+        return;
+    }
+    try {
+        const previewer = getPreviewEventButtons();
+        if (previewer) {
+            previewer.initialize(config, {
+                teams: loadLastTeams(),
+                zone: config.zones?.default ?? (config.zones?.values?.[0] ?? '1'),
+                selectedTeam: 1
+            });
+        }
+    } catch (err) {
+        configBoardPreview.innerHTML = `<p class="empty-state text-sm py-6 text-red-500">Preview error: ${err.message}</p>`;
+    }
+}
+
+function setConfigViewMode(mode) {
+    currentConfigMode = mode;
+    const isVisual = mode === 'visual';
+    if (configModeVisualBtn) {
+        configModeVisualBtn.classList.toggle('tab-button-active', isVisual);
+        configModeVisualBtn.setAttribute('aria-selected', isVisual ? 'true' : 'false');
+    }
+    if (configModeJsonBtn) {
+        configModeJsonBtn.classList.toggle('tab-button-active', !isVisual);
+        configModeJsonBtn.setAttribute('aria-selected', !isVisual ? 'true' : 'false');
+    }
+    if (configVisualContainer) configVisualContainer.classList.toggle('hidden', !isVisual);
+    if (configJsonContainer) configJsonContainer.classList.toggle('hidden', isVisual);
+
+    if (isVisual) {
+        try {
+            const parsed = parseEditorConfig();
+            renderConfigVisualPreview(parsed);
+        } catch {
+            renderConfigVisualPreview(null);
+        }
+    }
+}
+
 function updateConfigProtectionState(name) {
     const isBuiltIn = isBuiltInConfig(name);
+    const isUnsaved = name === UNSAVED_CONFIG_VALUE;
     if (configProtectedBadge) configProtectedBadge.classList.toggle('hidden', !isBuiltIn);
     if (configProtectedNotice) configProtectedNotice.classList.toggle('hidden', !isBuiltIn);
-    if (saveConfigButton) saveConfigButton.classList.toggle('hidden', isBuiltIn);
+    if (saveConfigButton) saveConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
+    if (duplicateConfigButton) duplicateConfigButton.classList.toggle('hidden', !isBuiltIn);
+    if (deleteConfigButton) deleteConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
     if (resetConfigDefaultButton) resetConfigDefaultButton.classList.toggle('hidden', !isBuiltIn);
+
+    if (configVisualBannerText) {
+        if (isBuiltIn) {
+            configVisualBannerText.innerHTML = `<strong>${name}</strong> is a protected built-in board. Click <strong>Duplicate to customize</strong> to create an editable copy.`;
+        } else if (isUnsaved) {
+            configVisualBannerText.innerHTML = 'Unsaved layout. Use <strong>Save as</strong> to name and keep this board.';
+        } else {
+            configVisualBannerText.innerHTML = `Custom board: <strong>${name}</strong>. Switch to <strong>JSON (Pro)</strong> to edit code or lead/lag timings.`;
+        }
+    }
 }
 
 function isEditorDirty() {
@@ -811,53 +882,7 @@ function registerEventListeners() {
         });
     }
 
-    if (loadTemplateButton && templateSelect) {
-        loadTemplateButton.addEventListener('click', () => {
-            const templateName = templateSelect.value;
-            const templateConfig = getNamedConfig(templateName);
-            if (!templateConfig) return;
-            if (isEditorDirty() &&
-                !notificationService.confirm('Replace your unsaved changes with the selected template?')) {
-                return;
-            }
-            setEditorConfig(templateConfig);
-            showMessage(configMessage, `Template "${templateName}" loaded. Tap "Save as" to save under a new name.`);
-        });
-    }
 
-    if (quickAddButton && quickAddCodeInput && quickAddColorSelect) {
-        quickAddButton.addEventListener('click', () => {
-            const code = quickAddCodeInput.value.trim().toUpperCase();
-            if (!code) {
-                showMessage(configMessage, 'Enter an event code to add.', true);
-                quickAddCodeInput.focus();
-                return;
-            }
-            const color = quickAddColorSelect.value;
-            let parsed;
-            try {
-                parsed = parseEditorConfig();
-            } catch (error) {
-                showMessage(configMessage, `Cannot add button: JSON is invalid. ${error.message}`, true);
-                return;
-            }
-
-            if (!Array.isArray(parsed.rowDefs) || parsed.rowDefs.length === 0) {
-                parsed.rowDefs = [{ gridCols: 'grid-cols-4', buttons: [] }];
-            }
-            const targetRow = parsed.rowDefs[parsed.rowDefs.length - 1];
-            if (Array.isArray(targetRow.grids) && targetRow.grids.length > 0) {
-                targetRow.grids[0].buttons.push({ event: code, text: code, color });
-            } else {
-                if (!Array.isArray(targetRow.buttons)) targetRow.buttons = [];
-                targetRow.buttons.push({ event: code, text: code, color });
-            }
-
-            setEditorConfig(parsed);
-            quickAddCodeInput.value = '';
-            showMessage(configMessage, `Added button "${code}". Tap "Save as" to save your custom board.`);
-        });
-    }
 
 
     const saveAsNewName = () => {

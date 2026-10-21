@@ -304,6 +304,17 @@ export function saveNamedConfig(name, config) {
     return writeNamedConfigs(configs) && saveConfiguration(config);
 }
 
+export function deleteNamedConfig(name) {
+    const trimmed = String(name ?? '').trim();
+    if (isBuiltInConfig(trimmed)) {
+        throw new Error(`Cannot delete built-in configuration "${trimmed}".`);
+    }
+    const configs = readNamedConfigs();
+    if (!configs[trimmed]) return false;
+    delete configs[trimmed];
+    return writeNamedConfigs(configs);
+}
+
 // Copies a named configuration into the active slot and returns it
 export function activateNamedConfig(name) {
     const config = getNamedConfig(name);

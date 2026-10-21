@@ -123,77 +123,73 @@
                         </div>
                         <select id="savedConfigSelect" class="field"></select>
                     </div>
-                    <!-- Starter Templates & Quick Add Helper -->
-                    <div class="card p-3 mb-4 bg-surface-subtle border border-subtle">
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <label for="templateSelect" class="field-label mb-0 text-xs font-semibold whitespace-nowrap">Starter Template:</label>
-                                <select id="templateSelect" class="field field-inline text-xs">
-                                    <option value="simple-starter">Simple Starter (Drafted Helper · 6 Events)</option>
-                                    <option value="hockey-one-zoned">Hockey One Zoned (Dedicated Analyst)</option>
-                                </select>
-                                <button id="loadTemplateButton" type="button" class="btn btn-secondary btn-sm" title="Load selected template into editor">
-                                    Load Template
-                                </button>
-                            </div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <input type="text" id="quickAddCodeInput" placeholder="New event (TURNOVER)" class="field field-inline text-xs" />
-                                <select id="quickAddColorSelect" class="field field-inline text-xs">
-                                    <option value="btn-blue">Blue</option>
-                                    <option value="btn-green">Green</option>
-                                    <option value="btn-yellow">Yellow</option>
-                                    <option value="btn-red">Red</option>
-                                    <option value="btn-orange">Orange</option>
-                                    <option value="btn-gray">Gray</option>
-                                </select>
-                                <button id="quickAddButton" type="button" class="btn btn-secondary btn-sm" title="Add button to configuration without editing JSON">
-                                    <i class="fas fa-plus text-xs" aria-hidden="true"></i> Add Button
-                                </button>
-                            </div>
+                    <!-- View Mode Toggle -->
+                    <div class="flex items-center justify-between mb-4 border-b border-subtle pb-2">
+                        <div class="tabs px-0" role="tablist" aria-label="Configuration view mode">
+                            <button id="configModeVisualBtn" type="button" class="tab-button tab-button-active" role="tab" aria-selected="true">
+                                <i class="fas fa-eye mr-1" aria-hidden="true"></i>Visual Preview
+                            </button>
+                            <button id="configModeJsonBtn" type="button" class="tab-button" role="tab" aria-selected="false">
+                                <i class="fas fa-code mr-1" aria-hidden="true"></i>JSON (Pro)
+                            </button>
                         </div>
                     </div>
 
-                    <div class="config-editor mb-4">
-                        <div class="config-editor-header">
-                            <label for="configJsonInput" class="config-editor-title">
-                                <i class="fas fa-code" aria-hidden="true"></i> Configuration JSON
-                            </label>
-                            <div class="config-editor-actions">
-                                <span id="configDirtyIndicator" class="config-editor-dirty hidden">Unsaved
-                                    changes</span>
-                                <button id="copyConfigButton" type="button" class="config-editor-action"
-                                    title="Copy the configuration JSON to the clipboard">
-                                    <i class="fas fa-copy" aria-hidden="true"></i> Copy
-                                </button>
-                                <button id="replaceConfigButton" type="button" class="config-editor-action"
-                                    title="Replace the configuration JSON with the clipboard contents">
-                                    <i class="fas fa-paste" aria-hidden="true"></i> Replace from clipboard
-                                </button>
-                            </div>
+                    <!-- Visual Preview Container -->
+                    <div id="configVisualContainer" class="mb-4">
+                        <div id="configVisualBanner" class="banner banner-info mb-3">
+                            <span id="configVisualBannerText" class="text-sm">
+                                Visual preview of how this button board appears on Event Capture.
+                            </span>
                         </div>
-                        <details class="config-editor-help">
-                            <summary>JSON format help</summary>
-                            <p>
-                                Each entry in <code>rowDefs</code> is one row of buttons on the Event Capture page, with
-                                an optional <code>gridCols</code> (e.g. <code>"grid-cols-4"</code>) and an array of
-                                <code>buttons</code>. Each button needs an <code>event</code> (unique identifier),
-                                <code>text</code> (display label), and <code>color</code> (<code>btn-blue</code>,
-                                <code>btn-red</code>, <code>btn-green</code>, <code>btn-yellow</code>,
-                                <code>btn-orange</code>, <code>btn-gray</code>). Buttons can also set
-                                <code>lead</code> and <code>lag</code>: the seconds of video to include before and
-                                after the press in the exported clip (default 5).
-                            </p>
-                            <p>
-                                Team boards (like <code>hockey-one-zoned</code>) add a <code>zones</code> block and rows
-                                with <code>"team": 1</code> or <code>2</code>. A team row can hold several
-                                <code>grids</code>; its buttons take the team's colour and code (e.g.
-                                <code>FIRE BS</code>), and buttons with <code>"zoned": true</code> also add the active
-                                zone (<code>FIRE BS2</code>). A row with <code>"team": "selected"</code> shows a team
-                                toggle and logs for the selected team.
-                            </p>
-                        </details>
-                        <textarea id="configJsonInput" placeholder="Enter your configuration JSON here"
-                            spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+                        <div class="surface p-4 border border-subtle rounded-lg">
+                            <div id="configBoardPreview"></div>
+                        </div>
+                    </div>
+
+                    <!-- JSON Editor Container (Hidden by default in Visual Preview mode) -->
+                    <div id="configJsonContainer" class="hidden mb-4">
+                        <div class="config-editor">
+                            <div class="config-editor-header">
+                                <label for="configJsonInput" class="config-editor-title">
+                                    <i class="fas fa-code" aria-hidden="true"></i> Configuration JSON
+                                </label>
+                                <div class="config-editor-actions">
+                                    <span id="configDirtyIndicator" class="config-editor-dirty hidden">Unsaved changes</span>
+                                    <button id="copyConfigButton" type="button" class="config-editor-action"
+                                        title="Copy the configuration JSON to the clipboard">
+                                        <i class="fas fa-copy" aria-hidden="true"></i> Copy
+                                    </button>
+                                    <button id="replaceConfigButton" type="button" class="config-editor-action"
+                                        title="Replace the configuration JSON with the clipboard contents">
+                                        <i class="fas fa-paste" aria-hidden="true"></i> Replace from clipboard
+                                    </button>
+                                </div>
+                            </div>
+                            <details class="config-editor-help">
+                                <summary>JSON format help</summary>
+                                <p>
+                                    Each entry in <code>rowDefs</code> is one row of buttons on the Event Capture page, with
+                                    an optional <code>gridCols</code> (e.g. <code>"grid-cols-4"</code>) and an array of
+                                    <code>buttons</code>. Each button needs an <code>event</code> (unique identifier),
+                                    <code>text</code> (display label), and <code>color</code> (<code>btn-blue</code>,
+                                    <code>btn-red</code>, <code>btn-green</code>, <code>btn-yellow</code>,
+                                    <code>btn-orange</code>, <code>btn-gray</code>). Buttons can also set
+                                    <code>lead</code> and <code>lag</code>: the seconds of video to include before and
+                                    after the press in the exported clip (default 5).
+                                </p>
+                                <p>
+                                    Team boards (like <code>hockey-one-zoned</code>) add a <code>zones</code> block and rows
+                                    with <code>"team": 1</code> or <code>2</code>. A team row can hold several
+                                    <code>grids</code>; its buttons take the team's colour and code (e.g.
+                                    <code>FIRE BS</code>), and buttons with <code>"zoned": true</code> also add the active
+                                    zone (<code>FIRE BS2</code>). A row with <code>"team": "selected"</code> shows a team
+                                    toggle and logs for the selected team.
+                                </p>
+                            </details>
+                            <textarea id="configJsonInput" placeholder="Enter your configuration JSON here"
+                                spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+                        </div>
                     </div>
                     <div id="configMessage" class="config-message hidden"></div>
                     <div class="flex flex-col sm:flex-row sm:items-end gap-3 mt-4">
