@@ -11,6 +11,15 @@ import {
     validateConfig,
     rowGrids,
     usesTeams,
+    isBuiltInConfig,
+    getConfigDisplayName,
+    getNextCopyName,
+    renameNamedConfig,
+    updateBoardButton,
+    addBoardButton,
+    removeBoardButton,
+    resetNamedConfigToDefault,
+    deleteNamedConfig,
     RETIRED_BUILT_IN_CONFIGS
 } from '../../src/components/config.js';
 
@@ -30,8 +39,8 @@ describe('named configurations', () => {
         console.error.mockRestore();
     });
 
-    test('seeds hockey-one-zoned as the only built-in and uses it as the default', () => {
-        expect(listNamedConfigs()).toEqual(['hockey-one-zoned']);
+    test('seeds built-in configurations and uses hockey-one-zoned as the default', () => {
+        expect(listNamedConfigs()).toEqual(['hockey-one-zoned', 'simple-starter']);
         expect(loadConfiguration()).toEqual(getNamedConfig('hockey-one-zoned'));
         expect(usesTeams(loadConfiguration())).toBe(true);
         expect(findNamedConfigName(loadConfiguration())).toBe('hockey-one-zoned');
@@ -50,7 +59,7 @@ describe('named configurations', () => {
             'hockey-one': RETIRED_BUILT_IN_CONFIGS['hockey-one']
         }));
 
-        expect(listNamedConfigs()).toEqual(['hockey-one-zoned']);
+        expect(listNamedConfigs()).toEqual(['hockey-one-zoned', 'simple-starter']);
         expect(JSON.parse(localStorage.getItem(NAMED_KEY))).not.toHaveProperty('default');
         expect(JSON.parse(localStorage.getItem(NAMED_KEY))).not.toHaveProperty('hockey-one');
     });
@@ -70,6 +79,25 @@ describe('named configurations', () => {
             .map(button => button.event);
         expect([...new Set(zoned)]).toEqual(['BS', 'BW']);
         expect(eventsOf(config)).toEqual(expect.arrayContaining(['START', 'END', 'UMP', 'SO', 'GREEN', 'PC']));
+    });
+
+    test('simple-starter has dedicated team rows with 6 essentials and no sticky zones', () => {
+        const config = getNamedConfig('simple-starter');
+
+        expect(config.zones).toBeUndefined();
+        expect(config.rowDefs.filter(row => row.team === 1)).toHaveLength(1);
+        expect(config.rowDefs.filter(row => row.team === 2)).toHaveLength(1);
+        expect(config.rowDefs.some(row => row.team === 'selected')).toBe(false);
+        expect(usesTeams(config)).toBe(true);
+        expect(() => validateConfig(config)).not.toThrow();
+
+        const team1Buttons = config.rowDefs.find(r => r.team === 1).grids[0].buttons.map(b => b.event);
+        const team2Buttons = config.rowDefs.find(r => r.team === 2).grids[0].buttons.map(b => b.event);
+        expect(team1Buttons).toEqual(['A25E', 'CE', 'SHOT', 'PC', 'GOAL', 'CARD']);
+        expect(team2Buttons).toEqual(['A25E', 'CE', 'SHOT', 'PC', 'GOAL', 'CARD']);
+
+        const headerButtons = config.rowDefs[0].buttons.map(b => b.event);
+        expect(headerButtons).toEqual(['START', 'END']);
     });
 
     test('hockey-one-zoned buttons carry the MyVA lead and lag times', () => {
@@ -105,7 +133,38 @@ describe('named configurations', () => {
 
         expect(getNamedConfig('hockey-one-zoned')).toEqual(custom);
         expect(getNamedConfig('hockey-one')).toEqual(custom);
-        expect(listNamedConfigs()).toEqual(['hockey-one', 'hockey-one-zoned']);
+        expect(listNamedConfigs()).toEqual(['hockey-one', 'hockey-one-zoned', 'simple-starter']);
+    });
+
+    test('isBuiltInConfig returns true for built-in configurations and false for others', () => {
+        expect(isBuiltInConfig('hockey-one-zoned')).toBe(true);
+        expect(isBuiltInConfig('simple-starter')).toBe(true);
+        expect(isBuiltInConfig('custom-board')).toBe(false);
+        expect(isBuiltInConfig('')).toBe(false);
+        expect(isBuiltInConfig(null)).toBe(false);
+    });
+
+    test('saveNamedConfig rejects overwriting built-in configurations', () => {
+        const config = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'A', text: 'A', color: 'btn-red' }] }] };
+
+        expect(() => saveNamedConfig('hockey-one-zoned', config)).toThrow(
+            'Cannot overwrite built-in configuration "hockey-one-zoned". Use "Save as" to save under a new name.'
+        );
+        expect(() => saveNamedConfig('simple-starter', config)).toThrow(
+            'Cannot overwrite built-in configuration "simple-starter". Use "Save as" to save under a new name.'
+        );
+    });
+
+    test('resetNamedConfigToDefault restores a built-in configuration to factory default', () => {
+        const custom = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'OVERRIDDEN', text: 'OVERRIDDEN' }] }] };
+        localStorage.setItem(NAMED_KEY, JSON.stringify({ 'hockey-one-zoned': custom }));
+
+        expect(getNamedConfig('hockey-one-zoned')).toEqual(custom);
+        resetNamedConfigToDefault('hockey-one-zoned');
+        expect(getNamedConfig('hockey-one-zoned')).not.toEqual(custom);
+        expect(getNamedConfig('hockey-one-zoned').zones).toBeDefined();
+
+        expect(() => resetNamedConfigToDefault('unknown-name')).toThrow('"unknown-name" is not a built-in configuration.');
     });
 
     test('saveNamedConfig stores the config under a trimmed name and makes it active', () => {
@@ -120,6 +179,29 @@ describe('named configurations', () => {
     test('saveNamedConfig rejects empty names and invalid configs', () => {
         expect(() => saveNamedConfig('   ', { rowDefs: [] })).toThrow('Configuration name is required.');
         expect(() => saveNamedConfig('bad', { buttons: [] })).toThrow('Invalid configuration structure.');
+    });
+
+
+    test('deleteNamedConfig deletes custom configurations', () => {
+        const config = { rowDefs: [{ gridCols: 'grid-cols-1', buttons: [{ event: 'A', text: 'A' }] }] };
+        saveNamedConfig('to-be-deleted', config);
+        expect(listNamedConfigs()).toContain('to-be-deleted');
+
+        expect(deleteNamedConfig('to-be-deleted')).toBe(true);
+        expect(listNamedConfigs()).not.toContain('to-be-deleted');
+        expect(deleteNamedConfig('to-be-deleted')).toBe(false);
+    });
+
+    test('deleteNamedConfig rejects deleting built-in configurations', () => {
+        expect(() => deleteNamedConfig('hockey-one-zoned')).toThrow('Cannot delete built-in configuration "hockey-one-zoned".');
+        expect(() => deleteNamedConfig('simple-starter')).toThrow('Cannot delete built-in configuration "simple-starter".');
+    });
+
+    test('getConfigDisplayName returns user-friendly display labels for built-in boards', () => {
+        expect(getConfigDisplayName('simple-starter')).toBe('Simple (6 Events)');
+        expect(getConfigDisplayName('hockey-one-zoned')).toBe('Hockey One Zoned');
+        expect(getConfigDisplayName('custom-layout')).toBe('custom-layout');
+        expect(getConfigDisplayName('')).toBe('');
     });
 
     test('activateNamedConfig writes the named config to the active slot', () => {
@@ -205,5 +287,86 @@ describe('validateConfig', () => {
     test('saveNamedConfig rejects invalid lead and lag', () => {
         expect(() => saveNamedConfig('bad-timing', withButton({ lag: -5 }))).toThrow('lag must be a number of 0 or more');
         expect(listNamedConfigs()).not.toContain('bad-timing');
+    });
+});
+
+
+describe('visual board customization helpers', () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    test('getNextCopyName generates sequential copy names like Simple (1), Simple (2)', () => {
+        expect(getNextCopyName('simple-starter')).toBe('Simple (1)');
+        const simpleConfig = getNamedConfig('simple-starter');
+        saveNamedConfig('Simple (1)', simpleConfig);
+
+        expect(getNextCopyName('simple-starter')).toBe('Simple (2)');
+        expect(getNextCopyName('Simple (1)')).toBe('Simple (2)');
+        expect(getNextCopyName('hockey-one-zoned')).toBe('Hockey One Zoned (1)');
+    });
+
+    test('renameNamedConfig renames a custom board and rejects built-in names', () => {
+        const simpleConfig = getNamedConfig('simple-starter');
+        saveNamedConfig('Simple (1)', simpleConfig);
+
+        expect(renameNamedConfig('Simple (1)', 'Under-14s')).toBe(true);
+        expect(listNamedConfigs()).not.toContain('Simple (1)');
+        expect(listNamedConfigs()).toContain('Under-14s');
+        expect(getNamedConfig('Under-14s')).toEqual(simpleConfig);
+
+        expect(() => renameNamedConfig('simple-starter', 'My Simple')).toThrow(/built-in/i);
+        expect(() => renameNamedConfig('Under-14s', 'hockey-one-zoned')).toThrow(/built-in/i);
+        expect(() => renameNamedConfig('Under-14s', '   ')).toThrow(/required/i);
+    });
+
+    test('updateBoardButton modifies only the targeted button and leaves other rows untouched', () => {
+        const base = getNamedConfig('simple-starter');
+        const updated = updateBoardButton(
+            base,
+            { rowIndex: 1, gridIndex: 0, buttonIndex: 0 },
+            { event: 'PRESS', text: 'PRESS', lead: 8, lag: 12 }
+        );
+
+        // Team 1 first button updated
+        expect(updated.rowDefs[1].grids[0].buttons[0]).toEqual({
+            event: 'PRESS',
+            text: 'PRESS',
+            lead: 8,
+            lag: 12
+        });
+        // Team 2 first button remains A25E (not modified)
+        expect(updated.rowDefs[2].grids[0].buttons[0].event).toBe('A25E');
+        // Original config not mutated
+        expect(base.rowDefs[1].grids[0].buttons[0].event).toBe('A25E');
+    });
+
+    test('addBoardButton appends a button only to the targeted row and grid', () => {
+        const base = getNamedConfig('simple-starter');
+        const updated = addBoardButton(
+            base,
+            { rowIndex: 1, gridIndex: 0 },
+            { event: 'OVERHEAD', text: 'OVERHEAD', lead: 5, lag: 10 }
+        );
+
+        expect(updated.rowDefs[1].grids[0].buttons).toHaveLength(7);
+        expect(updated.rowDefs[1].grids[0].buttons[6]).toEqual({
+            event: 'OVERHEAD',
+            text: 'OVERHEAD',
+            lead: 5,
+            lag: 10
+        });
+        // Team 2 still has 6 buttons
+        expect(updated.rowDefs[2].grids[0].buttons).toHaveLength(6);
+    });
+
+    test('removeBoardButton removes only the targeted button', () => {
+        const base = getNamedConfig('simple-starter');
+        const updated = removeBoardButton(base, { rowIndex: 2, gridIndex: 0, buttonIndex: 5 });
+
+        // Team 2 had CARD removed (now 5 buttons)
+        expect(updated.rowDefs[2].grids[0].buttons.map(b => b.event)).toEqual(['A25E', 'CE', 'SHOT', 'PC', 'GOAL']);
+        // Team 1 still has all 6 buttons including CARD
+        expect(updated.rowDefs[1].grids[0].buttons).toHaveLength(6);
     });
 });

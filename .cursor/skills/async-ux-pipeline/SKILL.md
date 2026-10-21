@@ -1,54 +1,46 @@
 ---
 name: async-ux-pipeline
 description: >-
-  Eliminates glue toil via asynchronous dispatch. Evaluates user feedback
-  against AGENTS.md personas and push-back rules, implements changes test-first,
-  proves the result with automated Playwright visual snapshots (no manual clicking),
-  and ships a pull request.
+  Enforces the autonomous UX & test-first development pipeline. Evaluates user feedback
+  against AGENTS.md personas and push-back rules, traces Tap 1 -> Tap 2 -> Tap 3,
+  implements changes test-first, proves multi-state flows with automated Playwright
+  visual snapshots and mandatory vision self-audit, and ships a pull request.
 ---
 
-# Async UX-to-Code Pipeline
+# Autonomous UX & Verification Pipeline
 
-Eliminate **"glue toil"** and enable **"Asynchronous Dispatch"**: the user spots friction on mobile or desktop, sends a 2-second screenshot or brief note, and walks away. The agent implements the smallest valid change, runs deterministic tests, captures automated Playwright visual snapshots, and opens a pull request ready for a 5-second review.
+Never optimize merely for "making the static screen pass tests." Optimize for the target persona completing their actual job from Tap 1 to completion without human QA intervention.
 
 ## Repository Binding
 
-Read `AGENTS.md` (personas, journeys, push-back rules, 4-step blueprint) and `docs/design-language.md` (`.cursor/rules/design-language.mdc`) before changing markup, CSS, or JavaScript.
+Read `AGENTS.md` (personas, journeys, push-back rules, execution protocol) and `docs/design-language.md` (`.cursor/rules/design-language.mdc`) before changing markup, CSS, or JavaScript.
 
-## Stage 1: Product Triage & Spec (`a → b → c`)
+## Stage 1: Autonomous Spec & 3-Tap Journey Trace
 
-Before writing code, evaluate the request against `AGENTS.md`:
+When given raw user friction, image comments, or a 5-part brief, do not write production code until you have:
+1. **Investigated Current State**: Inspect the relevant UI components, routes, and state helpers first.
+2. **Traced the Full User Journey (`Tap 1 → Tap 2 → Tap 3`)**: Never design only the entry state. Explicitly map:
+   - **Tap 1 (Entry Trigger)**: What the user clicks/taps to start (e.g., *Duplicate to edit*).
+   - **Tap 2 (Active Manipulation)**: How the user performs the core edit/action (e.g., *Tap button on visual board → edit in modal*). Ensure the persona never hits a technical dead-end (such as raw JSON or developer instructions) on Tap 2.
+   - **Tap 3 (Persisted Outcome)**: How the change saves and reflects immediately in the UI.
+3. **Output the 5-Part Contract**: State the **Goal**, **Decisions & 3-Tap Journey**, **Invariants**, **Specific Next Step**, and **Traps to Avoid** before touching code.
+4. **Resolve Forks or Execute**: If `Tap 2` has a genuine product fork (e.g., single-item vs. mirrored behaviour), ask 1–2 concise questions alongside the 5-Part Contract. Otherwise, proceed straight through Stages 2–5 autonomously.
 
-1. **Persona & Journey (`a`)**: Identify the target persona (*Dedicated Analyst*, *Bench Coach*, *Drafted Helper*, or *Head Coach*) and journey.
-2. **Audit & Push-Back Check (`b → c`)**: Inspect current code against the persona's quality bar and the **Push-Back Rules** in `AGENTS.md`:
-   - Does it add taps, dialogs, or shifting buttons during live capture?
-   - Can it be solved purely with a board JSON configuration (use `board-config-generator` instead)?
-   - Does it help an expert persona while overloading a casual coder or halftime coach?
-   - **If a rule is violated**: Stop and push back with the concrete tradeoff and a better alternative.
-3. **Three-line spec (`c`)**: When the change is sound, state:
-   - **Problem**: which persona/journey is blocked or high-effort, and why.
-   - **Target state**: what the screen/code does after the change.
-   - **Verification**: the automated test and automated visual check that prove it.
-
-## Stage 2: Design Language (Tokens Over Debate)
+## Stage 2: Design Tokens, Ergonomics & Copy Hygiene
 
 Follow `docs/design-language.md`:
-- CSS tokens and semantic classes in `src/styles.css` (e.g. `btn-blue`, `team-color-*`, `--touch-min`).
-- Tailwind utilities for layout and spacing only.
-- $\ge 44\text{px}$ touch targets for all live-capture elements.
-- Never invent new ad-hoc color classes or styling abstractions.
+1. **Primary Actions Above the Fold**: Primary workflow CTAs must be immediately accessible without scrolling past dense boards or long lists on a `390px` mobile viewport. Touch targets $\ge 44\text{px}$ (`--touch-min`).
+2. **Verified Styling**: Only use CSS classes/tokens that exist in `src/styles.css` (e.g. `btn-blue`, `team-color-*`, `--touch-min`) and Tailwind for layout/spacing only. Never leave raw unstyled text or duplicate status messages (e.g., a badge and a banner repeating the same sentence).
+3. **Zero Implementation Leakage**: Never expose developer jargon (`localStorage`, `JSON`, `factory default`, `schema`, `state`) in user-facing copy. Speak strictly in the user's domain language.
 
-## Stage 3: Test-First Discipline (Prevent Code Drift)
+## Stage 3: Test-First State Verification
 
-For behaviour (click handlers, state management, storage, DOM output):
-1. Add or update a Jest test under `tests/` that mirrors the component in `src/`.
-2. Run `npm test` and verify the test fails for the current behavior.
-3. Implement the smallest change to make the test pass.
-4. Run `npm test` to confirm all suites pass.
+1. Write or update deterministic unit/state tests in `tests/` (with fake timers where applicable) covering the full state transition before or alongside UI changes.
+2. Run `npm test` — all unit tests must pass with exit code `0` before running visual verification.
 
-## Stage 4: Automated Visual Proof (`npm run test:visual`)
+## Stage 4: Multi-State Visual Proof & Mandatory Vision Self-Audit
 
-Do not ask the user to open the app, refresh, or click through states.
+Never ask the user to manually click through localhost in a browser, and never treat `npm run test:visual` exit code `0` as the finish line.
 
 Use **Direct Seeded URLs** to load state instantly without modal clicks or setup:
 
@@ -59,32 +51,20 @@ Use **Direct Seeded URLs** to load state instantly without modal clicks or setup
 | **Saved Games** | `index.html#saved-games?mock=sample` | Saved games list pre-populated with sample game |
 | **Saved Game Log** | `index.html#log/sample-game` | Read-only match timeline & statistics |
 | **Match Review** | `timeline-video.html?game=sample-game` | Synchronized timeline, video UI, and favorites |
-| **Configure** | `index.html#configure` | Board JSON configuration editor |
+| **Configure** | `index.html#configure` | Visual button board customizer & templates |
 
-Run the automated visual snapshot tool:
-```bash
-npm run test:visual
-```
-This boots a headless Chromium instance via Playwright, renders the views across **mobile (390x844)** and **desktop (1280x800)**, and outputs PNG artifacts to `.visual-proof/`.
+1. **Snapshot Interactive States, Not Just Landing URLs**: Run `npm run test:visual`. When a feature involves a multi-step flow (e.g., duplicating, opening an edit modal, saving), drive through and capture each active state in `.visual-proof/` (e.g., `step-1-readonly.png`, `step-2-duplicated.png`, `step-3-edit-modal.png`).
+2. **Mandatory Multimodal Self-Audit (`read_file`)**: After running `npm run test:visual`, you **MUST** inspect every generated `.visual-proof/*.png` using `read_file` / vision tools before replying to the user.
+3. **Self-Reject & Fix Before Handoff**: If your visual inspection reveals any of the following, fix the code and re-run `npm run test:visual` before yielding your turn:
+   - Primary actions buried below the fold on `390px` mobile.
+   - Unstyled classes, broken layouts, or overlapping elements.
+   - Redundant chrome (badges and banners repeating the same message).
+   - Developer/implementation jargon in user-facing labels or helper text.
+4. **Concise Handoff**: Present your `<10-line` summary only after all unit tests and your visual self-audit pass.
 
 ## Stage 5: Pull Request & Zero-Toil Review
 
 Every change ships through a pull request. Never commit or push to `main`.
-
-1. Start from an up-to-date `main` and create `feature/<short-name>`.
+1. Branch from `main` using `feature/<short-name>`.
 2. Commit with a concise message describing the user benefit.
-3. Push the branch and open a PR against `main` using `gh pr create`.
-4. In the PR body, include:
-   - **Persona & Journey** affected.
-   - **What Changed**.
-   - **Behaviour Preserved**.
-   - **Verification**: `npm test` count and visual snapshots generated by `npm run test:visual`.
-5. The user reviews the PR and visual snapshots in 5 seconds and merges.
-
-## Done When
-
-- [ ] Behaviour changes have a passing Jest test (`npm test`).
-- [ ] `AGENTS.md` persona quality bars and design-language tokens hold.
-- [ ] Automated visual proof succeeded via `npm run test:visual`.
-- [ ] A pull request is open against `main` on a `feature/<short-name>` branch.
-- [ ] The reply summarizes what changed, the test count, visual snapshot status, and PR link.
+3. Push the branch and open a PR against `main` using `gh pr create` (Persona & Journey, What Changed, Behaviour Preserved, Verification).

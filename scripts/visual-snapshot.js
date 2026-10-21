@@ -64,7 +64,7 @@ const DEFAULT_SCREENS = [
     {
         name: 'configure',
         path: '/#configure',
-        waitForSelector: '#configJsonInput'
+        waitForSelector: '#configBoardPreview'
     }
 ];
 

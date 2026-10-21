@@ -4,6 +4,7 @@
 
 const LOCAL_STORAGE_KEY_CONFIG = 'fieldHockeyConfig_v1';
 const LOCAL_STORAGE_KEY_NAMED_CONFIGS = 'fieldHockeyNamedConfigs_v1';
+let lastActiveNamedConfig = null;
 
 // Earlier built-in. Kept so a previously seeded copy can be recognised and removed.
 const LEGACY_DEFAULT_CONFIG = {
@@ -82,11 +83,47 @@ const HOCKEY_ONE_ZONED_CONFIG = {
     ]
 };
 
+const SIMPLE_STARTER_CONFIG = {
+    rowDefs: [
+        { gridCols: "grid-cols-2", buttons: ["START", "END"].map(code => ({ event: code, text: code, color: "btn-gray", ...clipTiming(code) })) },
+        { team: 1, grids: [{ gridCols: "grid-cols-3", buttons: slotButtons(["A25E", "CE", "SHOT", "PC", "GOAL", "CARD"]) }] },
+        { team: 2, grids: [{ gridCols: "grid-cols-3", buttons: slotButtons(["A25E", "CE", "SHOT", "PC", "GOAL", "CARD"]) }] }
+    ]
+};
+
 const DEFAULT_CONFIG = HOCKEY_ONE_ZONED_CONFIG;
 
 const BUILT_IN_NAMED_CONFIGS = {
-    'hockey-one-zoned': HOCKEY_ONE_ZONED_CONFIG
+    'hockey-one-zoned': HOCKEY_ONE_ZONED_CONFIG,
+    'simple-starter': SIMPLE_STARTER_CONFIG
 };
+
+export const CONFIG_DISPLAY_NAMES = {
+    'simple-starter': 'Simple (6 Events)',
+    'hockey-one-zoned': 'Hockey One Zoned'
+};
+
+export function getConfigDisplayName(name) {
+    const trimmed = String(name ?? '').trim();
+    if (!trimmed) return '';
+    return CONFIG_DISPLAY_NAMES[trimmed] || trimmed;
+}
+
+export function isBuiltInConfig(name) {
+    const trimmed = String(name ?? '').trim();
+    return Boolean(trimmed && BUILT_IN_NAMED_CONFIGS[trimmed]);
+}
+
+export function resetNamedConfigToDefault(name) {
+    const trimmed = String(name ?? '').trim();
+    if (!isBuiltInConfig(trimmed)) {
+        throw new Error(`"${trimmed}" is not a built-in configuration.`);
+    }
+    const configs = readNamedConfigs();
+    configs[trimmed] = cloneConfig(BUILT_IN_NAMED_CONFIGS[trimmed]);
+    writeNamedConfigs(configs);
+    return cloneConfig(BUILT_IN_NAMED_CONFIGS[trimmed]);
+}
 
 // Names that used to be seeded. An unchanged copy is removed; a saved edit under that name is kept.
 export const RETIRED_BUILT_IN_CONFIGS = {
@@ -201,6 +238,9 @@ function readNamedConfigs() {
     let stored = {};
     try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEY_NAMED_CONFIGS);
+        if (!raw) {
+            lastActiveNamedConfig = null;
+        }
         const parsed = raw ? JSON.parse(raw) : {};
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
             stored = parsed;
@@ -258,6 +298,13 @@ export function findNamedConfigName(config) {
     }
     const target = JSON.stringify(config.rowDefs);
     const configs = readNamedConfigs();
+    if (
+        lastActiveNamedConfig &&
+        configs[lastActiveNamedConfig] &&
+        JSON.stringify(configs[lastActiveNamedConfig].rowDefs) === target
+    ) {
+        return lastActiveNamedConfig;
+    }
     return Object.keys(configs)
         .sort((a, b) => a.localeCompare(b))
         .find(name => JSON.stringify(configs[name].rowDefs) === target) ?? null;
@@ -269,11 +316,27 @@ export function saveNamedConfig(name, config) {
     if (!trimmedName) {
         throw new Error('Configuration name is required.');
     }
+    if (isBuiltInConfig(trimmedName)) {
+        throw new Error(`Cannot overwrite built-in configuration "${trimmedName}". Use "Save as" to save under a new name.`);
+    }
     validateConfig(config);
 
     const configs = readNamedConfigs();
     configs[trimmedName] = cloneConfig(config);
+    lastActiveNamedConfig = trimmedName;
     return writeNamedConfigs(configs) && saveConfiguration(config);
+}
+
+export function deleteNamedConfig(name) {
+    const trimmed = String(name ?? '').trim();
+    if (isBuiltInConfig(trimmed)) {
+        throw new Error(`Cannot delete built-in configuration "${trimmed}".`);
+    }
+    const configs = readNamedConfigs();
+    if (!configs[trimmed]) return false;
+    delete configs[trimmed];
+    if (lastActiveNamedConfig === trimmed) lastActiveNamedConfig = null;
+    return writeNamedConfigs(configs);
 }
 
 // Copies a named configuration into the active slot and returns it
@@ -285,5 +348,103 @@ export function activateNamedConfig(name) {
     if (!saveConfiguration(config)) {
         throw new Error('Failed to save the active configuration.');
     }
+    lastActiveNamedConfig = String(name ?? '').trim();
     return config;
+}
+
+
+const COPY_BASE_NAMES = {
+    'simple-starter': 'Simple',
+    'hockey-one-zoned': 'Hockey One Zoned'
+};
+
+export function getNextCopyName(sourceName) {
+    const trimmed = String(sourceName ?? '').trim();
+    const rawBase = COPY_BASE_NAMES[trimmed] || getConfigDisplayName(trimmed) || 'Custom Board';
+    const base = rawBase.replace(/\s*\(\d+\)$/, '').trim();
+    const existing = new Set(listNamedConfigs());
+    let index = 1;
+    while (existing.has(`${base} (${index})`)) {
+        index += 1;
+    }
+    return `${base} (${index})`;
+}
+
+export function renameNamedConfig(oldName, newName) {
+    const fromName = String(oldName ?? '').trim();
+    const toName = String(newName ?? '').trim();
+    if (isBuiltInConfig(fromName)) {
+        throw new Error(`Cannot rename built-in configuration "${fromName}".`);
+    }
+    if (!toName) {
+        throw new Error('Configuration name is required.');
+    }
+    if (isBuiltInConfig(toName)) {
+        throw new Error(`Cannot overwrite built-in configuration "${toName}".`);
+    }
+    const configs = readNamedConfigs();
+    if (!configs[fromName]) return false;
+    if (fromName === toName) return true;
+
+    const config = cloneConfig(configs[fromName]);
+    delete configs[fromName];
+    configs[toName] = config;
+    lastActiveNamedConfig = toName;
+    return writeNamedConfigs(configs) && saveConfiguration(config);
+}
+
+function getTargetGrid(clonedConfig, rowIndex, gridIndex = 0) {
+    const row = clonedConfig?.rowDefs?.[rowIndex];
+    if (!row) {
+        throw new Error('Invalid row index.');
+    }
+    const grids = rowGrids(row);
+    const grid = grids[gridIndex];
+    if (!grid || !Array.isArray(grid.buttons)) {
+        throw new Error('Invalid grid index.');
+    }
+    return grid;
+}
+
+function cleanButtonFields(btn) {
+    const cleaned = { ...btn };
+    for (const key of ['lead', 'lag', 'zoned', 'color']) {
+        if (cleaned[key] === undefined || cleaned[key] === null || cleaned[key] === '' || cleaned[key] === false) {
+            delete cleaned[key];
+        }
+    }
+    return cleaned;
+}
+
+export function updateBoardButton(config, { rowIndex, gridIndex = 0, buttonIndex }, updates) {
+    const next = cloneConfig(config);
+    const grid = getTargetGrid(next, rowIndex, gridIndex);
+    if (buttonIndex < 0 || buttonIndex >= grid.buttons.length) {
+        throw new Error('Invalid button index.');
+    }
+    grid.buttons[buttonIndex] = cleanButtonFields({
+        ...grid.buttons[buttonIndex],
+        ...updates
+    });
+    validateConfig(next);
+    return next;
+}
+
+export function addBoardButton(config, { rowIndex, gridIndex = 0 }, newButton) {
+    const next = cloneConfig(config);
+    const grid = getTargetGrid(next, rowIndex, gridIndex);
+    grid.buttons.push(cleanButtonFields(newButton));
+    validateConfig(next);
+    return next;
+}
+
+export function removeBoardButton(config, { rowIndex, gridIndex = 0, buttonIndex }) {
+    const next = cloneConfig(config);
+    const grid = getTargetGrid(next, rowIndex, gridIndex);
+    if (buttonIndex < 0 || buttonIndex >= grid.buttons.length) {
+        throw new Error('Invalid button index.');
+    }
+    grid.buttons.splice(buttonIndex, 1);
+    validateConfig(next);
+    return next;
 }

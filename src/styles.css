@@ -1212,6 +1212,31 @@ code {
 
 #config-view textarea::selection {
     background-color: rgba(137, 180, 250, 0.3);
+}
+
+.board-add-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: var(--touch-min);
+    padding: var(--space-1) var(--space-2);
+    border: 2px dashed var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    color: var(--color-ink-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+
+.board-add-button:hover,
+.board-add-button:focus-visible {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background-color: rgba(37, 99, 235, 0.06);
+    outline: none;
 }
 
 /* ===== Saved games ===== */
