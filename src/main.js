@@ -312,6 +312,7 @@ function updateConfigProtectionState(name) {
     if (configProtectedNotice) configProtectedNotice.classList.toggle('hidden', !isBuiltIn);
     if (saveConfigButton) saveConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
     if (duplicateConfigButton) duplicateConfigButton.classList.toggle('hidden', !isBuiltIn);
+    if (saveAsConfigButton) saveAsConfigButton.classList.toggle('hidden', isBuiltIn);
     if (deleteConfigButton) deleteConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
     if (resetConfigDefaultButton) resetConfigDefaultButton.classList.toggle('hidden', !isBuiltIn);
 
@@ -343,7 +344,6 @@ function setEditorConfig(config) {
 
 function hideSaveAsForm() {
     saveAsConfigForm.classList.add('hidden');
-    saveAsConfigButton.classList.remove('hidden');
     configNameInput.value = '';
     updateConfigProtectionState(savedConfigSelect.value);
 }
