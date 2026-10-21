@@ -448,3 +448,58 @@ export function removeBoardButton(config, { rowIndex, gridIndex = 0, buttonIndex
     validateConfig(next);
     return next;
 }
+
+/**
+ * Populates a select element with available button boards grouped by
+ * Custom Boards and Built-in Templates (Protected).
+ *
+ * @param {HTMLSelectElement} selectElement
+ * @param {Object} [options]
+ * @param {string} [options.selectedName='']
+ * @param {boolean} [options.includeUnsaved=false]
+ * @param {string} [options.unsavedLabel='Unsaved layout']
+ */
+export function populateBoardSelect(selectElement, {
+    selectedName = '',
+    includeUnsaved = false,
+    unsavedLabel = 'Unsaved layout'
+} = {}) {
+    if (!selectElement) return;
+
+    const names = listNamedConfigs();
+    const builtIns = names.filter(n => isBuiltInConfig(n));
+    const customs = names.filter(n => !isBuiltInConfig(n));
+
+    selectElement.innerHTML = '';
+
+    if (includeUnsaved) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = unsavedLabel;
+        selectElement.appendChild(option);
+    }
+
+    const appendOption = (parent, name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        const label = getConfigDisplayName(name);
+        option.textContent = isBuiltInConfig(name) ? `🔒 ${label}` : label;
+        parent.appendChild(option);
+    };
+
+    if (customs.length > 0) {
+        const customGroup = document.createElement('optgroup');
+        customGroup.label = 'Custom Boards';
+        customs.forEach(name => appendOption(customGroup, name));
+        selectElement.appendChild(customGroup);
+    }
+
+    const builtInGroup = document.createElement('optgroup');
+    builtInGroup.label = 'Built-in Templates (Protected)';
+    builtIns.forEach(name => appendOption(builtInGroup, name));
+    selectElement.appendChild(builtInGroup);
+
+    if (includeUnsaved || names.includes(selectedName)) {
+        selectElement.value = selectedName;
+    }
+}

@@ -6,7 +6,7 @@ import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams, isBuiltInConfig, resetNamedConfigToDefault, deleteNamedConfig, getConfigDisplayName, getNextCopyName, renameNamedConfig, updateBoardButton, addBoardButton, removeBoardButton, rowGrids } from './components/config.js';
+import { loadConfiguration, listNamedConfigs, populateBoardSelect, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams, isBuiltInConfig, resetNamedConfigToDefault, deleteNamedConfig, getConfigDisplayName, getNextCopyName, renameNamedConfig, updateBoardButton, addBoardButton, removeBoardButton, rowGrids } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -242,43 +242,10 @@ let configEditorBaseline = '';
 let selectedConfigName = UNSAVED_CONFIG_VALUE;
 
 function renderSavedConfigOptions(selectedName, includeUnsaved = false) {
-    const names = listNamedConfigs();
-    const builtIns = names.filter(n => isBuiltInConfig(n));
-    const customs = names.filter(n => !isBuiltInConfig(n));
-    savedConfigSelect.innerHTML = '';
-
-    if (includeUnsaved) {
-        const option = document.createElement('option');
-        option.value = UNSAVED_CONFIG_VALUE;
-        option.textContent = 'Unsaved layout';
-        savedConfigSelect.appendChild(option);
-    }
-
-    const appendOption = (parent, name) => {
-        const option = document.createElement('option');
-        option.value = name;
-        const label = getConfigDisplayName(name);
-        option.textContent = isBuiltInConfig(name) ? `🔒 ${label}` : label;
-        parent.appendChild(option);
-    };
-
-    if (customs.length > 0) {
-        const customGroup = document.createElement('optgroup');
-        customGroup.label = 'Custom Boards';
-        customs.forEach(name => appendOption(customGroup, name));
-        savedConfigSelect.appendChild(customGroup);
-
-        const builtInGroup = document.createElement('optgroup');
-        builtInGroup.label = 'Built-in Templates (Protected)';
-        builtIns.forEach(name => appendOption(builtInGroup, name));
-        savedConfigSelect.appendChild(builtInGroup);
-    } else {
-        builtIns.forEach(name => appendOption(savedConfigSelect, name));
-    }
-
-    if (includeUnsaved || names.includes(selectedName)) {
-        savedConfigSelect.value = selectedName;
-    }
+    populateBoardSelect(savedConfigSelect, {
+        selectedName,
+        includeUnsaved
+    });
     selectedConfigName = savedConfigSelect.value;
 }
 
@@ -559,20 +526,10 @@ const CUSTOM_BOARD_VALUE = '';
 
 function renderBoardOptions() {
     const activeName = findNamedConfigName(loadConfiguration());
-    boardSelect.innerHTML = '';
-    if (!activeName) {
-        const option = document.createElement('option');
-        option.value = CUSTOM_BOARD_VALUE;
-        option.textContent = 'Custom layout';
-        boardSelect.appendChild(option);
-    }
-    listNamedConfigs().forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = getConfigDisplayName(name);
-        boardSelect.appendChild(option);
+    populateBoardSelect(boardSelect, {
+        selectedName: activeName ?? CUSTOM_BOARD_VALUE,
+        includeUnsaved: !activeName
     });
-    boardSelect.value = activeName ?? CUSTOM_BOARD_VALUE;
     syncChrome();
 }
 

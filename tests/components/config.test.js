@@ -20,7 +20,8 @@ import {
     removeBoardButton,
     resetNamedConfigToDefault,
     deleteNamedConfig,
-    RETIRED_BUILT_IN_CONFIGS
+    RETIRED_BUILT_IN_CONFIGS,
+    populateBoardSelect
 } from '../../src/components/config.js';
 
 const ACTIVE_KEY = 'fieldHockeyConfig_v1';
@@ -368,5 +369,78 @@ describe('visual board customization helpers', () => {
         expect(updated.rowDefs[2].grids[0].buttons.map(b => b.event)).toEqual(['A25E', 'CE', 'SHOT', 'PC', 'GOAL']);
         // Team 1 still has all 6 buttons including CARD
         expect(updated.rowDefs[1].grids[0].buttons).toHaveLength(6);
+    });
+    describe('populateBoardSelect', () => {
+        let select;
+
+        beforeEach(() => {
+            select = document.createElement('select');
+        });
+
+        test('groups built-in boards under Built-in Templates (Protected) with lock icons when no custom boards exist', () => {
+            populateBoardSelect(select, { selectedName: 'simple-starter' });
+
+            expect(select.children).toHaveLength(1);
+            const group = select.children[0];
+            expect(group.tagName).toBe('OPTGROUP');
+            expect(group.label).toBe('Built-in Templates (Protected)');
+
+            const options = Array.from(group.children);
+            expect(options).toHaveLength(2);
+            expect(options[0].value).toBe('hockey-one-zoned');
+            expect(options[0].textContent).toBe('🔒 Hockey One Zoned');
+            expect(options[1].value).toBe('simple-starter');
+            expect(options[1].textContent).toBe('🔒 Simple (6 Events)');
+
+            expect(select.value).toBe('simple-starter');
+        });
+
+        test('groups custom boards under Custom Boards and built-ins under Built-in Templates', () => {
+            const simpleConfig = getNamedConfig('simple-starter');
+            saveNamedConfig('Under-14s', simpleConfig);
+
+            populateBoardSelect(select, { selectedName: 'Under-14s' });
+
+            expect(select.children).toHaveLength(2);
+            const customGroup = select.children[0];
+            const builtInGroup = select.children[1];
+
+            expect(customGroup.tagName).toBe('OPTGROUP');
+            expect(customGroup.label).toBe('Custom Boards');
+            expect(customGroup.children).toHaveLength(1);
+            expect(customGroup.children[0].value).toBe('Under-14s');
+            expect(customGroup.children[0].textContent).toBe('Under-14s');
+
+            expect(builtInGroup.tagName).toBe('OPTGROUP');
+            expect(builtInGroup.label).toBe('Built-in Templates (Protected)');
+            expect(builtInGroup.children).toHaveLength(2);
+            expect(builtInGroup.children[0].textContent).toMatch(/^🔒/);
+
+            expect(select.value).toBe('Under-14s');
+        });
+
+        test('prepends unsaved layout option when includeUnsaved is true', () => {
+            populateBoardSelect(select, { selectedName: '', includeUnsaved: true });
+
+            expect(select.children[0].tagName).toBe('OPTION');
+            expect(select.children[0].value).toBe('');
+            expect(select.children[0].textContent).toBe('Unsaved layout');
+            expect(select.value).toBe('');
+
+            const builtInGroup = select.children[1];
+            expect(builtInGroup.tagName).toBe('OPTGROUP');
+            expect(builtInGroup.label).toBe('Built-in Templates (Protected)');
+        });
+
+        test('supports custom unsaved label', () => {
+            populateBoardSelect(select, { selectedName: '', includeUnsaved: true, unsavedLabel: 'Custom layout' });
+
+            expect(select.children[0].textContent).toBe('Custom layout');
+        });
+
+        test('handles null or invalid select gracefully without throwing', () => {
+            expect(() => populateBoardSelect(null)).not.toThrow();
+            expect(() => populateBoardSelect(undefined)).not.toThrow();
+        });
     });
 });
