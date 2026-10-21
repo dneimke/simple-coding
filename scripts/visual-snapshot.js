@@ -42,6 +42,11 @@ const VIEWPORTS = [
 
 const DEFAULT_SCREENS = [
     {
+        name: 'event-capture-idle',
+        path: '/#event-capture',
+        waitForSelector: '#boardSelect'
+    },
+    {
         name: 'event-capture-active',
         path: '/#event-capture?mock=active',
         waitForSelector: '#coding-buttons-container button'
@@ -164,6 +169,29 @@ async function runSnapshots() {
                 await context.close();
             }
         }
+
+        // Capture custom board flow proof (Configure and Event Capture with a custom board)
+        const customContext = await browser.newContext({
+            viewport: { width: 1280, height: 800 },
+            deviceScaleFactor: 2
+        });
+        const customPage = await customContext.newPage();
+        await customPage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
+        await customPage.waitForSelector('#duplicateConfigButton');
+        await customPage.click('#duplicateConfigButton');
+        await customPage.waitForTimeout(400);
+
+        const configCustomPath = path.join(OUTPUT_DIR, 'configure-custom-board-desktop.png');
+        await customPage.screenshot({ path: configCustomPath, fullPage: true });
+
+        // Navigate to Event Capture to prove the custom board is in boardSelect
+        await customPage.goto(`${baseUrl}/#event-capture`, { waitUntil: 'domcontentloaded' });
+        await customPage.waitForSelector('#boardSelect');
+        await customPage.waitForTimeout(400);
+
+        const captureCustomPath = path.join(OUTPUT_DIR, 'event-capture-custom-board-desktop.png');
+        await customPage.screenshot({ path: captureCustomPath, fullPage: true });
+        await customContext.close();
 
         // Capture diff.png: Button grid seeded with /dev/preview?state=adelaide-fire&mock=pc-counter
         const diffContext = await browser.newContext({
