@@ -115,7 +115,17 @@
                             <h1 class="page-title">Configure</h1>
                             <p class="page-subtitle">Customize the button boards used on Event Capture</p>
                         </div>
+                        <div class="flex items-center gap-2">
+                            <button id="importConfigButton" type="button" class="btn btn-secondary" title="Import a board file from another coach or device">
+                                <i class="fas fa-file-import mr-1" aria-hidden="true"></i>Import board
+                            </button>
+                            <button id="exportConfigButton" type="button" class="btn btn-secondary" title="Export this board as a shareable file">
+                                <i class="fas fa-file-export mr-1" aria-hidden="true"></i>Export
+                            </button>
+                        </div>
                     </header>
+                    <label for="boardFileInput" class="sr-only">Upload Board File</label>
+                    <input id="boardFileInput" type="file" accept=".json,application/json" class="hidden" title="Choose a board JSON file to import">
 
                     <!-- Top Controls Card -->
                     <div class="surface p-4 border border-subtle rounded-lg mb-3">

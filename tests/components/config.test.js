@@ -21,6 +21,10 @@ import {
     resetNamedConfigToDefault,
     deleteNamedConfig,
     RETIRED_BUILT_IN_CONFIGS,
+    createBoardExportPayload,
+    getBoardExportFilename,
+    parseBoardImport,
+    importNamedConfig,
     populateBoardSelect
 } from '../../src/components/config.js';
 
@@ -443,4 +447,144 @@ describe('visual board customization helpers', () => {
             expect(() => populateBoardSelect(undefined)).not.toThrow();
         });
     });
+
+    describe('export and import board files', () => {
+        const sampleBoard = {
+            zones: { values: ['1', '2', '3', '4'], default: '1', perspective: 'mirrored' },
+            rowDefs: [
+                { gridCols: 'grid-cols-2', buttons: [{ event: 'START', text: 'START', color: 'btn-gray' }, { event: 'END', text: 'END', color: 'btn-gray' }] },
+                { team: 1, grids: [{ gridCols: 'grid-cols-2', buttons: [{ event: 'A25E', text: 'A25E' }, { event: 'GOAL', text: 'GOAL' }] }] }
+            ]
+        };
+
+        describe('createBoardExportPayload & getBoardExportFilename', () => {
+            test('creates clean formatted JSON payload with board name, zones, and rows', () => {
+                const payload = createBoardExportPayload('Under-14s', sampleBoard);
+                const parsed = JSON.parse(payload);
+
+                expect(parsed.name).toBe('Under-14s');
+                expect(parsed.zones).toEqual(sampleBoard.zones);
+                expect(parsed.rowDefs).toEqual(sampleBoard.rowDefs);
+            });
+
+            test('uses display name for built-in template when generating export payload', () => {
+                const payload = createBoardExportPayload('hockey-one-zoned', getNamedConfig('hockey-one-zoned'));
+                const parsed = JSON.parse(payload);
+
+                expect(parsed.name).toBe('Hockey One Zoned');
+                expect(parsed.rowDefs.length).toBeGreaterThan(0);
+            });
+
+            test('generates sanitized, friendly filename from board name', () => {
+                expect(getBoardExportFilename('Under-14s')).toBe('under-14s.json');
+                expect(getBoardExportFilename('Hockey One Zoned')).toBe('hockey-one-zoned.json');
+                expect(getBoardExportFilename('PC & Goal Counter #1')).toBe('pc-goal-counter-1.json');
+                expect(getBoardExportFilename('')).toBe('hockey-board.json');
+            });
+        });
+
+        describe('parseBoardImport', () => {
+            test('parses payload exported by the app', () => {
+                const exportedJson = createBoardExportPayload('Pressing Tactic', sampleBoard);
+                const result = parseBoardImport(exportedJson);
+
+                expect(result.name).toBe('Pressing Tactic');
+                expect(result.config.rowDefs).toEqual(sampleBoard.rowDefs);
+                expect(result.config.zones).toEqual(sampleBoard.zones);
+            });
+
+            test('parses payload with nested config property', () => {
+                const raw = JSON.stringify({
+                    name: 'Nested Board',
+                    config: sampleBoard
+                });
+                const result = parseBoardImport(raw);
+
+                expect(result.name).toBe('Nested Board');
+                expect(result.config.rowDefs).toEqual(sampleBoard.rowDefs);
+            });
+
+            test('parses raw config without name and derives name from filename fallback', () => {
+                const raw = JSON.stringify(sampleBoard);
+                const result = parseBoardImport(raw, 'under-16-counter.json');
+
+                expect(result.name).toBe('under 16 counter');
+                expect(result.config.rowDefs).toEqual(sampleBoard.rowDefs);
+            });
+
+            test('falls back to "Custom Board" when no name or filename is present', () => {
+                const raw = JSON.stringify(sampleBoard);
+                const result = parseBoardImport(raw);
+
+                expect(result.name).toBe('Custom Board');
+            });
+
+            test('throws descriptive error on invalid JSON', () => {
+                expect(() => parseBoardImport('{ not valid json'))
+                    .toThrow('Invalid file format: not valid JSON.');
+            });
+
+            test('throws descriptive error on non-object payload', () => {
+                expect(() => parseBoardImport('["just an array"]'))
+                    .toThrow('This file does not contain a valid button board layout.');
+            });
+
+            test('throws descriptive error on invalid board structure', () => {
+                expect(() => parseBoardImport(JSON.stringify({ name: 'Empty', rowDefs: 'not an array' })))
+                    .toThrow('This file does not contain a valid button board layout.');
+            });
+
+            test('validates buttons and zones in imported layout', () => {
+                const invalidTimings = {
+                    name: 'Bad Lead',
+                    rowDefs: [
+                        { gridCols: 'grid-cols-1', buttons: [{ event: 'TEST', text: 'TEST', lead: -5 }] }
+                    ]
+                };
+                expect(() => parseBoardImport(JSON.stringify(invalidTimings)))
+                    .toThrow('TEST: lead must be a number of 0 or more.');
+            });
+        });
+
+        describe('importNamedConfig', () => {
+            test('imports valid board, saves as custom board and activates it', () => {
+                const payload = createBoardExportPayload('Defence 25', sampleBoard);
+                const imported = importNamedConfig(payload);
+
+                expect(imported.name).toBe('Defence 25');
+                expect(listNamedConfigs()).toContain('Defence 25');
+                expect(getNamedConfig('Defence 25')).toEqual(sampleBoard);
+                expect(loadConfiguration()).toEqual(sampleBoard);
+                expect(findNamedConfigName(loadConfiguration())).toBe('Defence 25');
+            });
+
+            test('auto-renames when imported name collides with an existing custom board', () => {
+                saveNamedConfig('Pressing', sampleBoard);
+                const payload = createBoardExportPayload('Pressing', sampleBoard);
+
+                const imported = importNamedConfig(payload);
+
+                expect(imported.name).toBe('Pressing (1)');
+                expect(listNamedConfigs()).toContain('Pressing');
+                expect(listNamedConfigs()).toContain('Pressing (1)');
+                expect(loadConfiguration()).toEqual(sampleBoard);
+            });
+
+            test('auto-renames when imported name matches a built-in template to protect it', () => {
+                const payload = JSON.stringify({
+                    name: 'hockey-one-zoned',
+                    ...sampleBoard
+                });
+
+                const imported = importNamedConfig(payload);
+
+                expect(imported.name).toBe('Hockey One Zoned (1)');
+                expect(isBuiltInConfig(imported.name)).toBe(false);
+                expect(listNamedConfigs()).toContain('Hockey One Zoned (1)');
+                // Protected built-in must NOT be modified
+                expect(getNamedConfig('hockey-one-zoned')).not.toEqual(sampleBoard);
+            });
+        });
+    });
+
 });

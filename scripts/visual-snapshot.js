@@ -170,7 +170,20 @@ async function runSnapshots() {
             }
         }
 
-        // Capture custom board flow proof (Configure and Event Capture with a custom board)
+        // Capture custom board flow proof: Duplication, Import, and Event Capture
+        const sampleImportBoardPath = path.join(OUTPUT_DIR, 'sample-coach-board.json');
+        const sampleImportData = {
+            name: 'Under-16 Pressing',
+            zones: { values: ['1', '2', '3', '4'], default: '1', perspective: 'mirrored' },
+            rowDefs: [
+                { gridCols: 'grid-cols-3', buttons: [{ event: 'START', text: 'START', color: 'btn-gray' }, { event: 'END', text: 'END', color: 'btn-gray' }, { event: 'UMP', text: 'UMP', color: 'btn-gray' }] },
+                { team: 1, grids: [{ gridCols: 'grid-cols-4', buttons: [{ event: 'HIGH PRESS', text: 'HIGH PRESS', lead: 10, lag: 10 }, { event: 'HALF COURT', text: 'HALF COURT', lead: 10, lag: 10 }, { event: 'TURNOVER FOR', text: 'TURNOVER FOR', lead: 5, lag: 10 }, { event: 'CIRCLE ENTRY', text: 'CIRCLE ENTRY', lead: 8, lag: 5 }] }] },
+                { team: 2, grids: [{ gridCols: 'grid-cols-4', buttons: [{ event: 'HIGH PRESS', text: 'HIGH PRESS', lead: 10, lag: 10 }, { event: 'HALF COURT', text: 'HALF COURT', lead: 10, lag: 10 }, { event: 'TURNOVER AG', text: 'TURNOVER AG', lead: 5, lag: 10 }, { event: 'CIRCLE ENTRY', text: 'CIRCLE ENTRY', lead: 8, lag: 5 }] }] }
+            ]
+        };
+        fs.writeFileSync(sampleImportBoardPath, JSON.stringify(sampleImportData, null, 2), 'utf8');
+
+        // Test custom board creation via Duplicate
         const customContext = await browser.newContext({
             viewport: { width: 1280, height: 800 },
             deviceScaleFactor: 2
@@ -184,7 +197,7 @@ async function runSnapshots() {
         const configCustomPath = path.join(OUTPUT_DIR, 'configure-custom-board-desktop.png');
         await customPage.screenshot({ path: configCustomPath, fullPage: true });
 
-        // Navigate to Event Capture to prove the custom board is in boardSelect
+        // Navigate to Event Capture to prove the duplicated board is in boardSelect
         await customPage.goto(`${baseUrl}/#event-capture`, { waitUntil: 'domcontentloaded' });
         await customPage.waitForSelector('#boardSelect');
         await customPage.waitForTimeout(400);
@@ -192,6 +205,38 @@ async function runSnapshots() {
         const captureCustomPath = path.join(OUTPUT_DIR, 'event-capture-custom-board-desktop.png');
         await customPage.screenshot({ path: captureCustomPath, fullPage: true });
         await customContext.close();
+
+        // Multi-viewport proof for Board Import flow (Desktop & Mobile)
+        for (const vp of VIEWPORTS) {
+            const importContext = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const importPage = await importContext.newPage();
+
+            // 1. Go to Configure
+            await importPage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
+            await importPage.waitForSelector('#importConfigButton');
+            await importPage.waitForSelector('#boardFileInput', { state: 'attached' });
+
+            // 2. Import the sample coach board file
+            await importPage.setInputFiles('#boardFileInput', sampleImportBoardPath);
+            await importPage.waitForTimeout(500);
+
+            // Snapshot Configure showing imported board
+            const configImportPath = path.join(OUTPUT_DIR, `configure-imported-board-${vp.name}.png`);
+            await importPage.screenshot({ path: configImportPath, fullPage: true });
+
+            // 3. Navigate to Event Capture to verify the imported board is active on pitch
+            await importPage.goto(`${baseUrl}/#event-capture`, { waitUntil: 'domcontentloaded' });
+            await importPage.waitForSelector('#boardSelect');
+            await importPage.waitForTimeout(500);
+
+            const captureImportPath = path.join(OUTPUT_DIR, `event-capture-imported-board-${vp.name}.png`);
+            await importPage.screenshot({ path: captureImportPath, fullPage: true });
+
+            await importContext.close();
+        }
 
         // Capture diff.png: Button grid seeded with /dev/preview?state=adelaide-fire&mock=pc-counter
         const diffContext = await browser.newContext({
