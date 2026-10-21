@@ -6,7 +6,7 @@ import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
 import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
-import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams, isBuiltInConfig, resetNamedConfigToDefault, deleteNamedConfig } from './components/config.js';
+import { loadConfiguration, listNamedConfigs, getNamedConfig, saveNamedConfig, findNamedConfigName, validateConfig, activateNamedConfig, usesTeams, isBuiltInConfig, resetNamedConfigToDefault, deleteNamedConfig, getConfigDisplayName } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -48,6 +48,9 @@ const resetConfigDefaultButton = document.getElementById('resetConfigDefaultButt
 const duplicateConfigButton = document.getElementById('duplicateConfigButton');
 const deleteConfigButton = document.getElementById('deleteConfigButton');
 const customizeBoardLink = document.getElementById('customizeBoardLink');
+const toggleConfigModeButton = document.getElementById('toggleConfigModeButton');
+const toggleConfigModeIcon = document.getElementById('toggleConfigModeIcon');
+const toggleConfigModeText = document.getElementById('toggleConfigModeText');
 const configModeVisualBtn = document.getElementById('configModeVisualBtn');
 const configModeJsonBtn = document.getElementById('configModeJsonBtn');
 const configVisualContainer = document.getElementById('configVisualContainer');
@@ -237,7 +240,7 @@ function renderSavedConfigOptions(selectedName, includeUnsaved = false) {
     names.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
-        option.textContent = name;
+        option.textContent = getConfigDisplayName(name);
         savedConfigSelect.appendChild(option);
     });
     if (includeUnsaved || names.includes(selectedName)) {
@@ -308,21 +311,23 @@ function setConfigViewMode(mode) {
 function updateConfigProtectionState(name) {
     const isBuiltIn = isBuiltInConfig(name);
     const isUnsaved = name === UNSAVED_CONFIG_VALUE;
+    const displayName = getConfigDisplayName(name);
+
     if (configProtectedBadge) configProtectedBadge.classList.toggle('hidden', !isBuiltIn);
     if (configProtectedNotice) configProtectedNotice.classList.toggle('hidden', !isBuiltIn);
     if (saveConfigButton) saveConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
     if (duplicateConfigButton) duplicateConfigButton.classList.toggle('hidden', !isBuiltIn);
-    if (saveAsConfigButton) saveAsConfigButton.classList.toggle('hidden', isBuiltIn);
+    if (saveAsConfigButton) saveAsConfigButton.classList.toggle('hidden', true);
     if (deleteConfigButton) deleteConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
-    if (resetConfigDefaultButton) resetConfigDefaultButton.classList.toggle('hidden', !isBuiltIn);
+    if (resetConfigDefaultButton) resetConfigDefaultButton.classList.toggle('hidden', true);
 
     if (configVisualBannerText) {
         if (isBuiltIn) {
-            configVisualBannerText.innerHTML = `<strong>${name}</strong> is a protected built-in board. Click <strong>Duplicate to customize</strong> to create an editable copy.`;
+            configVisualBannerText.innerHTML = `<strong>${displayName}</strong> is a protected template. Click <strong>Duplicate to edit</strong> to create your own copy.`;
         } else if (isUnsaved) {
-            configVisualBannerText.innerHTML = 'Unsaved layout. Use <strong>Save as</strong> to name and keep this board.';
+            configVisualBannerText.innerHTML = 'Unsaved layout. Click <strong>Save copy</strong> to name and keep this board.';
         } else {
-            configVisualBannerText.innerHTML = `Custom board: <strong>${name}</strong>. Switch to <strong>JSON (Pro)</strong> to edit code or lead/lag timings.`;
+            configVisualBannerText.innerHTML = `Custom board: <strong>${displayName}</strong>. Click <strong>JSON</strong> to edit buttons or clip timings.`;
         }
     }
 }
@@ -394,7 +399,7 @@ function renderBoardOptions() {
     listNamedConfigs().forEach(name => {
         const option = document.createElement('option');
         option.value = name;
-        option.textContent = name;
+        option.textContent = getConfigDisplayName(name);
         boardSelect.appendChild(option);
     });
     boardSelect.value = activeName ?? CUSTOM_BOARD_VALUE;
@@ -872,6 +877,38 @@ function registerEventListeners() {
     });
 
     cancelSaveAsConfigButton.addEventListener('click', hideSaveAsForm);
+
+    if (toggleConfigModeButton) {
+        toggleConfigModeButton.addEventListener('click', () => {
+            setConfigViewMode(currentConfigMode === 'visual' ? 'json' : 'visual');
+        });
+    }
+
+    if (duplicateConfigButton) {
+        duplicateConfigButton.addEventListener('click', () => {
+            saveAsConfigForm.classList.remove('hidden');
+            const baseName = savedConfigSelect.value || 'my-board';
+            configNameInput.value = `${baseName}-custom`;
+            configNameInput.focus();
+            configNameInput.select();
+        });
+    }
+
+    if (deleteConfigButton) {
+        deleteConfigButton.addEventListener('click', () => {
+            const name = savedConfigSelect.value;
+            if (isBuiltInConfig(name) || name === UNSAVED_CONFIG_VALUE) return;
+            const displayName = getConfigDisplayName(name);
+            if (!notificationService.confirm(`Are you sure you want to delete "${displayName}"?`)) {
+                return;
+            }
+            deleteNamedConfig(name);
+            notificationService.notify(`Deleted board "${displayName}".`, 'success');
+            activateNamedConfig('simple-starter');
+            showConfigView();
+            renderBoardOptions();
+        });
+    }
 
     if (resetConfigDefaultButton) {
         resetConfigDefaultButton.addEventListener('click', () => {

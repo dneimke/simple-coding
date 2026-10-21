@@ -116,24 +116,52 @@
                             <p class="page-subtitle">Edit the button boards used on Event Capture</p>
                         </div>
                     </header>
-                    <div class="mb-5 max-w-md">
-                        <div class="flex items-center gap-2 mb-1">
-                            <label for="savedConfigSelect" class="field-label mb-0">Saved configuration</label>
-                            <span id="configProtectedBadge" class="badge badge-secondary hidden"><i class="fas fa-lock text-xs mr-1" aria-hidden="true"></i>Protected (Built-in)</span>
+
+                    <!-- Top Controls Card -->
+                    <div class="surface p-4 border border-subtle rounded-lg mb-4">
+                        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1.5">
+                                    <label for="savedConfigSelect" class="field-label mb-0 text-sm font-semibold">Board</label>
+                                    <span id="configProtectedBadge" class="badge badge-secondary hidden">
+                                        <i class="fas fa-lock text-xs mr-1" aria-hidden="true"></i>Protected
+                                    </span>
+                                </div>
+                                <select id="savedConfigSelect" class="field w-full text-base"></select>
+                            </div>
+                            <div class="flex items-center flex-wrap gap-2">
+                                <button id="duplicateConfigButton" type="button" class="btn btn-primary" title="Create an editable copy of this board">
+                                    <i class="fas fa-clone mr-1" aria-hidden="true"></i>Duplicate to edit
+                                </button>
+                                <button id="saveConfigButton" type="button" class="btn btn-success hidden" title="Save changes to this board">
+                                    <i class="fas fa-save mr-1" aria-hidden="true"></i>Save
+                                </button>
+                                <button id="saveAsConfigButton" type="button" class="btn btn-secondary hidden" title="Save this layout under a new name">Save as</button>
+                                <button id="deleteConfigButton" type="button" class="btn btn-danger hidden" title="Delete this custom board">
+                                    <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Delete
+                                </button>
+                                <button id="toggleConfigModeButton" type="button" class="btn btn-secondary" title="Switch between Visual Preview and JSON code view">
+                                    <i id="toggleConfigModeIcon" class="fas fa-code mr-1" aria-hidden="true"></i><span id="toggleConfigModeText">JSON</span>
+                                </button>
+                            </div>
                         </div>
-                        <select id="savedConfigSelect" class="field"></select>
-                    </div>
-                    <!-- View Mode Toggle -->
-                    <div class="flex items-center justify-between mb-4 border-b border-subtle pb-2">
-                        <div class="tabs px-0" role="tablist" aria-label="Configuration view mode">
-                            <button id="configModeVisualBtn" type="button" class="tab-button tab-button-active" role="tab" aria-selected="true">
-                                <i class="fas fa-eye mr-1" aria-hidden="true"></i>Visual Preview
-                            </button>
-                            <button id="configModeJsonBtn" type="button" class="tab-button" role="tab" aria-selected="false">
-                                <i class="fas fa-code mr-1" aria-hidden="true"></i>JSON (Pro)
-                            </button>
+
+                        <!-- Duplicate / Save As Form (Inline) -->
+                        <div id="saveAsConfigForm" class="hidden mt-3 pt-3 border-t border-subtle">
+                            <div class="flex flex-col sm:flex-row sm:items-end gap-2">
+                                <div class="flex-1">
+                                    <label for="configNameInput" class="field-label text-xs mb-1">New board name</label>
+                                    <input type="text" id="configNameInput" placeholder="e.g. Under-14s" class="field w-full">
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button id="confirmSaveAsConfigButton" type="button" class="btn btn-success">Save copy</button>
+                                    <button id="cancelSaveAsConfigButton" type="button" class="btn btn-secondary">Cancel</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <div id="configMessage" class="config-message hidden mb-3"></div>
 
                     <!-- Visual Preview Container -->
                     <div id="configVisualContainer" class="mb-4">
@@ -191,33 +219,6 @@
                                 spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
                         </div>
                     </div>
-                    <div id="configMessage" class="config-message hidden"></div>
-                    <div class="flex flex-col sm:flex-row sm:items-end gap-3 mt-4">
-                        <button id="duplicateConfigButton" type="button" class="btn btn-success hidden" title="Create a customizable copy of this built-in board">
-                            <i class="fas fa-clone mr-1" aria-hidden="true"></i>Duplicate to customize
-                        </button>
-                        <button id="saveConfigButton" type="button" class="btn btn-success">Save</button>
-                        <button id="saveAsConfigButton" type="button" class="btn btn-secondary">Save as</button>
-                        <button id="deleteConfigButton" type="button" class="btn btn-danger hidden" title="Delete this custom board">
-                            <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Delete
-                        </button>
-                        <button id="resetConfigDefaultButton" type="button" class="btn btn-secondary hidden" title="Restore this built-in configuration to factory defaults">Reset to default</button>
-                        <div id="saveAsConfigForm" class="hidden flex-1">
-                            <div class="flex flex-col sm:flex-row sm:items-end gap-3">
-                                <div class="flex-1">
-                                    <label for="configNameInput" class="field-label">New name</label>
-                                    <input type="text" id="configNameInput" placeholder="e.g. my-board" class="field">
-                                </div>
-                                <button id="confirmSaveAsConfigButton" type="button"
-                                    class="btn btn-success">Save</button>
-                                <button id="cancelSaveAsConfigButton" type="button"
-                                    class="btn btn-secondary">Cancel</button>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="mt-4 help-text">Configurations are saved in your browser's local storage. Changing the
-                        selection loads it into the editor. Save updates the selected configuration and applies it on
-                        the Event Capture page; Save as stores the editor under a new name.</p>
                 </div>
 
                 <!-- Log View -->

@@ -12,6 +12,7 @@ import {
     rowGrids,
     usesTeams,
     isBuiltInConfig,
+    getConfigDisplayName,
     resetNamedConfigToDefault,
     deleteNamedConfig,
     RETIRED_BUILT_IN_CONFIGS
@@ -189,6 +190,13 @@ describe('named configurations', () => {
     test('deleteNamedConfig rejects deleting built-in configurations', () => {
         expect(() => deleteNamedConfig('hockey-one-zoned')).toThrow('Cannot delete built-in configuration "hockey-one-zoned".');
         expect(() => deleteNamedConfig('simple-starter')).toThrow('Cannot delete built-in configuration "simple-starter".');
+    });
+
+    test('getConfigDisplayName returns user-friendly display labels for built-in boards', () => {
+        expect(getConfigDisplayName('simple-starter')).toBe('Simple (6 Events)');
+        expect(getConfigDisplayName('hockey-one-zoned')).toBe('Hockey One Zoned');
+        expect(getConfigDisplayName('custom-layout')).toBe('custom-layout');
+        expect(getConfigDisplayName('')).toBe('');
     });
 
     test('activateNamedConfig writes the named config to the active slot', () => {

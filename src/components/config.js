@@ -97,6 +97,17 @@ const BUILT_IN_NAMED_CONFIGS = {
     'simple-starter': SIMPLE_STARTER_CONFIG
 };
 
+export const CONFIG_DISPLAY_NAMES = {
+    'simple-starter': 'Simple (6 Events)',
+    'hockey-one-zoned': 'Hockey One Zoned'
+};
+
+export function getConfigDisplayName(name) {
+    const trimmed = String(name ?? '').trim();
+    if (!trimmed) return '';
+    return CONFIG_DISPLAY_NAMES[trimmed] || trimmed;
+}
+
 export function isBuiltInConfig(name) {
     const trimmed = String(name ?? '').trim();
     return Boolean(trimmed && BUILT_IN_NAMED_CONFIGS[trimmed]);
