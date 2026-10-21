@@ -271,6 +271,10 @@ function renderConfigVisualPreview(config) {
                 zone: config.zones?.default ?? (config.zones?.values?.[0] ?? '1'),
                 selectedTeam: 1
             });
+            // Keep buttons enabled in preview so colors and labels are bright and clear
+            configBoardPreview.querySelectorAll('.event-button').forEach(button => {
+                button.disabled = false;
+            });
         }
     } catch (err) {
         configBoardPreview.innerHTML = `<p class="empty-state text-sm py-6 text-red-500">Preview error: ${err.message}</p>`;
@@ -334,13 +338,14 @@ function setEditorConfig(config) {
     configJsonInput.value = JSON.stringify(config, null, 2);
     configEditorBaseline = configJsonInput.value;
     updateDirtyIndicator();
+    renderConfigVisualPreview(config);
 }
 
 function hideSaveAsForm() {
     saveAsConfigForm.classList.add('hidden');
-    saveConfigButton.classList.remove('hidden');
     saveAsConfigButton.classList.remove('hidden');
     configNameInput.value = '';
+    updateConfigProtectionState(savedConfigSelect.value);
 }
 
 function showConfigView() {
@@ -349,6 +354,8 @@ function showConfigView() {
     renderSavedConfigOptions(activeName ?? UNSAVED_CONFIG_VALUE, !activeName);
     setEditorConfig(activeConfig);
     hideSaveAsForm();
+    updateConfigProtectionState(activeName ?? UNSAVED_CONFIG_VALUE);
+    renderConfigVisualPreview(activeConfig);
 }
 
 function applySavedConfig(name, config) {
@@ -767,6 +774,8 @@ function registerEventListeners() {
         selectedConfigName = name;
         setEditorConfig(config);
         hideSaveAsForm();
+        updateConfigProtectionState(name);
+        renderConfigVisualPreview(config);
     });
 
     copyConfigButton.addEventListener('click', async () => {

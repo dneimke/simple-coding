@@ -193,8 +193,14 @@
                     </div>
                     <div id="configMessage" class="config-message hidden"></div>
                     <div class="flex flex-col sm:flex-row sm:items-end gap-3 mt-4">
+                        <button id="duplicateConfigButton" type="button" class="btn btn-success hidden" title="Create a customizable copy of this built-in board">
+                            <i class="fas fa-clone mr-1" aria-hidden="true"></i>Duplicate to customize
+                        </button>
                         <button id="saveConfigButton" type="button" class="btn btn-success">Save</button>
                         <button id="saveAsConfigButton" type="button" class="btn btn-secondary">Save as</button>
+                        <button id="deleteConfigButton" type="button" class="btn btn-danger hidden" title="Delete this custom board">
+                            <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Delete
+                        </button>
                         <button id="resetConfigDefaultButton" type="button" class="btn btn-secondary hidden" title="Restore this built-in configuration to factory defaults">Reset to default</button>
                         <div id="saveAsConfigForm" class="hidden flex-1">
                             <div class="flex flex-col sm:flex-row sm:items-end gap-3">
