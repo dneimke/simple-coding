@@ -242,12 +242,26 @@ async function runSnapshots() {
             const editTagsPath = path.join(OUTPUT_DIR, `video-coding-edit-tags-${vp.name}.png`);
             await videoPage.screenshot({ path: editTagsPath, fullPage: true });
 
-            // 3. Switch back to Pass 2 Review Mode (full timeline visible, note editor open)
+            // 3. Open Events Panel alongside Quick Tags (Split Mode)
             const reviewBtn = await videoPage.$('#quick-tag-review-btn');
             if (reviewBtn) await reviewBtn.click();
-            await videoPage.waitForSelector('#timeline-events:not(.hidden)');
+            await videoPage.waitForSelector('#timeline-container', { state: 'visible' });
+            await videoPage.waitForSelector('#timeline-panel-header', { state: 'visible' });
             await videoPage.waitForTimeout(300);
 
+            const splitModePath = path.join(OUTPUT_DIR, `video-coding-split-mode-${vp.name}.png`);
+            await videoPage.screenshot({ path: splitModePath, fullPage: true });
+
+            const splitStats = fs.statSync(splitModePath);
+            results.push({
+                name: 'video-coding-split-mode',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `video-coding-split-mode-${vp.name}.png`,
+                bytes: splitStats.size
+            });
+
+            // 4. In Events Panel, click note editor on first event
             const noteBtn = await videoPage.$('.timeline-event .edit-note-btn');
             if (noteBtn) await noteBtn.click();
             await videoPage.waitForTimeout(300);

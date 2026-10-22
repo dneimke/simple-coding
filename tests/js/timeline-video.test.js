@@ -356,8 +356,28 @@ describe('video coding workflow', () => {
             <div id="selected-filters-tags"></div>
         </div>
         <div id="timeline-events" class="hidden"></div>
+        <div class="review-heading">
+            <h1 id="review-game-title" class="review-game-title"></h1>
+            <span id="draft-badge" class="hidden"></span>
+            <button id="edit-title-btn"></button>
+            <form id="inline-title-form" class="hidden">
+                <input id="inline-title-input" />
+                <button id="save-title-btn" type="submit"></button>
+                <button id="cancel-title-btn" type="button"></button>
+            </form>
+        </div>
+        <div class="review-header-actions">
+            <span id="save-status-indicator" class="hidden"></span>
+            <button id="save-and-exit-btn">Save & Exit</button>
+        </div>
         <div class="review-layout">
-            <div id="timeline-container" class="review-timeline"></div>
+            <div id="timeline-container" class="review-timeline">
+                <div id="timeline-panel-header">
+                    <span id="timeline-events-counter">0</span>
+                    <button id="timeline-tag-mode-btn">Tag Video</button>
+                    <button id="collapse-timeline-btn">Collapse</button>
+                </div>
+            </div>
             <div id="video-container" class="review-video">
                 <button id="toggle-tagging-mode-btn"><span class="tag-mode-text">Tag Video</span></button>
                 <video id="video-player"></video>
@@ -372,7 +392,7 @@ describe('video coding workflow', () => {
                     <div id="quick-tag-ticker">
                         <span id="ticker-last-event"></span>
                         <button id="quick-tag-undo-btn" disabled>Undo</button>
-                        <button id="quick-tag-review-btn">Review Events</button>
+                        <button id="quick-tag-review-btn"><span id="quick-tag-review-label">Events Panel (0) ▾</span></button>
                     </div>
                 </div>
             </div>
@@ -429,22 +449,57 @@ describe('video coding workflow', () => {
         expect(rendered.length).toBe(1);
     });
 
-    test('createNewVideoGame initializes game and enables immediate coding without dead ends', () => {
+    test('createNewVideoGame initializes draft session without polluting saved games until event is logged', () => {
         const newGame = mod.createNewVideoGame('Eagles vs Hawks');
         expect(newGame).toBeDefined();
         expect(newGame.id).toBeDefined();
         expect(newGame.teams).toBe('Eagles vs Hawks');
+        expect(newGame.metadata.isDraft).toBe(true);
 
-        const games = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
-        expect(games.some(g => g.id === newGame.id)).toBe(true);
+        // Before logging any event, the game should NOT be saved in fieldHockeyGames_v1 (prevent spam)
+        const gamesBefore = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
+        expect(gamesBefore.some(g => g.id === newGame.id)).toBe(false);
 
+        // Once an event is logged, the draft is automatically committed to saved games
         const video = document.getElementById('video-player');
         video.currentTime = 12;
         mod.quickTagEvent('Shot');
 
-        const reloaded = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')).find(g => g.id === newGame.id);
+        const gamesAfter = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(gamesAfter.some(g => g.id === newGame.id)).toBe(true);
+        const reloaded = gamesAfter.find(g => g.id === newGame.id);
         expect(reloaded.events).toHaveLength(1);
         expect(reloaded.events[0].event).toBe('Shot');
+    });
+
+    test('renameMatch updates match title in memory and storage', () => {
+        mod.createNewVideoGame('Initial Title');
+        const renamed = mod.renameMatch('Grand Final - Eagles vs Tigers');
+        expect(renamed).toBe(true);
+
+        const titleEl = document.getElementById('review-game-title');
+        expect(titleEl.textContent).toBe('Grand Final - Eagles vs Tigers');
+
+        const current = mod.getCurrentGame();
+        expect(current.teams).toBe('Grand Final - Eagles vs Tigers');
+    });
+
+    test('autoRenameFromVideo derives clean match name from video file name if title is default', () => {
+        mod.createNewVideoGame(); // default name like "Video Match — Oct 22, 2026"
+        mod.autoRenameFromVideo('GF_Eagles_vs_Hawks_Q1.mp4');
+
+        const current = mod.getCurrentGame();
+        expect(current.teams).toBe('GF Eagles vs Hawks Q1');
+    });
+
+    test('commitDraftGame explicitly commits draft to storage', () => {
+        const newGame = mod.createNewVideoGame('Championship Match');
+        const gamesBefore = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')) || [];
+        expect(gamesBefore.some(g => g.id === newGame.id)).toBe(false);
+
+        mod.commitDraftGame();
+        const gamesAfter = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(gamesAfter.some(g => g.id === newGame.id)).toBe(true);
     });
 
     test('updateEventNote updates note on event and persists in storage', () => {
@@ -537,5 +592,34 @@ describe('video coding workflow', () => {
         mod.setTaggingMode(false);
         expect(layout.classList.contains('tagging-mode-active')).toBe(false);
         expect(panel.classList.contains('hidden')).toBe(true);
+    });
+
+    test('setTimelineCollapsed toggles timeline visibility without terminating tagging mode', () => {
+        const layout = document.querySelector('.review-layout');
+        const panel = document.getElementById('video-coding-panel');
+
+        // Start in tagging mode
+        mod.setTaggingMode(true);
+        expect(panel.classList.contains('hidden')).toBe(false);
+
+        // Collapse timeline for focus
+        mod.setTimelineCollapsed(true);
+        expect(layout.classList.contains('timeline-collapsed')).toBe(true);
+        expect(panel.classList.contains('hidden')).toBe(false); // Quick tags still active!
+
+        // Open timeline to inspect events
+        mod.setTimelineCollapsed(false);
+        expect(layout.classList.contains('timeline-collapsed')).toBe(false);
+        expect(panel.classList.contains('hidden')).toBe(false); // Quick tags still active!
+    });
+
+    test('timeline Tag Video button restores tagging mode if closed', () => {
+        const panel = document.getElementById('video-coding-panel');
+        mod.setTaggingMode(false);
+        expect(panel.classList.contains('hidden')).toBe(true);
+
+        const tagBtn = document.getElementById('timeline-tag-mode-btn');
+        tagBtn.click();
+        expect(panel.classList.contains('hidden')).toBe(false);
     });
 });
