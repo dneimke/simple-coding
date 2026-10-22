@@ -28,7 +28,7 @@
             <div class="app-nav-inner">
                 <!-- Mobile bar -->
                 <div class="app-nav-bar md:hidden">
-                    <a href="index.html#event-capture" id="navEventCaptureMobile" class="app-brand">
+                    <a href="index.html#saved-games" id="navEventCaptureMobile" class="app-brand" title="Hockey Tracker Matches">
                         <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
                         <span>Hockey Tracker</span>
                     </a>
@@ -41,18 +41,13 @@
                 <!-- Desktop bar and mobile menu (hidden by default on mobile) -->
                 <div id="mainMenu" class="hidden md:flex md:h-14 md:items-center md:justify-between flex-col md:flex-row">
                     <div class="app-nav-links flex flex-col md:flex-row md:items-center gap-1">
-                        <span class="app-brand hidden md:inline-flex md:mr-4">
+                        <a href="index.html#saved-games" class="app-brand hidden md:inline-flex md:mr-4" title="Hockey Tracker Matches">
                             <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
                             <span>Hockey Tracker</span>
-                        </span>
-                        <a href="index.html#event-capture" id="navEventCapture" class="nav-link">
-                            <i class="fas fa-stopwatch text-sm" aria-hidden="true"></i>
-                            <span>Event Capture</span>
                         </a>
-                        <a href="index.html#saved-games" id="navSavedGames" class="nav-link nav-link-active"
-                            aria-current="page">
+                        <a href="index.html#saved-games" id="navSavedGames" class="nav-link">
                             <i class="fas fa-folder-open text-sm" aria-hidden="true"></i>
-                            <span>Saved Games</span>
+                            <span>Matches</span>
                         </a>
                         <a href="index.html#configure" id="navConfig" class="nav-link">
                             <i class="fas fa-sliders text-sm" aria-hidden="true"></i>
@@ -94,7 +89,7 @@
                         <span id="save-status-indicator" class="text-xs text-muted hidden sm:inline-flex items-center gap-1 text-slate-500">
                             <i class="fas fa-check-circle text-emerald-600"></i><span>Saved</span>
                         </span>
-                        <button id="save-and-exit-btn" type="button" class="btn btn-secondary btn-compact" title="Save match and return to Saved Games">
+                        <button id="save-and-exit-btn" type="button" class="btn btn-secondary btn-compact" title="Save match and return to Matches">
                             <i class="fas fa-save text-xs" aria-hidden="true"></i><span>Save & Exit</span>
                         </button>
                     </div>
@@ -124,7 +119,7 @@
                             class="hidden flex flex-col items-center justify-center py-10 my-4 text-center surface-muted border-dashed rounded-lg">
                             <i class="fas fa-video text-4xl text-slate-400 mb-4" aria-hidden="true"></i>
                             <p class="font-semibold text-slate-800 mb-1 text-base">Code a Video Match</p>
-                            <p class="help-text mb-4 max-w-sm">Upload a video to start coding events instantly, or choose a game from Saved Games.</p>
+                            <p class="help-text mb-4 max-w-sm">Upload a video to start coding events instantly, or choose a game from Matches.</p>
                             <div class="flex flex-wrap items-center justify-center gap-2">
                                 <button id="start-new-video-game-btn" type="button" class="btn btn-primary">
                                     <i class="fas fa-plus" aria-hidden="true"></i>New Video Match
@@ -134,7 +129,7 @@
                                 </label>
                                 <input type="file" id="video-upload-direct" class="hidden" accept="video/*">
                                 <a href="index.html#saved-games" class="btn btn-ghost">
-                                    <i class="fas fa-folder-open" aria-hidden="true"></i>Saved Games
+                                    <i class="fas fa-folder-open" aria-hidden="true"></i>Matches
                                 </a>
                             </div>
                         </div>
