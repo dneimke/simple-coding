@@ -4,7 +4,7 @@ import { notificationService } from '../services/notificationService.js';
 import { generateGameId } from '../services/gameStorageManager.js';
 import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
 
-const CORE_QUICK_TAGS = [
+const DEFAULT_QUICK_TAGS = [
     { id: 'goal', label: 'Goal', colorClass: 'btn-green', key: '1' },
     { id: 'shot', label: 'Shot', colorClass: 'btn-blue', key: '2' },
     { id: 'circle-entry', label: 'Circle Entry', colorClass: 'btn-accent-purple', key: '3' },
@@ -13,12 +13,27 @@ const CORE_QUICK_TAGS = [
     { id: 'card-foul', label: 'Card / Foul', colorClass: 'btn-red', key: '6' }
 ];
 
+const CORE_QUICK_TAGS = DEFAULT_QUICK_TAGS;
+
+const QUICK_TAG_COLORS = [
+    { label: 'Green', colorClass: 'btn-green', hex: '#16a34a' },
+    { label: 'Blue', colorClass: 'btn-blue', hex: '#2563eb' },
+    { label: 'Purple', colorClass: 'btn-accent-purple', hex: '#7c3aed' },
+    { label: 'Yellow', colorClass: 'btn-yellow', hex: '#ca8a04' },
+    { label: 'Orange', colorClass: 'btn-orange', hex: '#ea580c' },
+    { label: 'Red', colorClass: 'btn-red', hex: '#dc2626' }
+];
+
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
+const LOCAL_STORAGE_KEY_QUICK_TAGS = 'fieldHockeyVideoQuickTags_v1';
 let currentGameId = null;
 let timelineEvents = [];
 let activeTypeFilters = new Set();
 let favoritesOnly = false;
 let presentationModeActive = false;
+let isTaggingMode = false;
+let isEditingQuickTags = false;
+let selectedNewTagColor = 'btn-blue';
 let currentPlaylistIndex = 0;
 let favoriteEvents = [];
 let activeEditingEventId = null;
@@ -133,6 +148,7 @@ function quickTagEvent(eventType, note = '') {
     timelineEvents = game.events;
     updateEventFilters();
     renderTimelineEvents();
+    updateQuickTagTicker();
 
     showQuickTagFeedback(eventType, ts);
     highlightTimelineEvent(newEvent.id);
@@ -216,18 +232,195 @@ function seekRelative(seconds) {
     }
 }
 
-// Render 6 core quick tag buttons
-function renderQuickTagButtons() {
-    const container = document.getElementById('quick-tags-container');
+// Load quick tags from storage or fall back to defaults
+function loadQuickTags() {
+    try {
+        const stored = storageService.getItem(LOCAL_STORAGE_KEY_QUICK_TAGS);
+        if (Array.isArray(stored) && stored.length > 0) {
+            return stored.map((t, i) => ({
+                id: t.id || `tag-${i}`,
+                label: String(t.label || 'Tag').trim(),
+                colorClass: t.colorClass || 'btn-blue',
+                key: String(i + 1 <= 9 ? i + 1 : '')
+            }));
+        }
+    } catch (_) {}
+    return DEFAULT_QUICK_TAGS.map(t => ({ ...t }));
+}
+
+// Persist quick tags in storage
+function saveQuickTags(tags) {
+    if (!Array.isArray(tags)) return [];
+    const sanitized = tags.map((t, i) => ({
+        id: t.id || `tag-${i}`,
+        label: String(t.label || 'Tag').trim(),
+        colorClass: t.colorClass || 'btn-blue',
+        key: String(i + 1 <= 9 ? i + 1 : '')
+    }));
+    storageService.setItem(LOCAL_STORAGE_KEY_QUICK_TAGS, sanitized);
+    return sanitized;
+}
+
+// Add a new quick tag
+function addQuickTag(label, colorClass = 'btn-blue') {
+    const trimmed = String(label || '').trim();
+    if (!trimmed) return loadQuickTags();
+    const current = loadQuickTags();
+    const id = 'tag-' + trimmed.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now().toString(36);
+    const newTag = {
+        id,
+        label: trimmed,
+        colorClass,
+        key: String(current.length + 1 <= 9 ? current.length + 1 : '')
+    };
+    current.push(newTag);
+    saveQuickTags(current);
+    renderQuickTagButtons();
+    return current;
+}
+
+// Remove a quick tag by ID and re-index shortcut keys
+function removeQuickTag(tagId) {
+    const current = loadQuickTags();
+    const filtered = current.filter(t => t.id !== tagId);
+    saveQuickTags(filtered);
+    renderQuickTagButtons();
+    return loadQuickTags();
+}
+
+// Reset quick tags to 6 defaults
+function resetQuickTags() {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem(LOCAL_STORAGE_KEY_QUICK_TAGS);
+        }
+    } catch (_) {}
+    renderQuickTagButtons();
+    return DEFAULT_QUICK_TAGS.map(t => ({ ...t }));
+}
+
+// 1-Tap Undo for last logged event during video tagging
+function undoLastQuickTag() {
+    if (!currentGameId) return false;
+    const savedGames = getSavedGames();
+    const { game } = findGameById(savedGames, currentGameId);
+    if (!game || !Array.isArray(game.events) || game.events.length === 0) return false;
+
+    const removedEvent = game.events.pop();
+    const metadata = { ...game.metadata, teams: game.teams };
+    saveGame(game.id, game.events, metadata);
+    timelineEvents = game.events;
+    updateEventFilters();
+    renderTimelineEvents();
+    updateQuickTagTicker();
+    showNotification(`Undid ${formatEventTypeName(removedEvent.event)}`, 'info');
+    return true;
+}
+
+// Update Focus Tagging Ticker (Last event + Undo status + Event count)
+function updateQuickTagTicker() {
+    const tickerLast = document.getElementById('ticker-last-event');
+    const undoBtn = document.getElementById('quick-tag-undo-btn');
+    const countSpan = document.getElementById('ticker-event-count');
+    const game = getCurrentGame();
+    const events = (game && Array.isArray(game.events)) ? game.events : [];
+
+    if (countSpan) {
+        countSpan.textContent = events.length.toString();
+    }
+
+    if (!events.length) {
+        if (tickerLast) tickerLast.textContent = 'No events logged yet';
+        if (undoBtn) {
+            undoBtn.disabled = true;
+            undoBtn.classList.add('opacity-40');
+        }
+        return;
+    }
+
+    const last = events[events.length - 1];
+    if (tickerLast) {
+        tickerLast.textContent = `${formatEventTypeName(last.event)} (${last.timestamp || formatTime(last.timeMs)})`;
+    }
+    if (undoBtn) {
+        undoBtn.disabled = false;
+        undoBtn.classList.remove('opacity-40');
+    }
+}
+
+// Toggle Tagging Mode (Focus video + quick tags bar vs clean Review Mode)
+function setTaggingMode(enabled) {
+    isTaggingMode = Boolean(enabled);
+    const layout = document.querySelector('.review-layout');
+    const panel = document.getElementById('video-coding-panel');
+    const toggleBtn = document.getElementById('toggle-tagging-mode-btn');
+
+    if (layout) {
+        layout.classList.toggle('tagging-mode-active', isTaggingMode);
+    }
+    if (panel) {
+        panel.classList.toggle('hidden', !isTaggingMode);
+    }
+    if (toggleBtn) {
+        toggleBtn.setAttribute('aria-pressed', isTaggingMode ? 'true' : 'false');
+        toggleBtn.classList.toggle('btn-primary', !isTaggingMode);
+        toggleBtn.classList.toggle('btn-secondary', isTaggingMode);
+        const icon = toggleBtn.querySelector('i');
+        const text = toggleBtn.querySelector('.tag-mode-text') || toggleBtn.querySelector('span');
+        if (icon) {
+            icon.className = isTaggingMode ? 'fas fa-check' : 'fas fa-tag';
+        }
+        if (text) {
+            text.textContent = isTaggingMode ? 'Done Tagging' : 'Tag Video';
+        }
+    }
+    if (isTaggingMode) {
+        renderQuickTagButtons();
+        updateQuickTagTicker();
+    }
+    return isTaggingMode;
+}
+
+// Render color pills for adding a new tag
+function renderQuickTagColorSelector() {
+    const container = document.getElementById('new-tag-color-selector');
     if (!container) return;
     container.innerHTML = '';
 
-    CORE_QUICK_TAGS.forEach((tag) => {
+    QUICK_TAG_COLORS.forEach(c => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = `color-pill-btn ${c.colorClass} ${c.colorClass === selectedNewTagColor ? 'is-selected' : ''}`;
+        pill.setAttribute('aria-label', `Select color ${c.label}`);
+        pill.title = c.label;
+        pill.addEventListener('click', (e) => {
+            e.preventDefault();
+            selectedNewTagColor = c.colorClass;
+            renderQuickTagColorSelector();
+        });
+        container.appendChild(pill);
+    });
+}
+
+// Render quick tag buttons (supports normal 1-tap mode and edit/delete mode)
+function renderQuickTagButtons() {
+    const container = document.getElementById('quick-tags-container');
+    const hintSpan = document.getElementById('quick-tag-hint');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const tags = loadQuickTags();
+    if (hintSpan) {
+        hintSpan.textContent = `(Tap or press 1–${Math.min(tags.length, 9)} during playback)`;
+    }
+
+    tags.forEach((tag) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `quick-tag-btn ${tag.colorClass}`;
         btn.setAttribute('data-quick-tag', tag.label);
-        btn.setAttribute('aria-label', `Tag ${tag.label} (Press ${tag.key})`);
+        btn.setAttribute('data-tag-id', tag.id);
+        btn.setAttribute('aria-label', `Tag ${tag.label} (Press ${tag.key || ''})`);
 
         const labelSpan = document.createElement('span');
         labelSpan.className = 'tag-label';
@@ -235,14 +428,29 @@ function renderQuickTagButtons() {
 
         const keySpan = document.createElement('span');
         keySpan.className = 'tag-shortcut';
-        keySpan.textContent = `[${tag.key}]`;
+        keySpan.textContent = tag.key ? `[${tag.key}]` : '';
 
         btn.append(labelSpan, keySpan);
 
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            quickTagEvent(tag.label);
-        });
+        if (isEditingQuickTags) {
+            const delBadge = document.createElement('button');
+            delBadge.type = 'button';
+            delBadge.className = 'quick-tag-delete-badge';
+            delBadge.setAttribute('aria-label', `Remove tag ${tag.label}`);
+            delBadge.title = `Remove ${tag.label}`;
+            delBadge.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+            delBadge.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                removeQuickTag(tag.id);
+            });
+            btn.appendChild(delBadge);
+        } else {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                quickTagEvent(tag.label);
+            });
+        }
 
         container.appendChild(btn);
     });
@@ -258,6 +466,12 @@ function initKeyboardShortcuts() {
 
         const video = document.getElementById('video-player');
         if (!video) return;
+
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault();
+            undoLastQuickTag();
+            return;
+        }
 
         if (e.code === 'Space') {
             e.preventDefault();
@@ -295,9 +509,10 @@ function initKeyboardShortcuts() {
         }
 
         const keyNum = parseInt(e.key, 10);
-        if (keyNum >= 1 && keyNum <= CORE_QUICK_TAGS.length) {
+        const tags = loadQuickTags();
+        if (keyNum >= 1 && keyNum <= tags.length) {
             e.preventDefault();
-            const tagDef = CORE_QUICK_TAGS[keyNum - 1];
+            const tagDef = tags[keyNum - 1];
             if (tagDef) {
                 quickTagEvent(tagDef.label);
             }
@@ -795,6 +1010,7 @@ function loadGame(gameId) {
             timelineEvents = events;
             updateEventFilters();
             renderTimelineEvents();
+            updateQuickTagTicker();
 
             const displayName = game.teams || gameId;
             const gameTitle = document.getElementById('review-game-title');
@@ -872,6 +1088,7 @@ function deleteEvent(eventId) {
     timelineEvents = game.events;
     updateEventFilters();
     renderTimelineEvents();
+    updateQuickTagTicker();
     showNotification('Event deleted', 'info');
 }
 
@@ -1393,6 +1610,89 @@ domReady(() => {
         });
     }
 
+    // Toggle Tagging Mode button in player toolbar
+    const toggleTagModeBtn = document.getElementById('toggle-tagging-mode-btn');
+    if (toggleTagModeBtn) {
+        toggleTagModeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setTaggingMode(!isTaggingMode);
+        });
+    }
+
+    // Edit Quick Tags toggle button
+    const editTagsBtn = document.getElementById('edit-quick-tags-btn');
+    const editTagsLabel = document.getElementById('edit-quick-tags-label');
+    const editBar = document.getElementById('quick-tags-edit-bar');
+    if (editTagsBtn) {
+        editTagsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            isEditingQuickTags = !isEditingQuickTags;
+            if (editTagsLabel) {
+                editTagsLabel.textContent = isEditingQuickTags ? 'Done' : 'Edit Tags';
+            }
+            if (editBar) {
+                editBar.classList.toggle('hidden', !isEditingQuickTags);
+                if (isEditingQuickTags) {
+                    renderQuickTagColorSelector();
+                    const input = document.getElementById('new-tag-label-input');
+                    if (input) input.focus();
+                }
+            }
+            renderQuickTagButtons();
+        });
+    }
+
+    // Add new quick tag button & Enter key
+    const saveNewTagBtn = document.getElementById('save-new-tag-btn');
+    const newTagInput = document.getElementById('new-tag-label-input');
+    if (saveNewTagBtn && newTagInput) {
+        const handleAddTag = () => {
+            const label = newTagInput.value.trim();
+            if (label) {
+                addQuickTag(label, selectedNewTagColor);
+                newTagInput.value = '';
+                newTagInput.focus();
+            }
+        };
+        saveNewTagBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleAddTag();
+        });
+        newTagInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddTag();
+            }
+        });
+    }
+
+    // Reset quick tags button
+    const resetTagsBtn = document.getElementById('reset-quick-tags-btn');
+    if (resetTagsBtn) {
+        resetTagsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetQuickTags();
+        });
+    }
+
+    // Undo button in ticker
+    const undoQuickTagBtn = document.getElementById('quick-tag-undo-btn');
+    if (undoQuickTagBtn) {
+        undoQuickTagBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            undoLastQuickTag();
+        });
+    }
+
+    // Switch to Review Mode button in ticker
+    const reviewModeBtn = document.getElementById('quick-tag-review-btn');
+    if (reviewModeBtn) {
+        reviewModeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setTaggingMode(false);
+        });
+    }
+
     // Direct Start & Upload on Empty State
     const startNewBtn = document.getElementById('start-new-video-game-btn');
     if (startNewBtn) {
@@ -1550,9 +1850,11 @@ function loadGameFromQuery() {
     const params = new URLSearchParams(window.location.search);
     const gameId = params.get('game');
     const isNewVideo = params.get('new') === 'video';
+    const initialMode = params.get('mode');
 
     if (isNewVideo) {
         createNewVideoGame();
+        setTaggingMode(true);
         return;
     }
 
@@ -1561,6 +1863,10 @@ function loadGameFromQuery() {
     }
     if (!gameId || !loadGame(gameId)) {
         showNoGameSelectedState();
+    }
+
+    if (initialMode === 'tag') {
+        setTaggingMode(true);
     }
 }
 
@@ -1576,6 +1882,16 @@ function jumpToVideoTime(timeMs) {
 
 export {
     CORE_QUICK_TAGS,
+    DEFAULT_QUICK_TAGS,
+    QUICK_TAG_COLORS,
+    loadQuickTags,
+    saveQuickTags,
+    addQuickTag,
+    removeQuickTag,
+    resetQuickTags,
+    undoLastQuickTag,
+    setTaggingMode,
+    updateQuickTagTicker,
     quickTagEvent,
     createNewVideoGame,
     updateEventNote,
