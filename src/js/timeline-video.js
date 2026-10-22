@@ -131,7 +131,7 @@ function commitDraftGame() {
         const committed = currentDraftGame;
         currentDraftGame = null;
         updateSaveStatusUI();
-        showNotification('Match saved to Saved Games');
+        showNotification('Match saved to Matches');
         return committed;
     }
     return getCurrentGame();
