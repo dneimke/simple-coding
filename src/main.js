@@ -134,7 +134,37 @@ const logView = document.getElementById('log-view');
 const statsView = document.getElementById('stats-view');
 const savedGamesView = document.getElementById('saved-games-view');
 
+function renderActiveMatchBanner() {
+    const banner = document.getElementById('activeMatchBanner');
+    if (!banner) return;
+
+    const hasGame = Boolean(stateService.getState('game.hasCurrentGame'));
+    if (!hasGame) {
+        banner.classList.add('hidden');
+        return;
+    }
+
+    const teams = stateService.getState('game.teams');
+    const events = stateService.getState('game.loggedEvents') || [];
+    const count = events.length;
+    const elapsedTime = gameState ? gameState.getLiveElapsedTime() : 0;
+    const clock = formatTime(elapsedTime);
+
+    const teamsEl = document.getElementById('activeMatchTeams');
+    const metaEl = document.getElementById('activeMatchMeta');
+
+    if (teamsEl) {
+        teamsEl.textContent = teams ? `${teams[0].code} vs ${teams[1].code}` : 'Live Match';
+    }
+    if (metaEl) {
+        metaEl.textContent = `${clock} · ${count} event${count === 1 ? '' : 's'} logged`;
+    }
+
+    banner.classList.remove('hidden');
+}
+
 function renderSavedGames() {
+    renderActiveMatchBanner();
     const savedGamesList = document.getElementById('savedGamesList');
     savedGamesList.innerHTML = '';
 
@@ -659,19 +689,24 @@ function initializeApplication() {
         eventButtons.setConfig(currentConfig);
     }
 
-    // Check URL parameters for view navigation
+    // Check URL parameters and hash for view navigation
     const urlParams = new URLSearchParams(window.location.search);
     const viewParam = urlParams.get('view');
+    const mockParam = urlParams.get('mock');
+    const isDevPreview = window.location.pathname.includes('/dev/preview');
+    const hash = window.location.hash.substring(1).split('?')[0].split('/')[0];
 
-    // Handle navigation based on URL parameters
-    if (viewParam === 'config') {
+    // Handle navigation based on URL parameters or hash
+    if (viewParam === 'config' || hash === 'configure') {
         stateService.setState('ui.currentView', 'Config');
-    } else if (viewParam === 'saved-games') {
+    } else if (isDevPreview || viewParam === 'event-capture' || hash === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
+        stateService.setState('ui.currentView', 'EventCapture');
+    } else if (viewParam === 'log' || hash === 'log') {
+        stateService.setState('ui.currentView', 'Log');
+    } else {
+        // Default to saved-games (Matches Hub) view
         stateService.setState('ui.currentView', 'SavedGames');
         renderSavedGames();
-    } else {
-        // Default to event capture view if no parameter or invalid parameter
-        stateService.setState('ui.currentView', 'EventCapture');
     }
 
     registerEventListeners();
@@ -706,6 +741,7 @@ function syncChrome() {
         lastEventText: lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : ''
     });
     eventButtons.updateBadgeCounts(events);
+    renderActiveMatchBanner();
     return hasGame;
 }
 
@@ -1295,7 +1331,7 @@ function registerEventListeners() {
 
 const router = new Router(
     {
-        EventCapture: { view: trackerView, button: navEventCapture },
+        EventCapture: { view: trackerView, button: null },
         Config: { view: configView, button: navConfig },
         Log: { view: logView, button: null },
         SavedGames: { view: savedGamesView, button: navSavedGames }
@@ -1320,9 +1356,10 @@ stateService.subscribe('ui.currentView', (viewName) => {
     if (viewName === 'Log') {
         renderLogView();
         if (stateService.getState('ui.currentView') !== 'Log') return;
-        const button = stateService.getState('ui.logGameId') ? navSavedGames : navEventCapture;
-        button.classList.add('nav-link-active');
-        button.setAttribute('aria-current', 'page');
+        if (navSavedGames) {
+            navSavedGames.classList.add('nav-link-active');
+            navSavedGames.setAttribute('aria-current', 'page');
+        }
     } else if (viewName === 'SavedGames') {
         renderSavedGames();
     } else if (viewName === 'Config') {
@@ -1333,15 +1370,17 @@ stateService.subscribe('ui.currentView', (viewName) => {
 // Child-path changes (game.loggedEvents) and whole-game replacements (newGame, restore, complete) both notify 'game'
 stateService.subscribe('game', syncChrome);
 
-// Initial navigation based on URL hash or defaults to EventCapture
+// Initial navigation based on URL hash or defaults to SavedGames (Matches Hub)
 function handleInitialNavigation() {
     const fullHash = window.location.hash.substring(1);
     const routeOnly = fullHash.split('?')[0];
     const [hash] = routeOnly.split('/');
-    if (hash === 'saved-games') {
-        renderSavedGames();
-    } else if (hash === 'configure') {
+    if (hash === 'configure') {
         showConfigView();
+    } else if (hash === 'event-capture') {
+        // Event capture view
+    } else {
+        renderSavedGames();
     }
 
     // Initialize mobile menu functionality
@@ -1399,11 +1438,13 @@ function initMobileMenu() {
         });
     });
 
-    // Handle mobile event capture link
-    navEventCaptureMobile.addEventListener('click', (e) => {
-        e.preventDefault();
-        window.router.showView('EventCapture');
-    });
+    // Handle mobile brand link
+    if (navEventCaptureMobile) {
+        navEventCaptureMobile.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.router.showView('SavedGames');
+        });
+    }
 
     // Handle window resize to show/hide menu appropriately
     window.addEventListener('resize', () => {

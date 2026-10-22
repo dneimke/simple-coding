@@ -28,7 +28,7 @@
             <div class="app-nav-inner">
                 <!-- Mobile bar -->
                 <div class="app-nav-bar md:hidden">
-                    <a href="#event-capture" id="navEventCaptureMobile" class="app-brand">
+                    <a href="#saved-games" id="navEventCaptureMobile" class="app-brand" title="Hockey Tracker Matches">
                         <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
                         <span>Hockey Tracker</span>
                     </a>
@@ -41,18 +41,14 @@
                 <!-- Desktop bar and mobile menu (hidden by default on mobile) -->
                 <div id="mainMenu" class="hidden md:flex md:h-14 md:items-center md:justify-between flex-col md:flex-row">
                     <div class="app-nav-links flex flex-col md:flex-row md:items-center gap-1">
-                        <span class="app-brand hidden md:inline-flex md:mr-4">
+                        <a href="#saved-games" class="app-brand hidden md:inline-flex md:mr-4" title="Hockey Tracker Matches">
                             <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
                             <span>Hockey Tracker</span>
-                        </span>
-                        <a href="#event-capture" id="navEventCapture" class="nav-link nav-link-active"
-                            aria-current="page">
-                            <i class="fas fa-stopwatch text-sm" aria-hidden="true"></i>
-                            <span>Event Capture</span>
                         </a>
-                        <a href="#saved-games" id="navSavedGames" class="nav-link">
+                        <a href="#saved-games" id="navSavedGames" class="nav-link nav-link-active"
+                            aria-current="page">
                             <i class="fas fa-folder-open text-sm" aria-hidden="true"></i>
-                            <span>Saved Games</span>
+                            <span>Matches</span>
                         </a>
                         <a href="#configure" id="navConfig" class="nav-link">
                             <i class="fas fa-sliders text-sm" aria-hidden="true"></i>
@@ -77,6 +73,9 @@
                     <section class="surface capture-toolbar" aria-label="Game clock">
                         <div id="timer" class="capture-timer" role="timer" aria-live="off">00:00</div>
                         <div id="captureContext" class="capture-context">
+                            <a id="backToMatchesLink" href="#saved-games" class="btn btn-secondary shrink-0" title="Return to Matches list">
+                                <i class="fas fa-arrow-left" aria-hidden="true"></i>Matches
+                            </a>
                             <div id="captureBoard" class="capture-meta">
                                 <label for="boardSelect" class="field-label mb-0">Board</label>
                                 <select id="boardSelect" class="field field-inline"></select>
@@ -320,18 +319,34 @@
                     </div>
                 </div>
 
-                <!-- Saved Games View -->
+                <!-- Saved Games View (Matches Hub) -->
                 <div id="saved-games-view" class="hidden">
+                    <div id="activeMatchBanner" class="active-match-banner hidden" role="region" aria-label="Active match in progress">
+                        <div class="active-match-info">
+                            <span class="active-match-pulse" aria-hidden="true"></span>
+                            <div>
+                                <div class="active-match-title">Match in Progress: <span id="activeMatchTeams" class="font-bold">Fire vs Tigers</span></div>
+                                <div class="active-match-subtitle" id="activeMatchMeta">14:22 · 6 events logged</div>
+                            </div>
+                        </div>
+                        <a href="#event-capture" id="resumeActiveMatchButton" class="btn btn-primary active-match-resume-btn">
+                            Resume Match →
+                        </a>
+                    </div>
+
                     <header class="page-header">
                         <div>
-                            <h1 class="page-title">Saved Games</h1>
-                            <p class="page-subtitle">Choose a game to review its codes against video.</p>
+                            <h1 class="page-title">Matches</h1>
+                            <p class="page-subtitle">Record a live match, code from video, or import Sportscode XML.</p>
                         </div>
-                        <div class="flex gap-2">
-                            <a href="timeline-video.html?new=video" id="codeFromVideoButton" class="btn btn-secondary">
-                                <i class="fas fa-video" aria-hidden="true"></i>Code from Video
+                        <div class="flex flex-wrap gap-2">
+                            <a href="#event-capture" id="startLiveMatchButton" class="btn btn-primary">
+                                <i class="fas fa-play" aria-hidden="true"></i>Live Match
                             </a>
-                            <button id="importXmlButton" type="button" class="btn btn-primary">
+                            <a href="timeline-video.html?new=video" id="codeFromVideoButton" class="btn btn-secondary">
+                                <i class="fas fa-video" aria-hidden="true"></i>From Video
+                            </a>
+                            <button id="importXmlButton" type="button" class="btn btn-secondary">
                                 <i class="fas fa-file-import" aria-hidden="true"></i>Import XML
                             </button>
                         </div>

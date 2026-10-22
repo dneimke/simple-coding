@@ -22,7 +22,7 @@ export const stateService = {
             selectedTeam: null
         },
         ui: {
-            currentView: 'EventCapture',
+            currentView: 'SavedGames',
             currentTab: 'timelineView',
             logGameId: null
         }
