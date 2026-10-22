@@ -37,6 +37,7 @@ let selectedNewTagColor = 'btn-blue';
 let currentPlaylistIndex = 0;
 let favoriteEvents = [];
 let activeEditingEventId = null;
+let currentDraftGame = null;
 
 // Helper to generate a unique event id
 function generateEventId() {
@@ -44,6 +45,9 @@ function generateEventId() {
 }
 
 function getCurrentGame() {
+    if (currentDraftGame && currentDraftGame.id === currentGameId) {
+        return currentDraftGame;
+    }
     const games = getSavedGames();
     if (!Array.isArray(games) || !currentGameId) return null;
     return games.find(g => g.id === currentGameId) || null;
@@ -70,7 +74,126 @@ function parseTime(str) {
     return isNaN(num) ? 0 : num;
 }
 
-// Auto-create or initialize a new video match
+// Update Match Title in UI and edit forms
+function updateTitleUI(title) {
+    const gameTitle = document.getElementById('review-game-title');
+    const editBtn = document.getElementById('edit-title-btn');
+    const input = document.getElementById('inline-title-input');
+
+    if (gameTitle) {
+        gameTitle.textContent = title;
+        gameTitle.title = 'Click to rename match';
+        gameTitle.classList.remove('hidden');
+    }
+    if (editBtn) {
+        editBtn.classList.remove('hidden');
+    }
+    if (input) {
+        input.value = title;
+    }
+}
+
+// Update Draft badge and Auto-Save Status Indicator
+function updateSaveStatusUI() {
+    const draftBadge = document.getElementById('draft-badge');
+    const statusIndicator = document.getElementById('save-status-indicator');
+    const isDraft = Boolean(currentDraftGame && currentDraftGame.id === currentGameId);
+
+    if (draftBadge) {
+        draftBadge.classList.toggle('hidden', !isDraft);
+    }
+    if (statusIndicator) {
+        if (isDraft) {
+            statusIndicator.innerHTML = '<span class="text-amber-700"><i class="fas fa-pencil-alt text-amber-500 mr-1"></i>Draft (not saved)</span>';
+            statusIndicator.classList.remove('hidden');
+        } else if (currentGameId) {
+            statusIndicator.innerHTML = '<span class="text-slate-600"><i class="fas fa-check-circle text-emerald-600 mr-1"></i>Saved</span>';
+            statusIndicator.classList.remove('hidden');
+        } else {
+            statusIndicator.classList.add('hidden');
+        }
+    }
+}
+
+// Commit draft game session to persistent storage (prevents saved game spam)
+function commitDraftGame() {
+    if (currentDraftGame && currentDraftGame.id === currentGameId) {
+        currentDraftGame.metadata.isDraft = false;
+        currentDraftGame.metadata.lastUpdated = new Date().toISOString();
+        const savedGames = getSavedGames();
+        const existingIdx = savedGames.findIndex(g => g.id === currentDraftGame.id);
+        if (existingIdx >= 0) {
+            savedGames[existingIdx] = currentDraftGame;
+        } else {
+            savedGames.unshift(currentDraftGame);
+        }
+        storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        const committed = currentDraftGame;
+        currentDraftGame = null;
+        updateSaveStatusUI();
+        showNotification('Match saved to Saved Games');
+        return committed;
+    }
+    return getCurrentGame();
+}
+
+// Rename match title in memory and storage
+function renameMatch(newName) {
+    const trimmed = String(newName || '').trim();
+    if (!trimmed) return false;
+
+    const game = getCurrentGame();
+    if (!game) return false;
+
+    game.teams = trimmed;
+    if (currentDraftGame && currentDraftGame.id === game.id) {
+        currentDraftGame.teams = trimmed;
+        commitDraftGame();
+    } else {
+        const metadata = { ...game.metadata, teams: trimmed, lastUpdated: new Date().toISOString() };
+        saveGame(game.id, game.events, metadata);
+    }
+
+    updateTitleUI(trimmed);
+    showNotification(`Match renamed to "${trimmed}"`);
+    return true;
+}
+
+// Auto-rename from video file name if title is currently generic
+function autoRenameFromVideo(filename) {
+    if (!filename || typeof filename !== 'string') return;
+    const game = getCurrentGame();
+    if (!game) return;
+
+    const isDefaultTitle = !game.teams ||
+        game.teams.startsWith('Video Match') ||
+        game.teams === 'Video Match';
+
+    if (isDefaultTitle) {
+        const cleanName = filename
+            .replace(/\.[^/.]+$/, '')
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (cleanName) {
+            renameMatch(cleanName);
+        }
+    }
+}
+
+// Save & Exit to Saved Games
+function saveAndExit() {
+    if (currentDraftGame && currentDraftGame.id === currentGameId) {
+        if (currentDraftGame.events.length > 0 || (currentDraftGame.metadata && currentDraftGame.metadata.hasVideo)) {
+            commitDraftGame();
+        }
+    }
+    if (typeof window !== 'undefined') {
+        window.location.href = 'index.html#saved-games';
+    }
+}
+
+// Auto-create or initialize a new video match draft (not saved until event or video is added)
 function createNewVideoGame(customName) {
     const gameId = generateGameId();
     const now = new Date();
@@ -83,15 +206,15 @@ function createNewVideoGame(customName) {
         timestamp: now.toISOString(),
         metadata: {
             source: 'video',
+            isDraft: true,
             created: now.toISOString(),
             lastUpdated: now.toISOString()
         }
     };
-    const savedGames = getSavedGames();
-    savedGames.unshift(newGame);
-    storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
 
-    loadGame(gameId);
+    currentDraftGame = newGame;
+    currentGameId = gameId;
+    timelineEvents = [];
 
     if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
         try {
@@ -105,7 +228,13 @@ function createNewVideoGame(customName) {
     const noGameState = document.getElementById('no-game-selected-state');
     if (noGameState) noGameState.classList.add('hidden');
 
-    showNotification(`Started ${teams}`);
+    updateTitleUI(teams);
+    updateSaveStatusUI();
+    updateEventFilters();
+    renderTimelineEvents();
+    updateQuickTagTicker();
+    setTaggingMode(true);
+
     return newGame;
 }
 
@@ -119,6 +248,12 @@ function quickTagEvent(eventType, note = '') {
     let game = getCurrentGame();
     if (!game) {
         game = createNewVideoGame();
+    }
+
+    // Auto-commit draft game if this is the first event logged
+    if (currentDraftGame && currentDraftGame.id === game.id) {
+        commitDraftGame();
+        game = getCurrentGame();
     }
 
     if (!Array.isArray(game.events)) game.events = [];
@@ -1013,12 +1148,8 @@ function loadGame(gameId) {
             updateQuickTagTicker();
 
             const displayName = game.teams || gameId;
-            const gameTitle = document.getElementById('review-game-title');
-            if (gameTitle) {
-                gameTitle.textContent = displayName;
-                gameTitle.title = displayName;
-                gameTitle.classList.remove('hidden');
-            }
+            updateTitleUI(displayName);
+            updateSaveStatusUI();
             updateFabVisibility();
 
             // Display success message using teams name if available
@@ -1693,6 +1824,54 @@ domReady(() => {
         });
     }
 
+    // Inline Match Title Editor
+    const gameTitleEl = document.getElementById('review-game-title');
+    const editTitleBtn = document.getElementById('edit-title-btn');
+    const titleForm = document.getElementById('inline-title-form');
+    const titleInput = document.getElementById('inline-title-input');
+    const cancelTitleBtn = document.getElementById('cancel-title-btn');
+
+    function openTitleEditor() {
+        if (!titleForm || !titleInput) return;
+        const current = getCurrentGame();
+        titleInput.value = (current && current.teams) ? current.teams : (gameTitleEl ? gameTitleEl.textContent : '');
+        if (gameTitleEl) gameTitleEl.classList.add('hidden');
+        if (editTitleBtn) editTitleBtn.classList.add('hidden');
+        titleForm.classList.remove('hidden');
+        titleInput.focus();
+        titleInput.select();
+    }
+
+    function closeTitleEditor() {
+        if (!titleForm) return;
+        titleForm.classList.add('hidden');
+        if (gameTitleEl) gameTitleEl.classList.remove('hidden');
+        if (editTitleBtn) editTitleBtn.classList.remove('hidden');
+    }
+
+    if (gameTitleEl) gameTitleEl.addEventListener('click', openTitleEditor);
+    if (editTitleBtn) editTitleBtn.addEventListener('click', openTitleEditor);
+    if (cancelTitleBtn) cancelTitleBtn.addEventListener('click', closeTitleEditor);
+    if (titleForm) {
+        titleForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newName = titleInput.value.trim();
+            if (newName) {
+                renameMatch(newName);
+            }
+            closeTitleEditor();
+        });
+    }
+
+    // Save & Exit button in header
+    const saveAndExitBtn = document.getElementById('save-and-exit-btn');
+    if (saveAndExitBtn) {
+        saveAndExitBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            saveAndExit();
+        });
+    }
+
     // Direct Start & Upload on Empty State
     const startNewBtn = document.getElementById('start-new-video-game-btn');
     if (startNewBtn) {
@@ -1710,7 +1889,10 @@ domReady(() => {
             if (!currentGameId) {
                 const baseName = file.name.replace(/\.[^/.]+$/, '');
                 createNewVideoGame(baseName);
+            } else {
+                autoRenameFromVideo(file.name);
             }
+            commitDraftGame();
             if (videoPlayer) {
                 const videoUrl = URL.createObjectURL(file);
                 while (videoPlayer.firstChild) videoPlayer.removeChild(videoPlayer.firstChild);
@@ -1741,7 +1923,10 @@ domReady(() => {
             if (!currentGameId) {
                 const baseName = file.name.replace(/\.[^/.]+$/, '');
                 createNewVideoGame(baseName);
+            } else {
+                autoRenameFromVideo(file.name);
             }
+            commitDraftGame();
 
             // Create object URL for the file
             const videoUrl = URL.createObjectURL(file);
@@ -1894,6 +2079,13 @@ export {
     updateQuickTagTicker,
     quickTagEvent,
     createNewVideoGame,
+    commitDraftGame,
+    renameMatch,
+    autoRenameFromVideo,
+    saveAndExit,
+    getCurrentGame,
+    updateTitleUI,
+    updateSaveStatusUI,
     updateEventNote,
     retargetEventTime,
     setPlaybackRate,

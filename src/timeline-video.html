@@ -72,10 +72,31 @@
 
         <main class="app-main">
             <div class="page">
-                <header class="page-header review-header">
-                    <div class="review-heading">
-                        <p class="page-subtitle">Match review</p>
-                        <h1 id="review-game-title" class="page-title review-game-title hidden"></h1>
+                <header class="page-header review-header flex flex-wrap items-center justify-between gap-2">
+                    <div class="review-heading min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <p class="page-subtitle mb-0">Match review</p>
+                            <span id="draft-badge" class="badge text-[11px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-medium hidden">Draft</span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <h1 id="review-game-title" class="page-title review-game-title cursor-pointer hover:text-blue-600 transition-colors hidden" title="Click to rename match"></h1>
+                            <button id="edit-title-btn" type="button" class="btn btn-ghost btn-icon btn-compact text-slate-400 hover:text-slate-700 hidden" title="Rename match" aria-label="Rename match">
+                                <i class="fas fa-pencil-alt text-xs" aria-hidden="true"></i>
+                            </button>
+                            <form id="inline-title-form" class="hidden flex items-center gap-1.5">
+                                <input type="text" id="inline-title-input" class="field text-sm py-1 px-2 font-bold w-48 sm:w-64" maxlength="50" placeholder="Match name...">
+                                <button type="submit" id="save-title-btn" class="btn btn-primary btn-compact" title="Save name"><i class="fas fa-check text-xs"></i></button>
+                                <button type="button" id="cancel-title-btn" class="btn btn-secondary btn-compact" title="Cancel"><i class="fas fa-times text-xs"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="review-header-actions flex items-center gap-2 ml-auto flex-shrink-0">
+                        <span id="save-status-indicator" class="text-xs text-muted hidden sm:inline-flex items-center gap-1 text-slate-500">
+                            <i class="fas fa-check-circle text-emerald-600"></i><span>Saved</span>
+                        </span>
+                        <button id="save-and-exit-btn" type="button" class="btn btn-secondary btn-compact" title="Save match and return to Saved Games">
+                            <i class="fas fa-save text-xs" aria-hidden="true"></i><span>Save & Exit</span>
+                        </button>
                     </div>
                 </header>
                 <div class="review-layout">
