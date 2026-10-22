@@ -42,6 +42,11 @@ const VIEWPORTS = [
 
 const DEFAULT_SCREENS = [
     {
+        name: 'matches-hub-root',
+        path: '/?mock=sample',
+        waitForSelector: '#savedGamesList'
+    },
+    {
         name: 'event-capture-idle',
         path: '/#event-capture',
         waitForSelector: '#boardSelect'

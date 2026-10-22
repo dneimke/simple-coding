@@ -71,7 +71,7 @@ export class Router {
                     const hasActiveGame = stateService.getState('game.hasCurrentGame');
                     if (!hasActiveGame) {
                         this._updateHashSilently(hash);
-                        this.showView('event-capture');
+                        this.showView('saved-games');
                         return;
                     }
                 }
@@ -79,14 +79,26 @@ export class Router {
                 // Switch to the view without updating hash (to avoid loop)
                 this._showViewWithoutHashUpdate(viewName);
             } else {
-                // Invalid hash, default to EventCapture
-                this._updateHashSilently('event-capture');
-                this._showViewWithoutHashUpdate('EventCapture');
+                // Invalid hash, default to SavedGames (Matches Hub)
+                this._updateHashSilently('saved-games');
+                this._showViewWithoutHashUpdate('SavedGames');
             }
         } else {
-            // No hash, default to EventCapture
-            this._updateHashSilently('event-capture');
-            this._showViewWithoutHashUpdate('EventCapture');
+            // No hash: check query params and dev preview
+            const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : null;
+            const viewParam = urlParams ? urlParams.get('view') : null;
+            const mockParam = urlParams ? urlParams.get('mock') : null;
+            const isDevPreview = typeof window !== 'undefined' && window.location ? (window.location.pathname || '').includes('/dev/preview') : false;
+
+            if (viewParam === 'config') {
+                this._showViewWithoutHashUpdate('Config');
+            } else if (isDevPreview || viewParam === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
+                this._showViewWithoutHashUpdate('EventCapture');
+            } else {
+                // Default to SavedGames (Matches Hub)
+                this._updateHashSilently('saved-games');
+                this._showViewWithoutHashUpdate('SavedGames');
+            }
         }
     }
 
@@ -178,7 +190,7 @@ export class Router {
      */
     showView = (viewToShow, callback) => {
         // Update URL hash, which will trigger view change via hash handler
-        const hash = this.viewToHashMap[viewToShow] || 'event-capture';
+        const hash = this.viewToHashMap[viewToShow] || 'saved-games';
         window.location.hash = hash;
 
         if (typeof callback === 'function') {

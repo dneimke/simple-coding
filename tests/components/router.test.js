@@ -179,8 +179,20 @@ describe('Router', () => {
         });
     });
 
+    test('empty hash defaults to SavedGames (Matches Hub)', () => {
+        window.location.hash = '';
+        router._handleHashChange();
+        expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'SavedGames');
+    });
+
+    test('invalid hash defaults to SavedGames (Matches Hub)', () => {
+        window.location.hash = 'unknown-route';
+        router._handleHashChange();
+        expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'SavedGames');
+    });
+
     describe('Log route guard', () => {
-        test('#log without an active game redirects to Event Capture', () => {
+        test('#log without an active game redirects to SavedGames', () => {
             stateService.getState.mockReturnValue(false);
             window.location.hash = 'log';
 
@@ -188,7 +200,7 @@ describe('Router', () => {
 
             expect(stateService.setState).toHaveBeenCalledWith('ui.logGameId', null);
             expect(stateService.setState).not.toHaveBeenCalledWith('ui.currentView', 'Log');
-            expect(window.location.hash).toBe('#event-capture');
+            expect(window.location.hash).toBe('#saved-games');
         });
 
         test('#log with an active game shows the live Log view', () => {
