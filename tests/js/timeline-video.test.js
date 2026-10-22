@@ -371,7 +371,13 @@ describe('video coding workflow', () => {
             <button id="save-and-exit-btn">Save & Exit</button>
         </div>
         <div class="review-layout">
-            <div id="timeline-container" class="review-timeline"></div>
+            <div id="timeline-container" class="review-timeline">
+                <div id="timeline-panel-header">
+                    <span id="timeline-events-counter">0</span>
+                    <button id="timeline-tag-mode-btn">Tag Video</button>
+                    <button id="collapse-timeline-btn">Collapse</button>
+                </div>
+            </div>
             <div id="video-container" class="review-video">
                 <button id="toggle-tagging-mode-btn"><span class="tag-mode-text">Tag Video</span></button>
                 <video id="video-player"></video>
@@ -386,7 +392,7 @@ describe('video coding workflow', () => {
                     <div id="quick-tag-ticker">
                         <span id="ticker-last-event"></span>
                         <button id="quick-tag-undo-btn" disabled>Undo</button>
-                        <button id="quick-tag-review-btn">Review Events</button>
+                        <button id="quick-tag-review-btn"><span id="quick-tag-review-label">Events Panel (0) ▾</span></button>
                     </div>
                 </div>
             </div>
@@ -586,5 +592,34 @@ describe('video coding workflow', () => {
         mod.setTaggingMode(false);
         expect(layout.classList.contains('tagging-mode-active')).toBe(false);
         expect(panel.classList.contains('hidden')).toBe(true);
+    });
+
+    test('setTimelineCollapsed toggles timeline visibility without terminating tagging mode', () => {
+        const layout = document.querySelector('.review-layout');
+        const panel = document.getElementById('video-coding-panel');
+
+        // Start in tagging mode
+        mod.setTaggingMode(true);
+        expect(panel.classList.contains('hidden')).toBe(false);
+
+        // Collapse timeline for focus
+        mod.setTimelineCollapsed(true);
+        expect(layout.classList.contains('timeline-collapsed')).toBe(true);
+        expect(panel.classList.contains('hidden')).toBe(false); // Quick tags still active!
+
+        // Open timeline to inspect events
+        mod.setTimelineCollapsed(false);
+        expect(layout.classList.contains('timeline-collapsed')).toBe(false);
+        expect(panel.classList.contains('hidden')).toBe(false); // Quick tags still active!
+    });
+
+    test('timeline Tag Video button restores tagging mode if closed', () => {
+        const panel = document.getElementById('video-coding-panel');
+        mod.setTaggingMode(false);
+        expect(panel.classList.contains('hidden')).toBe(true);
+
+        const tagBtn = document.getElementById('timeline-tag-mode-btn');
+        tagBtn.click();
+        expect(panel.classList.contains('hidden')).toBe(false);
     });
 });

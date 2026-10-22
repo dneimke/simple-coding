@@ -233,6 +233,7 @@ function createNewVideoGame(customName) {
     updateEventFilters();
     renderTimelineEvents();
     updateQuickTagTicker();
+    setTimelineCollapsed(true);
     setTaggingMode(true);
 
     return newGame;
@@ -463,6 +464,10 @@ function updateQuickTagTicker() {
     if (countSpan) {
         countSpan.textContent = events.length.toString();
     }
+    const timelineCounter = document.getElementById('timeline-events-counter');
+    if (timelineCounter) {
+        timelineCounter.textContent = events.length.toString();
+    }
 
     if (!events.length) {
         if (tickerLast) tickerLast.textContent = 'No events logged yet';
@@ -481,6 +486,27 @@ function updateQuickTagTicker() {
         undoBtn.disabled = false;
         undoBtn.classList.remove('opacity-40');
     }
+}
+
+let isTimelineCollapsed = false;
+
+// Collapse or expand the events side panel
+function setTimelineCollapsed(collapsed) {
+    isTimelineCollapsed = Boolean(collapsed);
+    const layout = document.querySelector('.review-layout');
+    const label = document.getElementById('quick-tag-review-label');
+    const countSpan = document.getElementById('ticker-event-count');
+    const count = countSpan ? countSpan.textContent : '0';
+
+    if (layout) {
+        layout.classList.toggle('timeline-collapsed', isTimelineCollapsed);
+    }
+    if (label) {
+        label.textContent = isTimelineCollapsed
+            ? `Events Panel (${count}) ▾`
+            : `Hide Events ▴`;
+    }
+    return isTimelineCollapsed;
 }
 
 // Toggle Tagging Mode (Focus video + quick tags bar vs clean Review Mode)
@@ -510,8 +536,11 @@ function setTaggingMode(enabled) {
         }
     }
     if (isTaggingMode) {
+        setTimelineCollapsed(true);
         renderQuickTagButtons();
         updateQuickTagTicker();
+    } else {
+        setTimelineCollapsed(false);
     }
     return isTaggingMode;
 }
@@ -1815,12 +1844,30 @@ domReady(() => {
         });
     }
 
-    // Switch to Review Mode button in ticker
+    // Toggle Events Panel side-by-side in ticker without losing quick tag buttons
     const reviewModeBtn = document.getElementById('quick-tag-review-btn');
     if (reviewModeBtn) {
         reviewModeBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            setTaggingMode(false);
+            setTimelineCollapsed(!isTimelineCollapsed);
+        });
+    }
+
+    // Open/Restore Tagging Mode from Timeline panel header
+    const timelineTagBtn = document.getElementById('timeline-tag-mode-btn');
+    if (timelineTagBtn) {
+        timelineTagBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setTaggingMode(true);
+        });
+    }
+
+    // Collapse Timeline panel button in panel header
+    const collapseTimelineBtn = document.getElementById('collapse-timeline-btn');
+    if (collapseTimelineBtn) {
+        collapseTimelineBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            setTimelineCollapsed(true);
         });
     }
 
@@ -2076,6 +2123,7 @@ export {
     resetQuickTags,
     undoLastQuickTag,
     setTaggingMode,
+    setTimelineCollapsed,
     updateQuickTagTicker,
     quickTagEvent,
     createNewVideoGame,

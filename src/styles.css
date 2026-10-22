@@ -1882,11 +1882,11 @@ code {
     background-color: var(--color-surface);
 }
 
-.review-layout.tagging-mode-active .review-timeline {
+.review-layout.timeline-collapsed .review-timeline {
     display: none !important;
 }
 
-.review-layout.tagging-mode-active .review-video {
+.review-layout.timeline-collapsed .review-video {
     flex: 1 1 100% !important;
     max-width: 100% !important;
     width: 100% !important;

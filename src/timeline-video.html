@@ -103,6 +103,22 @@
                     <!-- Timeline -->
                     <div id="timeline-container" class="surface review-timeline">
 
+                        <!-- Timeline Header with quick mode switch and collapse button -->
+                        <div id="timeline-panel-header" class="timeline-panel-header flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Events Log</span>
+                                <span id="timeline-events-counter" class="text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-semibold tabular-nums">0</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button id="timeline-tag-mode-btn" type="button" class="btn btn-primary btn-compact" title="Open quick tags for coding">
+                                    <i class="fas fa-tag text-xs" aria-hidden="true"></i><span>Tag Video</span>
+                                </button>
+                                <button id="collapse-timeline-btn" type="button" class="btn btn-ghost btn-icon btn-compact text-slate-500 hover:text-slate-800" title="Collapse panel and focus video" aria-label="Collapse panel">
+                                    <i class="fas fa-chevron-left text-xs" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Shown when no game was opened from Saved Games -->
                         <div id="no-game-selected-state"
                             class="hidden flex flex-col items-center justify-center py-10 my-4 text-center surface-muted border-dashed rounded-lg">
@@ -307,8 +323,8 @@
                                     <button id="quick-tag-undo-btn" type="button" class="btn btn-ghost btn-compact text-red-600 hover:text-red-700 disabled:opacity-40" disabled title="Undo last event">
                                         <i class="fas fa-undo text-xs" aria-hidden="true"></i><span>Undo</span>
                                     </button>
-                                    <button id="quick-tag-review-btn" type="button" class="btn btn-secondary btn-compact" title="Switch to slow analysis and note editing">
-                                        <i class="fas fa-list-check text-xs" aria-hidden="true"></i><span>Review Events (<span id="ticker-event-count">0</span>)</span>
+                                    <button id="quick-tag-review-btn" type="button" class="btn btn-secondary btn-compact" title="Toggle events list side-by-side">
+                                        <i class="fas fa-list-check text-xs" aria-hidden="true"></i><span id="quick-tag-review-label">Events Panel (<span id="ticker-event-count">0</span>) ▾</span>
                                     </button>
                                 </div>
                             </div>
