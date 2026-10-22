@@ -155,7 +155,6 @@ function renameMatch(newName) {
     }
 
     updateTitleUI(trimmed);
-    showNotification(`Match renamed to "${trimmed}"`);
     return true;
 }
 
@@ -307,7 +306,6 @@ function updateEventNote(eventId, note) {
     saveGame(game.id, game.events, metadata);
     timelineEvents = game.events;
     renderTimelineEvents();
-    showNotification('Note saved');
     return true;
 }
 
@@ -329,7 +327,6 @@ function retargetEventTime(eventId, timeSeconds) {
     saveGame(game.id, game.events, metadata);
     timelineEvents = game.events;
     renderTimelineEvents();
-    showNotification(`Event time updated to ${event.timestamp}`);
     return true;
 }
 
@@ -1001,11 +998,6 @@ function jumpToEventTime(event) {
 
     // Show overlay with tag and description if in presentation mode
     updatePresentationOverlay(event);
-
-    // Show event details notification
-    const eventType = formatEventTypeName(event.event);
-    const eventTime = formatTime(event.timeMs);
-    showNotification(`${eventType} at ${eventTime}`);
 }
 
 // Update the presentation overlay with tag and description
@@ -1180,9 +1172,6 @@ function loadGame(gameId) {
             updateTitleUI(displayName);
             updateSaveStatusUI();
             updateFabVisibility();
-
-            // Display success message using teams name if available
-            showNotification(`Game "${displayName}" loaded successfully`);
 
             return true;
         } catch (e) {
@@ -1708,13 +1697,6 @@ function toggleFavorite(eventId) {
     }
 
     renderTimelineEvents();
-
-    // Show confirmation
-    if (event.isFavorite) {
-        showNotification('Added to favorites');
-    } else {
-        showNotification('Removed from favorites', 'info');
-    }
 }
 
 function domReady(callback) {
@@ -1752,8 +1734,8 @@ domReady(() => {
     const rewind5s = document.getElementById('rewind-5s');
     const forward5s = document.getElementById('forward-5s');
     if (rew5s => rew5s) {}
-    if (rewind5s) rewind5s.addEventListener('click', () => { seekRelative(-5); showNotification('Rewound 5 seconds', 'info'); });
-    if (forward5s) forward5s.addEventListener('click', () => { seekRelative(5); showNotification('Advanced 5 seconds', 'info'); });
+    if (rewind5s) rewind5s.addEventListener('click', () => { seekRelative(-5); });
+    if (forward5s) forward5s.addEventListener('click', () => { seekRelative(5); });
 
     // Custom Tag button in Quick Tag panel
     const customTagBtn = document.getElementById('add-custom-tag-btn');
@@ -1948,7 +1930,6 @@ domReady(() => {
                 source.type = file.type;
                 videoPlayer.appendChild(source);
                 videoPlayer.load();
-                showNotification(`Video "${file.name}" loaded successfully`);
                 videoPlayer.play().catch(err => console.warn("Couldn't auto-play video:", err));
             }
         });
@@ -1993,7 +1974,6 @@ domReady(() => {
 
                 // Reload video with new source
                 videoPlayer.load();
-                showNotification(`Video "${file.name}" loaded successfully`);
 
                 // Start playing
                 videoPlayer.play().catch(err => {
@@ -2015,7 +1995,6 @@ domReady(() => {
                 if (videoPlayer.readyState > 0) {
                     // Move back 10 seconds, ensuring we don't go below 0
                     videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
-                    showNotification('Rewound 10 seconds', 'info');
                 }
             });
         }
@@ -2025,7 +2004,6 @@ domReady(() => {
                 if (videoPlayer.readyState > 0) {
                     // Move forward 10 seconds, ensuring we don't exceed duration
                     videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
-                    showNotification('Advanced 10 seconds', 'info');
                 }
             });
         }
@@ -2060,8 +2038,7 @@ domReady(() => {
                         videoPlayer.play().catch(err => {
                             console.warn("Couldn't auto-play video:", err);
                         });
-                    }            // Show a notification
-                    showNotification(`Seeking to event: ${event}`);
+                    }
                 } else {
                     console.warn("Video not ready for seeking");
                     showNotification("Video not loaded yet. Please try again.");

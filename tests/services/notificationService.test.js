@@ -63,6 +63,15 @@ describe('Notification Service', () => {
         expect(notification.classList.contains('text-white')).toBe(true);
     });
 
+    test('notify should create notification element with info styling', () => {
+        const notification = notificationService.notify('Info notification', 'info');
+
+        expect(notification).toBeTruthy();
+        expect(notification.textContent).toBe('Info notification');
+        expect(notification.classList.contains('bg-gray-800')).toBe(true);
+        expect(notification.classList.contains('text-white')).toBe(true);
+    });
+
     test('notify should remove duplicate notifications', () => {
         // Create two notifications with the same message
         const notification1 = notificationService.notify('Duplicate notification');

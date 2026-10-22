@@ -38,7 +38,7 @@ export const notificationService = {
             });
 
             const notification = document.createElement('div');
-            notification.className = 'notification fixed top-4 right-4 py-2 px-4 rounded-md shadow-lg z-50 transition-opacity duration-300';
+            notification.className = 'notification fixed bottom-6 left-1/2 -translate-x-1/2 max-w-sm w-auto text-center py-2 px-4 rounded-md shadow-lg z-50 transition-opacity duration-300 pointer-events-none text-sm font-medium';
 
             // Apply appropriate styling based on notification type
             switch (type) {
@@ -47,6 +47,9 @@ export const notificationService = {
                     break;
                 case 'warning':
                     notification.classList.add('bg-yellow-500', 'text-white');
+                    break;
+                case 'info':
+                    notification.classList.add('bg-gray-800', 'text-white');
                     break;
                 default: // success
                     notification.classList.add('bg-green-600', 'text-white');
