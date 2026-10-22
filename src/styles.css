@@ -1212,8 +1212,8 @@ code {
 
 #config-view textarea::selection {
     background-color: rgba(137, 180, 250, 0.3);
-}
-
+}
+
 .board-add-button {
     display: inline-flex;
     align-items: center;
@@ -1876,7 +1876,132 @@ code {
     min-width: 48px;
 }
 
+
+/* ===== Video Coding Workflow & Quick Tagging Bar ===== */
+.video-coding-panel {
+    background-color: var(--color-surface);
+}
+
+.review-layout.tagging-mode-active .review-timeline {
+    display: none !important;
+}
+
+.review-layout.tagging-mode-active .review-video {
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.quick-tag-btn {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2);
+    min-height: var(--touch-min);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: #ffffff;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.1s ease, filter 0.1s ease;
+    user-select: none;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.quick-tag-btn:hover {
+    filter: brightness(1.08);
+}
+
+.quick-tag-btn:active {
+    transform: scale(0.96);
+}
+
+.quick-tag-delete-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    background-color: #dc2626;
+    color: #ffffff;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    border: 2px solid #ffffff;
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+    z-index: 5;
+}
+
+.quick-tag-delete-badge:hover {
+    background-color: #b91c1c;
+    transform: scale(1.15);
+}
+
+.color-pill-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.1s ease, border-color 0.1s ease;
+    padding: 0;
+}
+
+.color-pill-btn:hover {
+    transform: scale(1.1);
+}
+
+.color-pill-btn.is-selected {
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.25);
+    transform: scale(1.12);
+}
+
+.quick-tag-btn .tag-shortcut {
+    font-size: 0.6875rem;
+    opacity: 0.85;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.quick-tag-btn.btn-yellow {
+    color: var(--color-ink);
+}
+
+.segmented-compact > button {
+    min-height: 1.75rem;
+    padding: 0 var(--space-2);
+    font-size: 0.75rem;
+}
+
+.btn-compact {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    min-height: 1.75rem;
+}
+
+.timeline-event {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.timeline-event-editor {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--color-line);
+    padding: var(--space-2);
+    background-color: var(--color-surface-muted);
+}
+
 .config-drag-over {
-    outline: 2px dashed var(--color-brand);
+    outline: 2px dashed var(--color-accent);
     outline-offset: 4px;
 }

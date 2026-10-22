@@ -335,3 +335,207 @@ describe('event filters', () => {
         expect(renderedIds()).toEqual(['e1', 'e2', 'e3', 'e4']);
     });
 });
+
+
+describe('video coding workflow', () => {
+    const GAME_ID = 'video-game-1';
+    let mod;
+
+    const videoCodingMarkup = `
+        <div id="no-game-selected-state" class="hidden"></div>
+        <div id="timeline-empty-state" class="hidden"></div>
+        <div id="favorites-empty-state" class="hidden"></div>
+        <div id="timeline-filters" class="hidden">
+            <button id="show-all-events" class="bg-blue-500 text-white"></button>
+            <button id="show-favorites" class="bg-gray-200 text-gray-700"></button>
+            <button id="filter-dropdown-button" aria-expanded="false"><span id="selected-filters-text">All events</span></button>
+            <div id="filter-dropdown-panel" class="hidden">
+                <input id="filter-option-all" type="checkbox" data-filter="all" checked>
+                <div id="filter-options-container"></div>
+            </div>
+            <div id="selected-filters-tags"></div>
+        </div>
+        <div id="timeline-events" class="hidden"></div>
+        <div class="review-layout">
+            <div id="timeline-container" class="review-timeline"></div>
+            <div id="video-container" class="review-video">
+                <button id="toggle-tagging-mode-btn"><span class="tag-mode-text">Tag Video</span></button>
+                <video id="video-player"></video>
+                <div id="video-coding-panel" class="hidden">
+                    <button id="edit-quick-tags-btn">Edit Tags</button>
+                    <div id="quick-tags-container"></div>
+                    <div id="quick-tags-edit-bar" class="hidden">
+                        <input id="new-tag-label-input" type="text" />
+                        <button id="save-new-tag-btn">Add</button>
+                        <button id="reset-quick-tags-btn">Reset</button>
+                    </div>
+                    <div id="quick-tag-ticker">
+                        <span id="ticker-last-event"></span>
+                        <button id="quick-tag-undo-btn" disabled>Undo</button>
+                        <button id="quick-tag-review-btn">Review Events</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="playback-speed-controls"></div>
+        <div id="quick-tag-feedback" class="hidden"></div>
+    `;
+
+    beforeEach(() => {
+        jest.spyOn(console, 'log').mockImplementation(() => {});
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        document.body.innerHTML = videoCodingMarkup;
+        localStorage.clear();
+        localStorage.setItem('fieldHockeyGames_v1', JSON.stringify([
+            { id: GAME_ID, teams: 'Video Match', events: [], metadata: {} }
+        ]));
+        jest.isolateModules(() => {
+            mod = require('../../src/js/timeline-video.js');
+        });
+        mod.loadGame(GAME_ID);
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    test('CORE_QUICK_TAGS contains 6 core hockey events', () => {
+        expect(mod.CORE_QUICK_TAGS).toBeDefined();
+        expect(mod.CORE_QUICK_TAGS.length).toBe(6);
+        const labels = mod.CORE_QUICK_TAGS.map(t => t.label);
+        expect(labels).toContain('Goal');
+        expect(labels).toContain('Shot');
+        expect(labels).toContain('Circle Entry');
+        expect(labels).toContain('Penalty Corner');
+        expect(labels).toContain('Turnover');
+    });
+
+    test('quickTagEvent creates an event at video current time and persists it', () => {
+        const video = document.getElementById('video-player');
+        video.currentTime = 45.5; // 45500 ms
+
+        const created = mod.quickTagEvent('Goal');
+        expect(created).toBeDefined();
+        expect(created.event).toBe('Goal');
+        expect(created.timeMs).toBe(45500);
+        expect(created.timestamp).toBe('00:45');
+
+        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(saved.events).toHaveLength(1);
+        expect(saved.events[0].event).toBe('Goal');
+        expect(saved.events[0].timeMs).toBe(45500);
+
+        const rendered = document.querySelectorAll('#timeline-events .timeline-event');
+        expect(rendered.length).toBe(1);
+    });
+
+    test('createNewVideoGame initializes game and enables immediate coding without dead ends', () => {
+        const newGame = mod.createNewVideoGame('Eagles vs Hawks');
+        expect(newGame).toBeDefined();
+        expect(newGame.id).toBeDefined();
+        expect(newGame.teams).toBe('Eagles vs Hawks');
+
+        const games = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(games.some(g => g.id === newGame.id)).toBe(true);
+
+        const video = document.getElementById('video-player');
+        video.currentTime = 12;
+        mod.quickTagEvent('Shot');
+
+        const reloaded = JSON.parse(localStorage.getItem('fieldHockeyGames_v1')).find(g => g.id === newGame.id);
+        expect(reloaded.events).toHaveLength(1);
+        expect(reloaded.events[0].event).toBe('Shot');
+    });
+
+    test('updateEventNote updates note on event and persists in storage', () => {
+        const video = document.getElementById('video-player');
+        video.currentTime = 10;
+        const created = mod.quickTagEvent('Turnover');
+
+        mod.updateEventNote(created.id, 'Stolen by #7 high press');
+
+        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        const event = saved.events.find(e => e.id === created.id);
+        expect(event.note).toBe('Stolen by #7 high press');
+    });
+
+    test('retargetEventTime nudges timestamp and persists', () => {
+        const video = document.getElementById('video-player');
+        video.currentTime = 60;
+        const created = mod.quickTagEvent('Penalty Corner');
+
+        mod.retargetEventTime(created.id, 58); // Nudge 2 seconds earlier
+
+        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        const event = saved.events.find(e => e.id === created.id);
+        expect(event.timeMs).toBe(58000);
+        expect(event.timestamp).toBe('00:58');
+    });
+
+    test('loadQuickTags returns DEFAULT_QUICK_TAGS when storage is empty', () => {
+        const tags = mod.loadQuickTags();
+        expect(tags).toHaveLength(6);
+        expect(tags[0].label).toBe('Goal');
+    });
+
+    test('addQuickTag appends a custom tag, saves to storage, and re-renders', () => {
+        const initialCount = mod.loadQuickTags().length;
+        const updated = mod.addQuickTag('Outlet 1', 'btn-blue');
+        expect(updated.length).toBe(initialCount + 1);
+        expect(updated[updated.length - 1].label).toBe('Outlet 1');
+
+        const reloaded = mod.loadQuickTags();
+        expect(reloaded.some(t => t.label === 'Outlet 1')).toBe(true);
+    });
+
+    test('removeQuickTag removes tag by id and re-indexes keys', () => {
+        const tags = mod.loadQuickTags();
+        const goalId = tags[0].id;
+        const updated = mod.removeQuickTag(goalId);
+        expect(updated.some(t => t.id === goalId)).toBe(false);
+        expect(updated[0].key).toBe('1'); // re-indexed
+
+        const reloaded = mod.loadQuickTags();
+        expect(reloaded.some(t => t.id === goalId)).toBe(false);
+    });
+
+    test('resetQuickTags clears customization and restores 6 defaults', () => {
+        mod.removeQuickTag('goal');
+        expect(mod.loadQuickTags().length).toBe(5);
+
+        const restored = mod.resetQuickTags();
+        expect(restored.length).toBe(6);
+        expect(restored.some(t => t.label === 'Goal')).toBe(true);
+    });
+
+    test('undoLastQuickTag removes latest logged event', () => {
+        const video = document.getElementById('video-player');
+        video.currentTime = 5;
+        mod.quickTagEvent('Shot');
+        video.currentTime = 10;
+        mod.quickTagEvent('Goal');
+
+        let [game] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(game.events).toHaveLength(2);
+
+        const undone = mod.undoLastQuickTag();
+        expect(undone).toBe(true);
+
+        [game] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(game.events).toHaveLength(1);
+        expect(game.events[0].event).toBe('Shot');
+    });
+
+    test('setTaggingMode toggles layout class and panel visibility', () => {
+        const layout = document.querySelector('.review-layout');
+        const panel = document.getElementById('video-coding-panel');
+
+        mod.setTaggingMode(true);
+        expect(layout.classList.contains('tagging-mode-active')).toBe(true);
+        expect(panel.classList.contains('hidden')).toBe(false);
+
+        mod.setTaggingMode(false);
+        expect(layout.classList.contains('tagging-mode-active')).toBe(false);
+        expect(panel.classList.contains('hidden')).toBe(true);
+    });
+});

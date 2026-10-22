@@ -62,9 +62,14 @@ const DEFAULT_SCREENS = [
         waitForSelector: '#savedGameLogBanner'
     },
     {
+        name: 'match-review-empty',
+        path: '/timeline-video.html',
+        waitForSelector: '#no-game-selected-state'
+    },
+    {
         name: 'match-review',
         path: '/timeline-video.html?game=sample-game&mock=sample',
-        waitForSelector: '#timeline-container'
+        waitForSelector: '#timeline-events'
     },
     {
         name: 'configure',
@@ -206,6 +211,52 @@ async function runSnapshots() {
         await customPage.screenshot({ path: captureCustomPath, fullPage: true });
         await customContext.close();
 
+        // Capture Video Coding active interaction (desktop and mobile)
+        for (const vp of VIEWPORTS) {
+            const videoCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const videoPage = await videoCtx.newPage();
+            // 1. Open with ?mode=tag to activate Focus Tagging Mode directly
+            await videoPage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample&mode=tag`, { waitUntil: 'domcontentloaded' });
+            await videoPage.waitForSelector('#video-coding-panel:not(.hidden)');
+            await videoPage.waitForSelector('.quick-tag-btn');
+            
+            // 1-tap quick tag Goal
+            const goalBtn = await videoPage.$('.quick-tag-btn[data-quick-tag="Goal"]');
+            if (goalBtn) await goalBtn.click();
+            await videoPage.waitForTimeout(300);
+
+            // Screenshot Focus Tagging Mode (video maximized, quick tags visible, ticker showing last event and undo)
+            const taggingModePath = path.join(OUTPUT_DIR, `video-coding-tagging-mode-${vp.name}.png`);
+            await videoPage.screenshot({ path: taggingModePath, fullPage: true });
+
+            // 2. Open In-Place Tag Customization / Edit Tags view
+            const editTagsBtn = await videoPage.$('#edit-quick-tags-btn');
+            if (editTagsBtn) await editTagsBtn.click();
+            await videoPage.waitForSelector('.quick-tag-delete-badge');
+            await videoPage.waitForSelector('#quick-tags-edit-bar:not(.hidden)');
+            await videoPage.waitForTimeout(300);
+
+            const editTagsPath = path.join(OUTPUT_DIR, `video-coding-edit-tags-${vp.name}.png`);
+            await videoPage.screenshot({ path: editTagsPath, fullPage: true });
+
+            // 3. Switch back to Pass 2 Review Mode (full timeline visible, note editor open)
+            const reviewBtn = await videoPage.$('#quick-tag-review-btn');
+            if (reviewBtn) await reviewBtn.click();
+            await videoPage.waitForSelector('#timeline-events:not(.hidden)');
+            await videoPage.waitForTimeout(300);
+
+            const noteBtn = await videoPage.$('.timeline-event .edit-note-btn');
+            if (noteBtn) await noteBtn.click();
+            await videoPage.waitForTimeout(300);
+
+            const videoCodingActivePath = path.join(OUTPUT_DIR, `video-coding-active-${vp.name}.png`);
+            await videoPage.screenshot({ path: videoCodingActivePath, fullPage: true });
+            await videoCtx.close();
+        }
+
         // Multi-viewport proof for Board Import flow (Desktop & Mobile)
         for (const vp of VIEWPORTS) {
             const importContext = await browser.newContext({
@@ -236,6 +287,7 @@ async function runSnapshots() {
             await importPage.screenshot({ path: captureImportPath, fullPage: true });
 
             await importContext.close();
+
         }
 
         // Capture diff.png: Button grid seeded with /dev/preview?state=adelaide-fire&mock=pc-counter

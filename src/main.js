@@ -1323,10 +1323,10 @@ stateService.subscribe('ui.currentView', (viewName) => {
         const button = stateService.getState('ui.logGameId') ? navSavedGames : navEventCapture;
         button.classList.add('nav-link-active');
         button.setAttribute('aria-current', 'page');
-    } else if (viewName === 'Config') {
-        showConfigView();
     } else if (viewName === 'SavedGames') {
         renderSavedGames();
+    } else if (viewName === 'Config') {
+        showConfigView();
     }
 });
 
