@@ -1212,8 +1212,8 @@ code {
 
 #config-view textarea::selection {
     background-color: rgba(137, 180, 250, 0.3);
-}
-
+}
+
 .board-add-button {
     display: inline-flex;
     align-items: center;
@@ -1874,4 +1874,71 @@ code {
 .event-button[data-event] {
     min-height: 48px;
     min-width: 48px;
+}
+
+
+/* ===== Video Coding Workflow & Quick Tagging Bar ===== */
+.video-coding-panel {
+    background-color: var(--color-surface);
+}
+
+.quick-tag-btn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2);
+    min-height: var(--touch-min);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: #ffffff;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.1s ease, filter 0.1s ease;
+    user-select: none;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.quick-tag-btn:hover {
+    filter: brightness(1.08);
+}
+
+.quick-tag-btn:active {
+    transform: scale(0.96);
+}
+
+.quick-tag-btn .tag-shortcut {
+    font-size: 0.6875rem;
+    opacity: 0.85;
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.quick-tag-btn.btn-yellow {
+    color: var(--color-ink);
+}
+
+.segmented-compact > button {
+    min-height: 1.75rem;
+    padding: 0 var(--space-2);
+    font-size: 0.75rem;
+}
+
+.btn-compact {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    min-height: 1.75rem;
+}
+
+.timeline-event {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.timeline-event-editor {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--color-line);
+    padding: var(--space-2);
+    background-color: var(--color-surface-muted);
 }

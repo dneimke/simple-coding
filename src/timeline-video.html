@@ -84,13 +84,22 @@
 
                         <!-- Shown when no game was opened from Saved Games -->
                         <div id="no-game-selected-state"
-                            class="hidden flex flex-col items-center justify-center py-10 my-4 text-center surface-muted border-dashed">
-                            <i class="fas fa-folder-open text-4xl text-slate-300 mb-4" aria-hidden="true"></i>
-                            <p class="font-semibold text-slate-700 mb-2">No game selected</p>
-                            <p class="help-text mb-6 max-w-xs">Choose a game from Saved Games to review its events</p>
-                            <a href="index.html#saved-games" class="btn btn-primary">
-                                <i class="fas fa-folder-open" aria-hidden="true"></i>Go to Saved Games
-                            </a>
+                            class="hidden flex flex-col items-center justify-center py-10 my-4 text-center surface-muted border-dashed rounded-lg">
+                            <i class="fas fa-video text-4xl text-slate-400 mb-4" aria-hidden="true"></i>
+                            <p class="font-semibold text-slate-800 mb-1 text-base">Code a Video Match</p>
+                            <p class="help-text mb-4 max-w-sm">Upload a video to start coding events instantly, or choose a game from Saved Games.</p>
+                            <div class="flex flex-wrap items-center justify-center gap-2">
+                                <button id="start-new-video-game-btn" type="button" class="btn btn-primary">
+                                    <i class="fas fa-plus" aria-hidden="true"></i>New Video Match
+                                </button>
+                                <label for="video-upload-direct" class="btn btn-secondary cursor-pointer">
+                                    <i class="fas fa-upload" aria-hidden="true"></i>Upload Video
+                                </label>
+                                <input type="file" id="video-upload-direct" class="hidden" accept="video/*">
+                                <a href="index.html#saved-games" class="btn btn-ghost">
+                                    <i class="fas fa-folder-open" aria-hidden="true"></i>Saved Games
+                                </a>
+                            </div>
                         </div>
 
                         <!-- Empty state message for when a game is loaded but has no events -->
@@ -175,10 +184,22 @@
                             <button id="rewind-10s" type="button" class="btn btn-dark" aria-label="Rewind 10 seconds">
                                 <i class="fas fa-backward" aria-hidden="true"></i>-10s
                             </button>
+                            <button id="rewind-5s" type="button" class="btn btn-dark" aria-label="Rewind 5 seconds" title="Rewind 5s (←)">
+                                -5s
+                            </button>
+                            <button id="forward-5s" type="button" class="btn btn-dark" aria-label="Forward 5 seconds" title="Forward 5s (→)">
+                                +5s
+                            </button>
                             <button id="forward-10s" type="button" class="btn btn-dark"
                                 aria-label="Forward 10 seconds">
                                 +10s<i class="fas fa-forward" aria-hidden="true"></i>
                             </button>
+                            <!-- Playback Speed Controls -->
+                            <div class="segmented segmented-compact" role="group" aria-label="Playback speed">
+                                <button id="speed-1x" type="button" class="is-active" data-speed="1">1x</button>
+                                <button id="speed-15x" type="button" data-speed="1.5">1.5x</button>
+                                <button id="speed-2x" type="button" data-speed="2">2x</button>
+                            </div>
                             <!-- Playlist controls for presentation mode -->
                             <div id="playlist-controls" class="hidden items-center gap-1">
                                 <button id="prev-favorite" type="button" class="btn btn-dark btn-icon"
@@ -192,7 +213,7 @@
                                 </button>
                             </div>
 
-                            <div class="review-video-actions">
+                            <div class="review-video-actions ml-auto">
                                 <button id="add-event-fab" type="button" class="btn btn-primary hidden">
                                     <i class="fas fa-tag" aria-hidden="true"></i>
                                     <span>Add tag</span>
@@ -212,6 +233,21 @@
                                 </p>
                                 Your browser does not support the video tag.
                             </video>
+                        </div>
+
+                        <!-- Quick Tagging Panel for Fast Video Pass -->
+                        <div id="video-coding-panel" class="video-coding-panel surface mt-3 p-3 rounded-lg border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Quick Tag</span>
+                                    <span class="text-xs text-muted hidden sm:inline">(Tap or press 1–6 during playback)</span>
+                                </div>
+                                <button id="add-custom-tag-btn" type="button" class="btn btn-secondary btn-compact" title="Add custom event or note">
+                                    <i class="fas fa-plus text-xs" aria-hidden="true"></i><span>Custom Tag</span>
+                                </button>
+                            </div>
+                            <div id="quick-tags-container" class="grid grid-cols-3 sm:grid-cols-6 gap-2"></div>
+                            <div id="quick-tag-feedback" class="quick-tag-feedback hidden mt-2 text-center text-xs font-semibold py-1.5 px-3 rounded bg-emerald-50 text-emerald-800 border border-emerald-200" role="status" aria-live="polite"></div>
                         </div>
 
                         <!-- Presentation overlay for tag/description (hidden by default) -->

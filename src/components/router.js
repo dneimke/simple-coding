@@ -49,9 +49,10 @@ export class Router {
      * @private
      */
     _handleHashChange() {
-        // Get the hash without the # character
+        // Get the hash without the # character and query string
         const fullHash = window.location.hash.substring(1);
-        const [hash, param] = fullHash.split('/');
+        const routeOnly = fullHash.split('?')[0];
+        const [hash, param] = routeOnly.split('/');
         if (hash) {
             const viewName = this.hashToViewMap[hash];
             if (viewName) {

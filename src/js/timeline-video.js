@@ -1,17 +1,41 @@
+import { renderTimeline } from './timeline.js';
+import { storageService } from '../services/storageService.js';
+import { notificationService } from '../services/notificationService.js';
+import { generateGameId } from '../services/gameStorageManager.js';
+import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
+
+const CORE_QUICK_TAGS = [
+    { id: 'goal', label: 'Goal', colorClass: 'btn-green', key: '1' },
+    { id: 'shot', label: 'Shot', colorClass: 'btn-blue', key: '2' },
+    { id: 'circle-entry', label: 'Circle Entry', colorClass: 'btn-accent-purple', key: '3' },
+    { id: 'penalty-corner', label: 'Penalty Corner', colorClass: 'btn-yellow', key: '4' },
+    { id: 'turnover', label: 'Turnover', colorClass: 'btn-orange', key: '5' },
+    { id: 'card-foul', label: 'Card / Foul', colorClass: 'btn-red', key: '6' }
+];
+
+const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
+let currentGameId = null;
+let timelineEvents = [];
+let activeTypeFilters = new Set();
+let favoritesOnly = false;
+let presentationModeActive = false;
+let currentPlaylistIndex = 0;
+let favoriteEvents = [];
+let activeEditingEventId = null;
+
 // Helper to generate a unique event id
 function generateEventId() {
     return 'evt-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
 }
+
 function getCurrentGame() {
     const games = getSavedGames();
     if (!Array.isArray(games) || !currentGameId) return null;
     return games.find(g => g.id === currentGameId) || null;
 }
-// --- Timeline Video: Add Event FAB, Modal, and Persistent Event Logic ---
 
 // Utility: Format milliseconds or seconds as mm:ss
 function formatTime(input) {
-    // Accept ms or seconds
     let seconds = typeof input === 'number' ? input : 0;
     if (seconds > 10000) seconds = Math.floor(seconds / 1000); // treat as ms if large
     if (isNaN(seconds)) return '';
@@ -22,10 +46,264 @@ function formatTime(input) {
 
 // Utility: Parse mm:ss to seconds
 function parseTime(str) {
-    const [m, s] = str.split(':').map(Number);
-    return m * 60 + s;
+    if (!str || typeof str !== 'string') return 0;
+    const parts = str.split(':').map(Number);
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        return parts[0] * 60 + parts[1];
+    }
+    const num = Number(str);
+    return isNaN(num) ? 0 : num;
 }
 
+// Auto-create or initialize a new video match
+function createNewVideoGame(customName) {
+    const gameId = generateGameId();
+    const now = new Date();
+    const dateStr = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const teams = customName || `Video Match — ${dateStr}`;
+    const newGame = {
+        id: gameId,
+        events: [],
+        teams,
+        timestamp: now.toISOString(),
+        metadata: {
+            source: 'video',
+            created: now.toISOString(),
+            lastUpdated: now.toISOString()
+        }
+    };
+    const savedGames = getSavedGames();
+    savedGames.unshift(newGame);
+    storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+
+    loadGame(gameId);
+
+    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('game', gameId);
+            url.searchParams.delete('new');
+            window.history.replaceState({}, '', url.toString());
+        } catch (_) {}
+    }
+
+    const noGameState = document.getElementById('no-game-selected-state');
+    if (noGameState) noGameState.classList.add('hidden');
+
+    showNotification(`Started ${teams}`);
+    return newGame;
+}
+
+// Quick-tag an event at the current video playhead (1-tap, non-blocking)
+function quickTagEvent(eventType, note = '') {
+    const video = document.getElementById('video-player');
+    const sec = video ? (video.currentTime || 0) : 0;
+    const timeMs = Math.round(sec * 1000);
+    const ts = formatTime(sec);
+
+    let game = getCurrentGame();
+    if (!game) {
+        game = createNewVideoGame();
+    }
+
+    if (!Array.isArray(game.events)) game.events = [];
+    const newEvent = {
+        id: generateEventId(),
+        event: eventType,
+        note,
+        timestamp: ts,
+        timeMs,
+        isFavorite: false
+    };
+    game.events.push(newEvent);
+
+    const metadata = (game && game.metadata) ? { ...game.metadata } : {};
+    saveGame(game.id, game.events, metadata);
+
+    const savedGames = getSavedGames();
+    if (game.teams) {
+        const { game: existing, index } = findGameById(savedGames, game.id);
+        if (existing) {
+            existing.teams = game.teams;
+            savedGames[index] = existing;
+            storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        }
+    }
+
+    timelineEvents = game.events;
+    updateEventFilters();
+    renderTimelineEvents();
+
+    showQuickTagFeedback(eventType, ts);
+    highlightTimelineEvent(newEvent.id);
+
+    return newEvent;
+}
+
+// Update note for slow analysis pass
+function updateEventNote(eventId, note) {
+    if (!currentGameId) return false;
+    const savedGames = getSavedGames();
+    const { game } = findGameById(savedGames, currentGameId);
+    if (!game || !Array.isArray(game.events)) return false;
+
+    const event = game.events.find(e => e.id === eventId);
+    if (!event) return false;
+
+    event.note = String(note || '').trim();
+    const metadata = { ...game.metadata, teams: game.teams };
+    saveGame(game.id, game.events, metadata);
+    timelineEvents = game.events;
+    renderTimelineEvents();
+    showNotification('Note saved');
+    return true;
+}
+
+// Nudge or retarget event timestamp
+function retargetEventTime(eventId, timeSeconds) {
+    if (!currentGameId) return false;
+    const savedGames = getSavedGames();
+    const { game } = findGameById(savedGames, currentGameId);
+    if (!game || !Array.isArray(game.events)) return false;
+
+    const event = game.events.find(e => e.id === eventId);
+    if (!event) return false;
+
+    const clampedSec = Math.max(0, timeSeconds);
+    event.timeMs = Math.round(clampedSec * 1000);
+    event.timestamp = formatTime(clampedSec);
+
+    const metadata = { ...game.metadata, teams: game.teams };
+    saveGame(game.id, game.events, metadata);
+    timelineEvents = game.events;
+    renderTimelineEvents();
+    showNotification(`Event time updated to ${event.timestamp}`);
+    return true;
+}
+
+// Visual confirmation banner for fast tagging without modal popup
+function showQuickTagFeedback(eventType, timestamp) {
+    const feedback = document.getElementById('quick-tag-feedback');
+    if (!feedback) return;
+    feedback.textContent = `Tagged ${formatEventTypeName(eventType)} at ${timestamp}`;
+    feedback.classList.remove('hidden');
+    clearTimeout(feedback._timeout);
+    feedback._timeout = setTimeout(() => {
+        feedback.classList.add('hidden');
+    }, 2500);
+}
+
+// Adjust video playback speed
+function setPlaybackRate(rate) {
+    const video = document.getElementById('video-player');
+    if (video) {
+        video.playbackRate = rate;
+    }
+    const buttons = document.querySelectorAll('[data-speed]');
+    buttons.forEach(btn => {
+        const btnSpeed = parseFloat(btn.getAttribute('data-speed'));
+        const isActive = btnSpeed === rate;
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+}
+
+// Precision seek
+function seekRelative(seconds) {
+    const video = document.getElementById('video-player');
+    if (video && video.readyState > 0) {
+        video.currentTime = Math.max(0, video.currentTime + seconds);
+    }
+}
+
+// Render 6 core quick tag buttons
+function renderQuickTagButtons() {
+    const container = document.getElementById('quick-tags-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    CORE_QUICK_TAGS.forEach((tag) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `quick-tag-btn ${tag.colorClass}`;
+        btn.setAttribute('data-quick-tag', tag.label);
+        btn.setAttribute('aria-label', `Tag ${tag.label} (Press ${tag.key})`);
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'tag-label';
+        labelSpan.textContent = tag.label;
+
+        const keySpan = document.createElement('span');
+        keySpan.className = 'tag-shortcut';
+        keySpan.textContent = `[${tag.key}]`;
+
+        btn.append(labelSpan, keySpan);
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            quickTagEvent(tag.label);
+        });
+
+        container.appendChild(btn);
+    });
+}
+
+// Keyboard navigation and hotkey coding
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        const target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            return;
+        }
+
+        const video = document.getElementById('video-player');
+        if (!video) return;
+
+        if (e.code === 'Space') {
+            e.preventDefault();
+            if (video.paused) {
+                video.play().catch(() => {});
+            } else {
+                video.pause();
+            }
+            return;
+        }
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            seekRelative(-5);
+            return;
+        }
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            seekRelative(5);
+            return;
+        }
+
+        if (e.key === 'j' || e.key === 'J') {
+            seekRelative(-10);
+            return;
+        }
+        if (e.key === 'l' || e.key === 'L') {
+            seekRelative(10);
+            return;
+        }
+        if (e.key === 'k' || e.key === 'K') {
+            if (video.paused) video.play().catch(() => {});
+            else video.pause();
+            return;
+        }
+
+        const keyNum = parseInt(e.key, 10);
+        if (keyNum >= 1 && keyNum <= CORE_QUICK_TAGS.length) {
+            e.preventDefault();
+            const tagDef = CORE_QUICK_TAGS[keyNum - 1];
+            if (tagDef) {
+                quickTagEvent(tagDef.label);
+            }
+        }
+    });
+}
 
 // --- FAB and Add Event Modal Logic ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -75,13 +353,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const type = form['event-type'].value.trim();
             const note = form['event-note'].value.trim();
             const ts = timestampInput.value;
-            const game = getCurrentGame();
+            let game = getCurrentGame();
             if (!game) {
-                alert('No game selected. Please select a game to add events.');
-                return;
+                game = createNewVideoGame();
             }
 
-            // Add event to game.events (create if missing)
             if (!Array.isArray(game.events)) game.events = [];
             game.events.push({
                 event: type,
@@ -90,16 +366,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 timeMs: parseTime(ts) * 1000,
                 id: generateEventId()
             });
-            // Always preserve teams and all metadata
-            const metadata = (game && game.metadata) ? { ...game.metadata } : {};
 
+            const metadata = (game && game.metadata) ? { ...game.metadata } : {};
             saveGame(game.id, game.events, metadata);
 
             const savedGames = getSavedGames();
             if (game.teams) {
                 const { game: existing, index } = findGameById(savedGames, game.id);
                 if (existing) {
-                    // update teams and persist
                     existing.teams = game.teams;
                     savedGames[index] = existing;
                     storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
@@ -114,13 +388,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateFavoritesToggleUI();
 });
-import { renderTimeline } from './timeline.js';
-import { storageService } from '../services/storageService.js';
-import { notificationService } from '../services/notificationService.js';
-import { generateGameId } from '../services/gameStorageManager.js';
-import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
-
-const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 
 // Helper: normalize whatever is stored into an array of game objects
 // Returns an object { games, changed } where changed=true if we assigned ids or converted shape
@@ -247,12 +514,6 @@ function initPresentationMode() {
     }
 }
 
-// Track presentation mode state
-let presentationModeActive = false;
-let currentPlaylistIndex = 0;
-let favoriteEvents = [];
-let currentGameId = null;
-
 // Toggle between presentation mode and normal mode
 function togglePresentationMode() {
     presentationModeActive = !presentationModeActive;
@@ -351,7 +612,9 @@ function jumpToEventTime(event) {
         for (const el of events) {
             if (el.textContent.includes(formatTime(event.timeMs))) {
                 el.classList.add('is-active');
-                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                if (typeof el.scrollIntoView === 'function') {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
                 break;
             }
         }
@@ -403,7 +666,9 @@ function highlightTimelineEvent(eventId) {
         currentEvent.classList.add('is-active');
 
         // Scroll to make event visible if needed
-        currentEvent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (typeof currentEvent.scrollIntoView === 'function') {
+            currentEvent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }
 }
 
@@ -444,12 +709,14 @@ function getSavedGames() {
 function saveGame(gameId, events, metadata = {}) {
     const savedGames = getSavedGames() || [];
 
-    // Ensure all events are in standard format (event, timeMs)
+    // Ensure all events are in standard format (event, timeMs, note, timestamp)
     const standardEvents = events.map(evt => ({
         event: evt.event,
         timeMs: evt.timeMs,
         id: evt.id,
         isFavorite: evt.isFavorite || false,
+        ...(evt.note !== undefined && { note: evt.note }),
+        ...(evt.timestamp !== undefined && { timestamp: evt.timestamp }),
         ...(evt.lead !== undefined && { lead: evt.lead }),
         ...(evt.lag !== undefined && { lag: evt.lag })
     }));
@@ -555,11 +822,6 @@ function loadGame(gameId) {
 }
 
 
-
-let timelineEvents = [];
-// Event types selected in the filter dropdown; empty means all types
-let activeTypeFilters = new Set();
-let favoritesOnly = false;
 
 // Events that pass both the type filter and the favorites toggle
 function getVisibleEvents() {
@@ -704,7 +966,25 @@ function renderTimelineEvents() {
             nameEl.className = 'timeline-event-name';
             nameEl.textContent = eventName;
 
+            if (note) {
+                const notePreview = document.createElement('span');
+                notePreview.className = 'timeline-event-note-text block text-xs text-slate-500 font-normal truncate';
+                notePreview.textContent = note;
+                nameEl.appendChild(notePreview);
+            }
+
             seekButton.append(timeEl, nameEl);
+
+            const noteBtn = document.createElement('button');
+            noteBtn.type = 'button';
+            noteBtn.className = `edit-note-btn timeline-event-action${note ? ' text-blue-600' : ''}`;
+            noteBtn.dataset.eventId = eventElement.dataset.eventId;
+            noteBtn.setAttribute('aria-label', note ? 'Edit note' : 'Add note');
+            noteBtn.title = note ? `Note: ${note}` : 'Add note';
+            const noteIcon = document.createElement('i');
+            noteIcon.className = note ? 'fas fa-pen text-xs' : 'far fa-comment text-xs';
+            noteIcon.setAttribute('aria-hidden', 'true');
+            noteBtn.appendChild(noteIcon);
 
             const favoriteBtn = document.createElement('button');
             favoriteBtn.type = 'button';
@@ -727,16 +1007,98 @@ function renderTimelineEvents() {
             deleteIcon.setAttribute('aria-hidden', 'true');
             deleteBtn.appendChild(deleteIcon);
 
-            eventElement.append(seekButton, favoriteBtn, deleteBtn);
+            eventElement.append(seekButton, noteBtn, favoriteBtn, deleteBtn);
+
+            if (activeEditingEventId === event.id) {
+                eventElement.classList.add('has-editor');
+                const editorEl = document.createElement('div');
+                editorEl.className = 'timeline-event-editor';
+
+                const noteRow = document.createElement('div');
+                noteRow.className = 'flex items-center gap-2 mb-2';
+
+                const noteInput = document.createElement('input');
+                noteInput.type = 'text';
+                noteInput.className = 'field text-xs py-1 px-2 flex-1 event-note-input';
+                noteInput.placeholder = 'Add coaching note (e.g., high press turnover)';
+                noteInput.value = note;
+
+                const saveBtn = document.createElement('button');
+                saveBtn.type = 'button';
+                saveBtn.className = 'btn btn-primary btn-compact';
+                saveBtn.textContent = 'Save';
+
+                noteRow.append(noteInput, saveBtn);
+
+                const timeRow = document.createElement('div');
+                timeRow.className = 'flex items-center justify-between text-xs text-muted';
+                timeRow.innerHTML = `
+                    <span>Adjust time:</span>
+                    <div class="flex items-center gap-1">
+                        <button type="button" class="btn btn-secondary btn-compact nudge-minus" title="1s earlier">-1s</button>
+                        <button type="button" class="btn btn-secondary btn-compact nudge-plus" title="1s later">+1s</button>
+                        <button type="button" class="btn btn-secondary btn-compact sync-playhead" title="Sync to video playhead">Sync</button>
+                    </div>
+                `;
+
+                editorEl.append(noteRow, timeRow);
+                eventElement.appendChild(editorEl);
+
+                saveBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    updateEventNote(event.id, noteInput.value);
+                    activeEditingEventId = null;
+                });
+
+                noteInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        updateEventNote(event.id, noteInput.value);
+                        activeEditingEventId = null;
+                    } else if (e.key === 'Escape') {
+                        activeEditingEventId = null;
+                        renderTimelineEvents();
+                    }
+                });
+
+                const nudgeMinus = timeRow.querySelector('.nudge-minus');
+                if (nudgeMinus) {
+                    nudgeMinus.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        retargetEventTime(event.id, Math.max(0, (event.timeMs / 1000) - 1));
+                    });
+                }
+                const nudgePlus = timeRow.querySelector('.nudge-plus');
+                if (nudgePlus) {
+                    nudgePlus.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        retargetEventTime(event.id, (event.timeMs / 1000) + 1);
+                    });
+                }
+                const syncBtn = timeRow.querySelector('.sync-playhead');
+                if (syncBtn) {
+                    syncBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const vid = document.getElementById('video-player');
+                        retargetEventTime(event.id, vid ? vid.currentTime : (event.timeMs / 1000));
+                    });
+                }
+            }
 
             // Add event listener to jump to this time in video
             eventElement.addEventListener('click', (e) => {
-                // Don't trigger when clicking favorite or delete button
-                if (!e.target.closest('.favorite-toggle') && !e.target.closest('.delete-event-btn')) {
+                // Don't trigger when clicking action buttons or editor
+                if (!e.target.closest('.timeline-event-action') && !e.target.closest('.timeline-event-editor')) {
                     const timeMs = event.timeMs;
                     jumpToVideoTime(timeMs);
                     highlightTimelineEvent(eventElement.dataset.eventId);
                 }
+            });
+
+            noteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                activeEditingEventId = (activeEditingEventId === event.id ? null : event.id);
+                renderTimelineEvents();
             });
 
             favoriteBtn.addEventListener('click', (e) => {
@@ -997,6 +1359,71 @@ domReady(() => {
 
     initFilterUI();
     loadGameFromQuery();
+    renderQuickTagButtons();
+    initKeyboardShortcuts();
+
+    // Speed buttons
+    document.querySelectorAll('[data-speed]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const spd = parseFloat(btn.getAttribute('data-speed'));
+            setPlaybackRate(spd);
+        });
+    });
+
+    // 5s and 10s seek buttons
+    const rewind5s = document.getElementById('rewind-5s');
+    const forward5s = document.getElementById('forward-5s');
+    if (rew5s => rew5s) {}
+    if (rewind5s) rewind5s.addEventListener('click', () => { seekRelative(-5); showNotification('Rewound 5 seconds', 'info'); });
+    if (forward5s) forward5s.addEventListener('click', () => { seekRelative(5); showNotification('Advanced 5 seconds', 'info'); });
+
+    // Custom Tag button in Quick Tag panel
+    const customTagBtn = document.getElementById('add-custom-tag-btn');
+    const modal = document.getElementById('add-event-modal');
+    const timestampInput = document.getElementById('event-timestamp');
+    if (customTagBtn && modal) {
+        customTagBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (video && !video.paused) video.pause();
+            if (timestampInput && video) {
+                timestampInput.value = formatTime(video.currentTime);
+            }
+            modal.classList.remove('hidden');
+        });
+    }
+
+    // Direct Start & Upload on Empty State
+    const startNewBtn = document.getElementById('start-new-video-game-btn');
+    if (startNewBtn) {
+        startNewBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            createNewVideoGame();
+        });
+    }
+
+    const uploadDirectInput = document.getElementById('video-upload-direct');
+    if (uploadDirectInput) {
+        uploadDirectInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!currentGameId) {
+                const baseName = file.name.replace(/\.[^/.]+$/, '');
+                createNewVideoGame(baseName);
+            }
+            if (videoPlayer) {
+                const videoUrl = URL.createObjectURL(file);
+                while (videoPlayer.firstChild) videoPlayer.removeChild(videoPlayer.firstChild);
+                const source = document.createElement('source');
+                source.src = videoUrl;
+                source.type = file.type;
+                videoPlayer.appendChild(source);
+                videoPlayer.load();
+                showNotification(`Video "${file.name}" loaded successfully`);
+                videoPlayer.play().catch(err => console.warn("Couldn't auto-play video:", err));
+            }
+        });
+    }
 
     // --- Video Upload Setup ---
     const videoUploadInput = document.getElementById('video-upload');
@@ -1009,6 +1436,11 @@ domReady(() => {
             if (!file.type.startsWith('video/')) {
                 showNotification('Please select a valid video file', 'error');
                 return;
+            }
+
+            if (!currentGameId) {
+                const baseName = file.name.replace(/\.[^/.]+$/, '');
+                createNewVideoGame(baseName);
             }
 
             // Create object URL for the file
@@ -1115,7 +1547,15 @@ domReady(() => {
 // Load the game named by the ?game=<id> query parameter, set by the Saved Games list
 function loadGameFromQuery() {
     checkAndApplyMockSeed();
-    const gameId = new URLSearchParams(window.location.search).get('game');
+    const params = new URLSearchParams(window.location.search);
+    const gameId = params.get('game');
+    const isNewVideo = params.get('new') === 'video';
+
+    if (isNewVideo) {
+        createNewVideoGame();
+        return;
+    }
+
     if (gameId === SAMPLE_GAME_ID) {
         ensureSampleGameExists();
     }
@@ -1134,4 +1574,21 @@ function jumpToVideoTime(timeMs) {
     }
 }
 
-export { getVisibleEvents, setTypeFilters, setFavoritesOnly, updateEventFilters, loadGame, deleteEvent, toggleFavorite };
+export {
+    CORE_QUICK_TAGS,
+    quickTagEvent,
+    createNewVideoGame,
+    updateEventNote,
+    retargetEventTime,
+    setPlaybackRate,
+    seekRelative,
+    getVisibleEvents,
+    setTypeFilters,
+    setFavoritesOnly,
+    updateEventFilters,
+    loadGame,
+    deleteEvent,
+    toggleFavorite,
+    formatTime,
+    parseTime
+};

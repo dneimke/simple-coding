@@ -62,9 +62,14 @@ const DEFAULT_SCREENS = [
         waitForSelector: '#savedGameLogBanner'
     },
     {
+        name: 'match-review-empty',
+        path: '/timeline-video.html',
+        waitForSelector: '#no-game-selected-state'
+    },
+    {
         name: 'match-review',
         path: '/timeline-video.html?game=sample-game&mock=sample',
-        waitForSelector: '#timeline-container'
+        waitForSelector: '#video-coding-panel'
     },
     {
         name: 'configure',
@@ -192,6 +197,32 @@ async function runSnapshots() {
         const captureCustomPath = path.join(OUTPUT_DIR, 'event-capture-custom-board-desktop.png');
         await customPage.screenshot({ path: captureCustomPath, fullPage: true });
         await customContext.close();
+
+        // Capture Video Coding active interaction (desktop and mobile): Quick Tag clicked & inline note editor open
+        for (const vp of VIEWPORTS) {
+            const videoCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const videoPage = await videoCtx.newPage();
+            await videoPage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample`, { waitUntil: 'domcontentloaded' });
+            await videoPage.waitForSelector('#video-coding-panel');
+            await videoPage.waitForSelector('.quick-tag-btn');
+            
+            // 1-tap quick tag Goal
+            const goalBtn = await videoPage.$('.quick-tag-btn[data-quick-tag="Goal"]');
+            if (goalBtn) await goalBtn.click();
+            await videoPage.waitForTimeout(300);
+
+            // Open note editor on the first timeline event
+            const noteBtn = await videoPage.$('.timeline-event .edit-note-btn');
+            if (noteBtn) await noteBtn.click();
+            await videoPage.waitForTimeout(300);
+
+            const videoCodingActivePath = path.join(OUTPUT_DIR, `video-coding-active-${vp.name}.png`);
+            await videoPage.screenshot({ path: videoCodingActivePath, fullPage: true });
+            await videoCtx.close();
+        }
 
         // Capture diff.png: Button grid seeded with /dev/preview?state=adelaide-fire&mock=pc-counter
         const diffContext = await browser.newContext({

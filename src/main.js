@@ -1200,12 +1200,17 @@ const eventButtons = new EventButtons(codingButtonsContainer);
 const gameState = new GameState(timerDisplay, eventLog, eventButtons);
 
 stateService.subscribe('ui.currentView', (viewName) => {
-    if (viewName !== 'Log') return;
-    renderLogView();
-    if (stateService.getState('ui.currentView') !== 'Log') return;
-    const button = stateService.getState('ui.logGameId') ? navSavedGames : navEventCapture;
-    button.classList.add('nav-link-active');
-    button.setAttribute('aria-current', 'page');
+    if (viewName === 'Log') {
+        renderLogView();
+        if (stateService.getState('ui.currentView') !== 'Log') return;
+        const button = stateService.getState('ui.logGameId') ? navSavedGames : navEventCapture;
+        button.classList.add('nav-link-active');
+        button.setAttribute('aria-current', 'page');
+    } else if (viewName === 'SavedGames') {
+        renderSavedGames();
+    } else if (viewName === 'Config') {
+        showConfigView();
+    }
 });
 
 // Child-path changes (game.loggedEvents) and whole-game replacements (newGame, restore, complete) both notify 'game'
@@ -1217,7 +1222,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // So we don't need to manually set the view here
 
     // Check if we need to load content for specific views
-    const hash = window.location.hash.substring(1);
+    const rawHash = window.location.hash.substring(1);
+    const hash = rawHash.split('?')[0];
     if (hash === 'saved-games') {
         renderSavedGames();
     } else if (hash === 'configure') {
