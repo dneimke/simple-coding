@@ -2000,3 +2000,8 @@ code {
     padding: var(--space-2);
     background-color: var(--color-surface-muted);
 }
+
+.config-drag-over {
+    outline: 2px dashed var(--color-accent);
+    outline-offset: 4px;
+}
