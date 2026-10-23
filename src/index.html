@@ -109,14 +109,6 @@
                             <h1 class="page-title">Configure</h1>
                             <p class="page-subtitle">Customize the button boards used on Event Capture</p>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button id="importConfigButton" type="button" class="btn btn-secondary" title="Import a board file from another coach or device">
-                                <i class="fas fa-file-import mr-1" aria-hidden="true"></i>Import board
-                            </button>
-                            <button id="exportConfigButton" type="button" class="btn btn-secondary" title="Export this board as a shareable file">
-                                <i class="fas fa-file-export mr-1" aria-hidden="true"></i>Export
-                            </button>
-                        </div>
                     </header>
                     <label for="boardFileInput" class="sr-only">Upload Board File</label>
                     <input id="boardFileInput" type="file" accept=".json,application/json" class="hidden" title="Choose a board JSON file to import">
@@ -132,19 +124,48 @@
                                 <button id="duplicateConfigButton" type="button" class="btn btn-primary" title="Create an editable copy of this board">
                                     <i class="fas fa-clone mr-1" aria-hidden="true"></i>Duplicate to edit
                                 </button>
-                                <button id="renameConfigButton" type="button" class="btn btn-secondary hidden" title="Rename this custom board">
-                                    <i class="fas fa-pen mr-1" aria-hidden="true"></i>Rename
-                                </button>
                                 <button id="saveConfigButton" type="button" class="btn btn-success hidden" title="Save JSON changes to this board">
                                     <i class="fas fa-save mr-1" aria-hidden="true"></i>Save
                                 </button>
-                                <button id="saveAsConfigButton" type="button" class="btn btn-secondary hidden" title="Save this layout under a new name">Save as</button>
-                                <button id="deleteConfigButton" type="button" class="btn btn-danger hidden" title="Delete this custom board">
-                                    <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Delete
+                                <button id="exitJsonModeButton" type="button" class="btn btn-secondary hidden" title="Return to Visual Editor">
+                                    <i class="fas fa-eye mr-1" aria-hidden="true"></i>Visual Editor
                                 </button>
-                                <button id="toggleConfigModeButton" type="button" class="btn btn-secondary" title="Switch between Visual Editor and JSON view">
-                                    <i id="toggleConfigModeIcon" class="fas fa-code mr-1" aria-hidden="true"></i><span id="toggleConfigModeText">JSON</span>
-                                </button>
+
+                                <!-- Board Actions Dropdown -->
+                                <div class="config-actions-dropdown ml-auto sm:ml-0" id="configActionsDropdown">
+                                    <button id="configActionsDropdownButton" type="button" class="btn btn-secondary"
+                                        aria-haspopup="menu" aria-expanded="false" aria-controls="configActionsMenu" title="Board actions">
+                                        <span>Actions</span>
+                                        <i class="fas fa-chevron-down text-xs ml-1 transition-transform duration-200" aria-hidden="true" id="configActionsChevron"></i>
+                                    </button>
+                                    <div id="configActionsMenu" class="saved-game-menu config-actions-menu hidden" role="menu" aria-labelledby="configActionsDropdownButton">
+                                        <button id="renameConfigButton" type="button" class="saved-game-menu-item hidden" role="menuitem">
+                                            <i class="fas fa-pen w-5 mr-2 text-ink-soft" aria-hidden="true"></i>
+                                            <span>Rename board</span>
+                                        </button>
+                                        <button id="duplicateBoardMenuItem" type="button" class="saved-game-menu-item" role="menuitem">
+                                            <i class="fas fa-clone w-5 mr-2 text-ink-soft" aria-hidden="true"></i>
+                                            <span>Duplicate board</span>
+                                        </button>
+                                        <button id="exportConfigButton" type="button" class="saved-game-menu-item" role="menuitem" title="Export this board as a shareable file">
+                                            <i class="fas fa-file-export w-5 mr-2 text-ink-soft" aria-hidden="true"></i>
+                                            <span>Export board file</span>
+                                        </button>
+                                        <button id="importConfigButton" type="button" class="saved-game-menu-item" role="menuitem" title="Import a board file from another coach or device">
+                                            <i class="fas fa-file-import w-5 mr-2 text-ink-soft" aria-hidden="true"></i>
+                                            <span>Import board file…</span>
+                                        </button>
+                                        <div class="my-1 border-t border-subtle"></div>
+                                        <button id="toggleConfigModeButton" type="button" class="saved-game-menu-item" role="menuitem" title="Switch between Visual Editor and JSON view">
+                                            <i id="toggleConfigModeIcon" class="fas fa-code w-5 mr-2 text-ink-soft" aria-hidden="true"></i>
+                                            <span id="toggleConfigModeText">Advanced code editor</span>
+                                        </button>
+                                        <button id="deleteConfigButton" type="button" class="saved-game-menu-item saved-game-menu-item-danger hidden" role="menuitem">
+                                            <i class="fas fa-trash-alt w-5 mr-2" aria-hidden="true"></i>
+                                            <span>Delete board</span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
