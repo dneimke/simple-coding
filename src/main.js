@@ -31,7 +31,7 @@ import {
     importNamedConfig,
     triggerFileDownload
 } from './components/config.js';
-import { createGameCard, createButton, createInput, createSelect } from './components/ui/index.js';
+import { createGameCard, createButton, createInput, createSelect, initCreateMatchDropdown } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
 import { draftService, finishCapture } from './services/draftService.js';
@@ -1296,6 +1296,8 @@ function registerEventListeners() {
             hideSaveAsForm();
         }
     });
+
+    initCreateMatchDropdown();
 
     importXmlButton.addEventListener('click', () => {
         xmlFileInput.click();

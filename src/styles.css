@@ -1470,6 +1470,106 @@ code {
     }
 }
 
+/* ===== Create Match Dropdown ===== */
+.create-match-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.create-match-menu {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    right: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    min-width: 17rem;
+    padding: var(--space-1);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+}
+
+.create-match-menu.hidden {
+    display: none;
+}
+
+.create-match-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 3rem;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    text-align: left;
+    text-decoration: none;
+    color: var(--color-ink);
+    transition: background-color 0.15s ease;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    width: 100%;
+}
+
+.create-match-item:hover,
+.create-match-item:focus-visible {
+    outline: none;
+    background-color: var(--color-surface-muted);
+}
+
+.create-match-item:focus-visible {
+    box-shadow: var(--focus-ring);
+}
+
+.create-match-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 0.95rem;
+}
+
+.create-match-item-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.create-match-item-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-ink);
+    line-height: 1.25rem;
+}
+
+.create-match-item-desc {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    line-height: 1rem;
+}
+
+@media (max-width: 640px) {
+    .create-match-dropdown {
+        width: 100%;
+    }
+
+    .create-match-dropdown > button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .create-match-menu {
+        left: 0;
+        right: 0;
+        min-width: 100%;
+    }
+}
+
 /* ===== Match review ===== */
 .review-page .app-nav-inner,
 .review-page .page {

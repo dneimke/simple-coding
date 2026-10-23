@@ -19,22 +19,22 @@ describe('Navigation Menu Consistency Across Screens', () => {
                 container = doc;
             });
 
-            test('main menu contains exactly 2 main entry points: Matches and Configure', () => {
+            test('main menu contains Configure entry point with brand acting as Home/Matches link', () => {
                 const navLinks = Array.from(container.querySelectorAll('#mainMenu .nav-link'));
-                expect(navLinks).toHaveLength(2);
+                expect(navLinks).toHaveLength(1);
 
                 const linkTexts = navLinks.map(el => el.querySelector('span')?.textContent.trim() || el.textContent.trim());
-                expect(linkTexts).toEqual(['Matches', 'Configure']);
+                expect(linkTexts).toEqual(['Configure']);
 
-                expect(navLinks[0].getAttribute('href')).toBe(matchesHref);
-                expect(navLinks[1].getAttribute('href')).toBe(configHref);
+                expect(navLinks[0].getAttribute('href')).toBe(configHref);
             });
 
-            test('does not contain "Event Capture" or "Saved Games" in main menu', () => {
+            test('does not contain "Event Capture", "Saved Games", or redundant "Matches" link in main menu', () => {
                 const navLinks = Array.from(container.querySelectorAll('#mainMenu .nav-link'));
                 const linkTexts = navLinks.map(el => el.textContent);
                 expect(linkTexts.some(t => t.includes('Event Capture'))).toBe(false);
                 expect(linkTexts.some(t => t.includes('Saved Games'))).toBe(false);
+                expect(linkTexts.some(t => t.includes('Matches'))).toBe(false);
             });
 
             test('mobile and desktop brand logos link to saved matches', () => {
