@@ -211,6 +211,15 @@ describe('Saved game actions', () => {
         };
     });
 
+    test('the Review button uses secondary styling to keep Create Match as the primary CTA', () => {
+        const { createButton } = require('../../../src/components/ui/button.js');
+        createButton.mockClear();
+        createGameCard({ game, index: 0, ...handlers });
+        const reviewBtnCall = createButton.mock.calls.find(([opts]) => opts && opts.text === 'Review');
+        expect(reviewBtnCall).toBeDefined();
+        expect(reviewBtnCall[0].type).toBe('secondary');
+    });
+
     test('the row shows only Review and the More toggle', () => {
         const card = createGameCard({ game, index: 0, ...handlers });
 
