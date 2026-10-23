@@ -180,6 +180,34 @@ async function runSnapshots() {
             }
         }
 
+        // Capture Create Match dropdown open state (desktop and mobile)
+        for (const vp of VIEWPORTS) {
+            const dropdownCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const dropdownPage = await dropdownCtx.newPage();
+            await dropdownPage.goto(`${baseUrl}/?mock=sample`, { waitUntil: 'domcontentloaded' });
+            await dropdownPage.waitForSelector('#createMatchDropdownButton');
+            await dropdownPage.click('#createMatchDropdownButton');
+            await dropdownPage.waitForSelector('#createMatchMenu:not(.hidden)');
+            await dropdownPage.waitForTimeout(300);
+
+            const dropdownOpenPath = path.join(OUTPUT_DIR, `create-match-dropdown-open-${vp.name}.png`);
+            await dropdownPage.screenshot({ path: dropdownOpenPath, fullPage: true });
+
+            const stats = fs.statSync(dropdownOpenPath);
+            results.push({
+                name: 'create-match-dropdown-open',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `create-match-dropdown-open-${vp.name}.png`,
+                bytes: stats.size
+            });
+
+            await dropdownCtx.close();
+        }
+
         // Capture custom board flow proof: Duplication, Import, and Event Capture
         const sampleImportBoardPath = path.join(OUTPUT_DIR, 'sample-coach-board.json');
         const sampleImportData = {
