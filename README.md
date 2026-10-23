@@ -54,7 +54,7 @@ The primary interface for recording live game events with:
 
 ### 2. Saved Games and Match Review
 
-Saved Games is the single entry point for reviewing matches. It lists every saved game with Export, Rename, and Delete actions; selecting a game opens it in Match Review for analysis with video synchronization:
+Saved Games is the single entry point for reviewing and continuing matches. It lists every saved game with Review, Continue coding (for multi-pass video coding and ad-hoc coach tags), Export XML, Rename, and Delete actions; selecting a game opens it in Match Review for analysis with video synchronization:
 
 - Timeline view of all events
 - Video player synchronized with event timestamps

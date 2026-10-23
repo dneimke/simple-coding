@@ -51,6 +51,7 @@ Use **Direct Seeded URLs** to load state instantly without modal clicks or setup
 | **Saved Games** | `index.html#saved-games?mock=sample` | Saved games list pre-populated with sample game |
 | **Saved Game Log** | `index.html#log/sample-game` | Read-only match timeline & statistics |
 | **Match Review** | `timeline-video.html?game=sample-game` | Synchronized timeline, video UI, and favorites |
+| **Video Coding / Continue Coding** | `timeline-video.html?game=sample-game&mode=tag` | Focus Tagging Mode with 1-tap quick tags & speed controls |
 | **Configure** | `index.html#configure` | Visual button board customizer & templates |
 
 1. **Snapshot Interactive States, Not Just Landing URLs**: Run `npm run test:visual`. When a feature involves a multi-step flow (e.g., duplicating, opening an edit modal, saving), drive through and capture each active state in `.visual-proof/` (e.g., `step-1-readonly.png`, `step-2-duplicated.png`, `step-3-edit-modal.png`).
