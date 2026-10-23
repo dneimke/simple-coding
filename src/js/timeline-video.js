@@ -1080,8 +1080,9 @@ function getSavedGames() {
 function saveGame(gameId, events, metadata = {}) {
     const savedGames = getSavedGames() || [];
 
-    // Ensure all events are in standard format (event, timeMs, note, timestamp)
+    // Ensure all events are in standard format while preserving any existing properties (eventCode, team, leadTime, lagTime, etc.)
     const standardEvents = events.map(evt => ({
+        ...evt,
         event: evt.event,
         timeMs: evt.timeMs,
         id: evt.id,
@@ -1092,27 +1093,32 @@ function saveGame(gameId, events, metadata = {}) {
         ...(evt.lag !== undefined && { lag: evt.lag })
     }));
 
-    // Preserve existing entry fields (timestamp, teams, metadata) when possible
+    // Preserve existing entry fields (timestamp, teams, teamCodes, elapsedTime, metadata) when possible
     const { game: existing, index } = findGameById(savedGames, gameId);
     const existingTeams = (existing && (existing.teams || (existing.metadata && existing.metadata.teams))) || null;
     const existingTimestamp = (existing && (existing.timestamp || (existing.metadata && existing.metadata.timestamp))) || null;
 
     const teamsName = metadata.teams ?? existingTeams ?? null;
     const timestamp = existingTimestamp ?? new Date().toISOString();
+    const maxEventTimeMs = standardEvents.reduce((max, e) => Math.max(max, Number(e.timeMs) || 0), 0);
+    const reconciledElapsedTime = Math.max(Number(existing && existing.elapsedTime) || 0, maxEventTimeMs);
+    const shouldIncludeElapsedTime = (existing && existing.elapsedTime !== undefined) || maxEventTimeMs > 0;
 
     // Merge metadata, preferring incoming metadata but keeping existing metadata where absent
     const mergedMetadata = {
-        ...(existing.metadata || {}),
+        ...((existing && existing.metadata) || {}),
         ...metadata,
         lastUpdated: new Date().toISOString()
     };
 
-    // Create or update game in the saved games object, keeping top-level timestamp for compatibility
+    // Create or update game in the saved games object, keeping top-level properties for compatibility
     const mergedGame = {
+        ...(existing || {}),
         id: gameId,
         events: standardEvents,
         teams: teamsName,
         timestamp,
+        ...(shouldIncludeElapsedTime && { elapsedTime: reconciledElapsedTime }),
         metadata: mergedMetadata
     };
 

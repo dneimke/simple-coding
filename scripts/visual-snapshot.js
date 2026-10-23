@@ -208,6 +208,53 @@ async function runSnapshots() {
             await dropdownCtx.close();
         }
 
+        // Capture Saved Game More menu open -> Continue coding flow (desktop and mobile)
+        for (const vp of VIEWPORTS) {
+            const continueCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const continuePage = await continueCtx.newPage();
+            await continuePage.goto(`${baseUrl}/#saved-games?mock=sample`, { waitUntil: 'domcontentloaded' });
+            await continuePage.waitForSelector('.saved-game-more button[aria-haspopup="menu"]');
+            await continuePage.click('.saved-game-more button[aria-haspopup="menu"]');
+            await continuePage.waitForSelector('.saved-game-menu:not(.hidden)');
+            await continuePage.waitForTimeout(300);
+
+            const step1Path = path.join(OUTPUT_DIR, `continue-coding-step1-menu-${vp.name}.png`);
+            await continuePage.screenshot({ path: step1Path, fullPage: true });
+            results.push({
+                name: 'continue-coding-step1-menu',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `continue-coding-step1-menu-${vp.name}.png`,
+                bytes: fs.statSync(step1Path).size
+            });
+
+            // Tap 1 -> Tap 2: Click "Continue coding" in the menu and land in Tagging Mode
+            const continueMenuItem = await continuePage.$('#savedGamesList .saved-game-menu-item');
+            if (continueMenuItem) {
+                await Promise.all([
+                    continuePage.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+                    continueMenuItem.click()
+                ]);
+                await continuePage.waitForSelector('#video-coding-panel:not(.hidden)');
+                await continuePage.waitForTimeout(300);
+
+                const step2Path = path.join(OUTPUT_DIR, `continue-coding-step2-active-${vp.name}.png`);
+                await continuePage.screenshot({ path: step2Path, fullPage: true });
+                results.push({
+                    name: 'continue-coding-step2-active',
+                    viewport: vp.name,
+                    size: `${vp.width}x${vp.height}`,
+                    file: `continue-coding-step2-active-${vp.name}.png`,
+                    bytes: fs.statSync(step2Path).size
+                });
+            }
+
+            await continueCtx.close();
+        }
+
         // Capture Board Actions dropdown open state on Configure (desktop and mobile)
         for (const vp of VIEWPORTS) {
             const configActionsCtx = await browser.newContext({
