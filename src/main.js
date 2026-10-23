@@ -31,7 +31,7 @@ import {
     importNamedConfig,
     triggerFileDownload
 } from './components/config.js';
-import { createGameCard, createButton, createInput, createSelect, initCreateMatchDropdown } from './components/ui/index.js';
+import { createGameCard, createButton, createInput, createSelect, initCreateMatchDropdown, initConfigActionsDropdown } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
 import { draftService, finishCapture } from './services/draftService.js';
@@ -71,6 +71,8 @@ const configProtectedNotice = document.getElementById('configProtectedNotice');
 const resetConfigDefaultButton = document.getElementById('resetConfigDefaultButton');
 const duplicateConfigButton = document.getElementById('duplicateConfigButton');
 const deleteConfigButton = document.getElementById('deleteConfigButton');
+const duplicateBoardMenuItem = document.getElementById('duplicateBoardMenuItem');
+const exitJsonModeButton = document.getElementById('exitJsonModeButton');
 const customizeBoardLink = document.getElementById('customizeBoardLink');
 const toggleConfigModeButton = document.getElementById('toggleConfigModeButton');
 const toggleConfigModeIcon = document.getElementById('toggleConfigModeIcon');
@@ -359,10 +361,11 @@ function renderConfigVisualPreview(config) {
 function setConfigViewMode(mode) {
     currentConfigMode = mode;
     const isVisual = mode === 'visual';
-    if (toggleConfigModeText) toggleConfigModeText.textContent = isVisual ? 'JSON' : 'Visual';
+    if (toggleConfigModeText) toggleConfigModeText.textContent = isVisual ? 'Advanced code editor' : 'Visual editor';
     if (toggleConfigModeIcon) {
-        toggleConfigModeIcon.className = isVisual ? 'fas fa-code mr-1' : 'fas fa-eye mr-1';
+        toggleConfigModeIcon.className = isVisual ? 'fas fa-code w-5 mr-2 text-ink-soft' : 'fas fa-eye w-5 mr-2 text-ink-soft';
     }
+    if (exitJsonModeButton) exitJsonModeButton.classList.toggle('hidden', isVisual);
     if (configVisualContainer) configVisualContainer.classList.toggle('hidden', !isVisual);
     if (configJsonContainer) configJsonContainer.classList.toggle('hidden', isVisual);
     updateConfigProtectionState(savedConfigSelect.value);
@@ -382,9 +385,10 @@ function updateConfigProtectionState(name) {
     const isUnsaved = name === UNSAVED_CONFIG_VALUE;
     const isJsonMode = currentConfigMode === 'json';
 
-    if (duplicateConfigButton) duplicateConfigButton.classList.toggle('hidden', !isBuiltIn);
+    if (duplicateConfigButton) duplicateConfigButton.classList.toggle('hidden', !isBuiltIn || isJsonMode);
     if (renameConfigButton) renameConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
     if (saveConfigButton) saveConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved || !isJsonMode);
+    if (exitJsonModeButton) exitJsonModeButton.classList.toggle('hidden', !isJsonMode);
     if (saveAsConfigButton) saveAsConfigButton.classList.toggle('hidden', true);
     if (deleteConfigButton) deleteConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
     if (resetConfigDefaultButton) resetConfigDefaultButton.classList.toggle('hidden', true);
@@ -1092,15 +1096,21 @@ function registerEventListeners() {
         }
     });
 
-    saveAsConfigButton.addEventListener('click', () => {
-        saveConfigButton.classList.add('hidden');
-        saveAsConfigButton.classList.add('hidden');
-        saveAsConfigForm.classList.remove('hidden');
-        configNameInput.value = '';
-        configNameInput.focus();
-    });
+    if (saveAsConfigButton) {
+        saveAsConfigButton.addEventListener('click', () => {
+            saveConfigButton?.classList.add('hidden');
+            saveAsConfigButton.classList.add('hidden');
+            saveAsConfigForm?.classList.remove('hidden');
+            if (configNameInput) {
+                configNameInput.value = '';
+                configNameInput.focus();
+            }
+        });
+    }
 
-    cancelSaveAsConfigButton.addEventListener('click', hideSaveAsForm);
+    if (cancelSaveAsConfigButton) {
+        cancelSaveAsConfigButton.addEventListener('click', hideSaveAsForm);
+    }
 
     if (toggleConfigModeButton) {
         toggleConfigModeButton.addEventListener('click', () => {
@@ -1298,6 +1308,23 @@ function registerEventListeners() {
     });
 
     initCreateMatchDropdown();
+    initConfigActionsDropdown();
+
+    if (exitJsonModeButton) {
+        exitJsonModeButton.addEventListener('click', () => {
+            setConfigViewMode('visual');
+        });
+    }
+
+    if (duplicateBoardMenuItem) {
+        duplicateBoardMenuItem.addEventListener('click', () => {
+            try {
+                duplicateCurrentBoardToEdit();
+            } catch (error) {
+                showMessage(configMessage, error.message, true);
+            }
+        });
+    };
 
     importXmlButton.addEventListener('click', () => {
         xmlFileInput.click();

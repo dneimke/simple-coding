@@ -208,6 +208,34 @@ async function runSnapshots() {
             await dropdownCtx.close();
         }
 
+        // Capture Board Actions dropdown open state on Configure (desktop and mobile)
+        for (const vp of VIEWPORTS) {
+            const configActionsCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const configActionsPage = await configActionsCtx.newPage();
+            await configActionsPage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
+            await configActionsPage.waitForSelector('#configActionsDropdownButton');
+            await configActionsPage.click('#configActionsDropdownButton');
+            await configActionsPage.waitForSelector('#configActionsMenu:not(.hidden)');
+            await configActionsPage.waitForTimeout(300);
+
+            const configActionsOpenPath = path.join(OUTPUT_DIR, `configure-actions-dropdown-open-${vp.name}.png`);
+            await configActionsPage.screenshot({ path: configActionsOpenPath, fullPage: true });
+
+            const stats = fs.statSync(configActionsOpenPath);
+            results.push({
+                name: 'configure-actions-dropdown-open',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `configure-actions-dropdown-open-${vp.name}.png`,
+                bytes: stats.size
+            });
+
+            await configActionsCtx.close();
+        }
+
         // Capture custom board flow proof: Duplication, Import, and Event Capture
         const sampleImportBoardPath = path.join(OUTPUT_DIR, 'sample-coach-board.json');
         const sampleImportData = {
@@ -243,6 +271,28 @@ async function runSnapshots() {
         const captureCustomPath = path.join(OUTPUT_DIR, 'event-capture-custom-board-desktop.png');
         await customPage.screenshot({ path: captureCustomPath, fullPage: true });
         await customContext.close();
+
+        // Test custom board creation and actions on mobile
+        const customMobileContext = await browser.newContext({
+            viewport: { width: 390, height: 844 },
+            deviceScaleFactor: 2
+        });
+        const customMobilePage = await customMobileContext.newPage();
+        await customMobilePage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
+        await customMobilePage.waitForSelector('#duplicateConfigButton');
+        await customMobilePage.click('#duplicateConfigButton');
+        await customMobilePage.waitForTimeout(400);
+
+        const configCustomMobilePath = path.join(OUTPUT_DIR, 'configure-custom-board-mobile.png');
+        await customMobilePage.screenshot({ path: configCustomMobilePath, fullPage: true });
+
+        await customMobilePage.click('#configActionsDropdownButton');
+        await customMobilePage.waitForSelector('#configActionsMenu:not(.hidden)');
+        await customMobilePage.waitForTimeout(300);
+        const configCustomMobileActionsPath = path.join(OUTPUT_DIR, 'configure-custom-actions-open-mobile.png');
+        await customMobilePage.screenshot({ path: configCustomMobileActionsPath, fullPage: true });
+
+        await customMobileContext.close();
 
         // Capture Video Coding active interaction (desktop and mobile)
         for (const vp of VIEWPORTS) {
@@ -314,6 +364,8 @@ async function runSnapshots() {
 
             // 1. Go to Configure
             await importPage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
+            await importPage.waitForSelector('#configActionsDropdownButton');
+            await importPage.click('#configActionsDropdownButton');
             await importPage.waitForSelector('#importConfigButton');
             await importPage.waitForSelector('#boardFileInput', { state: 'attached' });
 
