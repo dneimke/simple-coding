@@ -299,7 +299,7 @@ export const createGameCard = ({
 
     const reviewButton = onSelect ? createButton({
         text: 'Review',
-        type: 'primary',
+        type: 'secondary',
         icon: '<i class="fas fa-film" aria-hidden="true"></i>',
         className: 'saved-game-review',
         onClick: (e) => {
