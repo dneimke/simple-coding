@@ -126,6 +126,7 @@ const navEventCaptureMobile = document.getElementById('navEventCaptureMobile');
 // Navigation Elements
 const navEventCapture = document.getElementById('navEventCapture');
 const navConfig = document.getElementById('navConfig');
+const navHelp = document.getElementById('navHelp');
 const navStats = document.getElementById('navStats');
 const navSavedGames = document.getElementById('navSavedGames');
 
@@ -135,6 +136,7 @@ const configView = document.getElementById('config-view');
 const logView = document.getElementById('log-view');
 const statsView = document.getElementById('stats-view');
 const savedGamesView = document.getElementById('saved-games-view');
+const helpView = document.getElementById('help-view');
 
 function renderActiveMatchBanner() {
     const banner = document.getElementById('activeMatchBanner');
@@ -241,6 +243,7 @@ function renderSavedGames() {
  */
 function createExportButton() {
     const savedGamesView = document.getElementById('saved-games-view');
+const helpView = document.getElementById('help-view');
     const importButton = document.getElementById('importXmlButton');
 
     if (savedGamesView && importButton) {
@@ -706,6 +709,8 @@ function initializeApplication() {
     // Handle navigation based on URL parameters or hash
     if (viewParam === 'config' || hash === 'configure') {
         stateService.setState('ui.currentView', 'Config');
+    } else if (viewParam === 'help' || hash === 'help') {
+        stateService.setState('ui.currentView', 'Help');
     } else if (isDevPreview || viewParam === 'event-capture' || hash === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
         stateService.setState('ui.currentView', 'EventCapture');
     } else if (viewParam === 'log' || hash === 'log') {
@@ -1366,7 +1371,8 @@ const router = new Router(
         EventCapture: { view: trackerView, button: null },
         Config: { view: configView, button: navConfig },
         Log: { view: logView, button: null },
-        SavedGames: { view: savedGamesView, button: navSavedGames }
+        SavedGames: { view: savedGamesView, button: navSavedGames },
+        Help: { view: helpView, button: navHelp }
     },
     {
         recent: tabButtonRecent,
@@ -1409,6 +1415,8 @@ function handleInitialNavigation() {
     const [hash] = routeOnly.split('/');
     if (hash === 'configure') {
         showConfigView();
+    } else if (hash === 'help') {
+        // Help view
     } else if (hash === 'event-capture') {
         // Event capture view
     } else {

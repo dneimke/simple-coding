@@ -49,6 +49,10 @@
                             <i class="fas fa-sliders text-sm" aria-hidden="true"></i>
                             <span>Configure</span>
                         </a>
+                        <a href="#help" id="navHelp" class="nav-link">
+                            <i class="fas fa-circle-question text-sm" aria-hidden="true"></i>
+                            <span>Help</span>
+                        </a>
                     </div>
                     <div class="flex mt-1 md:mt-0">
                         <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
@@ -352,7 +356,7 @@
                     <header class="page-header">
                         <div>
                             <h1 class="page-title">Matches</h1>
-                            <p class="page-subtitle">Record a live match, code from video, or import Sportscode XML.</p>
+                            <p class="page-subtitle">Record a live match, code from video, or import Sportscode XML. <a href="#help" id="matchesCodingModesHelpLink" class="text-brand font-medium hover:underline inline-flex items-center gap-1 ml-1"><i class="fas fa-circle-question text-xs" aria-hidden="true"></i>How the 3 modes work</a></p>
                         </div>
                         <div class="create-match-dropdown">
                             <button id="createMatchDropdownButton" type="button" class="btn btn-primary"
@@ -396,6 +400,268 @@
                     <label for="xmlFileInput" class="sr-only">Upload XML File</label>
                     <input id="xmlFileInput" type="file" accept=".xml" class="hidden"
                         title="Choose an XML file to upload">
+                </div>
+
+                <!-- Help View: 3 Modes of Match Coding -->
+                <div id="help-view" class="hidden space-y-6 pb-8">
+                    <header class="page-header">
+                        <div>
+                            <h1 class="page-title">3 Modes of Match Coding</h1>
+                            <p class="page-subtitle">Choose the fastest entry point for your game, then layer extra tags anytime.</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <a href="#saved-games" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i>
+                                <span>Back to Matches</span>
+                            </a>
+                            <a href="#event-capture" class="btn btn-primary">
+                                <i class="fas fa-play text-xs" aria-hidden="true"></i>
+                                <span>Start Live Match</span>
+                            </a>
+                        </div>
+                    </header>
+
+                    <!-- Intro + Create Match Hub Screenshot -->
+                    <section class="surface surface-padded" aria-labelledby="help-overview-heading">
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                            <div class="lg:col-span-5 space-y-3">
+                                <span class="badge">Matches Hub</span>
+                                <h2 id="help-overview-heading" class="section-title text-lg">One Hub, Three Ways to Start</h2>
+                                <p class="text-sm text-slate-600 leading-relaxed">
+                                    Every match starts from the <strong>+ Create Match</strong> button on the Matches screen, but you don't have to code everything in a single pass. Each mode sets up the clock and screen layout for how you are working right now:
+                                </p>
+                                <ul class="space-y-2 text-sm text-slate-700">
+                                    <li class="flex items-start gap-2">
+                                        <i class="fas fa-play text-blue-600 mt-1 w-4 text-center" aria-hidden="true"></i>
+                                        <span><strong>1. Live Match</strong> — Real-time pitch stopwatch for eyes-on-pitch sideline coding.</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <i class="fas fa-video text-emerald-600 mt-1 w-4 text-center" aria-hidden="true"></i>
+                                        <span><strong>2. From Video</strong> — Post-match MP4 player synced to quick tags at <code>1.5x</code> or <code>2x</code> speed.</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <i class="fas fa-file-import text-amber-600 mt-1 w-4 text-center" aria-hidden="true"></i>
+                                        <span><strong>3. Import XML</strong> — Instant timeline from an existing Sportscode or MyVA XML file.</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="lg:col-span-7">
+                                <figure class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
+                                    <img src="assets/help/create-match-modes.png" alt="Matches screen showing the Create Match menu open with Live Match, From Video, and Import XML options" class="w-full h-auto block" loading="lazy">
+                                    <figcaption class="px-3 py-2 text-xs text-slate-500 bg-slate-50 border-t border-slate-200">
+                                        Open <strong>+ Create Match</strong> on the Matches screen to pick your starting workflow.
+                                    </figcaption>
+                                </figure>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- At-a-Glance Comparison Grid -->
+                    <section aria-label="Quick comparison of the 3 coding modes" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="surface surface-padded flex flex-col justify-between border-t-4 border-t-blue-600">
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="badge">Mode 1</span>
+                                    <span class="text-xs font-semibold text-blue-700"><i class="fas fa-stopwatch mr-1" aria-hidden="true"></i>Stopwatch Clock</span>
+                                </div>
+                                <h3 class="section-title text-base">Live Match</h3>
+                                <p class="text-xs text-slate-600">Best on the sideline or video tower while the game is happening in front of you.</p>
+                                <div class="pt-2 border-t border-slate-100 text-xs space-y-1 text-slate-700">
+                                    <div><strong>Speed advantage:</strong> Zero-look spatial button grid. Your match timeline is ready the second the final whistle blows.</div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100">
+                                <a href="#event-capture" class="btn btn-secondary btn-compact w-full justify-center">Open Live Capture →</a>
+                            </div>
+                        </div>
+
+                        <div class="surface surface-padded flex flex-col justify-between border-t-4 border-t-emerald-600">
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="badge">Mode 2</span>
+                                    <span class="text-xs font-semibold text-emerald-700"><i class="fas fa-film mr-1" aria-hidden="true"></i>Video Timestamp</span>
+                                </div>
+                                <h3 class="section-title text-base">From Video</h3>
+                                <p class="text-xs text-slate-600">Best after the game when you have an MP4 recording and want events aligned to the video.</p>
+                                <div class="pt-2 border-t border-slate-100 text-xs space-y-1 text-slate-700">
+                                    <div><strong>Speed advantage:</strong> Watch at <code>1.5x</code> or <code>2x</code> speed and skip stoppages (<code>+5s</code> / <code>+10s</code>) to code a 60-minute game in ~25 minutes.</div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100">
+                                <a href="timeline-video.html?new=video" class="btn btn-secondary btn-compact w-full justify-center">Code From Video →</a>
+                            </div>
+                        </div>
+
+                        <div class="surface surface-padded flex flex-col justify-between border-t-4 border-t-amber-500">
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="badge">Mode 3</span>
+                                    <span class="text-xs font-semibold text-amber-700"><i class="fas fa-file-code mr-1" aria-hidden="true"></i>Pre-Coded XML</span>
+                                </div>
+                                <h3 class="section-title text-base">Import XML</h3>
+                                <p class="text-xs text-slate-600">Best when another analyst, bench manager, or Hudl Sportscode / MyVA package already has the base tags.</p>
+                                <div class="pt-2 border-t border-slate-100 text-xs space-y-1 text-slate-700">
+                                    <div><strong>Speed advantage:</strong> Zero initial coding time. Load 50+ events in two seconds and jump straight to clips or targeted pass-2 coding.</div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100">
+                                <a href="#saved-games" class="btn btn-secondary btn-compact w-full justify-center">Import on Matches Hub →</a>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Detailed Mode 1: Live Match -->
+                    <section class="surface surface-padded space-y-4" aria-labelledby="help-mode-1-title">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Mode 1 · Sideline &amp; Tech Bench</span>
+                                <h2 id="help-mode-1-title" class="section-title text-lg">1. Live Match (Real-Time Pitch Capture)</h2>
+                            </div>
+                            <a href="#event-capture" class="btn btn-primary btn-compact">
+                                <i class="fas fa-play text-xs" aria-hidden="true"></i>
+                                <span>Start Live Match</span>
+                            </a>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <div class="lg:col-span-5 space-y-3 text-sm text-slate-700">
+                                <p>
+                                    Designed for coaches, team managers, or analysts watching live play. Tap <strong>Start</strong> when the whistle blows and log events using large, high-contrast team-coloured buttons that never shift position mid-game.
+                                </p>
+                                <div class="surface-muted space-y-2">
+                                    <div class="font-semibold text-slate-900">How it speeds up your workflow:</div>
+                                    <ul class="list-disc pl-5 space-y-1.5 text-xs text-slate-700">
+                                        <li><strong>Sticky Pitch Zones (<code>1</code>–<code>4</code>):</strong> Tap a zone once as the ball moves into that quarter of the pitch; every event button automatically attaches that zone (e.g., <code>FIRE BS2</code>).</li>
+                                        <li><strong>0.5-Second Glance Verification:</strong> The top bar always shows <code>Last: &lt;Event&gt; · mm:ss</code> with a 1-tap <strong>Undo</strong> (or <code>Ctrl+Z</code>) for instant recovery from mis-taps.</li>
+                                        <li><strong>Halftime &amp; Full-Time Ready:</strong> Check live team comparisons under <strong>Log → Statistics</strong> at halftime, then tap <strong>Finish → Complete</strong> to save and immediately reset for the next match.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="lg:col-span-7">
+                                <figure class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
+                                    <img src="assets/help/mode-live-match.png" alt="Live Event Capture board with running clock, sticky zones 1 to 4, and team-colored event buttons" class="w-full h-auto block" loading="lazy">
+                                    <figcaption class="px-3 py-2 text-xs text-slate-500 bg-slate-50 border-t border-slate-200">
+                                        <strong>Live Event Capture:</strong> Sticky zones (1–4) and team-coloured rows let you log events by spatial memory without taking your eyes off the pitch.
+                                    </figcaption>
+                                </figure>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Detailed Mode 2: From Video -->
+                    <section class="surface surface-padded space-y-4" aria-labelledby="help-mode-2-title">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Mode 2 · Post-Match Video Tagging</span>
+                                <h2 id="help-mode-2-title" class="section-title text-lg">2. From Video (High-Speed Video Coding)</h2>
+                            </div>
+                            <a href="timeline-video.html?new=video" class="btn btn-primary btn-compact">
+                                <i class="fas fa-video text-xs" aria-hidden="true"></i>
+                                <span>Code From Video</span>
+                            </a>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <div class="lg:col-span-5 space-y-3 text-sm text-slate-700">
+                                <p>
+                                    When you couldn't code live—or want every clip locked to the exact video frame—choose <strong>From Video</strong>. Load your match MP4 and the screen switches into <strong>Focus Tagging Mode</strong>.
+                                </p>
+                                <div class="surface-muted space-y-2">
+                                    <div class="font-semibold text-slate-900">How it speeds up your workflow:</div>
+                                    <ul class="list-disc pl-5 space-y-1.5 text-xs text-slate-700">
+                                        <li><strong>Synced to Video Time:</strong> There is no separate stopwatch to manage. If you pause, rewind, or scrub the video to <code>14:20</code> and tap a button, the event is logged at <code>14:20</code> with its pre-roll lead and post-roll lag window.</li>
+                                        <li><strong><code>1.5x</code> / <code>2x</code> Playback + Skip Controls:</strong> Breeze through general midfield play at <code>2x</code> speed, use <code>+5s</code> / <code>+10s</code> to jump over ball-out-of-bounds delays, and use <code>-5s</code> to replay a circle entry before tagging.</li>
+                                        <li><strong>Quick Tags &amp; Full Board:</strong> Use the 1-tap Quick Tag bar directly under the video, or expand the full custom button board below it. Every tag auto-saves immediately.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="lg:col-span-7">
+                                <figure class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
+                                    <img src="assets/help/mode-from-video.png" alt="Video Coding Focus Tagging Mode showing video player, 1x 1.5x 2x speed controls, skip buttons, and 1-tap quick tag buttons" class="w-full h-auto block" loading="lazy">
+                                    <figcaption class="px-3 py-2 text-xs text-slate-500 bg-slate-50 border-t border-slate-200">
+                                        <strong>Focus Tagging Mode:</strong> Combine <code>1.5x</code> / <code>2x</code> playback speed and <code>-5s</code> / <code>+5s</code> skip buttons with 1-tap Quick Tags.
+                                    </figcaption>
+                                </figure>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Detailed Mode 3: Import XML -->
+                    <section class="surface surface-padded space-y-4" aria-labelledby="help-mode-3-title">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-amber-600">Mode 3 · Sportscode &amp; MyVA Integration</span>
+                                <h2 id="help-mode-3-title" class="section-title text-lg">3. Import XML (Instant Match Package)</h2>
+                            </div>
+                            <a href="#saved-games" class="btn btn-secondary btn-compact">
+                                <i class="fas fa-file-import text-xs" aria-hidden="true"></i>
+                                <span>Go to Matches Hub</span>
+                            </a>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <div class="lg:col-span-5 space-y-3 text-sm text-slate-700">
+                                <p>
+                                    Already have a Sportscode XML file from a sideline helper, a league video feed, or another device? Choose <strong>Import XML</strong> to preview the events and create a saved match in seconds.
+                                </p>
+                                <div class="surface-muted space-y-2">
+                                    <div class="font-semibold text-slate-900">How it speeds up your workflow:</div>
+                                    <ul class="list-disc pl-5 space-y-1.5 text-xs text-slate-700">
+                                        <li><strong>Preserves Lead/Lag Clip Windows:</strong> Every imported instance keeps its exact start and end clip timings so clicking an event seeks directly to the build-up of the play (<code>time - lead</code>).</li>
+                                        <li><strong>15-Minute Coaching Review:</strong> Filter by event type (e.g., <code>PC</code>, <code>Circle Entry</code>, <code>Shot</code>), star (<code>★</code>) your top 6–10 teaching moments, and step through them in full-screen <strong>Presentation Mode</strong>.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="lg:col-span-7">
+                                <figure class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
+                                    <img src="assets/help/mode-import-xml.png" alt="Match Review screen showing synchronized Events Log timeline, event filters, starred favorites, and video player" class="w-full h-auto block" loading="lazy">
+                                    <figcaption class="px-3 py-2 text-xs text-slate-500 bg-slate-50 border-t border-slate-200">
+                                        <strong>Match Review:</strong> Filter imported or captured events, star (<code>★</code>) key clips, and present them to your squad.
+                                    </figcaption>
+                                </figure>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Multi-Pass Power Multiplier: Continue Coding -->
+                    <section class="surface surface-padded space-y-4 border-2 border-blue-200 bg-blue-50/30" aria-labelledby="help-multi-pass-title">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-blue-200 pb-3">
+                            <div>
+                                <span class="badge">Multi-Pass Workflow</span>
+                                <h2 id="help-multi-pass-title" class="section-title text-lg mt-1">How the Modes Work Together: "Continue Coding"</h2>
+                            </div>
+                            <a href="timeline-video.html?game=sample-game&mode=tag" class="btn btn-primary btn-compact">
+                                <i class="fas fa-plus-circle text-xs" aria-hidden="true"></i>
+                                <span>Try Sample in Tag Mode</span>
+                            </a>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                            <div class="lg:col-span-6 space-y-3 text-sm text-slate-700">
+                                <p>
+                                    You never have to capture every detail in one stressful pass. Regardless of whether a match was created via <strong>Live Match</strong>, <strong>From Video</strong>, or <strong>Import XML</strong>, you can open its <code>⋯</code> menu on the Matches screen and select <strong>Continue coding</strong> (or click <strong>+ Tag Events</strong> inside Match Review).
+                                </p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                    <div class="surface p-3 border border-slate-200 rounded-lg">
+                                        <div class="font-bold text-xs uppercase tracking-wide text-blue-700 mb-1">Pass 1: Fast Core Capture</div>
+                                        <p class="text-xs text-slate-600">
+                                            Have a bench helper capture core events live (<code>Circle Entry</code>, <code>PC</code>, <code>Shot</code>, <code>Goal</code>), or import a base XML package.
+                                        </p>
+                                    </div>
+                                    <div class="surface p-3 border border-slate-200 rounded-lg">
+                                        <div class="font-bold text-xs uppercase tracking-wide text-emerald-700 mb-1">Pass 2: Targeted Video Layer</div>
+                                        <p class="text-xs text-slate-600">
+                                            Click <strong>Continue coding</strong>, load the match video at <code>2x</code> speed, and layer in specific tactical codes (e.g., <code>Press</code>, <code>Outlet</code>, or <code>Turnover</code>) into the exact same timeline.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="lg:col-span-6">
+                                <figure class="rounded-lg overflow-hidden border border-slate-200 bg-white shadow-sm">
+                                    <img src="assets/help/continue-coding-menu.png" alt="Saved match card overflow menu showing Continue coding option at the top" class="w-full h-auto block" loading="lazy">
+                                    <figcaption class="px-3 py-2 text-xs text-slate-500 bg-slate-50 border-t border-slate-200">
+                                        Click <strong>⋯ → Continue coding</strong> on any saved match to add new events at <code>1x</code>, <code>1.5x</code>, or <code>2x</code> video speed without losing existing tags.
+                                    </figcaption>
+                                </figure>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
         </main>

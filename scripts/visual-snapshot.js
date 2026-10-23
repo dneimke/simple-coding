@@ -80,6 +80,11 @@ const DEFAULT_SCREENS = [
         name: 'configure',
         path: '/#configure',
         waitForSelector: '#configBoardPreview'
+    },
+    {
+        name: 'help-coding-modes',
+        path: '/#help',
+        waitForSelector: '#help-view:not(.hidden)'
     }
 ];
 
@@ -139,6 +144,24 @@ async function runSnapshots() {
     const results = [];
 
     try {
+        // Capture vibrant Live Match screenshot for Help page (running clock, active team colors)
+        const liveHeroCtx = await browser.newContext({
+            viewport: { width: 1280, height: 800 },
+            deviceScaleFactor: 2
+        });
+        const liveHeroPage = await liveHeroCtx.newPage();
+        await liveHeroPage.goto(`${baseUrl}/#event-capture?mock=active`, { waitUntil: 'domcontentloaded' });
+        await liveHeroPage.waitForSelector('#pauseResumeButton');
+        await liveHeroPage.click('#pauseResumeButton');
+        // Dismiss any restore toast so the screenshot is super clean
+        await liveHeroPage.evaluate(() => {
+            document.querySelectorAll('[role="status"], .toast, #notification-container').forEach(el => el.remove());
+        });
+        await liveHeroPage.waitForTimeout(300);
+        const liveHeroPath = path.resolve(SRC_DIR, 'assets/help/mode-live-match.png');
+        await liveHeroPage.screenshot({ path: liveHeroPath, fullPage: false });
+        await liveHeroCtx.close();
+
         // Capture standard seeded screens
         for (const screen of DEFAULT_SCREENS) {
             for (const vp of VIEWPORTS) {

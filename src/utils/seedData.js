@@ -40,8 +40,8 @@ export const SAMPLE_DRAFT = {
     elapsedTime: 425000,
     runningSince: null,
     teams: [
-        { code: 'FIRE', color: 'team-color-red' },
-        { code: 'TIGERS', color: 'team-color-blue' }
+        { code: 'FIRE', color: 'red' },
+        { code: 'TIGERS', color: 'yellow' }
     ],
     activeZone: '1',
     selectedTeam: 1,
@@ -78,8 +78,8 @@ export const PC_COUNTER_DRAFT = {
     elapsedTime: 435000,
     runningSince: null,
     teams: [
-        { code: 'FIRE', color: 'team-color-red' },
-        { code: 'TIGERS', color: 'team-color-yellow' }
+        { code: 'FIRE', color: 'red' },
+        { code: 'TIGERS', color: 'yellow' }
     ],
     activeZone: '1',
     selectedTeam: 1,
