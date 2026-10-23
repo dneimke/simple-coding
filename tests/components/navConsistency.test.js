@@ -3,11 +3,11 @@ import path from 'path';
 
 describe('Navigation Menu Consistency Across Screens', () => {
     const htmlFiles = [
-        { file: 'src/index.html', matchesHref: '#saved-games', configHref: '#configure' },
-        { file: 'src/timeline-video.html', matchesHref: 'index.html#saved-games', configHref: 'index.html#configure' }
+        { file: 'src/index.html', matchesHref: '#saved-games', configHref: '#configure', helpHref: '#help' },
+        { file: 'src/timeline-video.html', matchesHref: 'index.html#saved-games', configHref: 'index.html#configure', helpHref: 'index.html#help' }
     ];
 
-    htmlFiles.forEach(({ file, matchesHref, configHref }) => {
+    htmlFiles.forEach(({ file, matchesHref, configHref, helpHref }) => {
         describe(`in ${file}`, () => {
             let container;
 
@@ -19,14 +19,15 @@ describe('Navigation Menu Consistency Across Screens', () => {
                 container = doc;
             });
 
-            test('main menu contains Configure entry point with brand acting as Home/Matches link', () => {
+            test('main menu contains Configure and Help entry points with brand acting as Home/Matches link', () => {
                 const navLinks = Array.from(container.querySelectorAll('#mainMenu .nav-link'));
-                expect(navLinks).toHaveLength(1);
+                expect(navLinks).toHaveLength(2);
 
                 const linkTexts = navLinks.map(el => el.querySelector('span')?.textContent.trim() || el.textContent.trim());
-                expect(linkTexts).toEqual(['Configure']);
+                expect(linkTexts).toEqual(['Configure', 'Help']);
 
                 expect(navLinks[0].getAttribute('href')).toBe(configHref);
+                expect(navLinks[1].getAttribute('href')).toBe(helpHref);
             });
 
             test('does not contain "Event Capture", "Saved Games", or redundant "Matches" link in main menu', () => {

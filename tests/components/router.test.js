@@ -1,4 +1,3 @@
-
 import { Router } from '../../src/components/router.js';
 import { stateService } from '../../src/services/stateService.js';
 
@@ -38,7 +37,8 @@ describe('Router', () => {
                     removeAttribute: jest.fn(),
                     setAttribute: jest.fn()
                 }
-            }, Log: {
+            },
+            Log: {
                 view: { classList: { add: jest.fn(), remove: jest.fn() } },
                 button: {
                     classList: { add: jest.fn(), remove: jest.fn() },
@@ -47,6 +47,14 @@ describe('Router', () => {
                 }
             },
             SavedGames: {
+                view: { classList: { add: jest.fn(), remove: jest.fn() } },
+                button: {
+                    classList: { add: jest.fn(), remove: jest.fn() },
+                    removeAttribute: jest.fn(),
+                    setAttribute: jest.fn()
+                }
+            },
+            Help: {
                 view: { classList: { add: jest.fn(), remove: jest.fn() } },
                 button: {
                     classList: { add: jest.fn(), remove: jest.fn() },
@@ -63,7 +71,9 @@ describe('Router', () => {
             timelineView: { classList: { toggle: jest.fn() } },
             xmlView: { classList: { toggle: jest.fn() } },
             statisticsView: { classList: { toggle: jest.fn() } }
-        };        // Mock window location
+        };
+
+        // Mock window location
         delete window.location;
         window.location = {
             _hash: '',
@@ -128,6 +138,7 @@ describe('Router', () => {
         expect(logView.classList.remove).toHaveBeenCalledWith('hidden');
         expect(mockViews.EventCapture.button.removeAttribute).toHaveBeenCalledWith('aria-current');
     });
+
     test('_handleTabChange should update tab visibility', () => {
         const handleTabChange = router._handleTabChange;
         handleTabChange('timelineView');
@@ -166,7 +177,8 @@ describe('Router', () => {
             'EventCapture': 'event-capture',
             'Config': 'configure',
             'Log': 'log',
-            'SavedGames': 'saved-games'
+            'SavedGames': 'saved-games',
+            'Help': 'help'
         });
     });
 
@@ -175,8 +187,15 @@ describe('Router', () => {
             'event-capture': 'EventCapture',
             'configure': 'Config',
             'log': 'Log',
-            'saved-games': 'SavedGames'
+            'saved-games': 'SavedGames',
+            'help': 'Help'
         });
+    });
+
+    test('#help hash navigates to Help view', () => {
+        window.location.hash = 'help';
+        router._handleHashChange();
+        expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'Help');
     });
 
     test('empty hash defaults to SavedGames (Matches Hub)', () => {

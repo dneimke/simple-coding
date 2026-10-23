@@ -12,7 +12,8 @@ export class Router {
             'EventCapture': 'event-capture',
             'Config': 'configure',
             'Log': 'log',
-            'SavedGames': 'saved-games'
+            'SavedGames': 'saved-games',
+            'Help': 'help'
         };
 
         this.hashToViewMap = Object.entries(this.viewToHashMap).reduce((acc, [view, hash]) => {
@@ -92,6 +93,8 @@ export class Router {
 
             if (viewParam === 'config') {
                 this._showViewWithoutHashUpdate('Config');
+            } else if (viewParam === 'help') {
+                this._showViewWithoutHashUpdate('Help');
             } else if (isDevPreview || viewParam === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
                 this._showViewWithoutHashUpdate('EventCapture');
             } else {
