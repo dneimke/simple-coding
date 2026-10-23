@@ -622,4 +622,56 @@ describe('video coding workflow', () => {
         tagBtn.click();
         expect(panel.classList.contains('hidden')).toBe(false);
     });
+
+    test('continuing coding on a saved match preserves existing event fields, teamCodes, and updates elapsedTime', () => {
+        const liveCaptureGame = {
+            id: 'live-game-1',
+            teams: 'FIRE vs TIGERS',
+            teamCodes: ['FIRE', 'TIGERS'],
+            elapsedTime: 120000,
+            timestamp: '2026-10-23T08:00:00.000Z',
+            events: [
+                {
+                    id: 'evt-1',
+                    event: 'FIRE - Circle Entry',
+                    eventCode: 'CE',
+                    team: 'FIRE',
+                    timeMs: 45000,
+                    timestamp: '00:45',
+                    lead: 8,
+                    lag: 12,
+                    leadTime: 8,
+                    lagTime: 12
+                }
+            ]
+        };
+        localStorage.setItem('fieldHockeyGames_v1', JSON.stringify([liveCaptureGame]));
+
+        mod.loadGame('live-game-1');
+        mod.setTaggingMode(true);
+
+        const video = document.getElementById('video-player');
+        video.currentTime = 150; // 150,000 ms (2:30)
+        mod.quickTagEvent('Goal');
+
+        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(saved.id).toBe('live-game-1');
+        expect(saved.teams).toBe('FIRE vs TIGERS');
+        expect(saved.teamCodes).toEqual(['FIRE', 'TIGERS']);
+        expect(saved.elapsedTime).toBe(150000);
+        expect(saved.events).toHaveLength(2);
+        expect(saved.events[0]).toMatchObject({
+            id: 'evt-1',
+            event: 'FIRE - Circle Entry',
+            eventCode: 'CE',
+            team: 'FIRE',
+            leadTime: 8,
+            lagTime: 12
+        });
+        expect(saved.events[1]).toMatchObject({
+            event: 'Goal',
+            timeMs: 150000,
+            timestamp: '02:30'
+        });
+    });
 });

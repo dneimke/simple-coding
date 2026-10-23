@@ -189,6 +189,9 @@ function renderSavedGames() {
                     onSelect: () => {
                         window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}`;
                     },
+                    onContinueCoding: () => {
+                        window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}&mode=tag`;
+                    },
                     onViewLog: () => {
                         window.location.hash = `log/${encodeURIComponent(game.id)}`;
                     },
