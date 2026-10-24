@@ -90,7 +90,7 @@
                             <i class="fas fa-check-circle text-emerald-600"></i><span>Saved</span>
                         </span>
                         <button id="save-and-exit-btn" type="button" class="btn btn-secondary btn-compact" title="Save match and return to Matches">
-                            <i class="fas fa-save text-xs" aria-hidden="true"></i><span>Save & Exit</span>
+                            <i class="fas fa-arrow-left text-xs" aria-hidden="true"></i><span>Exit to Matches</span>
                         </button>
                     </div>
                 </header>
@@ -119,13 +119,13 @@
                             class="hidden flex flex-col items-center justify-center py-10 my-4 text-center surface-muted border-dashed rounded-lg">
                             <i class="fas fa-video text-4xl text-slate-400 mb-4" aria-hidden="true"></i>
                             <p class="font-semibold text-slate-800 mb-1 text-base">Code a Video Match</p>
-                            <p class="help-text mb-4 max-w-sm">Upload a video to start coding events instantly, or choose a game from Matches.</p>
+                            <p class="help-text mb-4 max-w-sm">Attach a video to start coding events instantly, or choose a game from Matches.</p>
                             <div class="flex flex-wrap items-center justify-center gap-2">
                                 <button id="start-new-video-game-btn" type="button" class="btn btn-primary">
                                     <i class="fas fa-plus" aria-hidden="true"></i>New Video Match
                                 </button>
                                 <label for="video-upload-direct" class="btn btn-secondary cursor-pointer">
-                                    <i class="fas fa-upload" aria-hidden="true"></i>Upload Video
+                                    <i class="fas fa-paperclip" aria-hidden="true"></i>Attach Video
                                 </label>
                                 <input type="file" id="video-upload-direct" class="hidden" accept="video/*">
                                 <a href="index.html#saved-games" class="btn btn-ghost">
@@ -255,7 +255,7 @@
                                     <span>Add tag</span>
                                 </button>
                                 <label for="video-upload" class="btn btn-dark review-upload cursor-pointer">
-                                    <i class="fas fa-upload" aria-hidden="true"></i>Upload Video
+                                    <i class="fas fa-paperclip" aria-hidden="true"></i>Attach Video
                                 </label>
                                 <input type="file" id="video-upload" class="hidden" accept="video/*">
                             </div>
@@ -264,7 +264,7 @@
                         <div class="review-video-stage">
                             <video id="video-player" controls preload="metadata" playsinline aria-label="Video player">
                                 <p class="text-white text-center p-6">
-                                    Please upload a video using the button above, or add video files to the assets/videos
+                                    Please attach a video using the button above, or add video files to the assets/videos
                                     folder.
                                 </p>
                                 Your browser does not support the video tag.
@@ -306,7 +306,7 @@
                                 </div>
                             </div>
 
-                            <div id="quick-tag-feedback" class="quick-tag-feedback hidden mt-2 text-center text-xs font-semibold py-1.5 px-3 rounded bg-emerald-50 text-emerald-800 border border-emerald-200" role="status" aria-live="polite"></div>
+                            <div id="quick-tag-feedback" class="sr-only" role="status" aria-live="polite"></div>
 
                             <!-- Focus Tagging Ticker: compact last event verification + undo + switch to review -->
                             <div id="quick-tag-ticker" class="flex items-center justify-between mt-2 pt-2 border-t border-slate-200 text-xs">

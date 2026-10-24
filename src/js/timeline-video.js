@@ -330,16 +330,11 @@ function retargetEventTime(eventId, timeSeconds) {
     return true;
 }
 
-// Visual confirmation banner for fast tagging without modal popup
+// Screen-reader status announcement (visually hidden via .sr-only to avoid vertical layout shifts)
 function showQuickTagFeedback(eventType, timestamp) {
     const feedback = document.getElementById('quick-tag-feedback');
     if (!feedback) return;
     feedback.textContent = `Tagged ${formatEventTypeName(eventType)} at ${timestamp}`;
-    feedback.classList.remove('hidden');
-    clearTimeout(feedback._timeout);
-    feedback._timeout = setTimeout(() => {
-        feedback.classList.add('hidden');
-    }, 2500);
 }
 
 // Adjust video playback speed
@@ -532,6 +527,7 @@ function setTaggingMode(enabled) {
             text.textContent = isTaggingMode ? 'Done Tagging' : 'Tag Video';
         }
     }
+    updateFabVisibility();
     if (isTaggingMode) {
         setTimelineCollapsed(true);
         renderQuickTagButtons();
@@ -1673,14 +1669,15 @@ function showNoGameSelectedState() {
     if (timelineContainerElement) timelineContainerElement.classList.add('hidden');
 }
 
-// Show the add-event button only when both a video and a game are loaded
+// Show the add-event button only when both a video and a game are loaded, and not in tagging mode
 function updateFabVisibility() {
     const fab = document.getElementById('add-event-fab');
     const video = document.getElementById('video-player');
     if (!fab) return;
 
-    const videoLoaded = video && (video.currentSrc || video.querySelector('source')) && video.readyState > 0;
-    fab.classList.toggle('hidden', !(videoLoaded && currentGameId));
+    const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
+    // In tagging mode, custom tags are placed directly in the quick-tag panel with the coding buttons
+    fab.classList.toggle('hidden', !(videoLoaded && currentGameId && !isTaggingMode));
 }
 
 // Toggle favorite status for an event
@@ -2129,5 +2126,7 @@ export {
     deleteEvent,
     toggleFavorite,
     formatTime,
-    parseTime
+    parseTime,
+    updateFabVisibility,
+    showQuickTagFeedback
 };
