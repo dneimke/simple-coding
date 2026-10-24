@@ -8,11 +8,9 @@ Static client-side web app (`src/index.html`, `src/timeline-video.html`, ES6 mod
 
 The hidden tax of AI-assisted engineering is **"glue toil"**: the human spending 45 minutes acting as middleware—typing long problem descriptions, debating layout in chat, refreshing dev servers, clicking through 4 screens to reproduce state, and manually testing edge cases.
 
-Our goal is **Asynchronous Dispatch**:
-1. Spot friction on a phone or laptop.
-2. Provide a 2-second screenshot or brief note.
-3. Dispatch the agent and step away (to the garden or garage).
-4. Return to an open Pull Request with **green deterministic tests** and **automated visual snapshots** ready for a 5-second review and 1-tap merge.
+Our goal is **Two-Phase Asynchronous Dispatch**:
+1. **Phase 1: Interactive UX Authority (`/ux-design`)**: Drop a 2-second screenshot, question, or rough idea. The agent inspects current visual snapshots, challenges the idea against personas and push-back rules, grills you on edge cases via low-friction multiple-choice options (`ask_question`), and locks a **5-Part Dispatch Contract** without touching production code.
+2. **Phase 2: Autonomous Execution (`/async-ux-pipeline`)**: Once the contract is locked, dispatch `/async-ux-pipeline` and step away (to the garden or garage). Return to an open Pull Request with **green deterministic tests** and **automated visual snapshots** ready for a 5-second review and 1-tap merge.
 
 ### Zero-Toil Measurement: Cycle Latency via Git Branches
 Do not track time manually. Measure **Cycle Latency** via Git branches:
@@ -39,10 +37,10 @@ Do not track time manually. Measure **Cycle Latency** via Git branches:
 
 When the user provides feedback, a pain point, or a feature idea:
 
-1. **(a) Contextualize**: Identify which **Persona** and **Journey** below the input affects.
-2. **(b) Audit**: Inspect the current code and behaviour against that persona's goal and constraints.
-3. **(c) Challenge or Design**: Apply the **Push-Back Rules**. If the idea violates one or hurts another persona, push back and propose an alternative before writing code. Otherwise define the smallest change that solves it.
-4. **(d) Execute**: Use `.cursor/skills/async-ux-pipeline/SKILL.md` for app/UI changes or `.cursor/skills/board-config-generator/SKILL.md` for coding board layouts.
+1. **(a) Contextualize** *(Phase 1: `.cursor/skills/ux-design/SKILL.md`)*: Identify which **Persona** and **Journey** below the input affects.
+2. **(b) Audit** *(Phase 1: `.cursor/skills/ux-design/SKILL.md`)*: Inspect the current visual snapshots (`.visual-proof/*.png`) and code behaviour against that persona's goal and constraints.
+3. **(c) Challenge or Design** *(Phase 1: `.cursor/skills/ux-design/SKILL.md`)*: Apply the **Push-Back Rules**. If the idea violates one or hurts another persona, push back and propose an alternative before writing code. Grill the user on blind spots via `ask_question` and lock the **5-Part Dispatch Contract**.
+4. **(d) Execute** *(Phase 2: `.cursor/skills/async-ux-pipeline/SKILL.md` or `.cursor/skills/board-config-generator/SKILL.md`)*: Once the contract is approved, execute test-first implementation, multi-state visual proof, vision self-audit, and PR creation autonomously.
 
 ---
 
