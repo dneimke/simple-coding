@@ -1,6 +1,8 @@
 {
   "type": "module",
   "scripts": {
+    "start": "node scripts/serve.js",
+    "serve": "node scripts/serve.js",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
