@@ -374,13 +374,11 @@ describe('video coding workflow', () => {
             <div id="timeline-container" class="review-timeline">
                 <div id="timeline-panel-header">
                     <span id="timeline-events-counter">0</span>
-                    <button id="timeline-tag-mode-btn">Tag Video</button>
                     <button id="collapse-timeline-btn">Collapse</button>
                 </div>
             </div>
             <div id="video-container" class="review-video">
                 <button id="add-event-fab" class="hidden">Add tag</button>
-                <button id="toggle-tagging-mode-btn"><span class="tag-mode-text">Tag Video</span></button>
                 <video id="video-player"></video>
                 <div id="video-coding-panel" class="hidden">
                     <button id="edit-quick-tags-btn">Edit Tags</button>
@@ -614,14 +612,16 @@ describe('video coding workflow', () => {
         expect(panel.classList.contains('hidden')).toBe(false); // Quick tags still active!
     });
 
-    test('timeline Tag Video button restores tagging mode if closed', () => {
+    test('review screen has no duplicate Tag Video buttons in headers, and setTaggingMode toggles mode cleanly', () => {
+        expect(document.getElementById('timeline-tag-mode-btn')).toBeNull();
+        expect(document.getElementById('toggle-tagging-mode-btn')).toBeNull();
+
         const panel = document.getElementById('video-coding-panel');
+        mod.setTaggingMode(true);
+        expect(panel.classList.contains('hidden')).toBe(false);
+
         mod.setTaggingMode(false);
         expect(panel.classList.contains('hidden')).toBe(true);
-
-        const tagBtn = document.getElementById('timeline-tag-mode-btn');
-        tagBtn.click();
-        expect(panel.classList.contains('hidden')).toBe(false);
     });
 
     test('continuing coding on a saved match preserves existing event fields, teamCodes, and updates elapsedTime', () => {
