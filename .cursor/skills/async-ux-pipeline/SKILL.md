@@ -1,13 +1,13 @@
 ---
 name: async-ux-pipeline
 description: >-
-  Enforces the autonomous UX & test-first development pipeline. Evaluates user feedback
-  against AGENTS.md personas and push-back rules, traces Tap 1 -> Tap 2 -> Tap 3,
-  implements changes test-first, proves multi-state flows with automated Playwright
-  visual snapshots and mandatory vision self-audit, and ships a pull request.
+  Phase 2 Autonomous Execution Pipeline. Takes a locked 5-Part Dispatch Contract from
+  /ux-design (or a self-contained fix), implements changes test-first, proves multi-state
+  flows with automated Playwright visual snapshots and mandatory vision self-audit, and
+  ships a pull request.
 ---
 
-# Autonomous UX & Verification Pipeline
+# Autonomous UX & Verification Pipeline (Phase 2)
 
 Never optimize merely for "making the static screen pass tests." Optimize for the target persona completing their actual job from Tap 1 to completion without human QA intervention.
 
@@ -15,16 +15,14 @@ Never optimize merely for "making the static screen pass tests." Optimize for th
 
 Read `AGENTS.md` (personas, journeys, push-back rules, execution protocol) and `docs/design-language.md` (`.cursor/rules/design-language.mdc`) before changing markup, CSS, or JavaScript.
 
-## Stage 1: Autonomous Spec & 3-Tap Journey Trace
+## Stage 1: Contract Check or Rapid 3-Tap Trace
 
-When given raw user friction, image comments, or a 5-part brief, do not write production code until you have:
-1. **Investigated Current State**: Inspect the relevant UI components, routes, and state helpers first.
-2. **Traced the Full User Journey (`Tap 1 → Tap 2 → Tap 3`)**: Never design only the entry state. Explicitly map:
-   - **Tap 1 (Entry Trigger)**: What the user clicks/taps to start (e.g., *Duplicate to edit*).
-   - **Tap 2 (Active Manipulation)**: How the user performs the core edit/action (e.g., *Tap button on visual board → edit in modal*). Ensure the persona never hits a technical dead-end (such as raw JSON or developer instructions) on Tap 2.
-   - **Tap 3 (Persisted Outcome)**: How the change saves and reflects immediately in the UI.
-3. **Output the 5-Part Contract**: State the **Goal**, **Decisions & 3-Tap Journey**, **Invariants**, **Specific Next Step**, and **Traps to Avoid** before touching code.
-4. **Resolve Forks or Execute**: If `Tap 2` has a genuine product fork (e.g., single-item vs. mirrored behaviour), ask 1–2 concise questions alongside the 5-Part Contract. Otherwise, proceed straight through Stages 2–5 autonomously.
+1. **If a 5-Part Dispatch Contract is already locked in the conversation (from [`/ux-design`](../ux-design/SKILL.md))**:
+   - Do not re-interview the user. Proceed straight to **Stage 2 → Stage 5** autonomously so the user can step away.
+2. **If invoked directly without a prior `/ux-design` contract**:
+   - **Investigate Current Visual & Code State**: Inspect existing `.visual-proof/*.png` snapshots (`read_file`) and relevant `src/` files so you never design blind.
+   - **Evaluate Push-Back Rules & Personas**: If the request has unvalidated UX trade-offs, violates an `AGENTS.md` push-back rule, or has a genuine `Tap 2` product fork, pause and run the [`/ux-design`](../ux-design/SKILL.md) grill (`ask_question`) **before** touching `src/` or `tests/`.
+   - **Self-Contained Bug/Polish**: If the request is a clear bug fix or unambiguous UI polish, output the **5-Part Dispatch Contract** (`Goal & Persona`, `Locked 3-Tap Journey & Design Tokens`, `Invariants`, `Visual Proof States`, `Traps to Avoid`) and proceed straight through Stages 2–5 autonomously.
 
 ## Stage 2: Design Tokens, Ergonomics & Copy Hygiene
 

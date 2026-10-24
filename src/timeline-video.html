@@ -67,23 +67,18 @@
 
         <main class="app-main">
             <div class="page">
-                <header class="page-header review-header flex flex-wrap items-center justify-between gap-2">
-                    <div class="review-heading min-w-0 flex-1">
-                        <div class="flex items-center gap-2">
-                            <p class="page-subtitle mb-0">Match review</p>
-                            <span id="draft-badge" class="badge text-[11px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-medium hidden">Draft</span>
-                        </div>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <h1 id="review-game-title" class="page-title review-game-title cursor-pointer hover:text-blue-600 transition-colors hidden" title="Click to rename match"></h1>
-                            <button id="edit-title-btn" type="button" class="btn btn-ghost btn-icon btn-compact text-slate-400 hover:text-slate-700 hidden" title="Rename match" aria-label="Rename match">
-                                <i class="fas fa-pencil-alt text-xs" aria-hidden="true"></i>
-                            </button>
-                            <form id="inline-title-form" class="hidden flex items-center gap-1.5">
-                                <input type="text" id="inline-title-input" class="field text-sm py-1 px-2 font-bold w-48 sm:w-64" maxlength="50" placeholder="Match name...">
-                                <button type="submit" id="save-title-btn" class="btn btn-primary btn-compact" title="Save name"><i class="fas fa-check text-xs"></i></button>
-                                <button type="button" id="cancel-title-btn" class="btn btn-secondary btn-compact" title="Cancel"><i class="fas fa-times text-xs"></i></button>
-                            </form>
-                        </div>
+                <header class="page-header review-header flex items-center justify-between gap-2 py-1 mb-1">
+                    <div class="review-heading min-w-0 flex items-center gap-2">
+                        <span id="draft-badge" class="badge text-[11px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-medium hidden">Draft</span>
+                        <h1 id="review-game-title" class="page-title review-game-title cursor-pointer hover:text-blue-600 transition-colors hidden mb-0 text-sm sm:text-base font-bold truncate" title="Click to rename match"></h1>
+                        <button id="edit-title-btn" type="button" class="btn btn-ghost btn-icon btn-compact text-slate-400 hover:text-slate-700 hidden" title="Rename match" aria-label="Rename match">
+                            <i class="fas fa-pencil-alt text-xs" aria-hidden="true"></i>
+                        </button>
+                        <form id="inline-title-form" class="hidden flex items-center gap-1.5">
+                            <input type="text" id="inline-title-input" class="field text-xs sm:text-sm py-0.5 px-2 font-bold w-48 sm:w-64" maxlength="50" placeholder="Match name...">
+                            <button type="submit" id="save-title-btn" class="btn btn-primary btn-compact" title="Save name"><i class="fas fa-check text-xs"></i></button>
+                            <button type="button" id="cancel-title-btn" class="btn btn-secondary btn-compact" title="Cancel"><i class="fas fa-times text-xs"></i></button>
+                        </form>
                     </div>
                     <div class="review-header-actions flex items-center gap-2 ml-auto flex-shrink-0">
                         <span id="save-status-indicator" class="text-xs text-muted hidden sm:inline-flex items-center gap-1 text-slate-500">
@@ -209,26 +204,26 @@
                     <!-- Video player -->
                     <section id="video-container" class="review-video" aria-label="Video">
                         <div class="review-video-toolbar">
-                            <button id="toggle-tagging-mode-btn" type="button" class="btn btn-secondary" aria-pressed="false" title="Toggle 1-tap quick tagging mode">
-                                <i class="fas fa-tag" aria-hidden="true"></i>
+                            <button id="toggle-tagging-mode-btn" type="button" class="btn btn-secondary btn-compact" aria-pressed="false" title="Toggle 1-tap quick tagging mode">
+                                <i class="fas fa-tag text-xs" aria-hidden="true"></i>
                                 <span class="tag-mode-text">Tag Video</span>
                             </button>
-                            <button id="presentation-mode" type="button" class="btn btn-accent-purple">
-                                <i class="fas fa-film" aria-hidden="true"></i>
+                            <button id="presentation-mode" type="button" class="btn btn-accent-purple btn-compact">
+                                <i class="fas fa-film text-xs" aria-hidden="true"></i>
                                 <span>Presentation</span>
                             </button>
-                            <button id="rewind-10s" type="button" class="btn btn-dark" aria-label="Rewind 10 seconds">
-                                <i class="fas fa-backward" aria-hidden="true"></i>-10s
+                            <button id="rewind-10s" type="button" class="btn btn-dark btn-compact" aria-label="Rewind 10 seconds">
+                                <i class="fas fa-backward text-xs" aria-hidden="true"></i>-10s
                             </button>
-                            <button id="rewind-5s" type="button" class="btn btn-dark" aria-label="Rewind 5 seconds" title="Rewind 5s (←)">
+                            <button id="rewind-5s" type="button" class="btn btn-dark btn-compact" aria-label="Rewind 5 seconds" title="Rewind 5s (←)">
                                 -5s
                             </button>
-                            <button id="forward-5s" type="button" class="btn btn-dark" aria-label="Forward 5 seconds" title="Forward 5s (→)">
+                            <button id="forward-5s" type="button" class="btn btn-dark btn-compact" aria-label="Forward 5 seconds" title="Forward 5s (→)">
                                 +5s
                             </button>
-                            <button id="forward-10s" type="button" class="btn btn-dark"
+                            <button id="forward-10s" type="button" class="btn btn-dark btn-compact"
                                 aria-label="Forward 10 seconds">
-                                +10s<i class="fas fa-forward" aria-hidden="true"></i>
+                                +10s<i class="fas fa-forward text-xs" aria-hidden="true"></i>
                             </button>
                             <!-- Playback Speed Controls -->
                             <div class="segmented segmented-compact" role="group" aria-label="Playback speed">
@@ -238,24 +233,24 @@
                             </div>
                             <!-- Playlist controls for presentation mode -->
                             <div id="playlist-controls" class="hidden items-center gap-1">
-                                <button id="prev-favorite" type="button" class="btn btn-dark btn-icon"
+                                <button id="prev-favorite" type="button" class="btn btn-dark btn-icon btn-compact"
                                     aria-label="Previous favorite">
-                                    <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                                    <i class="fas fa-chevron-left text-xs" aria-hidden="true"></i>
                                 </button>
                                 <span id="playlist-counter" class="text-white mx-2 text-sm tabular-nums">0/0</span>
-                                <button id="next-favorite" type="button" class="btn btn-dark btn-icon"
+                                <button id="next-favorite" type="button" class="btn btn-dark btn-icon btn-compact"
                                     aria-label="Next favorite">
-                                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                                    <i class="fas fa-chevron-right text-xs" aria-hidden="true"></i>
                                 </button>
                             </div>
 
                             <div class="review-video-actions ml-auto">
-                                <button id="add-event-fab" type="button" class="btn btn-primary hidden">
-                                    <i class="fas fa-tag" aria-hidden="true"></i>
+                                <button id="add-event-fab" type="button" class="btn btn-primary btn-compact hidden">
+                                    <i class="fas fa-tag text-xs" aria-hidden="true"></i>
                                     <span>Add tag</span>
                                 </button>
-                                <label for="video-upload" class="btn btn-dark review-upload cursor-pointer">
-                                    <i class="fas fa-paperclip" aria-hidden="true"></i>Attach Video
+                                <label for="video-upload" class="btn btn-dark btn-compact review-upload cursor-pointer">
+                                    <i class="fas fa-paperclip text-xs" aria-hidden="true"></i>Attach Video
                                 </label>
                                 <input type="file" id="video-upload" class="hidden" accept="video/*">
                             </div>
@@ -272,29 +267,16 @@
                         </div>
 
                         <!-- Quick Tagging Panel for Fast Video Pass (Hidden by default in Review mode) -->
-                        <div id="video-coding-panel" class="video-coding-panel surface hidden mt-3 p-3 rounded-lg border border-slate-200 shadow-sm">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Quick Tag</span>
-                                    <span id="quick-tag-hint" class="text-xs text-muted hidden sm:inline">(Tap or press 1–6 during playback)</span>
-                                </div>
-                                <div class="flex items-center gap-1.5">
-                                    <button id="edit-quick-tags-btn" type="button" class="btn btn-secondary btn-compact" title="Edit tag buttons">
-                                        <i class="fas fa-cog text-xs" aria-hidden="true"></i><span id="edit-quick-tags-label">Edit Tags</span>
-                                    </button>
-                                    <button id="add-custom-tag-btn" type="button" class="btn btn-ghost btn-compact" title="Add custom event or note">
-                                        <i class="fas fa-plus text-xs" aria-hidden="true"></i><span>Custom Tag</span>
-                                    </button>
-                                </div>
-                            </div>
+                        <div id="video-coding-panel" class="video-coding-panel surface hidden mt-1.5 p-2 rounded-lg border border-slate-200 shadow-sm">
+                            <span id="quick-tag-hint" class="sr-only"></span>
 
-                            <!-- Quick tags grid -->
-                            <div id="quick-tags-container" class="grid grid-cols-3 sm:grid-cols-6 gap-2"></div>
+                            <!-- Quick tags grid (Row 1) -->
+                            <div id="quick-tags-container" class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2"></div>
 
                             <!-- Quick tags edit / add form (hidden by default) -->
-                            <div id="quick-tags-edit-bar" class="hidden mt-2 p-2 bg-slate-50 border border-slate-200 rounded-md">
-                                <div class="text-xs font-semibold text-slate-700 mb-1.5">Add New Tag</div>
-                                <div class="flex flex-wrap items-center gap-2">
+                            <div id="quick-tags-edit-bar" class="hidden mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-md">
+                                <div class="text-xs font-semibold text-slate-700 mb-1">Add New Tag</div>
+                                <div class="flex flex-wrap items-center gap-1.5">
                                     <input id="new-tag-label-input" type="text" class="field text-xs py-1 px-2 flex-1 min-w-[120px]" placeholder="Tag name (e.g. Press, Turnover)" maxlength="20">
                                     <div id="new-tag-color-selector" class="flex items-center gap-1" role="radiogroup" aria-label="Tag color"></div>
                                     <button id="save-new-tag-btn" type="button" class="btn btn-primary btn-compact">
@@ -308,15 +290,21 @@
 
                             <div id="quick-tag-feedback" class="sr-only" role="status" aria-live="polite"></div>
 
-                            <!-- Focus Tagging Ticker: compact last event verification + undo + switch to review -->
-                            <div id="quick-tag-ticker" class="flex items-center justify-between mt-2 pt-2 border-t border-slate-200 text-xs">
-                                <div class="flex items-center gap-2 text-slate-700 truncate mr-2">
+                            <!-- Focus Tagging Ticker + Actions (Row 2): verification + undo + custom tag + edit tags + toggle events panel -->
+                            <div id="quick-tag-ticker" class="flex flex-wrap items-center justify-between gap-1.5 mt-1.5 pt-1.5 border-t border-slate-200 text-xs">
+                                <div class="flex items-center gap-2 text-slate-700 truncate min-w-0">
                                     <span class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Last:</span>
                                     <span id="ticker-last-event" class="font-medium text-slate-800 truncate">No events logged yet</span>
-                                </div>
-                                <div class="flex items-center gap-1.5 flex-shrink-0">
-                                    <button id="quick-tag-undo-btn" type="button" class="btn btn-ghost btn-compact text-red-600 hover:text-red-700 disabled:opacity-40" disabled title="Undo last event">
+                                    <button id="quick-tag-undo-btn" type="button" class="btn btn-ghost btn-compact text-red-600 hover:text-red-700 disabled:opacity-40 ml-0.5" disabled title="Undo last event">
                                         <i class="fas fa-undo text-xs" aria-hidden="true"></i><span>Undo</span>
+                                    </button>
+                                </div>
+                                <div class="flex items-center gap-1 flex-shrink-0 ml-auto">
+                                    <button id="add-custom-tag-btn" type="button" class="btn btn-ghost btn-compact text-slate-700 hover:text-slate-900" title="Add custom event or note">
+                                        <i class="fas fa-plus text-xs" aria-hidden="true"></i><span>Custom Tag</span>
+                                    </button>
+                                    <button id="edit-quick-tags-btn" type="button" class="btn btn-ghost btn-compact text-slate-700 hover:text-slate-900" title="Edit tag buttons">
+                                        <i class="fas fa-cog text-xs" aria-hidden="true"></i><span id="edit-quick-tags-label">Edit Tags</span>
                                     </button>
                                     <button id="quick-tag-review-btn" type="button" class="btn btn-secondary btn-compact" title="Toggle events list side-by-side">
                                         <i class="fas fa-list-check text-xs" aria-hidden="true"></i><span id="quick-tag-review-label">Events Panel (<span id="ticker-event-count">0</span>) ▾</span>
