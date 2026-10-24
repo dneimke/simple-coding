@@ -368,7 +368,7 @@ describe('video coding workflow', () => {
         </div>
         <div class="review-header-actions">
             <span id="save-status-indicator" class="hidden"></span>
-            <button id="save-and-exit-btn">Save & Exit</button>
+            <button id="save-and-exit-btn">Exit to Matches</button>
         </div>
         <div class="review-layout">
             <div id="timeline-container" class="review-timeline">
@@ -379,6 +379,7 @@ describe('video coding workflow', () => {
                 </div>
             </div>
             <div id="video-container" class="review-video">
+                <button id="add-event-fab" class="hidden">Add tag</button>
                 <button id="toggle-tagging-mode-btn"><span class="tag-mode-text">Tag Video</span></button>
                 <video id="video-player"></video>
                 <div id="video-coding-panel" class="hidden">
@@ -398,7 +399,7 @@ describe('video coding workflow', () => {
             </div>
         </div>
         <div id="playback-speed-controls"></div>
-        <div id="quick-tag-feedback" class="hidden"></div>
+        <div id="quick-tag-feedback" class="sr-only"></div>
     `;
 
     beforeEach(() => {
@@ -673,5 +674,37 @@ describe('video coding workflow', () => {
             timeMs: 150000,
             timestamp: '02:30'
         });
+    });
+    test('showQuickTagFeedback updates text content without unhiding or shifting visual layout', () => {
+        const feedback = document.getElementById('quick-tag-feedback');
+        expect(feedback.classList.contains('sr-only')).toBe(true);
+
+        mod.showQuickTagFeedback('Goal', '01:23');
+
+        expect(feedback.textContent).toBe('Tagged Goal at 01:23');
+        // Remains sr-only so no vertical layout shift is caused
+        expect(feedback.classList.contains('sr-only')).toBe(true);
+    });
+
+    test('updateFabVisibility hides top toolbar add-event-fab in tagging mode to eliminate duplicate custom tag buttons', () => {
+        const fab = document.getElementById('add-event-fab');
+        const video = document.getElementById('video-player');
+
+        // Simulate video ready
+        video.src = 'blob:test';
+        Object.defineProperty(video, 'readyState', { value: 4, configurable: true });
+
+        // In review mode (not tagging mode), fab is visible
+        mod.setTaggingMode(false);
+        mod.updateFabVisibility();
+        expect(fab.classList.contains('hidden')).toBe(false);
+
+        // When switching to tagging mode, fab is hidden because panel has Custom Tag button
+        mod.setTaggingMode(true);
+        expect(fab.classList.contains('hidden')).toBe(true);
+
+        // Switching back to review mode restores fab
+        mod.setTaggingMode(false);
+        expect(fab.classList.contains('hidden')).toBe(false);
     });
 });
