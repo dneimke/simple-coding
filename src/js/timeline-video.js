@@ -506,26 +506,11 @@ function setTaggingMode(enabled) {
     isTaggingMode = Boolean(enabled);
     const layout = document.querySelector('.review-layout');
     const panel = document.getElementById('video-coding-panel');
-    const toggleBtn = document.getElementById('toggle-tagging-mode-btn');
-
     if (layout) {
         layout.classList.toggle('tagging-mode-active', isTaggingMode);
     }
     if (panel) {
         panel.classList.toggle('hidden', !isTaggingMode);
-    }
-    if (toggleBtn) {
-        toggleBtn.setAttribute('aria-pressed', isTaggingMode ? 'true' : 'false');
-        toggleBtn.classList.toggle('btn-primary', !isTaggingMode);
-        toggleBtn.classList.toggle('btn-secondary', isTaggingMode);
-        const icon = toggleBtn.querySelector('i');
-        const text = toggleBtn.querySelector('.tag-mode-text') || toggleBtn.querySelector('span');
-        if (icon) {
-            icon.className = isTaggingMode ? 'fas fa-check' : 'fas fa-tag';
-        }
-        if (text) {
-            text.textContent = isTaggingMode ? 'Done Tagging' : 'Tag Video';
-        }
     }
     updateFabVisibility();
     if (isTaggingMode) {
@@ -1755,15 +1740,6 @@ domReady(() => {
         });
     }
 
-    // Toggle Tagging Mode button in player toolbar
-    const toggleTagModeBtn = document.getElementById('toggle-tagging-mode-btn');
-    if (toggleTagModeBtn) {
-        toggleTagModeBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            setTaggingMode(!isTaggingMode);
-        });
-    }
-
     // Edit Quick Tags toggle button
     const editTagsBtn = document.getElementById('edit-quick-tags-btn');
     const editTagsLabel = document.getElementById('edit-quick-tags-label');
@@ -1835,15 +1811,6 @@ domReady(() => {
         reviewModeBtn.addEventListener('click', (e) => {
             e.preventDefault();
             setTimelineCollapsed(!isTimelineCollapsed);
-        });
-    }
-
-    // Open/Restore Tagging Mode from Timeline panel header
-    const timelineTagBtn = document.getElementById('timeline-tag-mode-btn');
-    if (timelineTagBtn) {
-        timelineTagBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            setTaggingMode(true);
         });
     }
 
