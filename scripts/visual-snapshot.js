@@ -424,6 +424,54 @@ async function runSnapshots() {
             await videoCtx.close();
         }
 
+        
+        // Capture Video URL Attachment Flow Proof (Desktop & Mobile)
+        for (const vp of VIEWPORTS) {
+            const urlCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const urlPage = await urlCtx.newPage();
+
+            // Step 1: Open match review with sample game
+            await urlPage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample`, { waitUntil: 'domcontentloaded' });
+            await urlPage.waitForSelector('#attach-video-btn');
+
+            // Open the Attach Video modal
+            await urlPage.click('#attach-video-btn');
+            await urlPage.waitForSelector('#attach-video-modal:not(.hidden)');
+            await urlPage.waitForSelector('#video-url-input');
+
+            // Type a realistic web video link
+            await urlPage.fill('#video-url-input', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+            await urlPage.waitForTimeout(300);
+
+            // Step 1 snapshot: Modal open with Web Video URL tab and filled input
+            const step1Path = path.join(OUTPUT_DIR, `video-url-step1-modal-${vp.name}.png`);
+            await urlPage.screenshot({ path: step1Path, fullPage: true });
+
+            // Step 2: Submit and attach video
+            await urlPage.click('#submit-attach-url-btn');
+            await urlPage.waitForSelector('#attach-video-modal', { state: 'hidden' });
+            await urlPage.waitForSelector('#video-stage-empty-overlay', { state: 'hidden' });
+            await urlPage.waitForTimeout(500);
+
+            // Step 2 snapshot: Active video attached, player controls live, notification shown
+            const step2Path = path.join(OUTPUT_DIR, `video-url-step2-attached-${vp.name}.png`);
+            await urlPage.screenshot({ path: step2Path, fullPage: true });
+
+            // Step 3: Reload the page without mock reset to verify auto-restore from storage
+            await urlPage.goto(`${baseUrl}/timeline-video.html?game=sample-game`, { waitUntil: 'domcontentloaded' });
+            await urlPage.waitForSelector('#video-stage-empty-overlay', { state: 'hidden' });
+            await urlPage.waitForTimeout(500);
+
+            // Step 3 snapshot: Reloaded page retains video source automatically
+            const step3Path = path.join(OUTPUT_DIR, `video-url-step3-reload-${vp.name}.png`);
+            await urlPage.screenshot({ path: step3Path, fullPage: true });
+
+            await urlCtx.close();
+        }
+
         // Multi-viewport proof for Board Import flow (Desktop & Mobile)
         for (const vp of VIEWPORTS) {
             const importContext = await browser.newContext({

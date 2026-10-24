@@ -513,6 +513,7 @@ function setTaggingMode(enabled) {
         panel.classList.toggle('hidden', !isTaggingMode);
     }
     updateFabVisibility();
+
     if (isTaggingMode) {
         setTimelineCollapsed(true);
         renderQuickTagButtons();
@@ -1120,6 +1121,212 @@ function saveGame(gameId, events, metadata = {}) {
     }
 }
 
+
+// --- Video URL & Source Management ---
+
+function validateVideoUrl(url) {
+    if (!url || typeof url !== 'string' || !url.trim()) {
+        return { valid: false, error: 'Please enter a valid video link' };
+    }
+    const clean = url.trim();
+    try {
+        const parsed = new URL(clean);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+            return { valid: false, error: 'Please enter an http or https video link' };
+        }
+        const host = parsed.hostname.toLowerCase();
+        if (host.includes('youtube.com') || host.includes('youtu.be')) {
+            return {
+                valid: true,
+                isSupportedDirect: false,
+                warning: 'YouTube watch pages cannot be controlled for frame-accurate hockey coding. Please supply a direct MP4/WebM video stream or downloaded video file.'
+            };
+        }
+        if (host.includes('vimeo.com')) {
+            return {
+                valid: true,
+                isSupportedDirect: false,
+                warning: 'Vimeo watch pages require direct MP4/WebM links to support frame seeking and playback speeds.'
+            };
+        }
+        return {
+            valid: true,
+            isSupportedDirect: true
+        };
+    } catch (_) {
+        return { valid: false, error: 'Please enter a complete, valid URL (e.g. https://example.com/video.mp4)' };
+    }
+}
+
+function updateVideoStageOverlays() {
+    const video = document.getElementById('video-player');
+    const emptyOverlay = document.getElementById('video-stage-empty-overlay');
+    const errorOverlay = document.getElementById('video-error-overlay');
+    const hasSource = Boolean(video && (video.currentSrc || video.src || video.querySelector('source')));
+
+    if (emptyOverlay) {
+        emptyOverlay.classList.toggle('hidden', hasSource);
+    }
+    if (errorOverlay && !hasSource) {
+        errorOverlay.classList.add('hidden');
+    }
+}
+
+function updateCurrentVideoBanner() {
+    const banner = document.getElementById('current-video-banner');
+    const textEl = document.getElementById('current-video-source-text');
+    const video = document.getElementById('video-player');
+    const game = getCurrentGame();
+
+    const currentSrc = (game && (game.videoUrl || (game.metadata && game.metadata.videoUrl))) ||
+                       (video && (video.src || video.currentSrc || ''));
+
+    if (banner && textEl) {
+        if (currentSrc) {
+            banner.classList.remove('hidden');
+            textEl.textContent = currentSrc.length > 40 ? (currentSrc.slice(0, 37) + '...') : currentSrc;
+            textEl.title = currentSrc;
+        } else {
+            banner.classList.add('hidden');
+            textEl.textContent = '';
+        }
+    }
+}
+
+function switchAttachVideoTab(tab = 'url') {
+    const tabUrl = document.getElementById('tab-attach-url');
+    const tabFile = document.getElementById('tab-attach-file');
+    const panelUrl = document.getElementById('panel-attach-url');
+    const panelFile = document.getElementById('panel-attach-file');
+
+    if (tab === 'file') {
+        if (tabFile) {
+            tabFile.classList.add('is-active');
+            tabFile.setAttribute('aria-selected', 'true');
+        }
+        if (tabUrl) {
+            tabUrl.classList.remove('is-active');
+            tabUrl.setAttribute('aria-selected', 'false');
+        }
+        if (panelFile) panelFile.classList.remove('hidden');
+        if (panelUrl) panelUrl.classList.add('hidden');
+    } else {
+        if (tabUrl) {
+            tabUrl.classList.add('is-active');
+            tabUrl.setAttribute('aria-selected', 'true');
+        }
+        if (tabFile) {
+            tabFile.classList.remove('is-active');
+            tabFile.setAttribute('aria-selected', 'false');
+        }
+        if (panelUrl) panelUrl.classList.remove('hidden');
+        if (panelFile) panelFile.classList.add('hidden');
+        const input = document.getElementById('video-url-input');
+        if (input) setTimeout(() => input.focus(), 100);
+    }
+}
+
+function openAttachVideoModal(initialTab = 'url') {
+    const modal = document.getElementById('attach-video-modal');
+    if (!modal) return;
+    switchAttachVideoTab(initialTab);
+    updateCurrentVideoBanner();
+    modal.classList.remove('hidden');
+}
+
+function closeAttachVideoModal() {
+    const modal = document.getElementById('attach-video-modal');
+    if (modal) modal.classList.add('hidden');
+    const warning = document.getElementById('video-url-warning');
+    if (warning) warning.classList.add('hidden');
+}
+
+function attachVideoUrl(url, options = { saveToStorage: true }) {
+    const validation = validateVideoUrl(url);
+    if (!validation.valid) {
+        showNotification(validation.error || 'Invalid video link', 'error');
+        return { success: false, error: validation.error };
+    }
+    const cleanUrl = url.trim();
+    const video = document.getElementById('video-player');
+    if (!video) return { success: false, error: 'Video element not found' };
+
+    while (video.firstChild) {
+        video.removeChild(video.firstChild);
+    }
+    video.removeAttribute('src');
+    video.src = cleanUrl;
+    video.load();
+    try {
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(err => console.warn("Couldn't auto-play attached video:", err));
+        }
+    } catch (_) {}
+
+    let game = getCurrentGame();
+    if (!game) {
+        game = createNewVideoGame();
+    }
+
+    if (options && options.saveToStorage) {
+        game.videoUrl = cleanUrl;
+        if (!game.metadata) game.metadata = {};
+        game.metadata.videoUrl = cleanUrl;
+
+        if (currentDraftGame && currentDraftGame.id === game.id) {
+            commitDraftGame();
+        } else {
+            const savedGames = getSavedGames();
+            const { game: existing, index } = findGameById(savedGames, game.id);
+            if (existing) {
+                existing.videoUrl = cleanUrl;
+                if (!existing.metadata) existing.metadata = {};
+                existing.metadata.videoUrl = cleanUrl;
+                savedGames[index] = existing;
+                storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+            }
+        }
+    }
+
+    updateVideoStageOverlays();
+    updateCurrentVideoBanner();
+    closeAttachVideoModal();
+    updateFabVisibility();
+
+    showNotification('Video URL attached and saved to match', 'success');
+    return { success: true, url: cleanUrl };
+}
+
+function detachVideo() {
+    const video = document.getElementById('video-player');
+    if (video) {
+        while (video.firstChild) video.removeChild(video.firstChild);
+        video.removeAttribute('src');
+        video.load();
+    }
+
+    let game = getCurrentGame();
+    if (game) {
+        delete game.videoUrl;
+        if (game.metadata) delete game.metadata.videoUrl;
+
+        const savedGames = getSavedGames();
+        const { game: existing, index } = findGameById(savedGames, game.id);
+        if (existing) {
+            delete existing.videoUrl;
+            if (existing.metadata) delete existing.metadata.videoUrl;
+            savedGames[index] = existing;
+            storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        }
+    }
+
+    updateVideoStageOverlays();
+    updateCurrentVideoBanner();
+    updateFabVisibility();
+    showNotification('Video removed from match', 'info');
+}
+
 function loadGame(gameId) {
     const savedGames = getSavedGames();
     const { game: foundGame } = findGameById(savedGames, gameId);
@@ -1159,6 +1366,14 @@ function loadGame(gameId) {
             updateTitleUI(displayName);
             updateSaveStatusUI();
             updateFabVisibility();
+
+            const savedVideoUrl = game.videoUrl || (game.metadata && game.metadata.videoUrl);
+            if (savedVideoUrl) {
+                attachVideoUrl(savedVideoUrl, { saveToStorage: false });
+            } else {
+                updateVideoStageOverlays();
+                updateCurrentVideoBanner();
+            }
 
             return true;
         } catch (e) {
@@ -1951,7 +2166,132 @@ domReady(() => {
                 });
             }
         });
-    }    // --- Video Player Setup ---
+    }    
+    // Attach Video Modal triggers
+    const attachVideoBtn = document.getElementById('attach-video-btn');
+    if (attachVideoBtn) {
+        attachVideoBtn.addEventListener('click', () => openAttachVideoModal('url'));
+    }
+    const directAttachBtn = document.getElementById('open-attach-video-direct-btn');
+    if (directAttachBtn) {
+        directAttachBtn.addEventListener('click', () => openAttachVideoModal('url'));
+    }
+    const stageAttachBtn = document.getElementById('stage-attach-video-btn');
+    if (stageAttachBtn) {
+        stageAttachBtn.addEventListener('click', () => openAttachVideoModal('url'));
+    }
+    const stageUploadFileBtn = document.getElementById('stage-upload-file-btn');
+    if (stageUploadFileBtn) {
+        stageUploadFileBtn.addEventListener('click', () => openAttachVideoModal('file'));
+    }
+    const closeAttachModalBtn = document.getElementById('close-attach-video-modal');
+    if (closeAttachModalBtn) {
+        closeAttachModalBtn.addEventListener('click', closeAttachVideoModal);
+    }
+    const cancelAttachUrlBtn = document.getElementById('cancel-attach-url-btn');
+    if (cancelAttachUrlBtn) {
+        cancelAttachUrlBtn.addEventListener('click', closeAttachVideoModal);
+    }
+    const cancelAttachFileBtn = document.getElementById('cancel-attach-file-btn');
+    if (cancelAttachFileBtn) {
+        cancelAttachFileBtn.addEventListener('click', closeAttachVideoModal);
+    }
+    const tabAttachUrl = document.getElementById('tab-attach-url');
+    if (tabAttachUrl) {
+        tabAttachUrl.addEventListener('click', () => switchAttachVideoTab('url'));
+    }
+    const tabAttachFile = document.getElementById('tab-attach-file');
+    if (tabAttachFile) {
+        tabAttachFile.addEventListener('click', () => switchAttachVideoTab('file'));
+    }
+    const detachVideoBtn = document.getElementById('detach-video-btn');
+    if (detachVideoBtn) {
+        detachVideoBtn.addEventListener('click', detachVideo);
+    }
+    const retryVideoUrlBtn = document.getElementById('retry-video-url-btn');
+    if (retryVideoUrlBtn) {
+        retryVideoUrlBtn.addEventListener('click', () => {
+            const errOverlay = document.getElementById('video-error-overlay');
+            if (errOverlay) errOverlay.classList.add('hidden');
+            if (videoPlayer) {
+                videoPlayer.load();
+                videoPlayer.play().catch(e => console.warn("Retry play error:", e));
+            }
+        });
+    }
+    const changeVideoUrlBtn = document.getElementById('change-video-url-btn');
+    if (changeVideoUrlBtn) {
+        changeVideoUrlBtn.addEventListener('click', () => openAttachVideoModal('url'));
+    }
+
+    const videoUrlInput = document.getElementById('video-url-input');
+    const videoUrlWarning = document.getElementById('video-url-warning');
+    const videoUrlWarningText = document.getElementById('video-url-warning-text');
+    if (videoUrlInput) {
+        videoUrlInput.addEventListener('input', () => {
+            const check = validateVideoUrl(videoUrlInput.value);
+            if (check.warning && videoUrlWarning && videoUrlWarningText) {
+                videoUrlWarningText.textContent = check.warning;
+                videoUrlWarning.classList.remove('hidden');
+            } else if (videoUrlWarning) {
+                videoUrlWarning.classList.add('hidden');
+            }
+        });
+        videoUrlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (videoUrlInput.value.trim()) {
+                    attachVideoUrl(videoUrlInput.value.trim());
+                }
+            }
+        });
+    }
+
+    const submitAttachUrlBtn = document.getElementById('submit-attach-url-btn');
+    if (submitAttachUrlBtn && videoUrlInput) {
+        submitAttachUrlBtn.addEventListener('click', () => {
+            if (videoUrlInput.value.trim()) {
+                attachVideoUrl(videoUrlInput.value.trim());
+            } else {
+                showNotification('Please enter a video URL', 'error');
+            }
+        });
+    }
+
+    const modalFileInput = document.getElementById('video-modal-file-input');
+    if (modalFileInput) {
+        modalFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('video/')) {
+                showNotification('Please select a valid video file', 'error');
+                return;
+            }
+            if (!currentGameId) {
+                const baseName = file.name.replace(/\.[^/.]+$/, '');
+                createNewVideoGame(baseName);
+            } else {
+                autoRenameFromVideo(file.name);
+            }
+            commitDraftGame();
+            if (videoPlayer) {
+                while (videoPlayer.firstChild) videoPlayer.removeChild(videoPlayer.firstChild);
+                const source = document.createElement('source');
+                source.src = URL.createObjectURL(file);
+                source.type = file.type;
+                videoPlayer.appendChild(source);
+                videoPlayer.load();
+                videoPlayer.play().catch(err => console.warn("Couldn't auto-play video:", err));
+            }
+            updateVideoStageOverlays();
+            updateCurrentVideoBanner();
+            closeAttachVideoModal();
+            updateFabVisibility();
+            showNotification('Video file loaded', 'success');
+        });
+    }
+
+    // --- Video Player Setup ---
     const videoPlayer = document.getElementById('video-player');
     if (videoPlayer) {
         console.log('Video player element found.');
@@ -1981,16 +2321,13 @@ domReady(() => {
         // Handle errors
         videoPlayer.addEventListener('error', (e) => {
             console.error('Video Player Error:', videoPlayer.error);
-            // Display a user-friendly error message
-            const videoContainer = document.getElementById('video-container');
-            if (videoContainer) {
-                const errorMessage = document.createElement('div');
-                errorMessage.className = 'bg-red-100 text-red-800 p-4 rounded';
-                errorMessage.innerHTML = `
-                    <p class="font-bold">Video Error</p>
-                    <p>Could not load video. Please check if video file exists and is supported by your browser.</p>
-                `;
-                videoContainer.appendChild(errorMessage);
+            const errorOverlay = document.getElementById('video-error-overlay');
+            const errorMessageEl = document.getElementById('video-error-message');
+            if (errorOverlay) {
+                if (errorMessageEl) {
+                    errorMessageEl.textContent = 'Unable to stream video from this source. Please verify that the link is accessible and is a direct MP4 or WebM file.';
+                }
+                errorOverlay.classList.remove('hidden');
             }
         });        // Listen for timeline event clicks to seek the video
         document.addEventListener('timeline-event-clicked', (e) => {
@@ -2060,6 +2397,14 @@ function jumpToVideoTime(timeMs) {
 }
 
 export {
+    validateVideoUrl,
+    attachVideoUrl,
+    detachVideo,
+    openAttachVideoModal,
+    closeAttachVideoModal,
+    switchAttachVideoTab,
+    updateVideoStageOverlays,
+    updateCurrentVideoBanner,
     CORE_QUICK_TAGS,
     DEFAULT_QUICK_TAGS,
     QUICK_TAG_COLORS,

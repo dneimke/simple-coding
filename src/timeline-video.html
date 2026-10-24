@@ -116,9 +116,9 @@
                                 <button id="start-new-video-game-btn" type="button" class="btn btn-primary">
                                     <i class="fas fa-plus" aria-hidden="true"></i>New Video Match
                                 </button>
-                                <label for="video-upload-direct" class="btn btn-secondary cursor-pointer">
+                                <button id="open-attach-video-direct-btn" type="button" class="btn btn-secondary">
                                     <i class="fas fa-paperclip" aria-hidden="true"></i>Attach Video
-                                </label>
+                                </button>
                                 <input type="file" id="video-upload-direct" class="hidden" accept="video/*">
                                 <a href="index.html#saved-games" class="btn btn-ghost">
                                     <i class="fas fa-folder-open" aria-hidden="true"></i>Matches
@@ -242,21 +242,49 @@
                                     <i class="fas fa-tag text-xs" aria-hidden="true"></i>
                                     <span>Add tag</span>
                                 </button>
-                                <label for="video-upload" class="btn btn-dark btn-compact review-upload cursor-pointer">
-                                    <i class="fas fa-paperclip text-xs" aria-hidden="true"></i>Attach Video
-                                </label>
+                                <button id="attach-video-btn" type="button" class="btn btn-dark btn-compact" title="Attach video (Web URL or local file)">
+                                    <i class="fas fa-video text-xs" aria-hidden="true"></i><span>Attach Video</span>
+                                </button>
                                 <input type="file" id="video-upload" class="hidden" accept="video/*">
                             </div>
                         </div>
 
-                        <div class="review-video-stage">
+                        <div class="review-video-stage relative">
                             <video id="video-player" controls preload="metadata" playsinline aria-label="Video player">
-                                <p class="text-white text-center p-6">
-                                    Please attach a video using the button above, or add video files to the assets/videos
-                                    folder.
-                                </p>
                                 Your browser does not support the video tag.
                             </video>
+                            <!-- Video Stage Empty Overlay -->
+                            <div id="video-stage-empty-overlay" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/90 text-white z-10">
+                                <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 mb-3">
+                                    <i class="fas fa-video text-xl" aria-hidden="true"></i>
+                                </div>
+                                <h3 class="font-bold text-base text-white mb-1">No Video Attached</h3>
+                                <p class="text-xs text-slate-400 max-w-sm mb-4">Attach a web video URL or choose an MP4 recording to code and review events against footage.</p>
+                                <div class="flex flex-wrap items-center justify-center gap-2">
+                                    <button id="stage-attach-video-btn" type="button" class="btn btn-primary btn-compact">
+                                        <i class="fas fa-link text-xs" aria-hidden="true"></i><span>Attach Web Video URL</span>
+                                    </button>
+                                    <button id="stage-upload-file-btn" type="button" class="btn btn-secondary btn-compact">
+                                        <i class="fas fa-file-video text-xs" aria-hidden="true"></i><span>Upload Local File</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Video Error Overlay -->
+                            <div id="video-error-overlay" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-900/95 text-white z-10 hidden">
+                                <div class="w-12 h-12 rounded-full bg-red-950/80 text-red-400 flex items-center justify-center mb-3">
+                                    <i class="fas fa-exclamation-triangle text-xl" aria-hidden="true"></i>
+                                </div>
+                                <h3 class="font-bold text-base text-white mb-1">Unable to Load Video</h3>
+                                <p id="video-error-message" class="text-xs text-slate-300 max-w-sm mb-4">Please verify that the video URL is public and in MP4 or WebM format.</p>
+                                <div class="flex items-center gap-2">
+                                    <button id="retry-video-url-btn" type="button" class="btn btn-secondary btn-compact">
+                                        <i class="fas fa-redo text-xs" aria-hidden="true"></i><span>Retry</span>
+                                    </button>
+                                    <button id="change-video-url-btn" type="button" class="btn btn-primary btn-compact">
+                                        <i class="fas fa-link text-xs" aria-hidden="true"></i><span>Change Video</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Quick Tagging Panel for Fast Video Pass (Hidden by default in Review mode) -->
@@ -318,6 +346,80 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    
+    <!-- Modal for attaching video (URL or local file) -->
+    <div id="attach-video-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="attach-video-modal-title">
+        <div class="modal-panel max-w-md relative">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+                <h2 id="attach-video-modal-title" class="modal-title text-base sm:text-lg mb-0">Attach Video</h2>
+                <button type="button" id="close-attach-video-modal" class="btn btn-ghost btn-icon btn-compact text-slate-400 hover:text-slate-700" aria-label="Close">
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <!-- Segmented Tab Picker -->
+            <div class="segmented w-full mb-4" role="tablist" aria-label="Video attachment source">
+                <button id="tab-attach-url" type="button" role="tab" aria-selected="true" class="is-active flex-1">
+                    <i class="fas fa-link mr-1.5 text-xs" aria-hidden="true"></i>Web Video URL
+                </button>
+                <button id="tab-attach-file" type="button" role="tab" aria-selected="false" class="flex-1">
+                    <i class="fas fa-file-video mr-1.5 text-xs" aria-hidden="true"></i>Local File
+                </button>
+            </div>
+
+            <!-- Tab Panel 1: Web Video URL -->
+            <div id="panel-attach-url" role="tabpanel" class="space-y-3">
+                <div>
+                    <label for="video-url-input" class="field-label">Video URL</label>
+                    <input id="video-url-input" type="url" class="field text-sm" placeholder="https://example.com/match-video.mp4" spellcheck="false" autocomplete="off">
+                </div>
+                <p class="help-text text-xs text-slate-500">
+                    Direct link to an MP4 or WebM video (Dropbox, Google Drive direct, S3, or self-hosted web server). The link is saved with the match.
+                </p>
+                <div id="video-url-warning" class="banner banner-warning text-xs hidden">
+                    <i class="fas fa-info-circle mr-1" aria-hidden="true"></i>
+                    <span id="video-url-warning-text"></span>
+                </div>
+                <div class="modal-actions pt-2">
+                    <button type="button" id="cancel-attach-url-btn" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="submit-attach-url-btn" class="btn btn-primary">
+                        <i class="fas fa-check text-xs" aria-hidden="true"></i><span>Attach Video</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Panel 2: Local File -->
+            <div id="panel-attach-file" role="tabpanel" class="space-y-3 hidden">
+                <div class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-slate-400 mb-2" aria-hidden="true"></i>
+                    <p class="font-semibold text-slate-700 text-sm mb-1">Choose a video file</p>
+                    <p class="help-text text-xs text-slate-500 mb-3">MP4, WebM, or MOV files on this device.</p>
+                    <label for="video-modal-file-input" class="btn btn-secondary btn-compact cursor-pointer inline-flex">
+                        <i class="fas fa-folder-open text-xs mr-1" aria-hidden="true"></i>Browse Files
+                    </label>
+                    <input type="file" id="video-modal-file-input" class="hidden" accept="video/*">
+                </div>
+                <p class="text-[11px] text-slate-500">
+                    Note: Local files are kept on your device and may need to be re-selected if you reload the browser.
+                </p>
+                <div class="modal-actions pt-2">
+                    <button type="button" id="cancel-attach-file-btn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Current Video Status / Detach Action (if video loaded) -->
+            <div id="current-video-banner" class="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600 hidden">
+                <div class="truncate mr-2">
+                    <span class="font-bold text-slate-700">Attached:</span>
+                    <span id="current-video-source-text" class="text-slate-500 truncate"></span>
+                </div>
+                <button type="button" id="detach-video-btn" class="btn btn-ghost btn-compact text-red-600 hover:text-red-700 flex-shrink-0">
+                    <i class="fas fa-trash-alt text-xs mr-1" aria-hidden="true"></i>Remove
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal for adding a new event -->
