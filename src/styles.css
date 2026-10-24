@@ -1702,6 +1702,7 @@ code {
 }
 
 .review-video-stage {
+    position: relative;
     background-color: #000;
     border-radius: var(--radius-md);
     overflow: hidden;
@@ -1990,6 +1991,7 @@ code {
     }
 
     .review-video-stage {
+    position: relative;
         flex: 1;
         display: flex;
         min-height: 0;

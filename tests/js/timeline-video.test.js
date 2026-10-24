@@ -378,8 +378,17 @@ describe('video coding workflow', () => {
                 </div>
             </div>
             <div id="video-container" class="review-video">
+                <button id="attach-video-btn">Attach Video</button>
                 <button id="add-event-fab" class="hidden">Add tag</button>
-                <video id="video-player"></video>
+                <div class="review-video-stage">
+                    <video id="video-player"></video>
+                    <div id="video-stage-empty-overlay" class="hidden"></div>
+                    <div id="video-error-overlay" class="hidden">
+                        <span id="video-error-message"></span>
+                        <button id="retry-video-url-btn"></button>
+                        <button id="change-video-url-btn"></button>
+                    </div>
+                </div>
                 <div id="video-coding-panel" class="hidden">
                     <button id="edit-quick-tags-btn">Edit Tags</button>
                     <div id="quick-tags-container"></div>
@@ -395,6 +404,27 @@ describe('video coding workflow', () => {
                     </div>
                 </div>
             </div>
+        </div>
+        <div id="attach-video-modal" class="modal hidden">
+            <button id="tab-attach-url" class="is-active">Web Video URL</button>
+            <button id="tab-attach-file">Local File</button>
+            <div id="panel-attach-url">
+                <input id="video-url-input" />
+                <div id="video-url-warning" class="hidden">
+                    <span id="video-url-warning-text"></span>
+                </div>
+                <button id="cancel-attach-url-btn">Cancel</button>
+                <button id="submit-attach-url-btn">Attach Video</button>
+            </div>
+            <div id="panel-attach-file" class="hidden">
+                <input type="file" id="video-modal-file-input" />
+                <button id="cancel-attach-file-btn">Cancel</button>
+            </div>
+            <div id="current-video-banner" class="hidden">
+                <span id="current-video-source-text"></span>
+                <button id="detach-video-btn">Remove</button>
+            </div>
+            <button id="close-attach-video-modal">Close</button>
         </div>
         <div id="playback-speed-controls"></div>
         <div id="quick-tag-feedback" class="sr-only"></div>
@@ -706,5 +736,113 @@ describe('video coding workflow', () => {
         // Switching back to review mode restores fab
         mod.setTaggingMode(false);
         expect(fab.classList.contains('hidden')).toBe(false);
+    });
+
+    describe('Video URL Attachment and Persistence', () => {
+        test('validateVideoUrl validates direct video URLs and detects third-party watch links', () => {
+            const validMp4 = mod.validateVideoUrl('https://club-media.example.org/videos/match-2026.mp4');
+            expect(validMp4.valid).toBe(true);
+            expect(validMp4.isSupportedDirect).toBe(true);
+
+            const validWebm = mod.validateVideoUrl('https://example.com/stream.webm');
+            expect(validWebm.valid).toBe(true);
+            expect(validWebm.isSupportedDirect).toBe(true);
+
+            const youtubeLink = mod.validateVideoUrl('https://www.youtube.com/watch?v=sample123');
+            expect(youtubeLink.valid).toBe(true);
+            expect(youtubeLink.isSupportedDirect).toBe(false);
+            expect(youtubeLink.warning).toContain('YouTube');
+
+            const youtuBeLink = mod.validateVideoUrl('https://youtu.be/sample123');
+            expect(youtuBeLink.valid).toBe(true);
+            expect(youtuBeLink.isSupportedDirect).toBe(false);
+
+            const vimeoLink = mod.validateVideoUrl('https://vimeo.com/123456789');
+            expect(vimeoLink.valid).toBe(true);
+            expect(vimeoLink.isSupportedDirect).toBe(false);
+            expect(vimeoLink.warning).toContain('Vimeo');
+
+            const emptyResult = mod.validateVideoUrl('');
+            expect(emptyResult.valid).toBe(false);
+
+            const invalidResult = mod.validateVideoUrl('ftp://not-supported');
+            expect(invalidResult.valid).toBe(false);
+        });
+
+        test('attachVideoUrl sets video source, hides empty overlay, and persists URL in storage', () => {
+            const video = document.getElementById('video-player');
+            const url = 'https://cloud-storage.example.com/hockey/q1.mp4';
+
+            const result = mod.attachVideoUrl(url);
+            expect(result.success).toBe(true);
+            expect(video.src).toBe(url);
+
+            const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+            expect(saved.videoUrl).toBe(url);
+            expect(saved.metadata.videoUrl).toBe(url);
+
+            const emptyOverlay = document.getElementById('video-stage-empty-overlay');
+            expect(emptyOverlay.classList.contains('hidden')).toBe(true);
+        });
+
+        test('attachVideoUrl commits draft game automatically so video URL is saved', () => {
+            const draft = mod.createNewVideoGame('Draft Match With Video');
+            const url = 'https://videos.example.org/finals.mp4';
+
+            const result = mod.attachVideoUrl(url);
+            expect(result.success).toBe(true);
+
+            const games = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+            const savedDraft = games.find(g => g.id === draft.id);
+            expect(savedDraft).toBeDefined();
+            expect(savedDraft.videoUrl).toBe(url);
+        });
+
+        test('detachVideo clears player source and removes videoUrl from storage', () => {
+            const url = 'https://cloud-storage.example.com/hockey/q1.mp4';
+            mod.attachVideoUrl(url);
+
+            const video = document.getElementById('video-player');
+            expect(video.src).toBe(url);
+
+            mod.detachVideo();
+            expect(video.src).toBe('');
+
+            const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+            expect(saved.videoUrl).toBeUndefined();
+            expect(saved.metadata.videoUrl).toBeUndefined();
+        });
+
+        test('loadGame restores videoUrl from saved game automatically', () => {
+            const testGameId = 'game-with-url';
+            const videoUrl = 'https://media.hockey.org/replay-1080p.mp4';
+            localStorage.setItem('fieldHockeyGames_v1', JSON.stringify([
+                { id: testGameId, teams: 'Adelaide vs Melbourne', events: [], videoUrl, metadata: { videoUrl } }
+            ]));
+
+            mod.loadGame(testGameId);
+
+            const video = document.getElementById('video-player');
+            expect(video.src).toBe(videoUrl);
+        });
+
+        test('modal tabs switch cleanly between URL and Local File panels', () => {
+            const tabUrl = document.getElementById('tab-attach-url');
+            const tabFile = document.getElementById('tab-attach-file');
+            const panelUrl = document.getElementById('panel-attach-url');
+            const panelFile = document.getElementById('panel-attach-file');
+
+            mod.switchAttachVideoTab('file');
+            expect(tabFile.classList.contains('is-active')).toBe(true);
+            expect(tabUrl.classList.contains('is-active')).toBe(false);
+            expect(panelFile.classList.contains('hidden')).toBe(false);
+            expect(panelUrl.classList.contains('hidden')).toBe(true);
+
+            mod.switchAttachVideoTab('url');
+            expect(tabUrl.classList.contains('is-active')).toBe(true);
+            expect(tabFile.classList.contains('is-active')).toBe(false);
+            expect(panelUrl.classList.contains('hidden')).toBe(false);
+            expect(panelFile.classList.contains('hidden')).toBe(true);
+        });
     });
 });
