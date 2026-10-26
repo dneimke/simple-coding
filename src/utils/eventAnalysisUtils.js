@@ -7,6 +7,7 @@
 export const LABEL_SCHEMAS = {
     channel: {
         group: 'Channel',
+        prompt: 'Which channel did they enter?',
         description: 'Attack channel or flank entry',
         options: [
             { key: '1', text: 'Left', short: 'L' },
@@ -16,6 +17,7 @@ export const LABEL_SCHEMAS = {
     },
     penaltyCorner: {
         group: 'Execution',
+        prompt: 'How was the penalty corner executed?',
         description: 'Penalty corner routine execution type',
         options: [
             { key: '1', text: 'Direct', short: 'Direct' },
@@ -25,6 +27,7 @@ export const LABEL_SCHEMAS = {
     },
     turnover: {
         group: 'Type',
+        prompt: 'How was the ball won?',
         description: 'Turnover or duel resolution type',
         options: [
             { key: '1', text: 'Tackle', short: 'Tackle' },
@@ -152,4 +155,144 @@ export const formatLabelText = (labels) => {
         return labels.text || '';
     }
     return labels.map(l => l.text).filter(Boolean).join(' · ');
+};
+
+/**
+ * Returns a user-friendly plain English name for an event code or string.
+ * E.g. 'PRIDE CE' -> 'Circle Entry', 'THUNDER A25E' -> 'Attacking 25m Entry'.
+ * @param {string|Object} eventOrCode 
+ * @returns {string}
+ */
+export const getFriendlyEventName = (eventOrCode) => {
+    if (!eventOrCode) return '';
+    let raw = typeof eventOrCode === 'object' ? (eventOrCode.event || '') : String(eventOrCode);
+    raw = raw.trim();
+
+    const mapCode = (str) => {
+        const upper = str.trim().toUpperCase();
+        if (/^CE\b|CIRCLE\s*ENTRY/i.test(upper)) return 'Circle Entry';
+        if (/^A25E\b|25M\s*ENTRY/i.test(upper)) return 'Attacking 25m Entry';
+        if (/^BW\b|BALL\s*WON/i.test(upper)) return 'Ball Won';
+        if (/^BL\b|BALL\s*LOST/i.test(upper)) return 'Ball Lost';
+        if (/^(PC|APC)\b|PENALTY\s*CORNER/i.test(upper)) return 'Penalty Corner';
+        if (/^SHOT\b/i.test(upper)) return 'Shot';
+        if (/^GOAL\b/i.test(upper)) return 'Goal';
+        if (/^BS1\b/i.test(upper)) return 'Build-Up Zone 1';
+        if (/^BS2\b/i.test(upper)) return 'Build-Up Zone 2';
+        if (/^BS3\b/i.test(upper)) return 'Build-Up Zone 3';
+        if (/^BS4\b/i.test(upper)) return 'Build-Up Zone 4';
+        return null;
+    };
+
+    const direct = mapCode(raw);
+    if (direct) return direct;
+
+    const parts = raw.split(/\s+/);
+    if (parts.length >= 2) {
+        const withoutTeam = parts.slice(1).join(' ');
+        const matched = mapCode(withoutTeam);
+        if (matched) return matched;
+    }
+
+    return raw;
+};
+
+/**
+ * Calculates grouped sweep scope options (presets) for a list of timeline events.
+ * Enables 1-tap focused sweeps (e.g. Pride Circle Entries) vs full match audits.
+ * @param {Array<Object>} timelineEvents 
+ * @returns {Array<Object>}
+ */
+export const getSweepScopeOptions = (timelineEvents = []) => {
+    if (!Array.isArray(timelineEvents)) return [];
+
+    const candidates = timelineEvents.filter(e => Boolean(getLabelSchemaForEvent(e)));
+    if (candidates.length === 0) return [];
+
+    const unlabelled = candidates.filter(e => !Array.isArray(e.labels) || e.labels.length === 0);
+    const targetPool = unlabelled.length > 0 ? unlabelled : candidates;
+
+    const options = [];
+    const teamMap = new Map();
+
+    targetPool.forEach(ev => {
+        const team = extractTeamFromEvent(ev) || 'Unassigned';
+        if (!teamMap.has(team)) {
+            teamMap.set(team, []);
+        }
+        teamMap.get(team).push(ev);
+    });
+
+    teamMap.forEach((teamEvents, team) => {
+        // Circle Entries
+        const ceEvents = teamEvents.filter(e => /\b(CE|CIRCLE\s*ENTRY)\b/i.test(e.event));
+        if (ceEvents.length > 0) {
+            options.push({
+                id: `${team}-CE`,
+                team,
+                type: 'CE',
+                label: `${team} Circle Entries (${ceEvents.length})`,
+                description: 'Categorize entry channels (Left, Center, Right)',
+                count: ceEvents.length,
+                estTime: ceEvents.length <= 20 ? `~${Math.max(15, ceEvents.length * 3)}s pass` : `~${Math.round(ceEvents.length * 3 / 60)}m pass`,
+                filter: (e) => (extractTeamFromEvent(e) || 'Unassigned') === team && /\b(CE|CIRCLE\s*ENTRY)\b/i.test(e.event)
+            });
+        }
+
+        // Attacking 25s
+        const a25Events = teamEvents.filter(e => /\b(A25E|25M\s*ENTRY)\b/i.test(e.event));
+        if (a25Events.length > 0) {
+            options.push({
+                id: `${team}-A25E`,
+                team,
+                type: 'A25E',
+                label: `${team} Attacking 25s (${a25Events.length})`,
+                description: 'Categorize 25m entry channels',
+                count: a25Events.length,
+                estTime: `~${Math.max(1, Math.round(a25Events.length * 3.5 / 60))}m pass`,
+                filter: (e) => (extractTeamFromEvent(e) || 'Unassigned') === team && /\b(A25E|25M\s*ENTRY)\b/i.test(e.event)
+            });
+        }
+
+        // Ball Won / Turnovers
+        const bwEvents = teamEvents.filter(e => /\b(BW|BALL\s*WON|TURNOVER)\b/i.test(e.event));
+        if (bwEvents.length > 0) {
+            options.push({
+                id: `${team}-BW`,
+                team,
+                type: 'BW',
+                label: `${team} Turnovers / Ball Won (${bwEvents.length})`,
+                description: 'Classify tackle vs intercept vs unforced',
+                count: bwEvents.length,
+                estTime: `~${Math.max(1, Math.round(bwEvents.length * 3.5 / 60))}m pass`,
+                filter: (e) => (extractTeamFromEvent(e) || 'Unassigned') === team && /\b(BW|BALL\s*WON|TURNOVER)\b/i.test(e.event)
+            });
+        }
+
+        // All for this team
+        if (teamEvents.length > 0) {
+            options.push({
+                id: `${team}-ALL`,
+                team,
+                type: 'ALL',
+                label: `All ${team} Events (${teamEvents.length})`,
+                description: `Complete sweep for ${team}`,
+                count: teamEvents.length,
+                estTime: `~${Math.max(1, Math.round(teamEvents.length * 3.5 / 60))}m pass`,
+                filter: (e) => (extractTeamFromEvent(e) || 'Unassigned') === team
+            });
+        }
+    });
+
+    // All match events
+    options.push({
+        id: 'all',
+        label: `All Match Events (${targetPool.length})`,
+        description: 'Full sweep across all teams and schemas',
+        count: targetPool.length,
+        estTime: `~${Math.max(1, Math.round(targetPool.length * 3.5 / 60))}m full audit`,
+        filter: () => true
+    });
+
+    return options;
 };

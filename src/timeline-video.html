@@ -243,20 +243,10 @@
                                     <i class="fas fa-chevron-right text-xs" aria-hidden="true"></i>
                                 </button>
                             </div>
-                            <!-- Sweep controls for rapid sequential labelling -->
-                            <div id="sweep-controls" class="hidden items-center gap-1.5 flex-wrap">
-                                <button id="prev-sweep-event" type="button" class="btn btn-dark btn-icon btn-compact"
-                                    aria-label="Previous clip (P)" title="Previous clip (P)">
-                                    <i class="fas fa-chevron-left text-xs" aria-hidden="true"></i>
-                                </button>
-                                <span id="sweep-counter" class="text-white text-xs font-semibold tabular-nums">0/0</span>
-                                <div id="sweep-chips" class="flex items-center gap-1"></div>
-                                <button id="skip-sweep-event" type="button" class="btn btn-dark btn-compact text-xs" title="Skip clip without saving (Space)">
-                                    Skip
-                                </button>
-                                <button id="exit-sweep-btn" type="button" class="btn btn-ghost btn-compact text-slate-300 hover:text-white text-xs" title="Exit sweep mode (Esc)">
-                                    <i class="fas fa-xmark text-xs" aria-hidden="true"></i>
-                                </button>
+                            <!-- Sweep controls placeholder (deprecated in favor of dedicated #sweep-dock below video) -->
+                            <div id="sweep-controls" class="hidden" aria-hidden="true">
+                                <span id="sweep-counter" class="hidden">0/0</span>
+                                <div id="sweep-chips" class="hidden"></div>
                             </div>
 
                             <div class="review-video-actions ml-auto">
@@ -353,6 +343,56 @@
                                         <i class="fas fa-list-check text-xs" aria-hidden="true"></i><span id="quick-tag-review-label">Events Panel (<span id="ticker-event-count">0</span>) ▾</span>
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+
+                        
+                        <!-- Dedicated Tinder-style Sweep Dock (Hidden by default, shown during Sweep mode) -->
+                        <div id="sweep-dock" class="sweep-dock surface hidden mt-2 p-3 sm:p-4 rounded-xl border border-slate-700 bg-slate-900 text-white shadow-xl" role="region" aria-label="Label Sweep Controls">
+                            <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-800">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <button id="dock-prev-sweep-btn" type="button" class="btn btn-dark btn-compact text-xs" title="Previous event (P or ←)">
+                                        <i class="fas fa-arrow-left text-xs mr-1" aria-hidden="true"></i><span>Back</span>
+                                    </button>
+                                    <span id="dock-sweep-team-badge" class="badge font-bold uppercase tracking-wider text-xs px-2.5 py-0.5 rounded bg-amber-500 text-black">PRIDE</span>
+                                    <span id="dock-sweep-event-name" class="font-bold text-sm text-white truncate">Circle Entry (CE)</span>
+                                    <span id="dock-sweep-timestamp" class="text-xs text-slate-400 font-mono">14:32</span>
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <span id="dock-sweep-counter" class="text-xs font-semibold text-slate-300 tabular-nums">Clip 1 of 18</span>
+                                    <button id="dock-exit-sweep-btn" type="button" class="btn btn-ghost btn-compact text-slate-400 hover:text-white text-xs" title="Exit sweep mode (Esc)">
+                                        <i class="fas fa-xmark text-sm" aria-hidden="true"></i><span class="sr-only">Exit</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Progress bar -->
+                            <div class="w-full bg-slate-800 rounded-full h-1.5 mb-3 overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="dock-sweep-progressbar-container">
+                                <div id="dock-sweep-progress" class="bg-primary-500 h-1.5 rounded-full transition-all duration-200" style="width: 0%"></div>
+                            </div>
+
+                            <!-- Prompt and Action Cards -->
+                            <div class="space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <p id="dock-sweep-prompt" class="text-xs sm:text-sm font-semibold text-slate-200">Which channel did they enter?</p>
+                                    <div class="flex items-center gap-1.5">
+                                        <button id="dock-replay-clip-btn" type="button" class="btn btn-dark btn-compact text-xs" title="Replay this clip (R)">
+                                            <i class="fas fa-rotate-right text-[10px] mr-1" aria-hidden="true"></i><span>Replay</span> <kbd class="text-[10px] font-mono text-slate-400 ml-1">R</kbd>
+                                        </button>
+                                        <button id="dock-skip-sweep-btn" type="button" class="btn btn-dark btn-compact text-xs" title="Skip this clip without saving (Space)">
+                                            <span>Skip</span> <kbd class="text-[10px] font-mono text-slate-400 ml-1">Space</kbd>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- 1-Tap Option Cards Grid -->
+                                <div id="dock-sweep-chips" class="grid grid-cols-3 gap-2 sm:gap-3"></div>
+                            </div>
+
+                            <!-- Keyboard shortcuts helper -->
+                            <div class="flex items-center justify-between text-[11px] text-slate-400 mt-3 pt-2.5 border-t border-slate-800">
+                                <span>Hotkeys: <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-slate-300">1</kbd>, <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-slate-300">2</kbd>, <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-slate-300">3</kbd> to tag &amp; advance</span>
+                                <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-slate-300">Esc</kbd> Exit</span>
                             </div>
                         </div>
 
@@ -476,6 +516,26 @@
             </button>
         </div>
     </div>
+
+    
+    <!-- Sweep Scope Picker Modal -->
+    <dialog id="sweep-scope-dialog" class="p-0 rounded-xl shadow-2xl border border-slate-700 bg-slate-900 text-white max-w-md w-[92%] backdrop:bg-slate-950/80">
+        <div class="p-4 sm:p-5 space-y-3">
+            <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800">
+                <div>
+                    <h3 class="font-bold text-base text-white">Choose Sweep Focus</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Target a high-value category or sweep the full match.</p>
+                </div>
+                <button id="close-sweep-scope-dialog" type="button" class="btn btn-ghost btn-compact text-slate-400 hover:text-white text-xs" aria-label="Close dialog">
+                    <i class="fas fa-xmark text-sm" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div id="sweep-scope-options" class="space-y-2 max-h-80 overflow-y-auto">
+                <!-- Options injected dynamically -->
+            </div>
+        </div>
+    </dialog>
 
     <script type="module" src="js/timeline-video.js"></script>
 </body>
