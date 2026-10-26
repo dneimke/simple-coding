@@ -395,6 +395,36 @@ async function runSnapshots() {
             const editTagsPath = path.join(OUTPUT_DIR, `video-coding-edit-tags-${vp.name}.png`);
             await videoPage.screenshot({ path: editTagsPath, fullPage: true });
 
+            const editStats = fs.statSync(editTagsPath);
+            results.push({
+                name: 'video-coding-edit-tags',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `video-coding-edit-tags-${vp.name}.png`,
+                bytes: editStats.size
+            });
+
+            // 2b. Exercise move right and re-index
+            const moveRightBtn = await videoPage.$('.quick-tag-move-btn.move-right:not([disabled])');
+            if (moveRightBtn) await moveRightBtn.click();
+            await videoPage.waitForTimeout(200);
+
+            const reorderPath = path.join(OUTPUT_DIR, `video-coding-reordered-${vp.name}.png`);
+            await videoPage.screenshot({ path: reorderPath, fullPage: true });
+
+            const reorderStats = fs.statSync(reorderPath);
+            results.push({
+                name: 'video-coding-reordered',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `video-coding-reordered-${vp.name}.png`,
+                bytes: reorderStats.size
+            });
+
+            // Exit edit mode back to normal coding before split view
+            if (editTagsBtn) await editTagsBtn.click();
+            await videoPage.waitForTimeout(200);
+
             // 3. Open Events Panel alongside Quick Tags (Split Mode)
             const reviewBtn = await videoPage.$('#quick-tag-review-btn');
             if (reviewBtn) await reviewBtn.click();
