@@ -3,6 +3,7 @@ import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
 import { generateGameId } from '../services/gameStorageManager.js';
 import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
+import { getLabelSchemaForEvent, formatLabelText } from '../utils/eventAnalysisUtils.js';
 
 const DEFAULT_QUICK_TAGS = [
     { id: 'goal', label: 'Goal', colorClass: 'btn-green', key: '1' },
@@ -30,7 +31,11 @@ let currentGameId = null;
 let timelineEvents = [];
 let activeTypeFilters = new Set();
 let favoritesOnly = false;
+let filterViewMode = 'all'; // 'all' | 'favorites' | 'unlabelled'
 let presentationModeActive = false;
+let sweepModeActive = false;
+let currentSweepIndex = 0;
+let sweepEvents = [];
 let isTaggingMode = false;
 let isEditingQuickTags = false;
 let selectedNewTagColor = 'btn-blue';
@@ -796,6 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up favorites toggle and playlist functionality
     initFavoritesUI();
     initPresentationMode();
+    initLabelSweep();
 });
 
 // Initialize mobile menu functionality
@@ -836,14 +842,23 @@ function initMobileMenu() {
 function initFavoritesUI() {
     const showAllBtn = document.getElementById('show-all-events');
     const showFavoritesBtn = document.getElementById('show-favorites');
+    const showUnlabelledBtn = document.getElementById('show-unlabelled');
 
-    if (showAllBtn && showFavoritesBtn) {
+    if (showAllBtn) {
         showAllBtn.addEventListener('click', () => {
             showAllEvents();
         });
+    }
 
+    if (showFavoritesBtn) {
         showFavoritesBtn.addEventListener('click', () => {
             showFavoritesOnly();
+        });
+    }
+
+    if (showUnlabelledBtn) {
+        showUnlabelledBtn.addEventListener('click', () => {
+            setFilterViewMode('unlabelled');
         });
     }
 }
@@ -1023,6 +1038,226 @@ function highlightTimelineEvent(eventId) {
             currentEvent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
+}
+
+// --- Label Sweep & Rapid Tagging Engine ---
+
+function initLabelSweep() {
+    const sweepBtn = document.getElementById('label-sweep-btn');
+    const prevBtn = document.getElementById('prev-sweep-event');
+    const skipBtn = document.getElementById('skip-sweep-event');
+    const exitBtn = document.getElementById('exit-sweep-btn');
+
+    if (sweepBtn) {
+        sweepBtn.addEventListener('click', () => {
+            toggleLabelSweep();
+        });
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            navigateSweep('previous');
+        });
+    }
+
+    if (skipBtn) {
+        skipBtn.addEventListener('click', () => {
+            navigateSweep('next');
+        });
+    }
+
+    if (exitBtn) {
+        exitBtn.addEventListener('click', () => {
+            exitLabelSweep();
+        });
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (!sweepModeActive) return;
+        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            exitLabelSweep();
+        } else if (e.code === 'Space' || e.key === ' ') {
+            e.preventDefault();
+            navigateSweep('next');
+        } else if (e.key === 'p' || e.key === 'P' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            navigateSweep('previous');
+        } else if (['1', '2', '3'].includes(e.key)) {
+            const currentEvent = sweepEvents[currentSweepIndex];
+            if (!currentEvent) return;
+            const schema = getLabelSchemaForEvent(currentEvent);
+            if (!schema) return;
+            const opt = schema.options.find(o => o.key === e.key);
+            if (opt) {
+                e.preventDefault();
+                applySweepLabel(schema.group, opt.text);
+            }
+        }
+    });
+}
+
+function toggleLabelSweep() {
+    if (sweepModeActive) {
+        exitLabelSweep();
+    } else {
+        startLabelSweep();
+    }
+}
+
+function startLabelSweep() {
+    let candidates = timelineEvents.filter(e => {
+        const matchesFilter = activeTypeFilters.size === 0 || activeTypeFilters.has(e.event);
+        const hasSchema = Boolean(getLabelSchemaForEvent(e));
+        return matchesFilter && hasSchema;
+    });
+
+    if (candidates.length === 0) {
+        candidates = timelineEvents.filter(e => Boolean(getLabelSchemaForEvent(e)));
+    }
+
+    if (candidates.length === 0) {
+        showNotification('No events matching label schemas found to sweep', 'warning');
+        return;
+    }
+
+    candidates.sort((a, b) => a.timeMs - b.timeMs);
+    const unlabelled = candidates.filter(e => !Array.isArray(e.labels) || e.labels.length === 0);
+    sweepEvents = unlabelled.length > 0 ? unlabelled : candidates;
+    currentSweepIndex = 0;
+    sweepModeActive = true;
+
+    if (presentationModeActive) {
+        togglePresentationMode();
+    }
+
+    const sweepBtn = document.getElementById('label-sweep-btn');
+    const sweepControls = document.getElementById('sweep-controls');
+    if (sweepBtn) {
+        sweepBtn.classList.add('is-active');
+        sweepBtn.setAttribute('aria-pressed', 'true');
+    }
+    if (sweepControls) {
+        sweepControls.classList.replace('hidden', 'flex');
+    }
+
+    loadSweepEvent(currentSweepIndex);
+}
+
+function exitLabelSweep() {
+    sweepModeActive = false;
+    const sweepBtn = document.getElementById('label-sweep-btn');
+    const sweepControls = document.getElementById('sweep-controls');
+    if (sweepBtn) {
+        sweepBtn.classList.remove('is-active');
+        sweepBtn.setAttribute('aria-pressed', 'false');
+    }
+    if (sweepControls) {
+        sweepControls.classList.replace('flex', 'hidden');
+    }
+    renderTimelineEvents();
+    updateFilterToggleUI();
+}
+
+function navigateSweep(direction) {
+    if (!sweepModeActive || sweepEvents.length === 0) return;
+    if (direction === 'next') {
+        if (currentSweepIndex < sweepEvents.length - 1) {
+            currentSweepIndex++;
+            loadSweepEvent(currentSweepIndex);
+        } else {
+            showNotification('Finished labelling sweep!', 'success');
+            exitLabelSweep();
+        }
+    } else if (direction === 'previous') {
+        if (currentSweepIndex > 0) {
+            currentSweepIndex--;
+            loadSweepEvent(currentSweepIndex);
+        }
+    }
+}
+
+function loadSweepEvent(index) {
+    if (index < 0 || index >= sweepEvents.length) return;
+    const event = sweepEvents[index];
+    const sweepCounter = document.getElementById('sweep-counter');
+    const sweepChips = document.getElementById('sweep-chips');
+
+    if (sweepCounter) {
+        sweepCounter.textContent = `${index + 1}/${sweepEvents.length}`;
+    }
+
+    const seekSec = Math.max(0, (event.timeMs / 1000) - 3);
+    const video = document.getElementById('video-player');
+    if (video) {
+        video.currentTime = seekSec;
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => { /* autoplay handling */ });
+        }
+    }
+
+    highlightTimelineEvent(event.id);
+
+    if (sweepChips) {
+        sweepChips.innerHTML = '';
+        const schema = getLabelSchemaForEvent(event);
+        if (schema) {
+            const currentLabel = event.labels?.find(l => l.group === schema.group)?.text;
+            schema.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                const isActive = currentLabel === opt.text;
+                btn.className = `btn btn-compact sweep-chip${isActive ? ' is-active' : ''}`;
+                btn.innerHTML = `${opt.short || opt.text} <span class="opacity-60 text-[10px] ml-0.5">(${opt.key})</span>`;
+                btn.title = `${opt.text} (Press ${opt.key})`;
+                btn.addEventListener('click', () => {
+                    applySweepLabel(schema.group, opt.text);
+                });
+                sweepChips.appendChild(btn);
+            });
+        }
+    }
+}
+
+function applySweepLabel(group, text) {
+    if (!sweepModeActive || currentSweepIndex >= sweepEvents.length) return;
+    const event = sweepEvents[currentSweepIndex];
+    if (!event) return;
+
+    updateEventLabel(event.id, group, text);
+    showNotification(`Tagged ${event.event} → ${text}`, 'success');
+    navigateSweep('next');
+}
+
+function updateEventLabel(eventId, group, text) {
+    if (!currentGameId) return false;
+    const savedGames = getSavedGames();
+    const { game } = findGameById(savedGames, currentGameId);
+    if (!game || !Array.isArray(game.events)) return false;
+
+    const event = game.events.find(e => e.id === eventId);
+    if (!event) return false;
+
+    if (!Array.isArray(event.labels)) event.labels = [];
+    const existingIndex = event.labels.findIndex(l => l.group === group);
+
+    if (existingIndex >= 0 && event.labels[existingIndex].text === text) {
+        event.labels.splice(existingIndex, 1);
+    } else if (existingIndex >= 0) {
+        event.labels[existingIndex].text = text;
+    } else {
+        event.labels.push({ group, text });
+    }
+
+    const metadata = { ...game.metadata, teams: game.teams };
+    saveGame(game.id, game.events, metadata);
+    timelineEvents = game.events;
+    renderTimelineEvents();
+    updateFilterToggleUI();
+    return true;
 }
 
 
@@ -1390,12 +1625,20 @@ function loadGame(gameId) {
 
 
 
-// Events that pass both the type filter and the favorites toggle
+// Events that pass both the type filter and the view mode toggle (all, favorites, unlabelled)
 function getVisibleEvents() {
-    return timelineEvents.filter(event =>
-        (activeTypeFilters.size === 0 || activeTypeFilters.has(event.event)) &&
-        (!favoritesOnly || event.isFavorite)
-    );
+    return timelineEvents.filter(event => {
+        const matchesType = activeTypeFilters.size === 0 || activeTypeFilters.has(event.event);
+        if (!matchesType) return false;
+        if (filterViewMode === 'favorites') return !!event.isFavorite;
+        if (filterViewMode === 'unlabelled') {
+            const schema = getLabelSchemaForEvent(event);
+            if (!schema) return false;
+            const hasLabels = Array.isArray(event.labels) && event.labels.length > 0;
+            return !hasLabels;
+        }
+        return true;
+    });
 }
 
 function setTypeFilters(types) {
@@ -1403,24 +1646,69 @@ function setTypeFilters(types) {
     renderTimelineEvents();
 }
 
-function setFavoritesOnly(value) {
-    favoritesOnly = value;
-    updateFavoritesToggleUI();
+function setFilterViewMode(mode) {
+    filterViewMode = mode;
+    favoritesOnly = (mode === 'favorites');
+    updateFilterToggleUI();
     renderTimelineEvents();
 }
 
-function updateFavoritesToggleUI() {
+function getFilterViewMode() {
+    return filterViewMode;
+}
+
+function setFavoritesOnly(value) {
+    setFilterViewMode(value ? 'favorites' : 'all');
+}
+
+function getUnlabelledEventsCount() {
+    return timelineEvents.filter(event => {
+        const schema = getLabelSchemaForEvent(event);
+        if (!schema) return false;
+        const hasLabels = Array.isArray(event.labels) && event.labels.length > 0;
+        return !hasLabels;
+    }).length;
+}
+
+function updateSweepButtonUI() {
+    const sweepBtn = document.getElementById('label-sweep-btn');
+    const sweepText = document.getElementById('label-sweep-text');
+    if (!sweepBtn) return;
+    const count = getUnlabelledEventsCount();
+    if (sweepText) {
+        sweepText.textContent = count > 0 ? `Sweep (${count})` : 'Sweep Labels';
+    }
+    sweepBtn.title = count > 0 ? `Rapidly label ${count} unlabelled events (1-3)` : 'Sweep events for labels';
+}
+
+function updateFilterToggleUI() {
     const showAllBtn = document.getElementById('show-all-events');
     const showFavoritesBtn = document.getElementById('show-favorites');
-    if (!showAllBtn || !showFavoritesBtn) return;
+    const showUnlabelledBtn = document.getElementById('show-unlabelled');
 
-    const [activeBtn, inactiveBtn] = favoritesOnly
-        ? [showFavoritesBtn, showAllBtn]
-        : [showAllBtn, showFavoritesBtn];
-    activeBtn.classList.add('is-active');
-    activeBtn.setAttribute('aria-pressed', 'true');
-    inactiveBtn.classList.remove('is-active');
-    inactiveBtn.setAttribute('aria-pressed', 'false');
+    const unlabelledCount = getUnlabelledEventsCount();
+    if (showUnlabelledBtn) {
+        showUnlabelledBtn.innerHTML = `<i class="fas fa-tag mr-1 text-xs" aria-hidden="true"></i>Unlabelled${unlabelledCount > 0 ? ` (${unlabelledCount})` : ''}`;
+    }
+
+    const buttons = [
+        { btn: showAllBtn, mode: 'all' },
+        { btn: showFavoritesBtn, mode: 'favorites' },
+        { btn: showUnlabelledBtn, mode: 'unlabelled' }
+    ];
+
+    buttons.forEach(({ btn, mode }) => {
+        if (!btn) return;
+        const isActive = filterViewMode === mode;
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-pressed', String(isActive));
+    });
+
+    updateSweepButtonUI();
+}
+
+function updateFavoritesToggleUI() {
+    updateFilterToggleUI();
 }
 
 // Delete event by id, update storage, re-render, and notify
@@ -1531,12 +1819,24 @@ function renderTimelineEvents() {
             timeEl.textContent = timeFormatted;
 
             const nameEl = document.createElement('span');
-            nameEl.className = 'timeline-event-name';
-            nameEl.textContent = eventName;
+            nameEl.className = 'timeline-event-name flex items-center flex-wrap gap-1';
+            const nameText = document.createElement('span');
+            nameText.textContent = eventName;
+            nameEl.appendChild(nameText);
+
+            if (Array.isArray(event.labels) && event.labels.length > 0) {
+                event.labels.forEach(lbl => {
+                    const pill = document.createElement('span');
+                    pill.className = `timeline-event-label${lbl.group === 'Origin' ? ' is-origin' : ''}`;
+                    pill.textContent = lbl.text;
+                    pill.title = `${lbl.group}: ${lbl.text}`;
+                    nameEl.appendChild(pill);
+                });
+            }
 
             if (note) {
                 const notePreview = document.createElement('span');
-                notePreview.className = 'timeline-event-note-text block text-xs text-slate-500 font-normal truncate';
+                notePreview.className = 'timeline-event-note-text block w-full text-xs text-slate-500 font-normal truncate';
                 notePreview.textContent = note;
                 nameEl.appendChild(notePreview);
             }
@@ -1581,6 +1881,33 @@ function renderTimelineEvents() {
                 eventElement.classList.add('has-editor');
                 const editorEl = document.createElement('div');
                 editorEl.className = 'timeline-event-editor';
+
+                const schema = getLabelSchemaForEvent(event);
+                if (schema) {
+                    const labelRow = document.createElement('div');
+                    labelRow.className = 'flex items-center gap-1.5 mb-2 flex-wrap';
+                    const labelTitle = document.createElement('span');
+                    labelTitle.className = 'text-xs font-semibold text-slate-700 mr-1';
+                    labelTitle.textContent = `${schema.group}:`;
+                    labelRow.appendChild(labelTitle);
+
+                    const activeText = event.labels?.find(l => l.group === schema.group)?.text;
+
+                    schema.options.forEach(opt => {
+                        const chip = document.createElement('button');
+                        chip.type = 'button';
+                        const isActive = activeText === opt.text;
+                        chip.className = `btn btn-compact text-xs label-chip ${isActive ? 'btn-primary is-active' : 'btn-secondary'}`;
+                        chip.textContent = opt.text;
+                        chip.setAttribute('aria-pressed', String(isActive));
+                        chip.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            updateEventLabel(event.id, schema.group, opt.text);
+                        });
+                        labelRow.appendChild(chip);
+                    });
+                    editorEl.appendChild(labelRow);
+                }
 
                 const noteRow = document.createElement('div');
                 noteRow.className = 'flex items-center gap-2 mb-2';
@@ -1681,6 +2008,8 @@ function renderTimelineEvents() {
 
             timelineContainer.appendChild(eventElement);
         });
+
+        updateFilterToggleUI();
 
 
         console.log(`Timeline rendered with ${eventsToRender.length} events${favoritesOnly ? ' (favorites only)' : ''}`);
@@ -2440,5 +2769,13 @@ export {
     formatTime,
     parseTime,
     updateFabVisibility,
-    showQuickTagFeedback
+    showQuickTagFeedback,
+    setFilterViewMode,
+    getFilterViewMode,
+    getUnlabelledEventsCount,
+    updateEventLabel,
+    initLabelSweep,
+    startLabelSweep,
+    exitLabelSweep,
+    applySweepLabel
 };
