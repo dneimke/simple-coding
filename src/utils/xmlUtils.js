@@ -22,6 +22,7 @@ const isValidEvent = (event) => (
 // XML utility functions
 import { escapeXml, logger } from './formatUtils.js';
 import { notificationService } from '../services/notificationService.js';
+import { getDerivedLabels } from './eventAnalysisUtils.js';
 
 const CLIP_LEAD_SECONDS = 5;
 const CLIP_LAG_SECONDS = 5;
@@ -34,7 +35,8 @@ const formatSeconds = (seconds) => seconds.toFixed(2);
  * and each distinct code becomes a row referenced by the instance's code_id.
  * The clip window uses each event's lead and lag (in seconds) when present,
  * otherwise CLIP_LEAD_SECONDS and CLIP_LAG_SECONDS.
- * @param {Array} events - Array of event objects ({ event, timeMs, lead?, lag? })
+ * Event labels and derived origin labels (Counter vs Build-Up) are emitted as <label> tags.
+ * @param {Array} events - Array of event objects ({ event, timeMs, lead?, lag?, labels? })
  * @returns {string} Sportscode XML document
  */
 export const generateSportscodeXml = (events) => {
@@ -49,15 +51,38 @@ export const generateSportscodeXml = (events) => {
         const eventSeconds = logEntry.timeMs / 1000;
         const start = Math.max(0, eventSeconds - (logEntry.lead ?? CLIP_LEAD_SECONDS));
         const end = eventSeconds + (logEntry.lag ?? CLIP_LAG_SECONDS);
-        return [
+
+        const explicitLabels = Array.isArray(logEntry.labels)
+            ? logEntry.labels
+            : (logEntry.labels ? [logEntry.labels] : []);
+        const derived = getDerivedLabels(logEntry, validEvents);
+        const combinedLabels = [...explicitLabels];
+        derived.forEach(d => {
+            if (!combinedLabels.some(l => l.group === d.group)) {
+                combinedLabels.push(d);
+            }
+        });
+
+        const labelXml = combinedLabels
+            .filter(l => l && l.text)
+            .map(l => [
+                '      <label>',
+                `        <group>${escapeXml(l.group || 'Label')}</group>`,
+                `        <text>${escapeXml(l.text)}</text>`,
+                '      </label>'
+            ].join('\n'));
+
+        const instanceLines = [
             '    <instance>',
             `      <ID>${index + 1}</ID>`,
             `      <start>${formatSeconds(start)}</start>`,
             `      <end>${formatSeconds(end)}</end>`,
             `      <code_id>${rowIds.get(code)}</code_id>`,
             `      <code>${escapeXml(code)}</code>`,
+            ...labelXml,
             '    </instance>'
-        ].join('\n');
+        ];
+        return instanceLines.join('\n');
     });
 
     const rows = Array.from(rowIds.entries()).map(([code, id]) => [
@@ -122,17 +147,24 @@ const getSportscodeInstancesElement = (xmlDoc) => {
 /**
  * Reads the raw fields of a Sportscode instance element
  * @param {Element} node - <instance> element
- * @returns {Object} Instance fields with numeric start/end
+ * @returns {Object} Instance fields with numeric start/end and optional labels
  */
 const readSportscodeInstance = (node) => {
     const startText = childText(node, 'start');
     const endText = childText(node, 'end');
+    const labelNodes = childElements(node, 'label');
+    const labels = labelNodes.map(lbl => ({
+        group: childText(lbl, 'group') || '',
+        text: childText(lbl, 'text') || ''
+    })).filter(l => l.text);
+
     return {
         id: childText(node, 'ID'),
         code: childText(node, 'code'),
         codeId: childText(node, 'code_id'),
         start: startText ? Number(startText) : NaN,
-        end: endText ? Number(endText) : NaN
+        end: endText ? Number(endText) : NaN,
+        labels: labels.length > 0 ? labels : undefined
     };
 };
 
@@ -148,20 +180,28 @@ const roundToMs = (seconds) => Math.round(seconds * 1000) / 1000;
  * @param {string} code - Instance code
  * @param {number} start - Clip start in seconds
  * @param {number} end - Clip end in seconds
- * @returns {Object} Event object ({ event, timeMs, lead?, lag? })
+ * @param {Array<Object>} [labels] - Optional instance labels
+ * @returns {Object} Event object ({ event, timeMs, lead?, lag?, labels? })
  */
-const instanceToEvent = (code, start, end) => {
+const instanceToEvent = (code, start, end, labels) => {
+    let evt;
     if (start === 0 && end <= CLIP_LEAD_SECONDS + CLIP_LAG_SECONDS) {
-        return { event: code, timeMs: Math.round(Math.max(0, end - CLIP_LAG_SECONDS) * 1000) };
+        evt = { event: code, timeMs: Math.round(Math.max(0, end - CLIP_LAG_SECONDS) * 1000) };
+    } else {
+        const timeMs = Math.round(((start + end) / 2) * 1000);
+        const eventSeconds = timeMs / 1000;
+        const lead = roundToMs(eventSeconds - start);
+        const lag = roundToMs(end - eventSeconds);
+        if (lead === CLIP_LEAD_SECONDS && lag === CLIP_LAG_SECONDS) {
+            evt = { event: code, timeMs };
+        } else {
+            evt = { event: code, timeMs, lead, lag };
+        }
     }
-    const timeMs = Math.round(((start + end) / 2) * 1000);
-    const eventSeconds = timeMs / 1000;
-    const lead = roundToMs(eventSeconds - start);
-    const lag = roundToMs(end - eventSeconds);
-    if (lead === CLIP_LEAD_SECONDS && lag === CLIP_LAG_SECONDS) {
-        return { event: code, timeMs };
+    if (labels && labels.length > 0) {
+        evt.labels = labels;
     }
-    return { event: code, timeMs, lead, lag };
+    return evt;
 };
 
 /**
@@ -178,7 +218,7 @@ export const parseXmlToEvents = (xmlContent) => {
         return childElements(instancesElement, 'instance')
             .map(readSportscodeInstance)
             .filter(({ code, start, end }) => code && isFinite(start) && isFinite(end))
-            .map(({ code, start, end }) => instanceToEvent(code, start, end));
+            .map(({ code, start, end, labels }) => instanceToEvent(code, start, end, labels));
     }
 
     // Legacy custom export format: <game teams=".."><events><event event=".." timeMs=".." /></events></game>
@@ -214,12 +254,9 @@ export const parseXmlToEvents = (xmlContent) => {
         const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
 
         events = instanceNodes.map(node => {
-            const code = node.getElementsByTagName('code')[0]?.textContent;
-            const start = parseFloat(node.getElementsByTagName('start')[0]?.textContent);
-            const end = parseFloat(node.getElementsByTagName('end')[0]?.textContent);
-
-            if (code && isFinite(start) && isFinite(end)) {
-                return instanceToEvent(code, start, end);
+            const parsed = readSportscodeInstance(node);
+            if (parsed.code && isFinite(parsed.start) && isFinite(parsed.end)) {
+                return instanceToEvent(parsed.code, parsed.start, parsed.end, parsed.labels);
             }
             return null;
         }).filter(Boolean);

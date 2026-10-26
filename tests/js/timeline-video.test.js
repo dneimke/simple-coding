@@ -348,6 +348,7 @@ describe('video coding workflow', () => {
         <div id="timeline-filters" class="hidden">
             <button id="show-all-events" class="bg-blue-500 text-white"></button>
             <button id="show-favorites" class="bg-gray-200 text-gray-700"></button>
+            <button id="show-unlabelled"></button>
             <button id="filter-dropdown-button" aria-expanded="false"><span id="selected-filters-text">All events</span></button>
             <div id="filter-dropdown-panel" class="hidden">
                 <input id="filter-option-all" type="checkbox" data-filter="all" checked>
@@ -379,6 +380,14 @@ describe('video coding workflow', () => {
             </div>
             <div id="video-container" class="review-video">
                 <button id="attach-video-btn">Attach Video</button>
+                <button id="label-sweep-btn"><span id="label-sweep-text">Sweep Labels</span></button>
+                <div id="sweep-controls" class="hidden">
+                    <button id="prev-sweep-event"></button>
+                    <span id="sweep-counter">0/0</span>
+                    <div id="sweep-chips"></div>
+                    <button id="skip-sweep-event"></button>
+                    <button id="exit-sweep-btn"></button>
+                </div>
                 <button id="add-event-fab" class="hidden">Add tag</button>
                 <div class="review-video-stage">
                     <video id="video-player"></video>
@@ -843,6 +852,76 @@ describe('video coding workflow', () => {
             expect(tabFile.classList.contains('is-active')).toBe(false);
             expect(panelUrl.classList.contains('hidden')).toBe(false);
             expect(panelFile.classList.contains('hidden')).toBe(true);
+        });
+    });
+
+    describe('Label Sweep and Tactical Tagging', () => {
+        const testGameId = 'game-labels-1';
+        const eventsWithSchemas = [
+            { id: 'ev-1', event: 'FIRE CE', timeMs: 45000 },
+            { id: 'ev-2', event: 'FIRE PC', timeMs: 90000, labels: [{ group: 'Execution', text: 'Direct' }] },
+            { id: 'ev-3', event: 'FIRE BW 1', timeMs: 120000 },
+            { id: 'ev-4', event: 'START', timeMs: 1000 } // No schema
+        ];
+
+        beforeEach(() => {
+            localStorage.setItem('fieldHockeyGames_v1', JSON.stringify([
+                { id: testGameId, teams: 'Fire vs Tigers', events: eventsWithSchemas, metadata: {} }
+            ]));
+            mod.loadGame(testGameId);
+        });
+
+        test('counts unlabelled events matching schemas accurately', () => {
+            // ev-1 (CE) and ev-3 (BW 1) have schemas and no labels -> count is 2
+            // ev-2 has label, ev-4 has no schema
+            expect(mod.getUnlabelledEventsCount()).toBe(2);
+        });
+
+        test('setFilterViewMode isolates unlabelled events matching schemas', () => {
+            mod.setFilterViewMode('unlabelled');
+            const visible = mod.getVisibleEvents();
+            expect(visible.map(e => e.id)).toEqual(['ev-1', 'ev-3']);
+
+            mod.setFilterViewMode('all');
+            expect(mod.getVisibleEvents()).toHaveLength(4);
+        });
+
+        test('updateEventLabel adds, replaces, and toggles off labels', () => {
+            // Add label to ev-1
+            mod.updateEventLabel('ev-1', 'Channel', 'Left');
+            const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+            const ev1 = saved.events.find(e => e.id === 'ev-1');
+            expect(ev1.labels).toEqual([{ group: 'Channel', text: 'Left' }]);
+
+            // Replace with Center
+            mod.updateEventLabel('ev-1', 'Channel', 'Center');
+            const [saved2] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+            const ev1Updated = saved2.events.find(e => e.id === 'ev-1');
+            expect(ev1Updated.labels).toEqual([{ group: 'Channel', text: 'Center' }]);
+
+            // Toggle off by selecting same label again
+            mod.updateEventLabel('ev-1', 'Channel', 'Center');
+            const [saved3] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+            const ev1Toggled = saved3.events.find(e => e.id === 'ev-1');
+            expect(ev1Toggled.labels).toEqual([]);
+        });
+
+        test('startLabelSweep activates sweep controls and loads first candidate', () => {
+            mod.startLabelSweep();
+            const sweepControls = document.getElementById('sweep-controls');
+            expect(sweepControls.classList.contains('flex')).toBe(true);
+
+            const counter = document.getElementById('sweep-counter');
+            expect(counter.textContent).toBe('1/2');
+
+            // Apply sweep label
+            mod.applySweepLabel('Channel', 'Right');
+            const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+            const ev1 = saved.events.find(e => e.id === 'ev-1');
+            expect(ev1.labels).toEqual([{ group: 'Channel', text: 'Right' }]);
+
+            mod.exitLabelSweep();
+            expect(sweepControls.classList.contains('flex')).toBe(false);
         });
     });
 });

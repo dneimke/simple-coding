@@ -472,6 +472,55 @@ async function runSnapshots() {
             await urlCtx.close();
         }
 
+        // Capture Label Sweep & Tactical Tagging Flow Proof (Desktop & Mobile)
+        for (const vp of VIEWPORTS) {
+            const sweepCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const sweepPage = await sweepCtx.newPage();
+
+            // Step 1: Open match review with sample game
+            await sweepPage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample`, { waitUntil: 'domcontentloaded' });
+            await sweepPage.waitForSelector('#label-sweep-btn');
+            await sweepPage.waitForSelector('#timeline-events');
+
+            // Launch Label Sweep
+            await sweepPage.click('#label-sweep-btn');
+            await sweepPage.waitForSelector('#sweep-controls:not(.hidden)');
+            await sweepPage.waitForSelector('.sweep-chip');
+            await sweepPage.waitForTimeout(300);
+
+            // Step 1 snapshot: Active Label Sweep controls docked with rapid-fire chips
+            const sweepModePath = path.join(OUTPUT_DIR, `timeline-video-sweep-${vp.name}.png`);
+            await sweepPage.screenshot({ path: sweepModePath, fullPage: true });
+
+            // Apply label to first event via chip click
+            const firstChip = await sweepPage.$('.sweep-chip');
+            if (firstChip) await firstChip.click();
+            await sweepPage.waitForTimeout(300);
+
+            // Exit sweep to view timeline
+            const exitBtn = await sweepPage.$('#exit-sweep-btn');
+            if (exitBtn) await exitBtn.click();
+            await sweepPage.waitForTimeout(300);
+
+            // Step 2 snapshot: Timeline displaying the inline label badge pill
+            const labelledPath = path.join(OUTPUT_DIR, `timeline-video-labelled-timeline-${vp.name}.png`);
+            await sweepPage.screenshot({ path: labelledPath, fullPage: true });
+
+            // Step 3: Click Unlabelled filter tab
+            const unlabelledBtn = await sweepPage.$('#show-unlabelled');
+            if (unlabelledBtn) await unlabelledBtn.click();
+            await sweepPage.waitForTimeout(300);
+
+            // Step 3 snapshot: Unlabelled view isolating events needing review
+            const unlabelledFilterPath = path.join(OUTPUT_DIR, `timeline-video-unlabelled-filter-${vp.name}.png`);
+            await sweepPage.screenshot({ path: unlabelledFilterPath, fullPage: true });
+
+            await sweepCtx.close();
+        }
+
         // Multi-viewport proof for Board Import flow (Desktop & Mobile)
         for (const vp of VIEWPORTS) {
             const importContext = await browser.newContext({

@@ -138,10 +138,46 @@ describe('XML Utils', () => {
     });
 
     describe('parseXmlToEvents', () => {
-        test('parses the Sportscode example, keeping decimal times and ignoring labels', () => {
+        test('parses the Sportscode example, keeping decimal times and labels', () => {
             const events = parseXmlToEvents(USER_EXAMPLE);
-            expect(events).toEqual([{ event: 'Shot on Target', timeMs: 146375, lead: 3.875, lag: 3.875 }]);
+            expect(events).toEqual([{
+                event: 'Shot on Target',
+                timeMs: 146375,
+                lead: 3.875,
+                lag: 3.875,
+                labels: [
+                    { group: 'Player', text: 'Striker 9' },
+                    { group: 'Outcome', text: 'Saved' }
+                ]
+            }]);
             expect(events.teamsAttribute).toBeUndefined();
+        });
+
+        test('exports explicit and derived labels to Sportscode XML', () => {
+            const events = [
+                { id: '1', event: 'FIRE BW 1', team: 'FIRE', timeMs: 50000 },
+                {
+                    id: '2',
+                    event: 'FIRE CE',
+                    team: 'FIRE',
+                    timeMs: 56000,
+                    labels: [{ group: 'Channel', text: 'Left' }]
+                }
+            ];
+            const xml = generateSportscodeXml(events);
+            const doc = parse(xml);
+            const instances = doc.querySelectorAll('instance');
+            expect(instances).toHaveLength(2);
+
+            const ceLabels = Array.from(instances[1].querySelectorAll('label')).map(l => ({
+                group: l.querySelector('group')?.textContent,
+                text: l.querySelector('text')?.textContent
+            }));
+
+            expect(ceLabels).toEqual([
+                { group: 'Channel', text: 'Left' },
+                { group: 'Origin', text: 'Counter' }
+            ]);
         });
 
         test('round-trips events through export and import', () => {

@@ -147,11 +147,14 @@
                             <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
                                 <label for="filter-dropdown-button" class="field-label mb-0">Filter events</label>
 
-                                <!-- Favorites toggle -->
-                                <div class="segmented" role="group" aria-label="Show events">
+                                <!-- Favorites & Unlabelled toggle -->
+                                <div class="segmented segmented-compact" role="group" aria-label="Show events">
                                     <button id="show-all-events" type="button" class="is-active">All</button>
                                     <button id="show-favorites" type="button">
                                         <i class="far fa-star mr-1" aria-hidden="true"></i>Favorites
+                                    </button>
+                                    <button id="show-unlabelled" type="button">
+                                        <i class="fas fa-tag mr-1 text-xs" aria-hidden="true"></i>Unlabelled
                                     </button>
                                 </div>
                             </div>
@@ -205,6 +208,10 @@
                                 <i class="fas fa-film text-xs" aria-hidden="true"></i>
                                 <span>Presentation</span>
                             </button>
+                            <button id="label-sweep-btn" type="button" class="btn btn-primary btn-compact" title="Rapidly label unlabelled events clip-by-clip">
+                                <i class="fas fa-tags text-xs" aria-hidden="true"></i>
+                                <span id="label-sweep-text">Sweep Labels</span>
+                            </button>
                             <button id="rewind-10s" type="button" class="btn btn-dark btn-compact" aria-label="Rewind 10 seconds">
                                 <i class="fas fa-backward text-xs" aria-hidden="true"></i>-10s
                             </button>
@@ -234,6 +241,21 @@
                                 <button id="next-favorite" type="button" class="btn btn-dark btn-icon btn-compact"
                                     aria-label="Next favorite">
                                     <i class="fas fa-chevron-right text-xs" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <!-- Sweep controls for rapid sequential labelling -->
+                            <div id="sweep-controls" class="hidden items-center gap-1.5 flex-wrap">
+                                <button id="prev-sweep-event" type="button" class="btn btn-dark btn-icon btn-compact"
+                                    aria-label="Previous clip (P)" title="Previous clip (P)">
+                                    <i class="fas fa-chevron-left text-xs" aria-hidden="true"></i>
+                                </button>
+                                <span id="sweep-counter" class="text-white text-xs font-semibold tabular-nums">0/0</span>
+                                <div id="sweep-chips" class="flex items-center gap-1"></div>
+                                <button id="skip-sweep-event" type="button" class="btn btn-dark btn-compact text-xs" title="Skip clip without saving (Space)">
+                                    Skip
+                                </button>
+                                <button id="exit-sweep-btn" type="button" class="btn btn-ghost btn-compact text-slate-300 hover:text-white text-xs" title="Exit sweep mode (Esc)">
+                                    <i class="fas fa-xmark text-xs" aria-hidden="true"></i>
                                 </button>
                             </div>
 
