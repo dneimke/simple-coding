@@ -402,12 +402,12 @@
                         title="Choose an XML file to upload">
                 </div>
 
-                <!-- Help View: 3 Modes of Match Coding -->
+                <!-- Help View: User Guide & Tactical Workflows -->
                 <div id="help-view" class="hidden space-y-6 pb-8">
                     <header class="page-header">
                         <div>
-                            <h1 class="page-title">3 Modes of Match Coding</h1>
-                            <p class="page-subtitle">Choose the fastest entry point for your game, then layer extra tags anytime.</p>
+                            <h1 class="page-title">User Guide &amp; Tactical Workflows</h1>
+                            <p class="page-subtitle">Master match capture, custom button boards, rapid video review, and AI-ready tactical telemetry.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <a href="#saved-games" class="btn btn-secondary">
@@ -420,6 +420,20 @@
                             </a>
                         </div>
                     </header>
+
+                    <!-- Sticky Quick-Jump Navigation Bar -->
+                    <nav id="help-jump-bar" aria-label="Help topics" class="sticky top-14 z-20 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700 shadow-md flex flex-wrap items-center gap-1.5 text-xs">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[10px] px-2 py-1">Jump to:</span>
+                        <a href="#help-overview-heading" class="btn btn-dark btn-compact text-xs">
+                            <i class="fas fa-layer-group text-blue-400 mr-1" aria-hidden="true"></i>3 Coding Modes
+                        </a>
+                        <a href="#help-configuration-title" class="btn btn-dark btn-compact text-xs">
+                            <i class="fas fa-sliders text-emerald-400 mr-1" aria-hidden="true"></i>Board Configuration
+                        </a>
+                        <a href="#help-sweep-metadata-title" class="btn btn-dark btn-compact text-xs">
+                            <i class="fas fa-tags text-purple-400 mr-1" aria-hidden="true"></i>Label Sweep &amp; AI Metadata
+                        </a>
+                    </nav>
 
                     <!-- Intro + Create Match Hub Screenshot -->
                     <section class="surface surface-padded" aria-labelledby="help-overview-heading">
@@ -659,6 +673,160 @@
                                         Click <strong>⋯ → Continue coding</strong> on any saved match to add new events at <code>1x</code>, <code>1.5x</code>, or <code>2x</code> video speed without losing existing tags.
                                     </figcaption>
                                 </figure>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Topic 2: Button Board Configuration -->
+                    <section class="surface surface-padded space-y-4" aria-labelledby="help-configuration-title">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                            <div>
+                                <span class="badge">Workflow 2 · Button Customizer</span>
+                                <h2 id="help-configuration-title" class="section-title text-lg mt-1">Button Board Configuration</h2>
+                                <p class="text-xs text-slate-500">Tailor buttons, pitch zones, and clip lead/lag windows to your squad's tactical focus.</p>
+                            </div>
+                            <a href="#configure" class="btn btn-primary btn-compact">
+                                <i class="fas fa-sliders text-xs" aria-hidden="true"></i>
+                                <span>Open Board Customizer</span>
+                            </a>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <div class="lg:col-span-6 space-y-3 text-sm text-slate-700">
+                                <p>
+                                    Every team plays with different tactical priorities. While casual volunteers need a simple 6-button board, senior analysts need spatial pitch zones, lead/lag clip windows, and dedicated coach codes. Simple-Coding lets you customize, duplicate, and share button boards without modifying code.
+                                </p>
+                                <div class="space-y-3 pt-1">
+                                    <div class="surface p-3 border border-slate-200 rounded-lg">
+                                        <div class="font-bold text-xs uppercase tracking-wide text-blue-700 mb-1">Built-in Presets vs. Custom Boards</div>
+                                        <p class="text-xs text-slate-600 mb-2">
+                                            The app includes protected factory templates like <strong>Simple (6 Events)</strong> (self-explanatory essentials for drafted helpers) and <strong>Hockey One Zoned</strong> (advanced analyst shorthand with pitch zones 1–4).
+                                        </p>
+                                        <p class="text-xs text-slate-600">
+                                            Click <strong>Duplicate</strong> on any preset to create a fully customizable team board (e.g., <em>Under-16 Pressing</em> or <em>Senior Penalty Corners</em>).
+                                        </p>
+                                    </div>
+
+                                    <div class="surface p-3 border border-slate-200 rounded-lg">
+                                        <div class="font-bold text-xs uppercase tracking-wide text-emerald-700 mb-1">Pre-Roll Lead &amp; Post-Roll Lag Windows</div>
+                                        <p class="text-xs text-slate-600 mb-1.5">
+                                            When exporting to Sportscode XML or reviewing video, each button has a custom clip window:
+                                        </p>
+                                        <ul class="list-disc pl-4 space-y-1 text-xs text-slate-600">
+                                            <li><strong>Pre-roll Lead (seconds):</strong> Clip starts seconds <em>before</em> your tap. For example, <code>SHOT</code> has 15s lead so the clip captures the build-up carry into the circle.</li>
+                                            <li><strong>Post-roll Lag (seconds):</strong> Clip continues seconds <em>after</em> your tap. For example, <code>PC</code> has 10s lag to capture the entire injection and shot outcome.</li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="surface p-3 border border-slate-200 rounded-lg">
+                                        <div class="font-bold text-xs uppercase tracking-wide text-purple-700 mb-1">Sharing Boards Across Your Coaching Staff</div>
+                                        <p class="text-xs text-slate-600">
+                                            Under <strong>Configure → Actions</strong>, click <strong>Export file</strong> to save your board file. Send it to assistants or volunteers who can <strong>Import file</strong> or paste it on their own phone or tablet with 1 tap.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="lg:col-span-6 space-y-3">
+                                <figure class="rounded-lg overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
+                                    <img src="assets/help/mode-live-match.png" alt="Button board customizer showing grid editor, color selector, lead and lag clip timing fields" class="w-full h-auto block" loading="lazy">
+                                    <figcaption class="px-3 py-2 text-xs text-slate-500 bg-slate-50 border-t border-slate-200">
+                                        <strong>Visual Board Customizer:</strong> Adjust grid columns, button colours, and per-event lead/lag clip timings in seconds.
+                                    </figcaption>
+                                </figure>
+                                <div class="surface p-3 border border-slate-200 rounded-lg bg-slate-50 text-xs text-slate-700 flex items-center justify-between">
+                                    <span>Want to customize buttons for your next match?</span>
+                                    <a href="#configure" class="btn btn-secondary btn-compact ml-2">Open Customizer →</a>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Topic 3: Rapid Label Sweep & AI Telemetry -->
+                    <section class="surface surface-padded space-y-4 border-2 border-purple-200 bg-purple-50/20" aria-labelledby="help-sweep-metadata-title">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-purple-200 pb-3">
+                            <div>
+                                <span class="badge bg-purple-100 text-purple-800 border-purple-200">Workflow 3 · Tactical Telemetry</span>
+                                <h2 id="help-sweep-metadata-title" class="section-title text-lg mt-1">Rapid Label Sweep &amp; AI-Ready Metadata</h2>
+                                <p class="text-xs text-slate-500">Transform raw match timestamps into deep causal tactical intelligence in under 60 seconds.</p>
+                            </div>
+                            <a href="timeline-video.html?game=sample-game" class="btn btn-accent-purple btn-compact">
+                                <i class="fas fa-tags text-xs" aria-hidden="true"></i>
+                                <span>Try Label Sweep in Sample Match</span>
+                            </a>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <div class="lg:col-span-6 space-y-3 text-sm text-slate-700">
+                                <p>
+                                    To get true tactical depth out of video analysis or AI coaching prompts, you need discriminators—like <em>which channel</em> a circle entry came from, or <em>how</em> a penalty corner broke down. But forcing 20 new buttons onto a live sideline phone destroys eyes-on-pitch focus.
+                                </p>
+                                <p>
+                                    Simple-Coding solves this with a two-pillar architecture: <strong>Zero-look live capture on the sideline</strong>, combined with a <strong>60-second rapid-fire video sweep post-match</strong>.
+                                </p>
+
+                                <div class="space-y-3 pt-1">
+                                    <div class="surface p-3 border border-slate-200 rounded-lg">
+                                        <div class="font-bold text-xs uppercase tracking-wide text-purple-700 mb-1">1. The Sequential "Label Sweep" (60-Second Video Pass)</div>
+                                        <p class="text-xs text-slate-600 mb-2">
+                                            In Match Review, click <strong>Sweep (N)</strong>. The video automatically jumps 3 seconds before each unlabelled clip, docked with 1-tap Pill Chips and keyboard hotkeys:
+                                        </p>
+                                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center text-xs">
+                                            <div class="p-1.5 bg-slate-100 rounded border border-slate-200 font-mono font-bold text-slate-800">1–3<div class="text-[10px] font-sans font-normal text-slate-600">Assign Pill</div></div>
+                                            <div class="p-1.5 bg-slate-100 rounded border border-slate-200 font-mono font-bold text-slate-800">Space<div class="text-[10px] font-sans font-normal text-slate-600">Skip Event</div></div>
+                                            <div class="p-1.5 bg-slate-100 rounded border border-slate-200 font-mono font-bold text-slate-800">P / ←<div class="text-[10px] font-sans font-normal text-slate-600">Prev / Undo</div></div>
+                                            <div class="p-1.5 bg-slate-100 rounded border border-slate-200 font-mono font-bold text-slate-800">Esc<div class="text-[10px] font-sans font-normal text-slate-600">Exit Sweep</div></div>
+                                        </div>
+                                        <p class="text-xs text-slate-600 mt-2">
+                                            Tapping a chip immediately saves the label and flies to the next unlabelled event. 20 circle entries can be fully categorized by flank (<code>Left</code>, <code>Center</code>, <code>Right</code>) in under one minute.
+                                        </p>
+                                    </div>
+
+                                    <div class="surface p-3 border border-slate-200 rounded-lg">
+                                        <div class="font-bold text-xs uppercase tracking-wide text-blue-700 mb-1">2. Timeline Badges &amp; "Unlabelled" Filter</div>
+                                        <p class="text-xs text-slate-600 mb-1">
+                                            Labelled events display prominent semantic badges directly in the timeline list (e.g. <code>[ Left ]</code>, <code>[ Direct ]</code>).
+                                        </p>
+                                        <p class="text-xs text-slate-600">
+                                            Toggle the <strong>Unlabelled (N)</strong> filter tab to instantly isolate pending events. As you tag them, they automatically clear from the pending queue.
+                                        </p>
+                                    </div>
+
+                                    <div class="surface p-3 border border-slate-200 rounded-lg">
+                                        <div class="font-bold text-xs uppercase tracking-wide text-emerald-700 mb-1">3. Zero-Toil AI Derivation &amp; The Tactical Dividend</div>
+                                        <p class="text-xs text-slate-600 mb-1.5">
+                                            The app automatically analyzes event sequences without asking you to tap extra buttons:
+                                        </p>
+                                        <ul class="list-disc pl-4 space-y-1 text-xs text-slate-600">
+                                            <li><strong>Possession Origin:</strong> If Ball Won (<code>BW</code>) occurred within 10s before an entry, it is automatically derived as a <code>Counter-Attack (TO)</code>; otherwise tagged as <code>Settled Build-Up (BU)</code>.</li>
+                                            <li><strong>Sportscode XML &lt;label&gt; Schema:</strong> Labels export inside standard <code>&lt;label&gt;</code> tags, preserving clean timeline rows for Sportscode/MyVA matrices.</li>
+                                            <li><strong>LLM Telemetry:</strong> Feeds high-leverage data into AI coaching prompts—e.g., <em>"Fire generated 65% of circle entries down the right flank, but right-side entries converted to shots at only 12%, whereas central entries converted at 50%."</em></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="lg:col-span-6 space-y-3">
+                                <figure class="rounded-lg overflow-hidden border border-slate-200 bg-slate-900 shadow-sm p-3">
+                                    <div class="text-white text-xs font-semibold mb-2 flex items-center justify-between">
+                                        <span><i class="fas fa-tags text-purple-400 mr-1.5" aria-hidden="true"></i>Active Sweep Mode Overlay</span>
+                                        <span class="text-slate-400 text-[11px] font-mono">1/3</span>
+                                    </div>
+                                    <div class="bg-slate-800 p-2.5 rounded border border-slate-700 flex flex-wrap items-center gap-1.5">
+                                        <span class="text-white text-xs font-semibold">Tigers a25e:</span>
+                                        <span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-600 text-white">Left (1)</span>
+                                        <span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-700 text-slate-200">Center (2)</span>
+                                        <span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-700 text-slate-200">Right (3)</span>
+                                        <span class="px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-400 ml-auto">Skip</span>
+                                    </div>
+                                    <figcaption class="px-1 pt-2.5 text-xs text-slate-400">
+                                        Docked sweep controls enable hands-on-keyboard or 1-tap mobile tagging with instant video jump.
+                                    </figcaption>
+                                </figure>
+                                <div class="surface p-3 border border-slate-200 rounded-lg bg-slate-50 text-xs text-slate-700 flex items-center justify-between">
+                                    <span>Ready to see Sweep Mode in action?</span>
+                                    <a href="timeline-video.html?game=sample-game" class="btn btn-primary btn-compact ml-2">Try Sample Match →</a>
+                                </div>
                             </div>
                         </div>
                     </section>
