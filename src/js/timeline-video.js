@@ -3,7 +3,7 @@ import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
 import { generateGameId } from '../services/gameStorageManager.js';
 import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
-import { getLabelSchemaForEvent, formatLabelText } from '../utils/eventAnalysisUtils.js';
+import { getLabelSchemaForEvent, formatLabelText, getFriendlyEventName, getSweepScopeOptions, extractTeamFromEvent } from '../utils/eventAnalysisUtils.js';
 import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor, teamColorClass } from '../components/teamPalette.js';
 import { loadLastTeams, saveLastTeams } from '../components/teamSetupDialog.js';
 
@@ -1403,34 +1403,57 @@ function highlightTimelineEvent(eventId) {
 
 // --- Label Sweep & Rapid Tagging Engine ---
 
+let activeSweepFilterFn = null;
+
 function initLabelSweep() {
     const sweepBtn = document.getElementById('label-sweep-btn');
-    const prevBtn = document.getElementById('prev-sweep-event');
-    const skipBtn = document.getElementById('skip-sweep-event');
-    const exitBtn = document.getElementById('exit-sweep-btn');
+    const scopeDialog = document.getElementById('sweep-scope-dialog');
+    const closeScopeDialogBtn = document.getElementById('close-sweep-scope-dialog');
+
+    // Dock buttons
+    const dockPrevBtn = document.getElementById('dock-prev-sweep-btn');
+    const dockSkipBtn = document.getElementById('dock-skip-sweep-btn');
+    const dockExitBtn = document.getElementById('dock-exit-sweep-btn');
+    const dockReplayBtn = document.getElementById('dock-replay-clip-btn');
 
     if (sweepBtn) {
         sweepBtn.addEventListener('click', () => {
-            toggleLabelSweep();
+            if (sweepModeActive) {
+                exitLabelSweep();
+            } else {
+                openSweepScopeDialog();
+            }
         });
     }
 
-    if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-            navigateSweep('previous');
+    if (closeScopeDialogBtn) {
+        closeScopeDialogBtn.addEventListener('click', () => {
+            closeSweepScopeDialog();
         });
     }
 
-    if (skipBtn) {
-        skipBtn.addEventListener('click', () => {
-            navigateSweep('next');
+    if (scopeDialog) {
+        scopeDialog.addEventListener('click', (e) => {
+            if (e.target === scopeDialog) {
+                closeSweepScopeDialog();
+            }
         });
     }
 
-    if (exitBtn) {
-        exitBtn.addEventListener('click', () => {
-            exitLabelSweep();
-        });
+    if (dockPrevBtn) {
+        dockPrevBtn.addEventListener('click', () => navigateSweep('previous'));
+    }
+
+    if (dockSkipBtn) {
+        dockSkipBtn.addEventListener('click', () => navigateSweep('next'));
+    }
+
+    if (dockExitBtn) {
+        dockExitBtn.addEventListener('click', () => exitLabelSweep());
+    }
+
+    if (dockReplayBtn) {
+        dockReplayBtn.addEventListener('click', () => replayCurrentSweepClip());
     }
 
     window.addEventListener('keydown', (e) => {
@@ -1446,6 +1469,9 @@ function initLabelSweep() {
         } else if (e.key === 'p' || e.key === 'P' || e.key === 'ArrowLeft') {
             e.preventDefault();
             navigateSweep('previous');
+        } else if (e.key === 'r' || e.key === 'R') {
+            e.preventDefault();
+            replayCurrentSweepClip();
         } else if (['1', '2', '3'].includes(e.key)) {
             const currentEvent = sweepEvents[currentSweepIndex];
             if (!currentEvent) return;
@@ -1460,23 +1486,105 @@ function initLabelSweep() {
     });
 }
 
-function toggleLabelSweep() {
-    if (sweepModeActive) {
-        exitLabelSweep();
-    } else {
+function openSweepScopeDialog() {
+    const dialog = document.getElementById('sweep-scope-dialog');
+    const optionsContainer = document.getElementById('sweep-scope-options');
+    if (!dialog || !optionsContainer) {
         startLabelSweep();
+        return;
+    }
+
+    const options = getSweepScopeOptions(timelineEvents);
+    if (options.length === 0) {
+        showNotification('No events matching label schemas found to sweep', 'warning');
+        return;
+    }
+
+    optionsContainer.innerHTML = '';
+    options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'w-full text-left p-3 rounded-lg bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 transition flex items-center justify-between group focus:outline-none focus:ring-2 focus:ring-primary-500';
+        
+        const teamBadgeHtml = opt.team && opt.team !== 'Unassigned'
+            ? `<span class="badge ${getTeamColorBadgeClass(opt.team)} text-[10px] font-bold uppercase tracking-wider mr-1.5 px-2 py-0.5">${opt.team}</span>`
+            : '';
+
+        btn.innerHTML = `
+            <div class="min-w-0 pr-2">
+                <div class="font-semibold text-sm text-white group-hover:text-primary-400 flex items-center truncate">
+                    ${teamBadgeHtml}
+                    <span class="truncate">${opt.label}</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-0.5 truncate">${opt.description || ''}</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${opt.id.includes('CE') ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/60' : 'bg-slate-900 text-slate-300 border border-slate-700'} flex-shrink-0">
+                ${opt.estTime}
+            </span>
+        `;
+
+        btn.addEventListener('click', () => {
+            closeSweepScopeDialog();
+            startLabelSweep(opt.filter);
+        });
+
+        optionsContainer.appendChild(btn);
+    });
+
+    if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+    } else {
+        dialog.classList.remove('hidden');
     }
 }
 
-function startLabelSweep() {
+function closeSweepScopeDialog() {
+    const dialog = document.getElementById('sweep-scope-dialog');
+    if (!dialog) return;
+    if (typeof dialog.close === 'function') {
+        dialog.close();
+    } else {
+        dialog.classList.add('hidden');
+    }
+}
+
+function getTeamColorBadgeClass(teamName) {
+    if (!teamName) return 'bg-slate-700 text-white';
+    const upper = String(teamName).toUpperCase();
+    if (upper.includes('PRIDE')) return 'bg-amber-500 text-black';
+    if (upper.includes('THUNDER')) return 'bg-cyan-800 text-white';
+    if (upper.includes('FIRE')) return 'bg-red-600 text-white';
+    if (upper.includes('TIGERS')) return 'bg-amber-600 text-white';
+    return 'bg-blue-600 text-white';
+}
+
+function replayCurrentSweepClip() {
+    if (!sweepModeActive || sweepEvents.length === 0) return;
+    const event = sweepEvents[currentSweepIndex];
+    if (!event) return;
+    const seekSec = Math.max(0, (event.timeMs / 1000) - 3);
+    const video = document.getElementById('video-player');
+    if (video) {
+        video.currentTime = seekSec;
+        video.play().catch(() => {});
+    }
+}
+
+function startLabelSweep(filterFn = null) {
+    activeSweepFilterFn = filterFn;
     let candidates = timelineEvents.filter(e => {
-        const matchesFilter = activeTypeFilters.size === 0 || activeTypeFilters.has(e.event);
+        const matchesFilter = filterFn
+            ? filterFn(e)
+            : (activeTypeFilters.size === 0 || activeTypeFilters.has(e.event));
         const hasSchema = Boolean(getLabelSchemaForEvent(e));
         return matchesFilter && hasSchema;
     });
 
     if (candidates.length === 0) {
-        candidates = timelineEvents.filter(e => Boolean(getLabelSchemaForEvent(e)));
+        candidates = timelineEvents.filter(e => {
+            const matchesFilter = filterFn ? filterFn(e) : true;
+            return matchesFilter && Boolean(getLabelSchemaForEvent(e));
+        });
     }
 
     if (candidates.length === 0) {
@@ -1494,14 +1602,28 @@ function startLabelSweep() {
         togglePresentationMode();
     }
 
-    const sweepBtn = document.getElementById('label-sweep-btn');
+    // Toggle panels: show #sweep-dock, hide #video-coding-panel
+    const sweepDock = document.getElementById('sweep-dock');
+    const codingPanel = document.getElementById('video-coding-panel');
+    if (sweepDock) {
+        sweepDock.classList.remove('hidden');
+    }
+    if (codingPanel) {
+        codingPanel.classList.add('hidden');
+    }
     const sweepControls = document.getElementById('sweep-controls');
+    if (sweepControls) {
+        sweepControls.classList.replace('hidden', 'flex');
+    }
+
+    const sweepBtn = document.getElementById('label-sweep-btn');
+    const sweepText = document.getElementById('label-sweep-text');
     if (sweepBtn) {
         sweepBtn.classList.add('is-active');
         sweepBtn.setAttribute('aria-pressed', 'true');
     }
-    if (sweepControls) {
-        sweepControls.classList.replace('hidden', 'flex');
+    if (sweepText) {
+        sweepText.textContent = `Exit Sweep (${sweepEvents.length})`;
     }
 
     loadSweepEvent(currentSweepIndex);
@@ -1509,15 +1631,28 @@ function startLabelSweep() {
 
 function exitLabelSweep() {
     sweepModeActive = false;
-    const sweepBtn = document.getElementById('label-sweep-btn');
+    activeSweepFilterFn = null;
+
+    const sweepDock = document.getElementById('sweep-dock');
+    const codingPanel = document.getElementById('video-coding-panel');
+    if (sweepDock) {
+        sweepDock.classList.add('hidden');
+    }
     const sweepControls = document.getElementById('sweep-controls');
+    if (sweepControls) {
+        sweepControls.classList.replace('flex', 'hidden');
+    }
+    if (codingPanel && isTaggingMode) {
+        codingPanel.classList.remove('hidden');
+    }
+
+    const sweepBtn = document.getElementById('label-sweep-btn');
     if (sweepBtn) {
         sweepBtn.classList.remove('is-active');
         sweepBtn.setAttribute('aria-pressed', 'false');
     }
-    if (sweepControls) {
-        sweepControls.classList.replace('flex', 'hidden');
-    }
+
+    updateSweepButtonUI();
     renderTimelineEvents();
     updateFilterToggleUI();
 }
@@ -1529,7 +1664,7 @@ function navigateSweep(direction) {
             currentSweepIndex++;
             loadSweepEvent(currentSweepIndex);
         } else {
-            showNotification('Finished labelling sweep!', 'success');
+            showNotification(`Finished labelling sweep (${sweepEvents.length} clips)!`, 'success');
             exitLabelSweep();
         }
     } else if (direction === 'previous') {
@@ -1543,13 +1678,50 @@ function navigateSweep(direction) {
 function loadSweepEvent(index) {
     if (index < 0 || index >= sweepEvents.length) return;
     const event = sweepEvents[index];
-    const sweepCounter = document.getElementById('sweep-counter');
-    const sweepChips = document.getElementById('sweep-chips');
 
+    // Dock elements
+    const dockTeamBadge = document.getElementById('dock-sweep-team-badge');
+    const dockEventName = document.getElementById('dock-sweep-event-name');
+    const dockTimestamp = document.getElementById('dock-sweep-timestamp');
+    const dockCounter = document.getElementById('dock-sweep-counter');
+    const dockProgress = document.getElementById('dock-sweep-progress');
+    const dockPrompt = document.getElementById('dock-sweep-prompt');
+    const dockChips = document.getElementById('dock-sweep-chips');
+
+    const team = extractTeamFromEvent(event) || 'Match';
+    if (dockTeamBadge) {
+        dockTeamBadge.textContent = team;
+        dockTeamBadge.className = `badge font-bold uppercase tracking-wider text-xs px-2.5 py-0.5 rounded ${getTeamColorBadgeClass(team)}`;
+    }
+
+    if (dockEventName) {
+        const friendly = getFriendlyEventName(event.event);
+        dockEventName.textContent = friendly ? `${friendly} (${event.event})` : event.event;
+    }
+
+    if (dockTimestamp) {
+        const sec = Math.floor(event.timeMs / 1000);
+        const mins = Math.floor(sec / 60);
+        const remSec = sec % 60;
+        dockTimestamp.textContent = `${String(mins).padStart(2, '0')}:${String(remSec).padStart(2, '0')}`;
+    }
+
+    if (dockCounter) {
+        dockCounter.textContent = `Clip ${index + 1} of ${sweepEvents.length}`;
+    }
+    const sweepCounter = document.getElementById('sweep-counter');
     if (sweepCounter) {
         sweepCounter.textContent = `${index + 1}/${sweepEvents.length}`;
     }
 
+    if (dockProgress) {
+        const pct = Math.round(((index + 1) / sweepEvents.length) * 100);
+        dockProgress.style.width = `${pct}%`;
+        const container = document.getElementById('dock-sweep-progressbar-container');
+        if (container) container.setAttribute('aria-valuenow', String(pct));
+    }
+
+    // Seek video to 3s before event
     const seekSec = Math.max(0, (event.timeMs / 1000) - 3);
     const video = document.getElementById('video-player');
     if (video) {
@@ -1562,24 +1734,28 @@ function loadSweepEvent(index) {
 
     highlightTimelineEvent(event.id);
 
-    if (sweepChips) {
-        sweepChips.innerHTML = '';
-        const schema = getLabelSchemaForEvent(event);
-        if (schema) {
-            const currentLabel = event.labels?.find(l => l.group === schema.group)?.text;
-            schema.options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                const isActive = currentLabel === opt.text;
-                btn.className = `btn btn-compact sweep-chip${isActive ? ' is-active' : ''}`;
-                btn.innerHTML = `${opt.short || opt.text} <span class="opacity-60 text-[10px] ml-0.5">(${opt.key})</span>`;
-                btn.title = `${opt.text} (Press ${opt.key})`;
-                btn.addEventListener('click', () => {
-                    applySweepLabel(schema.group, opt.text);
-                });
-                sweepChips.appendChild(btn);
+    // Schema options & Prompt
+    const schema = getLabelSchemaForEvent(event);
+    if (dockPrompt) {
+        dockPrompt.textContent = schema?.prompt || 'Classify this clip:';
+    }
+
+    if (dockChips && schema) {
+        dockChips.innerHTML = '';
+        const currentLabel = event.labels?.find(l => l.group === schema.group)?.text;
+        schema.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isActive = currentLabel === opt.text;
+            btn.className = `sweep-action-card${isActive ? ' is-active' : ''}`;
+            btn.setAttribute('aria-pressed', String(isActive));
+            btn.innerHTML = `<span class="sweep-action-key">${opt.key}</span> <span>${opt.text}</span>`;
+            btn.title = `${opt.text} (Press ${opt.key})`;
+            btn.addEventListener('click', () => {
+                applySweepLabel(schema.group, opt.text);
             });
-        }
+            dockChips.appendChild(btn);
+        });
     }
 }
 
@@ -1620,7 +1796,6 @@ function updateEventLabel(eventId, group, text) {
     updateFilterToggleUI();
     return true;
 }
-
 
 // Show all events (disable favorites filter)
 function showAllEvents() {
@@ -2035,11 +2210,17 @@ function updateSweepButtonUI() {
     const sweepBtn = document.getElementById('label-sweep-btn');
     const sweepText = document.getElementById('label-sweep-text');
     if (!sweepBtn) return;
+    if (sweepModeActive) {
+        if (sweepText) sweepText.textContent = `Exit Sweep (${sweepEvents.length})`;
+        sweepBtn.classList.add('is-active');
+        return;
+    }
     const count = getUnlabelledEventsCount();
     if (sweepText) {
         sweepText.textContent = count > 0 ? `Sweep (${count})` : 'Sweep Labels';
     }
     sweepBtn.title = count > 0 ? `Rapidly label ${count} unlabelled events (1-3)` : 'Sweep events for labels';
+    sweepBtn.classList.remove('is-active');
 }
 
 function updateFilterToggleUI() {

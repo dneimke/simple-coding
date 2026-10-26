@@ -3,7 +3,9 @@ import {
     getLabelSchemaForEvent,
     isCounterAttack,
     getDerivedLabels,
-    formatLabelText
+    formatLabelText,
+    getFriendlyEventName,
+    getSweepScopeOptions
 } from '../../src/utils/eventAnalysisUtils.js';
 
 describe('eventAnalysisUtils', () => {
@@ -101,6 +103,53 @@ describe('eventAnalysisUtils', () => {
             expect(formatLabelText({ group: 'Channel', text: 'Left' })).toBe('Left');
             expect(formatLabelText([{ group: 'Channel', text: 'Left' }, { group: 'Origin', text: 'Counter' }])).toBe('Left · Counter');
             expect(formatLabelText(null)).toBe('');
+        });
+    });
+
+    describe('LABEL_SCHEMAS prompt definitions', () => {
+        test('each schema defines a user-friendly prompt question', () => {
+            expect(LABEL_SCHEMAS.channel.prompt).toBe('Which channel did they enter?');
+            expect(LABEL_SCHEMAS.penaltyCorner.prompt).toBe('How was the penalty corner executed?');
+            expect(LABEL_SCHEMAS.turnover.prompt).toBe('How was the ball won?');
+        });
+    });
+
+    describe('getFriendlyEventName', () => {
+        test('resolves standard hockey acronyms into plain-English names', () => {
+            expect(getFriendlyEventName('PRIDE CE')).toBe('Circle Entry');
+            expect(getFriendlyEventName('THUNDER A25E')).toBe('Attacking 25m Entry');
+            expect(getFriendlyEventName('PRIDE BW')).toBe('Ball Won');
+            expect(getFriendlyEventName('FIRE PC')).toBe('Penalty Corner');
+            expect(getFriendlyEventName('PRIDE GOAL')).toBe('Goal');
+            expect(getFriendlyEventName('Custom Event')).toBe('Custom Event');
+        });
+    });
+
+    describe('getSweepScopeOptions', () => {
+        const sampleMatchEvents = [
+            { id: '1', event: 'PRIDE CE', team: 'PRIDE', timeMs: 10000 },
+            { id: '2', event: 'PRIDE CE', team: 'PRIDE', timeMs: 20000, labels: [{ group: 'Channel', text: 'Left' }] },
+            { id: '3', event: 'PRIDE CE', team: 'PRIDE', timeMs: 30000 },
+            { id: '4', event: 'PRIDE A25E', team: 'PRIDE', timeMs: 40000 },
+            { id: '5', event: 'THUNDER CE', team: 'THUNDER', timeMs: 50000 },
+            { id: '6', event: 'THUNDER BW', team: 'THUNDER', timeMs: 60000 },
+            { id: '7', event: 'PRIDE GOAL', team: 'PRIDE', timeMs: 70000 }
+        ];
+
+        test('generates grouped scope presets for team categories and all match events', () => {
+            const options = getSweepScopeOptions(sampleMatchEvents);
+            expect(options.length).toBeGreaterThanOrEqual(2);
+
+            const prideCeOption = options.find(o => o.team === 'PRIDE' && o.type === 'CE');
+            expect(prideCeOption).toBeDefined();
+            expect(prideCeOption.count).toBe(2);
+            expect(prideCeOption.label).toContain('Circle Entries');
+            expect(prideCeOption.estTime).toBeDefined();
+
+            const allOption = options.find(o => o.id === 'all');
+            expect(allOption).toBeDefined();
+            expect(allOption.count).toBe(5);
+            expect(allOption.label).toContain('All Match Events');
         });
     });
 });

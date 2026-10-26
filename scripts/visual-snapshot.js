@@ -515,25 +515,38 @@ async function runSnapshots() {
             await sweepPage.waitForSelector('#label-sweep-btn');
             await sweepPage.waitForSelector('#timeline-events');
 
-            // Launch Label Sweep
+            // Launch Label Sweep: opens Scope Picker dialog
             await sweepPage.click('#label-sweep-btn');
-            await sweepPage.waitForSelector('#sweep-controls:not(.hidden)');
-            await sweepPage.waitForSelector('.sweep-chip');
+            await sweepPage.waitForSelector('#sweep-scope-dialog:not(.hidden), dialog[open]');
+            await sweepPage.waitForSelector('#sweep-scope-options button');
             await sweepPage.waitForTimeout(300);
 
-            // Step 1 snapshot: Active Label Sweep controls docked with rapid-fire chips
+            // Snapshot Step 1a: Sweep Scope Picker
+            const sweepScopePath = path.join(OUTPUT_DIR, `timeline-video-sweep-scope-${vp.name}.png`);
+            await sweepPage.screenshot({ path: sweepScopePath, fullPage: true });
+
+            // Select first scope option to start sweep
+            const firstScopeOption = await sweepPage.$('#sweep-scope-options button');
+            if (firstScopeOption) await firstScopeOption.click();
+            await sweepPage.waitForSelector('#sweep-dock:not(.hidden)');
+            await sweepPage.waitForSelector('.sweep-action-card');
+            await sweepPage.waitForTimeout(300);
+
+            // Snapshot Step 1b: Dedicated Sweep Dock active below video
             const sweepModePath = path.join(OUTPUT_DIR, `timeline-video-sweep-${vp.name}.png`);
             await sweepPage.screenshot({ path: sweepModePath, fullPage: true });
 
-            // Apply label to first event via chip click
-            const firstChip = await sweepPage.$('.sweep-chip');
-            if (firstChip) await firstChip.click();
+            // Apply label to event via action card click
+            const firstCard = await sweepPage.$('.sweep-action-card');
+            if (firstCard) await firstCard.click();
             await sweepPage.waitForTimeout(300);
 
-            // Exit sweep to view timeline
-            const exitBtn = await sweepPage.$('#exit-sweep-btn');
-            if (exitBtn) await exitBtn.click();
-            await sweepPage.waitForTimeout(300);
+            // If dock is still visible (multiple clips in scope), exit to view timeline
+            const exitBtn = await sweepPage.$('#dock-exit-sweep-btn');
+            if (exitBtn && await exitBtn.isVisible()) {
+                await exitBtn.click();
+                await sweepPage.waitForTimeout(300);
+            }
 
             // Step 2 snapshot: Timeline displaying the inline label badge pill
             const labelledPath = path.join(OUTPUT_DIR, `timeline-video-labelled-timeline-${vp.name}.png`);
