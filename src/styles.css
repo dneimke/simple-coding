@@ -2146,6 +2146,88 @@ code {
     transform: scale(1.15);
 }
 
+.quick-tag-move-btn {
+    position: absolute;
+    bottom: -6px;
+    width: 22px;
+    height: 22px;
+    background-color: var(--color-surface, #ffffff);
+    color: var(--color-ink, #0f172a);
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    border: 1.5px solid var(--color-line-strong, #cbd5e1);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: transform 0.1s ease, background-color 0.1s ease;
+    z-index: 5;
+    padding: 0;
+}
+
+.quick-tag-move-btn:hover:not(:disabled) {
+    background-color: var(--color-surface-muted, #f1f5f9);
+    transform: scale(1.15);
+}
+
+.quick-tag-move-btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.quick-tag-move-btn.move-left {
+    left: -6px;
+}
+
+.quick-tag-move-btn.move-right {
+    right: -6px;
+}
+
+.quick-tag-btn.is-editing {
+    cursor: pointer;
+}
+
+.quick-tag-btn.is-active-edit {
+    outline: 2px solid #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.4);
+}
+
+.quick-tag-team-badge {
+    font-size: 0.625rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.2);
+    margin-bottom: 2px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+}
+
+.team-swatch-select {
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    border: 2px solid var(--color-line-strong, #cbd5e1);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.1s ease;
+    flex-shrink: 0;
+}
+
+.team-swatch-select:hover {
+    transform: scale(1.1);
+}
+
+.team-swatch-select.is-selected {
+    border-color: var(--color-ink, #0f172a);
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.3);
+}
+
 .color-pill-btn {
     width: 22px;
     height: 22px;

@@ -601,6 +601,92 @@ describe('video coding workflow', () => {
         expect(restored.some(t => t.label === 'Goal')).toBe(true);
     });
 
+    test('moveQuickTag reorders tags left and right and updates shortcut keys', () => {
+        mod.resetQuickTags();
+        const initial = mod.loadQuickTags();
+        expect(initial[0].id).toBe('goal');
+        expect(initial[1].id).toBe('shot');
+
+        // Move 'shot' left to index 0
+        const movedLeft = mod.moveQuickTag('shot', 'left');
+        expect(movedLeft[0].id).toBe('shot');
+        expect(movedLeft[0].key).toBe('1');
+        expect(movedLeft[1].id).toBe('goal');
+        expect(movedLeft[1].key).toBe('2');
+
+        // Verify boundary: cannot move index 0 left
+        const cantMove = mod.moveQuickTag('shot', 'left');
+        expect(cantMove[0].id).toBe('shot');
+
+        // Move 'shot' right back to index 1
+        const movedRight = mod.moveQuickTag('shot', 'right');
+        expect(movedRight[0].id).toBe('goal');
+        expect(movedRight[1].id).toBe('shot');
+    });
+
+    test('updateQuickTag modifies tag label, team binding, and color in-place', () => {
+        mod.resetQuickTags();
+        const updated = mod.updateQuickTag('goal', {
+            label: 'Field Goal',
+            team: 'team1',
+            colorClass: 'btn-green'
+        });
+        const goalTag = updated.find(t => t.id === 'goal');
+        expect(goalTag.label).toBe('Field Goal');
+        expect(goalTag.team).toBe('team1');
+        expect(updated[0].id).toBe('goal'); // Order preserved
+        expect(updated[0].key).toBe('1');   // Key preserved
+    });
+
+    test('resolveTagDisplay formats team prefix and color dynamically', () => {
+        const teams = [
+            { code: 'THUNDER', color: 'green' },
+            { code: 'PRIDE', color: 'red' }
+        ];
+
+        // Team 1 bound tag
+        const tag1 = { id: 't1', label: 'BS1', team: 'team1', colorClass: 'btn-blue' };
+        const resolved1 = mod.resolveTagDisplay(tag1, teams);
+        expect(resolved1.displayLabel).toBe('THUNDER BS1');
+        expect(resolved1.colorClass).toBe('team-color-green');
+        expect(resolved1.isTeam1).toBe(true);
+
+        // Team 2 bound tag
+        const tag2 = { id: 't2', label: 'GOAL', team: 'team2', colorClass: 'btn-orange' };
+        const resolved2 = mod.resolveTagDisplay(tag2, teams);
+        expect(resolved2.displayLabel).toBe('PRIDE GOAL');
+        expect(resolved2.colorClass).toBe('team-color-red');
+        expect(resolved2.isTeam1).toBe(false);
+
+        // Neutral / unbound tag
+        const tagNeutral = { id: 't3', label: 'SPECIAL', team: 'none', colorClass: 'btn-blue' };
+        const resolvedNeutral = mod.resolveTagDisplay(tagNeutral, teams);
+        expect(resolvedNeutral.displayLabel).toBe('SPECIAL');
+        expect(resolvedNeutral.colorClass).toBe('btn-blue');
+    });
+
+    test('getMatchTeams, setMatchTeams, and swapMatchTeams sync with game metadata', () => {
+        const initialTeams = mod.getMatchTeams();
+        expect(Array.isArray(initialTeams)).toBe(true);
+        expect(initialTeams).toHaveLength(2);
+
+        // Set custom teams for current match
+        mod.setMatchTeams([
+            { code: 'FIRE', color: 'red' },
+            { code: 'TIGERS', color: 'yellow' }
+        ]);
+        const updatedTeams = mod.getMatchTeams();
+        expect(updatedTeams[0].code).toBe('FIRE');
+        expect(updatedTeams[1].code).toBe('TIGERS');
+
+        // Swap teams
+        const swapped = mod.swapMatchTeams();
+        expect(swapped[0].code).toBe('TIGERS');
+        expect(swapped[1].code).toBe('FIRE');
+        expect(swapped[0].color).toBe('yellow');
+        expect(swapped[1].color).toBe('red');
+    });
+
     test('undoLastQuickTag removes latest logged event', () => {
         const video = document.getElementById('video-player');
         video.currentTime = 5;
