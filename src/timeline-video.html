@@ -307,17 +307,71 @@
                             <div id="quick-tags-container" class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2"></div>
 
                             <!-- Quick tags edit / add form (hidden by default) -->
-                            <div id="quick-tags-edit-bar" class="hidden mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-md">
-                                <div class="text-xs font-semibold text-slate-700 mb-1">Add New Tag</div>
-                                <div class="flex flex-wrap items-center gap-1.5">
-                                    <input id="new-tag-label-input" type="text" class="field text-xs py-1 px-2 flex-1 min-w-[120px]" placeholder="Tag name (e.g. Press, Turnover)" maxlength="20">
-                                    <div id="new-tag-color-selector" class="flex items-center gap-1" role="radiogroup" aria-label="Tag color"></div>
-                                    <button id="save-new-tag-btn" type="button" class="btn btn-primary btn-compact">
-                                        <i class="fas fa-plus text-xs" aria-hidden="true"></i><span>Add</span>
-                                    </button>
-                                    <button id="reset-quick-tags-btn" type="button" class="btn btn-ghost btn-compact text-xs text-slate-500 hover:text-red-600 ml-auto">
-                                        Reset Defaults
-                                    </button>
+                            <div id="quick-tags-edit-bar" class="hidden mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-md space-y-2">
+                                <!-- Match Teams & Colors Bar -->
+                                <div id="match-teams-editor" class="p-1.5 bg-white border border-slate-200 rounded text-xs">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="font-semibold text-slate-700">Match Teams &amp; Colors</span>
+                                        <button id="swap-match-teams-btn" type="button" class="btn btn-ghost btn-compact text-[11px] text-slate-600 hover:text-slate-900" title="Swap Team 1 and Team 2">
+                                            <i class="fas fa-exchange-alt mr-1" aria-hidden="true"></i>Swap Teams
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <!-- Team 1 -->
+                                        <div class="flex flex-wrap items-center gap-1.5 min-w-0">
+                                            <span class="font-bold text-slate-600 text-[11px] w-5">T1:</span>
+                                            <input id="match-team1-code" type="text" class="field text-xs py-0.5 px-1.5 w-20 uppercase font-semibold" placeholder="TEAM 1" maxlength="12" title="Team 1 Code">
+                                            <div id="match-team1-color-selector" class="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Team 1 Color"></div>
+                                        </div>
+                                        <!-- Team 2 -->
+                                        <div class="flex flex-wrap items-center gap-1.5 min-w-0">
+                                            <span class="font-bold text-slate-600 text-[11px] w-5">T2:</span>
+                                            <input id="match-team2-code" type="text" class="field text-xs py-0.5 px-1.5 w-20 uppercase font-semibold" placeholder="TEAM 2" maxlength="12" title="Team 2 Code">
+                                            <div id="match-team2-color-selector" class="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Team 2 Color"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tag Button Editor / Creator -->
+                                <div class="pt-1 border-t border-slate-200">
+                                    <div class="flex flex-wrap items-center justify-between mb-1.5">
+                                        <div class="flex items-center">
+                                            <span id="quick-tag-form-title" class="text-xs font-semibold text-slate-700">Add New Tag</span>
+                                            <span id="quick-tag-edit-hint" class="text-[11px] text-slate-500 ml-2 hidden sm:inline">(Tap any tag above to edit, or ◄ / ► to reorder)</span>
+                                        </div>
+                                        <button id="reset-quick-tags-btn" type="button" class="btn btn-ghost btn-compact text-xs text-slate-500 hover:text-red-600 ml-auto">
+                                            Reset Defaults
+                                        </button>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <input id="new-tag-label-input" type="text" class="field text-xs py-1 px-2 flex-1 min-w-[120px]" placeholder="Tag name (e.g. BS1, Press)" maxlength="20">
+                                        
+                                        <!-- Team assignment -->
+                                        <div id="tag-team-assignment" class="flex items-center gap-1 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-xs">
+                                            <label class="flex items-center gap-1 cursor-pointer text-[11px] text-slate-700">
+                                                <input type="radio" name="tag-team-choice" value="team1" id="tag-team-1-radio" class="cursor-pointer">
+                                                <span id="tag-team-1-label">T1</span>
+                                            </label>
+                                            <label class="flex items-center gap-1 cursor-pointer text-[11px] text-slate-700 ml-1">
+                                                <input type="radio" name="tag-team-choice" value="team2" id="tag-team-2-radio" class="cursor-pointer">
+                                                <span id="tag-team-2-label">T2</span>
+                                            </label>
+                                            <label class="flex items-center gap-1 cursor-pointer text-[11px] text-slate-700 ml-1">
+                                                <input type="radio" name="tag-team-choice" value="none" id="tag-team-none-radio" checked class="cursor-pointer">
+                                                <span>Neutral</span>
+                                            </label>
+                                        </div>
+
+                                        <div id="new-tag-color-selector" class="flex items-center gap-1" role="radiogroup" aria-label="Tag color"></div>
+                                        <span id="new-tag-color-inherited" class="hidden text-[11px] text-slate-500 italic">Inherits team color</span>
+
+                                        <button id="save-new-tag-btn" type="button" class="btn btn-primary btn-compact">
+                                            <i id="save-tag-btn-icon" class="fas fa-plus text-xs" aria-hidden="true"></i><span id="save-tag-btn-label">Add</span>
+                                        </button>
+                                        <button id="cancel-edit-tag-btn" type="button" class="btn btn-ghost btn-compact text-xs hidden">
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 

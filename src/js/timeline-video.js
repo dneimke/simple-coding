@@ -4,14 +4,16 @@ import { notificationService } from '../services/notificationService.js';
 import { generateGameId } from '../services/gameStorageManager.js';
 import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
 import { getLabelSchemaForEvent, formatLabelText, getFriendlyEventName, getSweepScopeOptions, extractTeamFromEvent } from '../utils/eventAnalysisUtils.js';
+import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor, teamColorClass } from '../components/teamPalette.js';
+import { loadLastTeams, saveLastTeams } from '../components/teamSetupDialog.js';
 
 const DEFAULT_QUICK_TAGS = [
-    { id: 'goal', label: 'Goal', colorClass: 'btn-green', key: '1' },
-    { id: 'shot', label: 'Shot', colorClass: 'btn-blue', key: '2' },
-    { id: 'circle-entry', label: 'Circle Entry', colorClass: 'btn-accent-purple', key: '3' },
-    { id: 'penalty-corner', label: 'Penalty Corner', colorClass: 'btn-yellow', key: '4' },
-    { id: 'turnover', label: 'Turnover', colorClass: 'btn-orange', key: '5' },
-    { id: 'card-foul', label: 'Card / Foul', colorClass: 'btn-red', key: '6' }
+    { id: 'goal', label: 'Goal', team: 'none', colorClass: 'btn-green', key: '1' },
+    { id: 'shot', label: 'Shot', team: 'none', colorClass: 'btn-blue', key: '2' },
+    { id: 'circle-entry', label: 'Circle Entry', team: 'none', colorClass: 'btn-accent-purple', key: '3' },
+    { id: 'penalty-corner', label: 'Penalty Corner', team: 'none', colorClass: 'btn-yellow', key: '4' },
+    { id: 'turnover', label: 'Turnover', team: 'none', colorClass: 'btn-orange', key: '5' },
+    { id: 'card-foul', label: 'Card / Foul', team: 'none', colorClass: 'btn-red', key: '6' }
 ];
 
 const CORE_QUICK_TAGS = DEFAULT_QUICK_TAGS;
@@ -38,7 +40,9 @@ let currentSweepIndex = 0;
 let sweepEvents = [];
 let isTaggingMode = false;
 let isEditingQuickTags = false;
+let activeEditingTagId = null;
 let selectedNewTagColor = 'btn-blue';
+let selectedNewTagTeam = 'none';
 let currentPlaylistIndex = 0;
 let favoriteEvents = [];
 let activeEditingEventId = null;
@@ -261,13 +265,31 @@ function quickTagEvent(eventType, note = '') {
         game = getCurrentGame();
     }
 
+    let eventLabel = typeof eventType === 'string' ? eventType : (eventType && eventType.label);
+    let isTeam1 = null;
+
+    if (typeof eventType === 'object' && eventType !== null) {
+        const resolved = resolveTagDisplay(eventType);
+        eventLabel = resolved.displayLabel;
+        isTeam1 = resolved.isTeam1;
+    } else if (typeof eventType === 'string') {
+        const tags = loadQuickTags();
+        const match = tags.find(t => t.label === eventType || resolveTagDisplay(t).displayLabel === eventType);
+        if (match) {
+            const resolved = resolveTagDisplay(match);
+            eventLabel = resolved.displayLabel;
+            isTeam1 = resolved.isTeam1;
+        }
+    }
+
     if (!Array.isArray(game.events)) game.events = [];
     const newEvent = {
         id: generateEventId(),
-        event: eventType,
+        event: eventLabel,
         note,
         timestamp: ts,
         timeMs,
+        ...(isTeam1 !== null && { isTeam1 }),
         isFavorite: false
     };
     game.events.push(newEvent);
@@ -365,6 +387,112 @@ function seekRelative(seconds) {
     }
 }
 
+// Get current match teams (team1, team2) with code and color
+function getMatchTeams() {
+    const game = getCurrentGame();
+    if (game && game.metadata && Array.isArray(game.metadata.teamsData) && game.metadata.teamsData.length === 2) {
+        return game.metadata.teamsData;
+    }
+    if (game && game.metadata && Array.isArray(game.metadata.teamCodes) && game.metadata.teamCodes.length >= 2) {
+        const colors = game.metadata.teamColors || ['red', 'yellow'];
+        return [
+            { code: game.metadata.teamCodes[0], color: colors[0] || 'red' },
+            { code: game.metadata.teamCodes[1], color: colors[1] || 'yellow' }
+        ];
+    }
+    if (game && typeof game.teams === 'string') {
+        const parts = game.teams.split(/\s+(?:vs\.?|v)\s+/i);
+        if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
+            const cleanCode = (str) => {
+                const words = str.trim().split(/\s+/);
+                const code = words[words.length - 1].toUpperCase().replace(/[^A-Z0-9]/g, '');
+                return code || 'TEAM';
+            };
+            const code1 = cleanCode(parts[0]);
+            const code2 = cleanCode(parts[1]);
+            let last = [];
+            try { last = loadLastTeams(); } catch (_) {}
+            return [
+                { code: code1, color: (last && last[0] && last[0].color) || 'red' },
+                { code: code2, color: (last && last[1] && last[1].color) || 'yellow' }
+            ];
+        }
+    }
+    try {
+        const last = loadLastTeams();
+        if (Array.isArray(last) && last.length === 2) return last;
+    } catch (_) {}
+    return DEFAULT_TEAMS.map(t => ({ ...t }));
+}
+
+// Persist match teams on game metadata and last teams
+function setMatchTeams(teams) {
+    if (!Array.isArray(teams) || teams.length !== 2) return null;
+    const normalized = [
+        { code: String(teams[0].code || 'TEAM1').trim().toUpperCase(), color: teams[0].color || 'red' },
+        { code: String(teams[1].code || 'TEAM2').trim().toUpperCase(), color: teams[1].color || 'yellow' }
+    ];
+
+    try {
+        saveLastTeams(normalized);
+    } catch (_) {}
+
+    const game = getCurrentGame();
+    if (game) {
+        if (!game.metadata) game.metadata = {};
+        game.metadata.teamsData = normalized;
+        game.metadata.teamCodes = normalized.map(t => t.code);
+        game.metadata.teamColors = normalized.map(t => t.color);
+        saveGame(game.id, game.events, game.metadata);
+    }
+
+    renderQuickTagButtons();
+    renderMatchTeamsEditor();
+    return normalized;
+}
+
+// Swap Team 1 and Team 2 codes and colors
+function swapMatchTeams() {
+    const current = getMatchTeams();
+    const swapped = [current[1], current[0]];
+    return setMatchTeams(swapped);
+}
+
+// Dynamically resolve tag display label, color class, and team affiliation
+function resolveTagDisplay(tag, teams = null) {
+    const matchTeams = teams || getMatchTeams();
+    const team1 = matchTeams[0] || { code: 'T1', color: 'red' };
+    const team2 = matchTeams[1] || { code: 'T2', color: 'yellow' };
+
+    if (tag.team === 'team1') {
+        const colorClass = `team-color-${team1.color || 'red'}`;
+        return {
+            displayLabel: `${team1.code} ${tag.label}`,
+            baseLabel: tag.label,
+            colorClass,
+            isTeam1: true,
+            team: 'team1'
+        };
+    } else if (tag.team === 'team2') {
+        const colorClass = `team-color-${team2.color || 'yellow'}`;
+        return {
+            displayLabel: `${team2.code} ${tag.label}`,
+            baseLabel: tag.label,
+            colorClass,
+            isTeam1: false,
+            team: 'team2'
+        };
+    } else {
+        return {
+            displayLabel: tag.label,
+            baseLabel: tag.label,
+            colorClass: tag.colorClass || 'btn-blue',
+            isTeam1: null,
+            team: 'none'
+        };
+    }
+}
+
 // Load quick tags from storage or fall back to defaults
 function loadQuickTags() {
     try {
@@ -373,6 +501,7 @@ function loadQuickTags() {
             return stored.map((t, i) => ({
                 id: t.id || `tag-${i}`,
                 label: String(t.label || 'Tag').trim(),
+                team: (t.team === 'team1' || t.team === 'team2') ? t.team : 'none',
                 colorClass: t.colorClass || 'btn-blue',
                 key: String(i + 1 <= 9 ? i + 1 : '')
             }));
@@ -387,6 +516,7 @@ function saveQuickTags(tags) {
     const sanitized = tags.map((t, i) => ({
         id: t.id || `tag-${i}`,
         label: String(t.label || 'Tag').trim(),
+        team: (t.team === 'team1' || t.team === 'team2') ? t.team : 'none',
         colorClass: t.colorClass || 'btn-blue',
         key: String(i + 1 <= 9 ? i + 1 : '')
     }));
@@ -394,8 +524,47 @@ function saveQuickTags(tags) {
     return sanitized;
 }
 
+// Reorder a tag left or right and re-index shortcut keys
+function moveQuickTag(tagId, direction) {
+    const current = loadQuickTags();
+    const index = current.findIndex(t => t.id === tagId);
+    if (index === -1) return current;
+
+    const delta = (direction === 'left' || direction === -1) ? -1 : 1;
+    const targetIndex = index + delta;
+
+    if (targetIndex < 0 || targetIndex >= current.length) {
+        return current;
+    }
+
+    const [item] = current.splice(index, 1);
+    current.splice(targetIndex, 0, item);
+    const updated = saveQuickTags(current);
+    renderQuickTagButtons();
+    return updated;
+}
+
+// Update an existing tag in-place without disturbing positions
+function updateQuickTag(tagId, updates = {}) {
+    const current = loadQuickTags();
+    const index = current.findIndex(t => t.id === tagId);
+    if (index === -1) return current;
+
+    const existing = current[index];
+    current[index] = {
+        ...existing,
+        label: updates.label !== undefined ? String(updates.label).trim() : existing.label,
+        team: (updates.team === 'team1' || updates.team === 'team2' || updates.team === 'none') ? updates.team : existing.team,
+        colorClass: updates.colorClass !== undefined ? updates.colorClass : existing.colorClass
+    };
+
+    const updated = saveQuickTags(current);
+    renderQuickTagButtons();
+    return updated;
+}
+
 // Add a new quick tag
-function addQuickTag(label, colorClass = 'btn-blue') {
+function addQuickTag(label, colorClass = 'btn-blue', team = 'none') {
     const trimmed = String(label || '').trim();
     if (!trimmed) return loadQuickTags();
     const current = loadQuickTags();
@@ -403,6 +572,7 @@ function addQuickTag(label, colorClass = 'btn-blue') {
     const newTag = {
         id,
         label: trimmed,
+        team: (team === 'team1' || team === 'team2') ? team : 'none',
         colorClass,
         key: String(current.length + 1 <= 9 ? current.length + 1 : '')
     };
@@ -529,7 +699,7 @@ function setTaggingMode(enabled) {
     return isTaggingMode;
 }
 
-// Render color pills for adding a new tag
+// Render color pills for adding or editing a tag
 function renderQuickTagColorSelector() {
     const container = document.getElementById('new-tag-color-selector');
     if (!container) return;
@@ -550,7 +720,143 @@ function renderQuickTagColorSelector() {
     });
 }
 
-// Render quick tag buttons (supports normal 1-tap mode and edit/delete mode)
+// Update the tag edit/create form based on team assignment radio choice
+function updateTagTeamChoiceUI() {
+    const colorSelector = document.getElementById('new-tag-color-selector');
+    const inheritedNotice = document.getElementById('new-tag-color-inherited');
+    const radioTeam1 = document.getElementById('tag-team-1-radio');
+    const radioTeam2 = document.getElementById('tag-team-2-radio');
+    const teams = getMatchTeams();
+
+    let team = 'none';
+    if (radioTeam1 && radioTeam1.checked) team = 'team1';
+    else if (radioTeam2 && radioTeam2.checked) team = 'team2';
+    selectedNewTagTeam = team;
+
+    if (team === 'none') {
+        if (colorSelector) colorSelector.classList.remove('hidden');
+        if (inheritedNotice) inheritedNotice.classList.add('hidden');
+    } else {
+        if (colorSelector) colorSelector.classList.add('hidden');
+        if (inheritedNotice) {
+            const teamName = team === 'team1' ? teams[0].code : teams[1].code;
+            inheritedNotice.textContent = `Inherits ${teamName} color`;
+            inheritedNotice.classList.remove('hidden');
+        }
+    }
+}
+
+// Start in-place editing of an existing quick tag
+function startEditingTag(tag) {
+    activeEditingTagId = tag.id;
+    const formTitle = document.getElementById('quick-tag-form-title');
+    const labelInput = document.getElementById('new-tag-label-input');
+    const btnLabel = document.getElementById('save-tag-btn-label');
+    const btnIcon = document.getElementById('save-tag-btn-icon');
+    const cancelBtn = document.getElementById('cancel-edit-tag-btn');
+    const radio1 = document.getElementById('tag-team-1-radio');
+    const radio2 = document.getElementById('tag-team-2-radio');
+    const radioNone = document.getElementById('tag-team-none-radio');
+
+    if (formTitle) formTitle.textContent = `Edit Tag: ${tag.label}`;
+    if (labelInput) {
+        labelInput.value = tag.label;
+        labelInput.focus();
+        labelInput.select();
+    }
+    if (btnLabel) btnLabel.textContent = 'Save';
+    if (btnIcon) btnIcon.className = 'fas fa-check text-xs';
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+    if (tag.team === 'team1' && radio1) radio1.checked = true;
+    else if (tag.team === 'team2' && radio2) radio2.checked = true;
+    else if (radioNone) radioNone.checked = true;
+
+    selectedNewTagColor = tag.colorClass || 'btn-blue';
+    updateTagTeamChoiceUI();
+    renderQuickTagColorSelector();
+    renderQuickTagButtons();
+}
+
+// Reset tag edit form to default Add New Tag state
+function resetEditFormState() {
+    activeEditingTagId = null;
+    const formTitle = document.getElementById('quick-tag-form-title');
+    const labelInput = document.getElementById('new-tag-label-input');
+    const btnLabel = document.getElementById('save-tag-btn-label');
+    const btnIcon = document.getElementById('save-tag-btn-icon');
+    const cancelBtn = document.getElementById('cancel-edit-tag-btn');
+    const radioNone = document.getElementById('tag-team-none-radio');
+
+    if (formTitle) formTitle.textContent = 'Add New Tag';
+    if (labelInput) labelInput.value = '';
+    if (btnLabel) btnLabel.textContent = 'Add';
+    if (btnIcon) btnIcon.className = 'fas fa-plus text-xs';
+    if (cancelBtn) cancelBtn.classList.add('hidden');
+    if (radioNone) radioNone.checked = true;
+
+    updateTagTeamChoiceUI();
+    renderQuickTagColorSelector();
+    renderQuickTagButtons();
+}
+
+// Render the Match Teams & Colors editor bar in Edit Mode
+function renderMatchTeamsEditor() {
+    const teams = getMatchTeams();
+    const t1Input = document.getElementById('match-team1-code');
+    const t2Input = document.getElementById('match-team2-code');
+    const t1Selector = document.getElementById('match-team1-color-selector');
+    const t2Selector = document.getElementById('match-team2-color-selector');
+    const t1RadioLabel = document.getElementById('tag-team-1-label');
+    const t2RadioLabel = document.getElementById('tag-team-2-label');
+
+    if (t1Input && document.activeElement !== t1Input) t1Input.value = teams[0].code;
+    if (t2Input && document.activeElement !== t2Input) t2Input.value = teams[1].code;
+    if (t1RadioLabel) t1RadioLabel.textContent = `T1 (${teams[0].code})`;
+    if (t2RadioLabel) t2RadioLabel.textContent = `T2 (${teams[1].code})`;
+
+    // Render palette swatches for Team 1
+    if (t1Selector) {
+        t1Selector.innerHTML = '';
+        TEAM_PALETTE.forEach(color => {
+            const swatch = document.createElement('button');
+            swatch.type = 'button';
+            swatch.className = `team-swatch-select team-color-${color.id} ${teams[0].color === color.id ? 'is-selected' : ''}`;
+            swatch.setAttribute('aria-label', `Team 1 color ${color.name}`);
+            swatch.title = `Team 1: ${color.name}`;
+            swatch.addEventListener('click', (e) => {
+                e.preventDefault();
+                setMatchTeams([
+                    { code: (t1Input ? t1Input.value.trim() : teams[0].code) || teams[0].code, color: color.id },
+                    teams[1]
+                ]);
+            });
+            t1Selector.appendChild(swatch);
+        });
+    }
+
+    // Render palette swatches for Team 2
+    if (t2Selector) {
+        t2Selector.innerHTML = '';
+        TEAM_PALETTE.forEach(color => {
+            const swatch = document.createElement('button');
+            swatch.type = 'button';
+            swatch.className = `team-swatch-select team-color-${color.id} ${teams[1].color === color.id ? 'is-selected' : ''}`;
+            swatch.setAttribute('aria-label', `Team 2 color ${color.name}`);
+            swatch.title = `Team 2: ${color.name}`;
+            swatch.addEventListener('click', (e) => {
+                e.preventDefault();
+                setMatchTeams([
+                    teams[0],
+                    { code: (t2Input ? t2Input.value.trim() : teams[1].code) || teams[1].code, color: color.id }
+                ]);
+            });
+            t2Selector.appendChild(swatch);
+        });
+    }
+}
+
+// Render quick tag buttons (supports normal 1-tap mode and edit/reorder mode)
 function renderQuickTagButtons() {
     const container = document.getElementById('quick-tags-container');
     const hintSpan = document.getElementById('quick-tag-hint');
@@ -558,21 +864,30 @@ function renderQuickTagButtons() {
     container.innerHTML = '';
 
     const tags = loadQuickTags();
+    const teams = getMatchTeams();
     if (hintSpan) {
         hintSpan.textContent = `(Tap or press 1–${Math.min(tags.length, 9)} during playback)`;
     }
 
-    tags.forEach((tag) => {
+    tags.forEach((tag, index) => {
+        const resolved = resolveTagDisplay(tag, teams);
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = `quick-tag-btn ${tag.colorClass}`;
-        btn.setAttribute('data-quick-tag', tag.label);
+        btn.className = `quick-tag-btn ${resolved.colorClass} ${isEditingQuickTags ? 'is-editing' : ''} ${activeEditingTagId === tag.id ? 'is-active-edit' : ''}`;
+        btn.setAttribute('data-quick-tag', resolved.displayLabel);
         btn.setAttribute('data-tag-id', tag.id);
-        btn.setAttribute('aria-label', `Tag ${tag.label} (Press ${tag.key || ''})`);
+        btn.setAttribute('aria-label', `Tag ${resolved.displayLabel} (Press ${tag.key || ''})`);
+
+        if (tag.team === 'team1' || tag.team === 'team2') {
+            const teamBadge = document.createElement('span');
+            teamBadge.className = 'quick-tag-team-badge';
+            teamBadge.textContent = tag.team === 'team1' ? teams[0].code : teams[1].code;
+            btn.appendChild(teamBadge);
+        }
 
         const labelSpan = document.createElement('span');
         labelSpan.className = 'tag-label';
-        labelSpan.textContent = tag.label;
+        labelSpan.textContent = tag.team !== 'none' ? tag.label : resolved.displayLabel;
 
         const keySpan = document.createElement('span');
         keySpan.className = 'tag-shortcut';
@@ -581,22 +896,68 @@ function renderQuickTagButtons() {
         btn.append(labelSpan, keySpan);
 
         if (isEditingQuickTags) {
+            // Delete badge
             const delBadge = document.createElement('button');
             delBadge.type = 'button';
             delBadge.className = 'quick-tag-delete-badge';
-            delBadge.setAttribute('aria-label', `Remove tag ${tag.label}`);
-            delBadge.title = `Remove ${tag.label}`;
+            delBadge.setAttribute('aria-label', `Remove tag ${resolved.displayLabel}`);
+            delBadge.title = `Remove ${resolved.displayLabel}`;
             delBadge.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
             delBadge.addEventListener('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
+                if (activeEditingTagId === tag.id) {
+                    resetEditFormState();
+                }
                 removeQuickTag(tag.id);
             });
             btn.appendChild(delBadge);
+
+            // Move Left button
+            const moveLeftBtn = document.createElement('button');
+            moveLeftBtn.type = 'button';
+            moveLeftBtn.className = 'quick-tag-move-btn move-left';
+            moveLeftBtn.setAttribute('aria-label', `Move ${resolved.displayLabel} left`);
+            moveLeftBtn.title = 'Move left';
+            moveLeftBtn.innerHTML = '<i class="fas fa-chevron-left" aria-hidden="true"></i>';
+            if (index === 0) {
+                moveLeftBtn.disabled = true;
+            } else {
+                moveLeftBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    moveQuickTag(tag.id, 'left');
+                });
+            }
+            btn.appendChild(moveLeftBtn);
+
+            // Move Right button
+            const moveRightBtn = document.createElement('button');
+            moveRightBtn.type = 'button';
+            moveRightBtn.className = 'quick-tag-move-btn move-right';
+            moveRightBtn.setAttribute('aria-label', `Move ${resolved.displayLabel} right`);
+            moveRightBtn.title = 'Move right';
+            moveRightBtn.innerHTML = '<i class="fas fa-chevron-right" aria-hidden="true"></i>';
+            if (index === tags.length - 1) {
+                moveRightBtn.disabled = true;
+            } else {
+                moveRightBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    moveQuickTag(tag.id, 'right');
+                });
+            }
+            btn.appendChild(moveRightBtn);
+
+            // Tap button body to edit
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                startEditingTag(tag);
+            });
         } else {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                quickTagEvent(tag.label);
+                quickTagEvent(tag);
             });
         }
 
@@ -2479,35 +2840,100 @@ domReady(() => {
             if (editBar) {
                 editBar.classList.toggle('hidden', !isEditingQuickTags);
                 if (isEditingQuickTags) {
+                    renderMatchTeamsEditor();
                     renderQuickTagColorSelector();
+                    updateTagTeamChoiceUI();
                     const input = document.getElementById('new-tag-label-input');
                     if (input) input.focus();
+                } else {
+                    resetEditFormState();
                 }
             }
             renderQuickTagButtons();
         });
     }
 
-    // Add new quick tag button & Enter key
+    // Team assignment radio buttons
+    document.querySelectorAll('input[name="tag-team-choice"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            updateTagTeamChoiceUI();
+        });
+    });
+
+    // Match Teams Swap button
+    const swapTeamsBtn = document.getElementById('swap-match-teams-btn');
+    if (swapTeamsBtn) {
+        swapTeamsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            swapMatchTeams();
+        });
+    }
+
+    // Match Teams Code input changes
+    const team1CodeInput = document.getElementById('match-team1-code');
+    const team2CodeInput = document.getElementById('match-team2-code');
+    const handleTeamCodeChange = () => {
+        const teams = getMatchTeams();
+        const code1 = (team1CodeInput ? team1CodeInput.value.trim() : '') || teams[0].code;
+        const code2 = (team2CodeInput ? team2CodeInput.value.trim() : '') || teams[1].code;
+        setMatchTeams([
+            { code: code1, color: teams[0].color },
+            { code: code2, color: teams[1].color }
+        ]);
+    };
+    if (team1CodeInput) {
+        team1CodeInput.addEventListener('change', handleTeamCodeChange);
+        team1CodeInput.addEventListener('blur', handleTeamCodeChange);
+    }
+    if (team2CodeInput) {
+        team2CodeInput.addEventListener('change', handleTeamCodeChange);
+        team2CodeInput.addEventListener('blur', handleTeamCodeChange);
+    }
+
+    // Cancel edit tag button
+    const cancelEditTagBtn = document.getElementById('cancel-edit-tag-btn');
+    if (cancelEditTagBtn) {
+        cancelEditTagBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetEditFormState();
+        });
+    }
+
+    // Add / Update quick tag button & Enter key
     const saveNewTagBtn = document.getElementById('save-new-tag-btn');
     const newTagInput = document.getElementById('new-tag-label-input');
     if (saveNewTagBtn && newTagInput) {
-        const handleAddTag = () => {
+        const handleSaveTag = () => {
             const label = newTagInput.value.trim();
-            if (label) {
-                addQuickTag(label, selectedNewTagColor);
+            if (!label) return;
+
+            let chosenTeam = 'none';
+            const radio1 = document.getElementById('tag-team-1-radio');
+            const radio2 = document.getElementById('tag-team-2-radio');
+            if (radio1 && radio1.checked) chosenTeam = 'team1';
+            else if (radio2 && radio2.checked) chosenTeam = 'team2';
+
+            if (activeEditingTagId) {
+                updateQuickTag(activeEditingTagId, {
+                    label,
+                    team: chosenTeam,
+                    colorClass: selectedNewTagColor
+                });
+                resetEditFormState();
+            } else {
+                addQuickTag(label, selectedNewTagColor, chosenTeam);
                 newTagInput.value = '';
                 newTagInput.focus();
             }
         };
         saveNewTagBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            handleAddTag();
+            handleSaveTag();
         });
         newTagInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                handleAddTag();
+                handleSaveTag();
             }
         });
     }
@@ -2518,6 +2944,7 @@ domReady(() => {
         resetTagsBtn.addEventListener('click', (e) => {
             e.preventDefault();
             resetQuickTags();
+            resetEditFormState();
         });
     }
 
@@ -2923,6 +3350,12 @@ export {
     addQuickTag,
     removeQuickTag,
     resetQuickTags,
+    moveQuickTag,
+    updateQuickTag,
+    resolveTagDisplay,
+    getMatchTeams,
+    setMatchTeams,
+    swapMatchTeams,
     undoLastQuickTag,
     setTaggingMode,
     setTimelineCollapsed,
