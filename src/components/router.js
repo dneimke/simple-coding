@@ -30,6 +30,21 @@ export class Router {
     }
 
     /**
+     * Scroll to an in-page anchor element if it exists
+     * @param {string} anchorId
+     * @private
+     */
+    _scrollToAnchor(anchorId) {
+        if (!anchorId || typeof document === 'undefined') return;
+        const target = document.getElementById(anchorId);
+        if (target && typeof target.scrollIntoView === 'function') {
+            setTimeout(() => {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 50);
+        }
+    }
+
+    /**
      * Set up hash navigation handlers
      * @private
      */
@@ -59,7 +74,25 @@ export class Router {
         const routeOnly = fullHash.split('?')[0];
         const [hash, param] = routeOnly.split('/');
         if (hash) {
-            const viewName = this.hashToViewMap[hash];
+            let viewName = this.hashToViewMap[hash];
+            let anchorTarget = param;
+
+            if (!viewName) {
+                // Check if hash matches an element id directly inside a known view
+                const targetElement = typeof document !== 'undefined' && typeof document.getElementById === 'function'
+                    ? document.getElementById(hash)
+                    : null;
+                if (targetElement) {
+                    for (const [viewKey, viewObj] of Object.entries(this.views)) {
+                        if (viewObj?.view && (viewObj.view === targetElement || (typeof viewObj.view.contains === 'function' && viewObj.view.contains(targetElement)))) {
+                            viewName = viewKey;
+                            anchorTarget = hash;
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (viewName) {
                 const savedGameId = viewName === 'Log' && param ? decodeURIComponent(param) : null;
                 stateService.setState('ui.logGameId', savedGameId);
@@ -79,6 +112,10 @@ export class Router {
 
                 // Switch to the view without updating hash (to avoid loop)
                 this._showViewWithoutHashUpdate(viewName);
+
+                if (anchorTarget) {
+                    this._scrollToAnchor(anchorTarget);
+                }
             } else {
                 // Invalid hash, default to SavedGames (Matches Hub)
                 this._updateHashSilently('saved-games');

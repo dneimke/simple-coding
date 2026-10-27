@@ -1415,7 +1415,7 @@ function handleInitialNavigation() {
     const [hash] = routeOnly.split('/');
     if (hash === 'configure') {
         showConfigView();
-    } else if (hash === 'help') {
+    } else if (hash === 'help' || hash.startsWith('help-')) {
         // Help view
     } else if (hash === 'event-capture') {
         // Event capture view
@@ -1425,6 +1425,36 @@ function handleInitialNavigation() {
 
     // Initialize mobile menu functionality
     initMobileMenu();
+    // Initialize sticky quick-jump bar smooth scrolling on Help page
+    initHelpJumpLinks();
+}
+
+/**
+ * Initialize quick-jump navigation on the Help page
+ */
+function initHelpJumpLinks() {
+    const jumpBar = document.getElementById('help-jump-bar');
+    if (!jumpBar) return;
+
+    jumpBar.addEventListener('click', (e) => {
+        const link = e.target.closest('a[href*="#"]');
+        if (!link) return;
+        const href = link.getAttribute('href');
+        const hashIndex = href.indexOf('#');
+        if (hashIndex === -1) return;
+        const targetPart = href.substring(hashIndex + 1).split('?')[0];
+        const targetId = targetPart.includes('/') ? targetPart.split('/')[1] : targetPart;
+        const target = document.getElementById(targetId);
+        if (target) {
+            e.preventDefault();
+            if (typeof target.scrollIntoView === 'function') {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            if (typeof history !== 'undefined' && typeof history.replaceState === 'function') {
+                history.replaceState(null, '', `#help/${targetId}`);
+            }
+        }
+    });
 }
 
 if (typeof document !== 'undefined' && document.readyState === 'loading') {

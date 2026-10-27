@@ -90,6 +90,14 @@
 /* ===== Base ===== */
 html {
     -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 7rem;
+}
+
+/* Quick-jump anchor scroll offset for sticky top navbar (h-14) + sticky jump bar */
+.scroll-mt-28,
+[id^="help-"] {
+    scroll-margin-top: 7rem;
 }
 
 body {
