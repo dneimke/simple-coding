@@ -3,7 +3,7 @@ import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
 import { generateGameId } from '../services/gameStorageManager.js';
 import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
-import { getLabelSchemaForEvent, formatLabelText, getFriendlyEventName, getSweepScopeOptions, extractTeamFromEvent } from '../utils/eventAnalysisUtils.js';
+import { getLabelSchemaForEvent, formatLabelText, getFriendlyEventName, getSweepScopeOptions, extractTeamFromEvent, getSweepSeekSeconds } from '../utils/eventAnalysisUtils.js';
 import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor, teamColorClass } from '../components/teamPalette.js';
 import { loadLastTeams, saveLastTeams } from '../components/teamSetupDialog.js';
 
@@ -985,7 +985,10 @@ function initKeyboardShortcuts() {
         if (e.code === 'Space') {
             e.preventDefault();
             if (video.paused) {
-                video.play().catch(() => {});
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {});
+                }
             } else {
                 video.pause();
             }
@@ -1562,11 +1565,14 @@ function replayCurrentSweepClip() {
     if (!sweepModeActive || sweepEvents.length === 0) return;
     const event = sweepEvents[currentSweepIndex];
     if (!event) return;
-    const seekSec = Math.max(0, (event.timeMs / 1000) - 3);
+    const seekSec = getSweepSeekSeconds(event);
     const video = document.getElementById('video-player');
     if (video) {
         video.currentTime = seekSec;
-        video.play().catch(() => {});
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => {});
+        }
     }
 }
 
@@ -1722,7 +1728,7 @@ function loadSweepEvent(index) {
     }
 
     // Seek video to 3s before event
-    const seekSec = Math.max(0, (event.timeMs / 1000) - 3);
+    const seekSec = getSweepSeekSeconds(event);
     const video = document.getElementById('video-player');
     if (video) {
         video.currentTime = seekSec;
@@ -3391,5 +3397,6 @@ export {
     initLabelSweep,
     startLabelSweep,
     exitLabelSweep,
-    applySweepLabel
+    applySweepLabel,
+    replayCurrentSweepClip
 };

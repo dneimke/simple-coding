@@ -198,6 +198,37 @@ export const getFriendlyEventName = (eventOrCode) => {
 };
 
 /**
+ * Calculates the video lead-in (pre-roll) duration in seconds for Label Sweep.
+ * Enforces an ergonomic minimum of 8 seconds of build-up context while respecting
+ * larger custom lead times configured on the event.
+ * 
+ * @param {Object} event - Event object with optional lead or leadTime
+ * @returns {number} Lead seconds (>= 8)
+ */
+export const getSweepLeadSeconds = (event) => {
+    if (!event) return 8;
+    const rawLead = event.lead ?? event.leadTime;
+    const num = Number(rawLead);
+    if (Number.isFinite(num) && num > 0) {
+        return Math.max(8, num);
+    }
+    return 8;
+};
+
+/**
+ * Calculates the exact video seek position in seconds for reviewing an event during sweep.
+ * Safely clamps to 0 for events near the beginning of match footage.
+ * 
+ * @param {Object} event - Event object with timeMs and optional lead
+ * @returns {number} Non-negative seek time in seconds
+ */
+export const getSweepSeekSeconds = (event) => {
+    if (!event || typeof event.timeMs !== 'number') return 0;
+    const leadSec = getSweepLeadSeconds(event);
+    return Math.max(0, (event.timeMs / 1000) - leadSec);
+};
+
+/**
  * Calculates grouped sweep scope options (presets) for a list of timeline events.
  * Enables 1-tap focused sweeps (e.g. Pride Circle Entries) vs full match audits.
  * @param {Array<Object>} timelineEvents 
@@ -211,6 +242,15 @@ export const getSweepScopeOptions = (timelineEvents = []) => {
 
     const unlabelled = candidates.filter(e => !Array.isArray(e.labels) || e.labels.length === 0);
     const targetPool = unlabelled.length > 0 ? unlabelled : candidates;
+
+    const formatSweepEstTime = (count, isFullAudit = false) => {
+        const totalSec = count * 8;
+        if (totalSec < 60) {
+            return `~${Math.max(15, totalSec)}s pass`;
+        }
+        const mins = Math.max(1, Math.round(totalSec / 60));
+        return isFullAudit ? `~${mins}m full audit` : `~${mins}m pass`;
+    };
 
     const options = [];
     const teamMap = new Map();
@@ -234,7 +274,7 @@ export const getSweepScopeOptions = (timelineEvents = []) => {
                 label: `${team} Circle Entries (${ceEvents.length})`,
                 description: 'Categorize entry channels (Left, Center, Right)',
                 count: ceEvents.length,
-                estTime: ceEvents.length <= 20 ? `~${Math.max(15, ceEvents.length * 3)}s pass` : `~${Math.round(ceEvents.length * 3 / 60)}m pass`,
+                estTime: formatSweepEstTime(ceEvents.length),
                 filter: (e) => (extractTeamFromEvent(e) || 'Unassigned') === team && /\b(CE|CIRCLE\s*ENTRY)\b/i.test(e.event)
             });
         }
@@ -249,7 +289,7 @@ export const getSweepScopeOptions = (timelineEvents = []) => {
                 label: `${team} Attacking 25s (${a25Events.length})`,
                 description: 'Categorize 25m entry channels',
                 count: a25Events.length,
-                estTime: `~${Math.max(1, Math.round(a25Events.length * 3.5 / 60))}m pass`,
+                estTime: formatSweepEstTime(a25Events.length),
                 filter: (e) => (extractTeamFromEvent(e) || 'Unassigned') === team && /\b(A25E|25M\s*ENTRY)\b/i.test(e.event)
             });
         }
@@ -264,7 +304,7 @@ export const getSweepScopeOptions = (timelineEvents = []) => {
                 label: `${team} Turnovers / Ball Won (${bwEvents.length})`,
                 description: 'Classify tackle vs intercept vs unforced',
                 count: bwEvents.length,
-                estTime: `~${Math.max(1, Math.round(bwEvents.length * 3.5 / 60))}m pass`,
+                estTime: formatSweepEstTime(bwEvents.length),
                 filter: (e) => (extractTeamFromEvent(e) || 'Unassigned') === team && /\b(BW|BALL\s*WON|TURNOVER)\b/i.test(e.event)
             });
         }
@@ -278,7 +318,7 @@ export const getSweepScopeOptions = (timelineEvents = []) => {
                 label: `All ${team} Events (${teamEvents.length})`,
                 description: `Complete sweep for ${team}`,
                 count: teamEvents.length,
-                estTime: `~${Math.max(1, Math.round(teamEvents.length * 3.5 / 60))}m pass`,
+                estTime: formatSweepEstTime(teamEvents.length),
                 filter: (e) => (extractTeamFromEvent(e) || 'Unassigned') === team
             });
         }
@@ -290,7 +330,7 @@ export const getSweepScopeOptions = (timelineEvents = []) => {
         label: `All Match Events (${targetPool.length})`,
         description: 'Full sweep across all teams and schemas',
         count: targetPool.length,
-        estTime: `~${Math.max(1, Math.round(targetPool.length * 3.5 / 60))}m full audit`,
+        estTime: formatSweepEstTime(targetPool.length, true),
         filter: () => true
     });
 
