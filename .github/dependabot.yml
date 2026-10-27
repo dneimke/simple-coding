@@ -1,29 +1,28 @@
 # Version updates wait 7 days after a release is published.
 # Security updates are not delayed.
+# Minor and patch updates are grouped by manifest section. Majors stay individual.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Australia/Adelaide
+    open-pull-requests-limit: 3
     cooldown:
       default-days: 7
     groups:
-      npm-minor-and-patch:
+      npm-production-minor-and-patch:
+        dependency-type: production
         patterns:
           - "*"
         update-types:
           - minor
           - patch
-
-  - package-ecosystem: npm
-    directory: "/functions"
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
-    groups:
-      functions-npm-minor-and-patch:
+      npm-development-minor-and-patch:
+        dependency-type: development
         patterns:
           - "*"
         update-types:
@@ -34,6 +33,10 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Australia/Adelaide
+    open-pull-requests-limit: 2
     cooldown:
       default-days: 7
     groups:
