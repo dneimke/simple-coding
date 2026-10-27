@@ -11,6 +11,8 @@ updates:
       time: "06:00"
       timezone: Australia/Adelaide
     open-pull-requests-limit: 3
+    assignees:
+      - "dneimke"
     cooldown:
       default-days: 7
     groups:
@@ -37,6 +39,8 @@ updates:
       time: "06:00"
       timezone: Australia/Adelaide
     open-pull-requests-limit: 2
+    assignees:
+      - "dneimke"
     cooldown:
       default-days: 7
     groups:
