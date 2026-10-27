@@ -994,6 +994,9 @@ describe('video coding workflow', () => {
 
         test('startLabelSweep activates sweep controls and loads first candidate', () => {
             mod.startLabelSweep();
+            const video = document.getElementById('video-player');
+            // ev-1 is at 45000ms (45s). Smart lead applies 8s minimum pre-roll -> 37s
+            expect(video.currentTime).toBe(37);
             const sweepControls = document.getElementById('sweep-controls');
             expect(sweepControls.classList.contains('flex')).toBe(true);
 
@@ -1005,6 +1008,14 @@ describe('video coding workflow', () => {
             const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
             const ev1 = saved.events.find(e => e.id === 'ev-1');
             expect(ev1.labels).toEqual([{ group: 'Channel', text: 'Right' }]);
+
+            // Next candidate ev-3 is at 120s. Smart lead pre-roll seeks to 120 - 8 = 112s
+            expect(video.currentTime).toBe(112);
+
+            // Replay clip re-seeks back to 112s
+            video.currentTime = 119;
+            mod.replayCurrentSweepClip();
+            expect(video.currentTime).toBe(112);
 
             mod.exitLabelSweep();
             expect(sweepControls.classList.contains('flex')).toBe(false);

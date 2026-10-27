@@ -5,7 +5,9 @@ import {
     getDerivedLabels,
     formatLabelText,
     getFriendlyEventName,
-    getSweepScopeOptions
+    getSweepScopeOptions,
+    getSweepLeadSeconds,
+    getSweepSeekSeconds
 } from '../../src/utils/eventAnalysisUtils.js';
 
 describe('eventAnalysisUtils', () => {
@@ -150,6 +152,43 @@ describe('eventAnalysisUtils', () => {
             expect(allOption).toBeDefined();
             expect(allOption.count).toBe(5);
             expect(allOption.label).toContain('All Match Events');
+        });
+    });
+
+    describe('getSweepLeadSeconds and getSweepSeekSeconds', () => {
+        test('defaults to 8 seconds pre-roll when no lead is defined on event', () => {
+            const event = { timeMs: 45000, event: 'FIRE CE' };
+            expect(getSweepLeadSeconds(event)).toBe(8);
+            expect(getSweepSeekSeconds(event)).toBe(37);
+        });
+
+        test('enforces an 8-second minimum floor even if event lead is lower', () => {
+            const event = { timeMs: 30000, event: 'FIRE CE', lead: 3 };
+            expect(getSweepLeadSeconds(event)).toBe(8);
+            expect(getSweepSeekSeconds(event)).toBe(22);
+        });
+
+        test('respects custom lead time when greater than 8 seconds', () => {
+            const eventWithLead = { timeMs: 60000, event: 'FIRE SHOT', lead: 12 };
+            expect(getSweepLeadSeconds(eventWithLead)).toBe(12);
+            expect(getSweepSeekSeconds(eventWithLead)).toBe(48);
+
+            const eventWithLeadTime = { timeMs: 60000, event: 'FIRE PC', leadTime: 15 };
+            expect(getSweepLeadSeconds(eventWithLeadTime)).toBe(15);
+            expect(getSweepSeekSeconds(eventWithLeadTime)).toBe(45);
+        });
+
+        test('safely clamps seek time to zero for events near the start of the match', () => {
+            const earlyEvent = { timeMs: 4000, event: 'FIRE START', lead: 10 };
+            expect(getSweepLeadSeconds(earlyEvent)).toBe(10);
+            expect(getSweepSeekSeconds(earlyEvent)).toBe(0);
+        });
+
+        test('handles null, undefined, or invalid inputs gracefully', () => {
+            expect(getSweepLeadSeconds(null)).toBe(8);
+            expect(getSweepSeekSeconds(null)).toBe(0);
+            expect(getSweepLeadSeconds({ lead: 'invalid' })).toBe(8);
+            expect(getSweepSeekSeconds({ timeMs: 'invalid' })).toBe(0);
         });
     });
 });
