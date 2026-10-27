@@ -192,6 +192,32 @@ describe('Router', () => {
         });
     });
 
+    test('#help/<anchor> hash navigates to Help view and triggers scroll to anchor', () => {
+        const scrollToAnchorSpy = jest.spyOn(router, '_scrollToAnchor').mockImplementation(() => {});
+        window.location.hash = 'help/help-overview-heading';
+        router._handleHashChange();
+        expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'Help');
+        expect(scrollToAnchorSpy).toHaveBeenCalledWith('help-overview-heading');
+        scrollToAnchorSpy.mockRestore();
+    });
+
+    test('direct in-page anchor hash resolves to containing view and scrolls to anchor', () => {
+        const scrollToAnchorSpy = jest.spyOn(router, '_scrollToAnchor').mockImplementation(() => {});
+        const mockTargetElement = document.createElement('div');
+        mockTargetElement.id = 'help-overview-heading';
+        document.body.appendChild(mockTargetElement);
+
+        mockViews.Help.view.contains = jest.fn((el) => el === mockTargetElement);
+
+        window.location.hash = 'help-overview-heading';
+        router._handleHashChange();
+        expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'Help');
+        expect(scrollToAnchorSpy).toHaveBeenCalledWith('help-overview-heading');
+
+        scrollToAnchorSpy.mockRestore();
+        mockTargetElement.remove();
+    });
+
     test('#help hash navigates to Help view', () => {
         window.location.hash = 'help';
         router._handleHashChange();

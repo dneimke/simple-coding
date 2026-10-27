@@ -564,6 +564,59 @@ async function runSnapshots() {
             await sweepCtx.close();
         }
 
+        // Capture Help Page Jump Links and Anchor Navigation Flow (Desktop & Mobile)
+        for (const vp of VIEWPORTS) {
+            const helpContext = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const helpPage = await helpContext.newPage();
+
+            // 1. Land on Help view
+            await helpPage.goto(`${baseUrl}/#help`, { waitUntil: 'domcontentloaded' });
+            await helpPage.waitForSelector('#help-jump-bar');
+            await helpPage.waitForSelector('#help-view:not(.hidden)');
+            await helpPage.waitForTimeout(300);
+
+            // 2. Click Jump to Board Configuration
+            const boardConfigJump = await helpPage.$('#help-jump-bar a[href*="help-configuration-title"]');
+            if (boardConfigJump) await boardConfigJump.click();
+            await helpPage.waitForTimeout(1200);
+
+            // Verify we did NOT navigate to saved-games
+            const isHelpStillVisible = await helpPage.$eval('#help-view', el => !el.classList.contains('hidden'));
+            if (!isHelpStillVisible) throw new Error('Help view was navigated away after clicking Board Configuration jump link!');
+
+            const jumpConfigPath = path.join(OUTPUT_DIR, `help-jump-configuration-${vp.name}.png`);
+            await helpPage.screenshot({ path: jumpConfigPath, fullPage: false });
+
+            // 3. Click Jump to Label Sweep & AI Metadata
+            const sweepJump = await helpPage.$('#help-jump-bar a[href*="help-sweep-metadata-title"]');
+            if (sweepJump) await sweepJump.click();
+            await helpPage.waitForTimeout(1200);
+
+            const jumpSweepPath = path.join(OUTPUT_DIR, `help-jump-sweep-${vp.name}.png`);
+            await helpPage.screenshot({ path: jumpSweepPath, fullPage: false });
+
+            // 4. Click Jump to 3 Coding Modes
+            const modesJump = await helpPage.$('#help-jump-bar a[href*="help-overview-heading"]');
+            if (modesJump) await modesJump.click();
+            await helpPage.waitForTimeout(1200);
+
+            const jumpModesPath = path.join(OUTPUT_DIR, `help-jump-coding-modes-${vp.name}.png`);
+            await helpPage.screenshot({ path: jumpModesPath, fullPage: false });
+
+            // 5. Test direct anchor navigation without redirecting to index
+            await helpPage.goto(`${baseUrl}/#help-configuration-title`, { waitUntil: 'domcontentloaded' });
+            await helpPage.waitForSelector('#help-view:not(.hidden)');
+            await helpPage.waitForTimeout(1000);
+
+            const directAnchorPath = path.join(OUTPUT_DIR, `help-direct-anchor-${vp.name}.png`);
+            await helpPage.screenshot({ path: directAnchorPath, fullPage: false });
+
+            await helpContext.close();
+        }
+
         // Multi-viewport proof for Board Import flow (Desktop & Mobile)
         for (const vp of VIEWPORTS) {
             const importContext = await browser.newContext({
