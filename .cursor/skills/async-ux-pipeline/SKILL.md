@@ -13,6 +13,8 @@ Never optimize merely for "making the static screen pass tests." Optimize for th
 
 ## Repository Binding
 
+Read `docs/core-friction-points.md` and the **Product gate** in `AGENTS.md` before changing code. If the work reduces none of the three frictions and is not an invariant repair or a regression fix, stop.
+
 Read `AGENTS.md` (personas, journeys, push-back rules, execution protocol) and `docs/design-language.md` (`.cursor/rules/design-language.mdc`) before changing markup, CSS, or JavaScript.
 
 ## Stage 1: Contract Check or Rapid 3-Tap Trace
@@ -21,6 +23,7 @@ Read `AGENTS.md` (personas, journeys, push-back rules, execution protocol) and `
    - Do not re-interview the user. Proceed straight to **Stage 2 → Stage 5** autonomously so the user can step away.
 2. **If invoked directly without a prior `/ux-design` contract**:
    - **Investigate Current Visual & Code State**: Inspect existing `.visual-proof/*.png` snapshots (`read_file`) and relevant `src/` files so you never design blind.
+   - **Product gate**: Name the friction in `docs/core-friction-points.md` this change reduces. If none, and it is not an invariant repair or a regression fix, stop before touching `src/` or `tests/`.
    - **Evaluate Push-Back Rules & Personas**: If the request has unvalidated UX trade-offs, violates an `AGENTS.md` push-back rule, or has a genuine `Tap 2` product fork, pause and run the [`/ux-design`](../ux-design/SKILL.md) grill (`ask_question`) **before** touching `src/` or `tests/`.
    - **Self-Contained Bug/Polish**: If the request is a clear bug fix or unambiguous UI polish, output the **5-Part Dispatch Contract** (`Goal & Persona`, `Locked 3-Tap Journey & Design Tokens`, `Invariants`, `Visual Proof States`, `Traps to Avoid`) and proceed straight through Stages 2–5 autonomously.
 

@@ -4,6 +4,26 @@ Static client-side web app (`src/index.html`, `src/timeline-video.html`, ES6 mod
 
 ---
 
+## Product gate (binding)
+
+simple-coding exists to remove three operational frictions. The full statement is [`docs/core-friction-points.md`](docs/core-friction-points.md). Cursor always loads [`.cursor/rules/core-friction-points.mdc`](.cursor/rules/core-friction-points.mdc). Antigravity always loads [`.agents/rules/core-friction-points.md`](.agents/rules/core-friction-points.md), which inlines that document.
+
+**If a change does not reduce one of these three frictions, do not implement it.** Name the friction before writing code, a board configuration, or a dispatch contract.
+
+| Friction | Bottleneck to remove | Target |
+| :--- | :--- | :--- |
+| **1. Game setup divergence** | New teams and separate paths for live sideline coding vs. MP4 coding | Teams defined once, quick selectors, one clock engine for live time and video time |
+| **2. Two-pass coding slog** | A required second pass for zones, ball origins, and tactical modifiers | Single-pass compound tags (chorded keys, a short modifier overlay, inferred state) |
+| **3. Post-match assembly** | Manual in/out points, clip sizing, and rendered exports (~45 min) | Lead/lag sized at tag time; presentation mode seeks a filtered playlist in the browser |
+
+Four invariants in that document are not optional: client-side state with Sportscode XML fidelity, zero-render presentation, critical tags in ≤ 3 taps or keystrokes without modal lockup, and separation of video scrubber time from the quarter match clock.
+
+A bugfix or refactor is in scope when it restores one of those invariants or repairs a regression in an existing solution to one of the three frictions. A new capability that leaves all three bottlenecks untouched is out of scope.
+
+`Continue coding` stays available to finish an unfinished quarter or add a targeted coach tag. That does not justify keeping a mandatory second labeling pass (Friction 2).
+
+---
+
 ## Operating Philosophy: Eliminating "Glue Toil" via Asynchronous Dispatch
 
 The hidden tax of AI-assisted engineering is **"glue toil"**: the human spending 45 minutes acting as middleware—typing long problem descriptions, debating layout in chat, refreshing dev servers, clicking through 4 screens to reproduce state, and manually testing edge cases.

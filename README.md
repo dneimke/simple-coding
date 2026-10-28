@@ -9,6 +9,8 @@
 
 The **Field Hockey Event Tracker** is a modern web application for coaches, analysts, and sports enthusiasts to record, analyze, and visualize game events in real-time. Built with HTML5, Tailwind CSS, and modern Vanilla JavaScript (ES6+), it offers a responsive interface for sports performance analysis without requiring a server connection.
 
+It exists to remove three bottlenecks: setting up a fixture once for both live and video coding, tagging zones and modifiers in the same pass as the event, and reviewing sized clips in the browser without rendering exports. See [Core Friction Points & Product Intent](docs/core-friction-points.md).
+
 ![Event Capture](images/coding-tool.png)
 
 ## Table of Contents
@@ -159,7 +161,8 @@ npm run test:coverage
 
 ## Documentation
 
-- [Agent Context & Product Rules](AGENTS.md) - Personas, user journeys, and product quality bars
+- [Core Friction Points & Product Intent](docs/core-friction-points.md) - The three bottlenecks every change must reduce
+- [Agent Context & Product Rules](AGENTS.md) - Product gate, personas, user journeys, and product quality bars
 - [Design Language](docs/design-language.md) - CSS tokens, semantic classes, and layout rules
 - [MyVA Lead & Lag Timings](docs/myva-lead-lag-times.md) - Clip window reference for Sportscode XML exports
 

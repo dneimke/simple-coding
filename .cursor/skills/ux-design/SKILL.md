@@ -32,10 +32,11 @@ Accept raw user feedback, bug notes, or feature sketches:
 
 Challenge the concept against AGENTS.md rules before designing UI or writing specifications:
 
-1. **Eyes-on-Pitch Rule**: Does this add a tap, modal confirmation, or layout shift during live match capture? If yes, **push back** and propose a zero-tap or post-capture alternative.
-2. **Config Over Code**: Can this tracking need be solved by a JSON board configuration (`rowDefs`, `zones`, `team`, `lead`/`lag`) via [`board-config-generator`](../board-config-generator/SKILL.md) instead of new application code? If yes, **push back** and steer to board configuration.
-3. **Persona Isolation**: Does an *Expert Analyst* capability clutter the screen or add cognitive load for a *Drafted Helper* (handed a phone 5 mins before pushback) or *Bench Coach* (split attention in outdoor sun)? If yes, **push back** and isolate via progressive disclosure or named board templates.
-4. **390px Mobile Fold & Design Tokens**: Will this push primary actions below the mobile fold, introduce non-token styling, or duplicate status chrome (e.g., banner + badge repeating the same state)?
+1. **Product gate** (`docs/core-friction-points.md`): Which friction does this reduce — game setup divergence, the two-pass coding slog, or post-match clip assembly? If none, and it is not an invariant repair or a regression fix, **push back and do not lock a contract**.
+2. **Eyes-on-Pitch Rule**: Does this add a tap, modal confirmation, or layout shift during live match capture? If yes, **push back** and propose a zero-tap or post-capture alternative.
+3. **Config Over Code**: Can this tracking need be solved by a JSON board configuration (`rowDefs`, `zones`, `team`, `lead`/`lag`) via [`board-config-generator`](../board-config-generator/SKILL.md) instead of new application code? If yes, **push back** and steer to board configuration.
+4. **Persona Isolation**: Does an *Expert Analyst* capability clutter the screen or add cognitive load for a *Drafted Helper* (handed a phone 5 mins before pushback) or *Bench Coach* (split attention in outdoor sun)? If yes, **push back** and isolate via progressive disclosure or named board templates.
+5. **390px Mobile Fold & Design Tokens**: Will this push primary actions below the mobile fold, introduce non-token styling, or duplicate status chrome (e.g., banner + badge repeating the same state)?
 
 ---
 
@@ -64,8 +65,9 @@ Once the UX questions are resolved, output the locked **5-Part Dispatch Contract
 
 #### 1. Goal, Target Persona & Seeded Journey
 - Target Persona & User Impact: Who this serves and operational benefit.
+- Friction served: Friction 1 (game setup), Friction 2 (single-pass tagging), or Friction 3 (zero-render review). Name the bottleneck it removes. If none, this contract must not be locked unless the work restores an invariant or repairs a regression.
 - Journey & Seeded URL: (e.g. `index.html#event-capture?mock=active`, `timeline-video.html?game=sample-game`).
-- Push-Back Triage: Confirmation that Eyes-on-Pitch, Persona Isolation, and Config-over-Code rules were validated.
+- Push-Back Triage: Confirmation that the product gate, Eyes-on-Pitch, Persona Isolation, and Config-over-Code rules were validated.
 
 #### 2. Locked 3-Tap Sideline Journey
 - Tap 1 (Entry): Exact element, placement above 390px mobile fold, touch target $\ge 44\text{px}$ (`--touch-min`), and `src/styles.css` classes.

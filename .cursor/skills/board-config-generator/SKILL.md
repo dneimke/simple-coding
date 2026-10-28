@@ -17,6 +17,7 @@ Turn analysis requirements or external highlight schemes into a validated JSON b
 - Validation & schema: `src/components/config.js` (`validateConfig`, `HOCKEY_ONE_ZONED_CONFIG`)
 - MyVA lead/lag timings: `docs/myva-lead-lag-times.md`
 - Sticky zones & team rows spec: `docs/feat/sticky-zones/spec.md`
+- Product gate: `docs/core-friction-points.md`. A board must shorten fixture setup (Friction 1), collapse a second labeling pass into the first tag (Friction 2), or carry `lead`/`lag` so clips are sized when the event is tagged (Friction 3). If it does none of those, do not add it.
 - Personas & sideline constraints: `AGENTS.md`
 
 ## Step 1: Match the board to the Coder Persona
