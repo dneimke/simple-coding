@@ -68,12 +68,32 @@ function startServer(port) {
     });
 
     server.listen(port, '127.0.0.1', () => {
-        const videoUrl = `http://localhost:${port}/timeline-video.html?game=sample-game&mock=sample&mode=tag`;
-        console.log(`\n🚀 Local server running at http://localhost:${port}`);
-        console.log(`🎬 Video Tagging View: ${videoUrl}\n`);
+        const origin = `http://localhost:${port}`;
+        const matchesUrl = `${origin}/index.html#saved-games?mock=sample`;
+        const liveUrl = `${origin}/index.html#event-capture?mock=active`;
+        const reviewUrl = `${origin}/timeline-video.html?game=sample-game`;
 
-        exec(`start "" "${videoUrl}"`);
+        console.log(`\nLocal server running at ${origin}`);
+        console.log(`Matches (sample): ${matchesUrl}`);
+        console.log(`Live capture: ${liveUrl}`);
+        console.log(`Match review: ${reviewUrl}\n`);
+
+        openInBrowser(matchesUrl);
     });
+}
+
+function openInBrowser(url) {
+    if (process.env.BROWSER === 'none') {
+        return;
+    }
+
+    const command = process.platform === 'win32'
+        ? `start "" "${url}"`
+        : process.platform === 'darwin'
+            ? `open "${url}"`
+            : `xdg-open "${url}"`;
+
+    exec(command, () => {});
 }
 
 startServer(PORT);

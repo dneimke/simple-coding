@@ -1,0 +1,20 @@
+---
+description: Product gate. Every change must reduce game-setup divergence, the two-pass coding slog, or post-match clip assembly. If it does none of those, do not implement it.
+alwaysApply: true
+---
+
+# Product gate: three friction points
+
+simple-coding exists to remove three operational frictions. Full statement: `docs/core-friction-points.md`. The same gate is the **Product gate** section of `AGENTS.md`.
+
+Before implementing, refactoring, or locking a dispatch contract, name which friction the change reduces. If it reduces none of them, stop and say so.
+
+| Friction | Bottleneck to remove | Target |
+| :--- | :--- | :--- |
+| **1. Game setup divergence** | New teams and separate paths for live sideline coding vs. MP4 coding | Teams defined once, quick selectors, one clock engine for `Date.now()` and `video.currentTime` |
+| **2. Two-pass coding slog** | A second 15+ min pass for zones, ball origins, and tactical modifiers | Single-pass compound tags: chorded keys, a short modifier overlay, inferred state |
+| **3. Post-match assembly** | 45 min of manual in/out points, clip sizing, and rendered exports | Lead/lag sized at tag time; presentation mode seeks a filtered playlist in the browser |
+
+Invariants (do not trade these away to chase a friction): client-side state with Sportscode XML fidelity; zero-render presentation; critical tags in ≤ 3 taps or keystrokes without modal lockup; video scrubber time stays separate from the quarter match clock.
+
+In scope without a new friction win: bugfixes and refactors that restore an invariant or repair a regression in an existing solution to one of the three frictions. Still name the friction or invariant.

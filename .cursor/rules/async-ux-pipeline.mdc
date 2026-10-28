@@ -10,13 +10,14 @@ Never optimize merely for "making the static screen pass tests." Optimize for th
 
 ## Stage 1: Autonomous Spec & 3-Tap Journey Trace
 When given raw user friction, image comments, or a 5-part brief, do not write production code until you have:
-1. **Investigated Current State**: Inspect the relevant UI components, routes, and state helpers first.
-2. **Traced the Full User Journey (`Tap 1 → Tap 2 → Tap 3`)**: Never design only the entry state. Explicitly map:
+1. **Passed the product gate**: Name which friction in `docs/core-friction-points.md` this change reduces (game setup divergence, two-pass coding, or post-match assembly). If it reduces none of them, and it is not an invariant repair or a regression fix for an existing solution, stop. Do not write code.
+2. **Investigated Current State**: Inspect the relevant UI components, routes, and state helpers first.
+3. **Traced the Full User Journey (`Tap 1 → Tap 2 → Tap 3`)**: Never design only the entry state. Explicitly map:
    - **Tap 1 (Entry Trigger)**: What the user clicks/taps to start (e.g., *Duplicate to edit*).
    - **Tap 2 (Active Manipulation)**: How the user performs the core edit/action (e.g., *Tap button on visual board → edit in modal*). Ensure the persona never hits a technical dead-end (such as raw JSON or developer instructions) on Tap 2.
    - **Tap 3 (Persisted Outcome)**: How the change saves and reflects immediately in the UI.
-3. **Output the 5-Part Contract**: State the **Goal**, **Decisions & 3-Tap Journey**, **Invariants**, **Specific Next Step**, and **Traps to Avoid** before touching code.
-4. **Resolve Forks or Execute**: If `Tap 2` has a genuine product fork (e.g., single-item vs. mirrored behaviour), ask 1–2 concise questions alongside the 5-Part Contract. Otherwise, proceed straight through Stages 2–4 autonomously.
+4. **Output the 5-Part Contract**: State the **Goal**, **Friction served**, **Decisions & 3-Tap Journey**, **Invariants**, **Specific Next Step**, and **Traps to Avoid** before touching code.
+5. **Resolve Forks or Execute**: If `Tap 2` has a genuine product fork (e.g., single-item vs. mirrored behaviour), ask 1–2 concise questions alongside the 5-Part Contract. Otherwise, proceed straight through Stages 2–4 autonomously.
 
 ## Stage 2: Design Tokens, Ergonomics & Copy Hygiene
 1. **Primary Actions Above the Fold**: Primary workflow CTAs must be immediately accessible without scrolling past dense boards or long lists on a `390px` mobile viewport.
