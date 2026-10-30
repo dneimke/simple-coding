@@ -1,3 +1,4 @@
+import { ChordEngine } from '../utils/chordEngine.js';
 import { renderTimeline } from './timeline.js';
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
@@ -28,6 +29,73 @@ const QUICK_TAG_COLORS = [
 ];
 
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
+let videoChordEngine = null;
+
+function initVideoChordEngine() {
+    if (videoChordEngine) return;
+    const dock = document.getElementById('video-chord-dock');
+    const badge = document.getElementById('video-chord-badge');
+    const prompt = document.getElementById('video-chord-prompt');
+    const countdown = document.getElementById('video-chord-countdown');
+    const bar = document.getElementById('video-chord-progress');
+    const pills = document.getElementById('video-chord-pills');
+
+    if (!dock) return;
+
+    videoChordEngine = new ChordEngine({
+        decayDuration: 1500,
+        onChordStart: (chord) => {
+            if (badge) badge.textContent = chord.event.event || 'Tag';
+            if (prompt) prompt.textContent = chord.schema.prompt || 'Select modifier (1-4)';
+            if (countdown) countdown.textContent = `${(chord.duration / 1000).toFixed(1)}s`;
+            if (bar) bar.style.width = '100%';
+
+            if (pills) {
+                pills.innerHTML = chord.schema.options.map(opt => `
+                    <button type="button" class="chord-action-pill px-3 py-1.5 rounded bg-slate-800 hover:bg-blue-600 text-white font-bold text-xs border border-slate-700 flex items-center gap-1.5 transition active:scale-95" data-chord-key="${opt.key}">
+                        <span>${opt.text}</span>
+                        <span class="text-[10px] opacity-75 font-mono">[${opt.key}]</span>
+                    </button>
+                `).join('');
+            }
+
+            dock.classList.remove('hidden');
+        },
+        onChordTick: ({ remaining, progress }) => {
+            if (countdown) countdown.textContent = `${(remaining / 1000).toFixed(1)}s`;
+            if (bar) bar.style.width = `${Math.max(0, (1 - progress) * 100)}%`;
+        },
+        onChordResolved: ({ event, label }) => {
+            dock.classList.add('hidden');
+            if (label && currentGameId) {
+                if (!Array.isArray(event.labels)) event.labels = [];
+                event.labels.push(label);
+                const savedGames = getSavedGames();
+                const { game } = findGameById(savedGames, currentGameId);
+                if (game && Array.isArray(game.events)) {
+                    const ev = game.events.find(e => e.id === event.id);
+                    if (ev) ev.labels = event.labels;
+                    saveGame(game.id, game.events, game.metadata);
+                    timelineEvents = game.events;
+                    renderTimelineEvents();
+                    updateQuickTagTicker();
+                }
+            }
+        },
+        onChordCancelled: () => {
+            dock.classList.add('hidden');
+        }
+    });
+
+    if (pills) {
+        pills.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-chord-key]');
+            if (!btn || !videoChordEngine) return;
+            videoChordEngine.selectOption(btn.dataset.chordKey);
+        });
+    }
+}
+
 const LOCAL_STORAGE_KEY_QUICK_TAGS = 'fieldHockeyVideoQuickTags_v1';
 let currentGameId = null;
 let timelineEvents = [];
@@ -314,6 +382,10 @@ function quickTagEvent(eventType, note = '') {
 
     showQuickTagFeedback(eventType, ts);
     highlightTimelineEvent(newEvent.id);
+
+    if (videoChordEngine) {
+        videoChordEngine.startChord(newEvent);
+    }
 
     return newEvent;
 }
@@ -604,6 +676,7 @@ function resetQuickTags() {
 
 // 1-Tap Undo for last logged event during video tagging
 function undoLastQuickTag() {
+    if (videoChordEngine) videoChordEngine.cancel();
     if (!currentGameId) return false;
     const savedGames = getSavedGames();
     const { game } = findGameById(savedGames, currentGameId);
@@ -647,7 +720,10 @@ function updateQuickTagTicker() {
 
     const last = events[events.length - 1];
     if (tickerLast) {
-        tickerLast.textContent = `${formatEventTypeName(last.event)} (${last.timestamp || formatTime(last.timeMs)})`;
+        const labelText = (Array.isArray(last.labels) && last.labels.length > 0)
+            ? ` [${last.labels.map(l => l.text).join(', ')}]`
+            : '';
+        tickerLast.textContent = `${formatEventTypeName(last.event)}${labelText} (${last.timestamp || formatTime(last.timeMs)})`;
     }
     if (undoBtn) {
         undoBtn.disabled = false;
@@ -982,6 +1058,19 @@ function initKeyboardShortcuts() {
             return;
         }
 
+        if (videoChordEngine && videoChordEngine.isListening()) {
+            if (['1', '2', '3', '4'].includes(e.key)) {
+                e.preventDefault();
+                videoChordEngine.selectOption(e.key);
+                return;
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                videoChordEngine.cancel();
+                return;
+            }
+        }
+
         if (e.code === 'Space') {
             e.preventDefault();
             if (video.paused) {
@@ -1034,6 +1123,7 @@ function initKeyboardShortcuts() {
 
 // --- FAB and Add Event Modal Logic ---
 document.addEventListener('DOMContentLoaded', () => {
+    initVideoChordEngine();
     const fab = document.getElementById('add-event-fab');
     const modal = document.getElementById('add-event-modal');
     const closeBtn = document.getElementById('close-add-event-modal');

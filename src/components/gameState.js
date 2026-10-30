@@ -175,6 +175,26 @@ export class GameState {
     }
 
     /**
+     * Update the most recently logged event with partial fields (e.g. labels)
+     * @param {Object} updates
+     * @returns {Object|null} The updated event, or null if there were none
+     */
+    updateLastEvent(updates) {
+        const gameState = stateService.getState('game');
+        const events = gameState.loggedEvents || [];
+        if (!gameState.hasCurrentGame || events.length === 0 || !updates) {
+            return null;
+        }
+
+        const lastIndex = events.length - 1;
+        const updated = { ...events[lastIndex], ...updates };
+        const newEvents = [...events];
+        newEvents[lastIndex] = updated;
+        stateService.setState('game.loggedEvents', newEvents);
+        return updated;
+    }
+
+    /**
      * @param {Object} [options]
      * @param {Array<{code: string, color: string}>|null} [options.teams] - Team 1 and Team 2 for team boards
      * @param {string|null} [options.activeZone] - Starting sticky zone

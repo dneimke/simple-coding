@@ -167,4 +167,23 @@ describe('GameState capture clock', () => {
         expect(stateService.getState('game.teams')).toBeNull();
         expect(stateService.getState('game.activeZone')).toBeNull();
     });
+
+    test('updateLastEvent updates the newest event with partial fields like labels', () => {
+        gameState.newGame();
+        gameState.addEvent({ event: 'FIRE CE', timeMs: 5000 });
+
+        const updated = gameState.updateLastEvent({ labels: [{ group: 'Channel', text: 'Left' }] });
+        expect(updated).toEqual({
+            event: 'FIRE CE',
+            timeMs: 5000,
+            labels: [{ group: 'Channel', text: 'Left' }]
+        });
+        expect(stateService.getState('game.loggedEvents')[0].labels).toEqual([{ group: 'Channel', text: 'Left' }]);
+    });
+
+    test('updateLastEvent returns null when no current game or no events', () => {
+        expect(gameState.updateLastEvent({ labels: [] })).toBeNull();
+        gameState.newGame();
+        expect(gameState.updateLastEvent({ labels: [] })).toBeNull();
+    });
 });

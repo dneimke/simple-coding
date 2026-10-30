@@ -34,6 +34,17 @@ export const LABEL_SCHEMAS = {
             { key: '2', text: 'Intercept', short: 'Intercept' },
             { key: '3', text: 'Unforced', short: 'Unforced' }
         ]
+    },
+    shot: {
+        group: 'Outcome',
+        prompt: 'What was the outcome of the shot?',
+        description: 'Shot execution outcome',
+        options: [
+            { key: '1', text: 'Goal', short: 'Goal' },
+            { key: '2', text: 'Save', short: 'Save' },
+            { key: '3', text: 'Wide', short: 'Wide' },
+            { key: '4', text: 'PC Won', short: 'PC' }
+        ]
     }
 };
 
@@ -79,6 +90,11 @@ export const getLabelSchemaForEvent = (eventOrCode) => {
     // Turnovers / Ball Won / Ball Lost
     if (/\b(BW|BL|TURNOVER|BALL\s*WON|BALL\s*LOST)\b/.test(upper)) {
         return LABEL_SCHEMAS.turnover;
+    }
+
+    // Shots & Goals
+    if (/\b(SHOT)\b/.test(upper)) {
+        return LABEL_SCHEMAS.shot;
     }
 
     return null;

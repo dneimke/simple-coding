@@ -24,6 +24,10 @@ describe('eventAnalysisUtils', () => {
             expect(LABEL_SCHEMAS.turnover).toBeDefined();
             expect(LABEL_SCHEMAS.turnover.group).toBe('Type');
             expect(LABEL_SCHEMAS.turnover.options.map(o => o.text)).toEqual(['Tackle', 'Intercept', 'Unforced']);
+
+            expect(LABEL_SCHEMAS.shot).toBeDefined();
+            expect(LABEL_SCHEMAS.shot.group).toBe('Outcome');
+            expect(LABEL_SCHEMAS.shot.options.map(o => o.text)).toEqual(['Goal', 'Save', 'Wide', 'PC Won']);
         });
     });
 
@@ -46,6 +50,11 @@ describe('eventAnalysisUtils', () => {
             expect(getLabelSchemaForEvent('FIRE BW')?.group).toBe('Type');
             expect(getLabelSchemaForEvent('BL')?.group).toBe('Type');
             expect(getLabelSchemaForEvent('Turnover')?.group).toBe('Type');
+        });
+
+        test('matches shot and goal codes', () => {
+            expect(getLabelSchemaForEvent('SHOT')?.group).toBe('Outcome');
+            expect(getLabelSchemaForEvent('FIRE SHOT')?.group).toBe('Outcome');
         });
 
         test('returns null for codes without built-in schemas', () => {
