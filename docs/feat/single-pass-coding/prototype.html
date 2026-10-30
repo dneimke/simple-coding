@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spike: Single-Pass Compound Tagging (Friction 2)</title>
+  <title>Spike: Single-Pass Compound Tagging (Live 1x & Video 2x)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
@@ -30,21 +30,19 @@
       min-height: var(--touch-min);
       min-width: var(--touch-min);
     }
-    /* Pulse on tag */
-    @keyframes tagFlash {
-      0% { transform: scale(1); }
-      50% { transform: scale(0.97); filter: brightness(1.3); }
-      100% { transform: scale(1); }
+    @keyframes glanceFlash {
+      0% { background-color: rgba(245, 158, 11, 0.4); }
+      100% { background-color: transparent; }
     }
-    .tag-active {
-      animation: tagFlash 0.15s ease-out;
+    .glance-flash {
+      animation: glanceFlash 0.6s ease-out;
     }
   </style>
 </head>
 <body class="min-h-screen flex flex-col p-3 md:p-6 select-none">
 
   <!-- Header & Spike Context -->
-  <header class="max-w-4xl w-full mx-auto mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+  <header class="max-w-4xl w-full mx-auto mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
     <div>
       <div class="flex items-center gap-2">
         <span class="px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30">
@@ -53,16 +51,17 @@
         <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white">Friction 2: Single-Pass Compound Tagging</h1>
       </div>
       <p class="text-xs md:text-sm text-slate-400 mt-1">
-        Test keyboard chord speed & mobile thumb reach. Base event logs at current time; modifier attaches within decay window (&tau;) without modal lockup.
+        Testing across <strong>1x live sideline capture</strong> and <strong>1.5x / 2x video review</strong>. Base event logs at <em>t</em>; modifier attaches within decay window (&tau;) without modal lockup.
       </p>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="text-xs text-slate-400">Team:</span>
-      <button id="btn-team-fire" onclick="setTeam('FIRE')" class="px-3 py-1.5 rounded text-xs font-bold transition border border-blue-500 bg-blue-600/30 text-blue-300">
-        FIRE
+
+    <!-- Operating Mode Selector: Live vs Video -->
+    <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 p-1 rounded-lg">
+      <button id="mode-btn-live" onclick="setMatchMode('live')" class="px-3 py-1.5 rounded text-xs font-bold transition bg-emerald-600 text-white">
+        🏟 Live Sideline (1x)
       </button>
-      <button id="btn-team-tigers" onclick="setTeam('TIGERS')" class="px-3 py-1.5 rounded text-xs font-bold transition border border-slate-700 bg-slate-800 text-slate-400 hover:text-amber-300">
-        TIGERS
+      <button id="mode-btn-video" onclick="setMatchMode('video')" class="px-3 py-1.5 rounded text-xs font-bold transition text-slate-400 hover:text-white">
+        🎬 Video Coding (1x–2x)
       </button>
     </div>
   </header>
@@ -70,40 +69,50 @@
   <!-- Main Work Area -->
   <main class="max-w-4xl w-full mx-auto flex-1 flex flex-col gap-4">
 
-    <!-- Simulated Video / Match Clock HUD -->
+    <!-- Match Clock / Verification Bar -->
     <section class="bg-slate-900 border border-slate-800 rounded-xl p-3 md:p-4 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+      
       <div class="flex items-center gap-3">
+        <!-- Play / Whistle Button -->
         <button id="btn-play" onclick="togglePlay()" class="touch-target px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-2 text-sm shadow">
-          <span id="play-icon">▶ Play</span>
+          <span id="play-icon">▶ Whistle Start</span>
           <span class="text-[10px] text-emerald-200 font-mono bg-emerald-700/50 px-1.5 py-0.5 rounded">Space</span>
         </button>
+
         <div class="flex flex-col">
-          <div class="text-2xl font-mono font-bold tracking-tight text-white" id="clock-display">
-            14:20.0
+          <div class="text-2xl font-mono font-bold tracking-tight text-white flex items-center gap-2">
+            <span id="clock-display">00:00.0</span>
+            <span id="quarter-badge" class="text-xs font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold border border-slate-700">Q1</span>
           </div>
-          <span class="text-[11px] text-slate-400" id="clock-status">Paused (Video Elapsed)</span>
+          <span class="text-[11px] text-slate-400" id="clock-status">Stopwatch Paused (Tap Whistle to Start)</span>
         </div>
       </div>
 
-      <!-- Playback Speed Controls -->
-      <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
-        <button onclick="setSpeed(1.0)" id="speed-10" class="px-2.5 py-1 text-xs font-semibold rounded bg-slate-800 text-white">1x</button>
-        <button onclick="setSpeed(1.5)" id="speed-15" class="px-2.5 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white">1.5x</button>
-        <button onclick="setSpeed(2.0)" id="speed-20" class="px-2.5 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white">2x</button>
+      <!-- Glance Verification Pill (Persona 2: 0.5s visual confirmation) -->
+      <div id="glance-pill" class="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg transition-colors">
+        <span class="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Last:</span>
+        <span id="glance-text" class="text-xs font-semibold text-slate-300">None yet</span>
       </div>
 
-      <!-- Seek Controls -->
-      <div class="flex items-center gap-2 text-xs">
-        <button onclick="seekRel(-5)" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
-          -5s <span class="text-[10px] text-slate-500">←</span>
-        </button>
-        <button onclick="seekRel(5)" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
-          +5s <span class="text-[10px] text-slate-500">→</span>
-        </button>
-        <button onclick="undoLastEvent()" class="px-3 py-1.5 rounded bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-slate-700 flex items-center gap-1">
-          <span>Undo</span> <span class="text-[10px] text-slate-500 font-mono">^Z</span>
-        </button>
+      <!-- Video Controls: Speed & Seek (Hidden in Live Mode, Visible in Video Mode) -->
+      <div id="video-controls-group" class="hidden flex items-center gap-3">
+        <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+          <button onclick="setSpeed(1.0)" id="speed-10" class="px-2 py-1 text-xs font-semibold rounded bg-slate-800 text-white">1x</button>
+          <button onclick="setSpeed(1.5)" id="speed-15" class="px-2 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white">1.5x</button>
+          <button onclick="setSpeed(2.0)" id="speed-20" class="px-2 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white">2x</button>
+        </div>
+
+        <div class="flex items-center gap-1 text-xs">
+          <button onclick="seekRel(-5)" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">-5s</button>
+          <button onclick="seekRel(5)" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">+5s</button>
+        </div>
       </div>
+
+      <!-- Undo Action -->
+      <button onclick="undoLastEvent()" class="px-3 py-1.5 rounded bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-slate-700 flex items-center gap-1 text-xs">
+        <span>Undo</span> <span class="text-[10px] text-slate-500 font-mono">^Z</span>
+      </button>
+
     </section>
 
     <!-- Tagging Arena -->
@@ -113,9 +122,21 @@
       <section class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between mb-3">
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">1. Primary Event Tag</h2>
-            <span class="text-xs text-slate-500">Tap or press Hotkey</span>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">1. Primary Event Tag</h2>
+              <!-- Active Team Toggle -->
+              <div class="flex items-center gap-1">
+                <button id="btn-team-fire" onclick="setTeam('FIRE')" class="px-2 py-0.5 rounded text-[11px] font-bold border border-blue-500 bg-blue-600/30 text-blue-300">
+                  FIRE
+                </button>
+                <button id="btn-team-tigers" onclick="setTeam('TIGERS')" class="px-2 py-0.5 rounded text-[11px] font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:text-white">
+                  TIGERS
+                </button>
+              </div>
+            </div>
+            <span class="text-[11px] text-slate-500">Tap or Press Key</span>
           </div>
+
           <div class="grid grid-cols-2 gap-3">
             <!-- Circle Entry -->
             <button id="btn-ce" onclick="triggerBaseEvent('CE', 'Circle Entry', 'flank')" 
@@ -137,17 +158,17 @@
               <span class="text-[11px] text-emerald-200 mt-2">Chord: Outcome (Goal/Save/Wide/PC)</span>
             </button>
 
-            <!-- Ball Win (Non-chorded control) -->
+            <!-- Ball Win (Turnover / Auto-Inference) -->
             <button id="btn-bw" onclick="triggerBaseEvent('BW', 'Ball Win', null)" 
                     class="touch-target p-4 rounded-xl font-bold flex flex-col items-start justify-between bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-md active:scale-95 transition">
               <div class="flex items-center justify-between w-full">
                 <span class="text-base">Ball Won</span>
                 <span class="text-xs bg-slate-900 border border-slate-600 px-2 py-0.5 rounded font-mono">W</span>
               </div>
-              <span class="text-[11px] text-slate-400 mt-2">Instant Tag (No Chord)</span>
+              <span class="text-[11px] text-slate-400 mt-2">Instant Tag (Marks Counter-Attack)</span>
             </button>
 
-            <!-- Penalty Corner (Non-chorded control) -->
+            <!-- Penalty Corner -->
             <button id="btn-pc" onclick="triggerBaseEvent('PC', 'Penalty Corner', null)" 
                     class="touch-target p-4 rounded-xl font-bold flex flex-col items-start justify-between bg-amber-600 hover:bg-amber-500 text-white shadow-md active:scale-95 transition">
               <div class="flex items-center justify-between w-full">
@@ -160,8 +181,8 @@
         </div>
 
         <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-          <span>Inferred Origin: <strong class="text-emerald-400" id="inferred-origin-label">Settled</strong></span>
-          <span class="text-slate-500">Auto-calculated if BW within 10s</span>
+          <span>Derived Origin: <strong class="text-emerald-400" id="inferred-origin-label">Settled</strong></span>
+          <span class="text-slate-500">Auto-inferred if Ball Won within 10s</span>
         </div>
       </section>
 
@@ -194,7 +215,7 @@
             <!-- Dynamic Pill Chips -->
             <div id="modifier-chips-container" class="grid grid-cols-3 gap-2 my-1">
               <div class="text-xs text-slate-500 col-span-3 text-center py-4 italic">
-                Press C (Circle Entry) or S (Shot) to trigger chord options
+                Press C (Circle Entry) or S (Shot) to test single-pass chord options
               </div>
             </div>
 
@@ -206,23 +227,42 @@
           </div>
         </div>
 
-        <!-- Spike Tuning Controls -->
-        <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between gap-4 text-xs">
-          <div class="flex-1">
-            <div class="flex justify-between text-slate-400 mb-1">
-              <span>Decay Window (&tau;):</span>
-              <strong id="decay-val-label" class="text-amber-400 font-mono">1.5s</strong>
+        <!-- Spike Tuning Controls: Presets for 1x vs 1.5x vs 2x -->
+        <div class="mt-4 pt-3 border-t border-slate-800 flex flex-col gap-2 text-xs">
+          
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400">Decay Presets:</span>
+            <div class="flex items-center gap-1">
+              <button onclick="applyPreset(2.0, 'Live 1x')" id="preset-live" class="px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-semibold text-[11px]">
+                Live 1x (2.0s)
+              </button>
+              <button onclick="applyPreset(1.5, 'Video 1.5x')" id="preset-15" class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px] hover:text-white">
+                Video 1.5x (1.5s)
+              </button>
+              <button onclick="applyPreset(1.0, 'Video 2x')" id="preset-20" class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px] hover:text-white">
+                Video 2x (1.0s)
+              </button>
             </div>
-            <input type="range" id="decay-slider" min="0.8" max="2.5" step="0.1" value="1.5" 
-                   oninput="setDecayDuration(this.value)" class="w-full accent-amber-500 cursor-pointer">
           </div>
-          <div class="flex items-center gap-2">
-            <label class="text-slate-400 text-xs">Mode:</label>
-            <select id="hud-position-select" onchange="setHudMode(this.value)" class="bg-slate-800 text-slate-200 border border-slate-700 text-xs rounded px-2 py-1">
-              <option value="docked">Docked</option>
-              <option value="floating">Floating HUD</option>
-            </select>
+
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex-1">
+              <div class="flex justify-between text-slate-400 mb-1 text-[11px]">
+                <span>Fine Tune (&tau;):</span>
+                <strong id="decay-val-label" class="text-amber-400 font-mono">2.0s</strong>
+              </div>
+              <input type="range" id="decay-slider" min="0.8" max="3.0" step="0.1" value="2.0" 
+                     oninput="setDecayDuration(this.value)" class="w-full accent-amber-500 cursor-pointer">
+            </div>
+            <div class="flex items-center gap-1.5">
+              <label class="text-slate-400 text-[11px]">Layout:</label>
+              <select id="hud-position-select" onchange="setHudMode(this.value)" class="bg-slate-800 text-slate-200 border border-slate-700 text-xs rounded px-2 py-1">
+                <option value="docked">Docked</option>
+                <option value="floating">Floating Thumb Dock</option>
+              </select>
+            </div>
           </div>
+
         </div>
       </section>
 
@@ -266,21 +306,21 @@
 
     </section>
 
-    <!-- Floating HUD Overlay (when Floating HUD mode selected) -->
-    <div id="floating-hud-dock" class="fixed bottom-6 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-slate-900/95 border-2 border-amber-500/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md hidden z-50">
+    <!-- Floating Thumb Dock (Bottom-aligned, ideal for mobile 1-hand reach) -->
+    <div id="floating-hud-dock" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-slate-900/95 border-2 border-amber-500/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md hidden z-50">
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
           <span id="floating-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-amber-500 text-slate-950 uppercase">CE</span>
           <span id="floating-title" class="text-sm font-bold text-white">Circle Entry Flank</span>
         </div>
-        <span id="floating-countdown" class="text-xs font-mono text-amber-400 font-bold">1.5s</span>
+        <span id="floating-countdown" class="text-xs font-mono text-amber-400 font-bold">2.0s</span>
       </div>
       <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-3">
         <div id="floating-decay-bar" class="hud-decay-bar bg-amber-400 h-full w-full"></div>
       </div>
       <div id="floating-chips" class="grid grid-cols-3 gap-2"></div>
       <div class="text-[10px] text-slate-400 text-center mt-2">
-        Tap option or press number hotkey &bull; Space skips
+        Tap option or press hotkey &bull; Space skips
       </div>
     </div>
 
@@ -289,12 +329,13 @@
   <!-- Interactive Logic -->
   <script>
     // State
+    let matchMode = 'live'; // 'live' | 'video'
     let currentTeam = 'FIRE';
     let isPlaying = false;
     let playbackSpeed = 1.0;
-    let matchTimeSeconds = 14 * 60 + 20; // 14:20
+    let matchTimeSeconds = 0; // Starts 00:00 for live, 14:20 for video
     let clockInterval = null;
-    let decayDuration = 1.5; // seconds
+    let decayDuration = 2.0; // Default 2.0s for live 1x
     let activeChord = null; // { baseEvent, timerId, startTime, totalMs, type }
     let lastBallWonTime = null;
     let events = [];
@@ -321,14 +362,55 @@
       }
     };
 
+    function setMatchMode(mode) {
+      matchMode = mode;
+      const btnLive = document.getElementById('mode-btn-live');
+      const btnVideo = document.getElementById('mode-btn-video');
+      const videoControls = document.getElementById('video-controls-group');
+      const clockStatus = document.getElementById('clock-status');
+      const playIcon = document.getElementById('play-icon');
+
+      if (mode === 'live') {
+        btnLive.className = "px-3 py-1.5 rounded text-xs font-bold transition bg-emerald-600 text-white";
+        btnVideo.className = "px-3 py-1.5 rounded text-xs font-bold transition text-slate-400 hover:text-white";
+        videoControls.classList.add('hidden');
+        playbackSpeed = 1.0;
+        playIcon.textContent = isPlaying ? "⏸ Whistle Pause" : "▶ Whistle Start";
+        clockStatus.textContent = isPlaying ? "Live Stopwatch (1x Wall Clock)" : "Stopwatch Paused (Tap Whistle to Start)";
+        applyPreset(2.0, 'Live 1x');
+      } else {
+        btnVideo.className = "px-3 py-1.5 rounded text-xs font-bold transition bg-emerald-600 text-white";
+        btnLive.className = "px-3 py-1.5 rounded text-xs font-bold transition text-slate-400 hover:text-white";
+        videoControls.classList.remove('hidden');
+        if (matchTimeSeconds === 0) matchTimeSeconds = 14 * 60 + 20; // 14:20 for video demo
+        playIcon.textContent = isPlaying ? "⏸ Pause Video" : "▶ Play Video";
+        clockStatus.textContent = isPlaying ? `Playing Video at ${playbackSpeed}x` : "Video Paused";
+        applyPreset(1.5, 'Video 1.5x');
+      }
+      updateClockDisplay();
+    }
+
+    function applyPreset(duration, label) {
+      setDecayDuration(duration);
+      document.getElementById('decay-slider').value = duration;
+      ['live', '15', '20'].forEach(p => {
+        const btn = document.getElementById(`preset-${p}`);
+        if ((p === 'live' && duration === 2.0) || (p === '15' && duration === 1.5) || (p === '20' && duration === 1.0)) {
+          btn.className = "px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-semibold text-[11px]";
+        } else {
+          btn.className = "px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px] hover:text-white";
+        }
+      });
+    }
+
     function setTeam(team) {
       currentTeam = team;
       document.getElementById('btn-team-fire').className = team === 'FIRE' 
-        ? "px-3 py-1.5 rounded text-xs font-bold transition border border-blue-500 bg-blue-600/30 text-blue-300"
-        : "px-3 py-1.5 rounded text-xs font-bold transition border border-slate-700 bg-slate-800 text-slate-400 hover:text-white";
+        ? "px-2 py-0.5 rounded text-[11px] font-bold border border-blue-500 bg-blue-600/30 text-blue-300"
+        : "px-2 py-0.5 rounded text-[11px] font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:text-white";
       document.getElementById('btn-team-tigers').className = team === 'TIGERS' 
-        ? "px-3 py-1.5 rounded text-xs font-bold transition border border-amber-500 bg-amber-600/30 text-amber-300"
-        : "px-3 py-1.5 rounded text-xs font-bold transition border border-slate-700 bg-slate-800 text-slate-400 hover:text-white";
+        ? "px-2 py-0.5 rounded text-[11px] font-bold border border-amber-500 bg-amber-600/30 text-amber-300"
+        : "px-2 py-0.5 rounded text-[11px] font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:text-white";
     }
 
     function setSpeed(speed) {
@@ -336,11 +418,15 @@
       ['10', '15', '20'].forEach(s => {
         const btn = document.getElementById(`speed-${s}`);
         if (s === String(speed * 10)) {
-          btn.className = "px-2.5 py-1 text-xs font-semibold rounded bg-slate-800 text-white";
+          btn.className = "px-2 py-1 text-xs font-semibold rounded bg-slate-800 text-white";
         } else {
-          btn.className = "px-2.5 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white";
+          btn.className = "px-2 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white";
         }
       });
+      if (matchMode === 'video') {
+        const clockStatus = document.getElementById('clock-status');
+        if (isPlaying) clockStatus.textContent = `Playing Video at ${playbackSpeed}x`;
+      }
     }
 
     function togglePlay() {
@@ -350,15 +436,15 @@
       const status = document.getElementById('clock-status');
 
       if (isPlaying) {
-        icon.textContent = "⏸ Pause";
+        icon.textContent = matchMode === 'live' ? "⏸ Whistle Pause" : "⏸ Pause";
         btn.className = "touch-target px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg flex items-center gap-2 text-sm shadow";
-        status.textContent = `Playing at ${playbackSpeed}x`;
+        status.textContent = matchMode === 'live' ? "Live Stopwatch (1x Wall Clock)" : `Playing Video at ${playbackSpeed}x`;
         status.className = "text-[11px] text-emerald-400";
         startClock();
       } else {
-        icon.textContent = "▶ Play";
+        icon.textContent = matchMode === 'live' ? "▶ Whistle Start" : "▶ Play";
         btn.className = "touch-target px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-2 text-sm shadow";
-        status.textContent = "Paused";
+        status.textContent = matchMode === 'live' ? "Stopwatch Paused" : "Paused";
         status.className = "text-[11px] text-slate-400";
         stopClock();
       }
@@ -436,11 +522,27 @@
       events.unshift(baseEvent);
       renderEvents();
       updateXmlPreview(baseEvent);
+      updateGlanceBar(baseEvent);
 
       // 4. If this event supports transient modifier, activate chord HUD
       if (modifierType && MODIFIER_SCHEMAS[modifierType]) {
         openChordHud(baseEvent, modifierType);
       }
+    }
+
+    function updateGlanceBar(ev) {
+      const pill = document.getElementById('glance-pill');
+      const text = document.getElementById('glance-text');
+      const mins = Math.floor(ev.time / 60);
+      const secs = Math.floor(ev.time % 60);
+      const timeStr = `${String(mins).padStart(2, '0')}:${secs < 10 ? '0' : ''}${secs}`;
+      
+      const modStr = ev.modifier ? ` [${ev.modifier}]` : '';
+      text.innerHTML = `<span class="text-white font-bold">${ev.team} ${ev.name}</span>${modStr} &bull; <span class="font-mono text-slate-400">${timeStr}</span>`;
+      
+      pill.classList.remove('glance-flash');
+      void pill.offsetWidth; // trigger reflow
+      pill.classList.add('glance-flash');
     }
 
     function openChordHud(baseEvent, modifierType) {
@@ -545,6 +647,7 @@
       if (chosenModifier) {
         activeChord.baseEvent.modifier = chosenModifier;
         updateXmlPreview(activeChord.baseEvent);
+        updateGlanceBar(activeChord.baseEvent);
       }
 
       // Reset HUD UI
@@ -561,7 +664,7 @@
 
       document.getElementById('modifier-chips-container').innerHTML = `
         <div class="text-xs text-slate-500 col-span-3 text-center py-4 italic">
-          Press C (Circle Entry) or S (Shot) to trigger chord options
+          Press C (Circle Entry) or S (Shot) to test single-pass chord options
         </div>
       `;
 
@@ -580,7 +683,10 @@
       }
       events.shift();
       renderEvents();
-      updateXmlPreview(events[0] || null);
+      const last = events[0] || null;
+      updateXmlPreview(last);
+      if (last) updateGlanceBar(last);
+      else document.getElementById('glance-text').textContent = "None yet";
     }
 
     function clearAllEvents() {
@@ -591,6 +697,7 @@
       events = [];
       renderEvents();
       updateXmlPreview(null);
+      document.getElementById('glance-text').textContent = "None yet";
     }
 
     function renderEvents() {
@@ -702,10 +809,10 @@ ${labelBlock}${originBlock}</instance>`;
       } else if (k === 'P') {
         e.preventDefault();
         triggerBaseEvent('PC', 'Penalty Corner', null);
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft' && matchMode === 'video') {
         e.preventDefault();
         seekRel(-5);
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' && matchMode === 'video') {
         e.preventDefault();
         seekRel(5);
       }
