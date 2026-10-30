@@ -1,6 +1,6 @@
 # Single-Pass Compound Tagging (Friction 2 Spike)
 
-**Status:** Prototype ready for ergonomic testing.  
+**Status:** Implemented in app (live capture + video tagging).  
 **Prototype:** [prototype.html](prototype.html)  
 **Target:** Eliminate the post-match secondary labeling slog (Friction 2) across **both 1x live sideline coding and 1.5x/2x video coding**.
 
