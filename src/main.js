@@ -1,3 +1,4 @@
+import { ChordEngine } from './utils/chordEngine.js';
 import { EventButtons, EventLog, GameState, Router } from './components/index.js';
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
@@ -33,6 +34,71 @@ import {
 } from './components/config.js';
 import { createGameCard, createButton, createInput, createSelect, initCreateMatchDropdown, initConfigActionsDropdown } from './components/ui/index.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
+let liveChordEngine = null;
+
+function initLiveChordEngine() {
+    console.log("initLiveChordEngine CALLED, dock exists:", !!document.getElementById("chordThumbDock"));
+    if (liveChordEngine) return;
+    const dock = document.getElementById('chordThumbDock');
+    const badge = document.getElementById('chordEventBadge');
+    const prompt = document.getElementById('chordPromptText');
+    const countdown = document.getElementById('chordCountdownText');
+    const bar = document.getElementById('chordProgressBar');
+    const pillsContainer = document.getElementById('chordPillsContainer');
+
+    if (!dock) return;
+
+    liveChordEngine = new ChordEngine({
+        decayDuration: 3500,
+        onChordStart: (chord) => {
+            if (badge) badge.textContent = chord.event.event || chord.event.eventCode;
+            if (prompt) prompt.textContent = chord.schema.prompt || 'Select modifier';
+            if (countdown) countdown.textContent = `${(chord.duration / 1000).toFixed(1)}s`;
+            if (bar) bar.style.width = '100%';
+
+            if (pillsContainer) {
+                pillsContainer.innerHTML = chord.schema.options.map(opt => `
+                    <button type="button" class="chord-action-pill" data-chord-key="${opt.key}">
+                        <span>${opt.text}</span>
+                        <span class="chord-pill-key">[${opt.key}]</span>
+                    </button>
+                `).join('');
+            }
+
+            dock.classList.remove('hidden');
+        },
+        onChordTick: ({ remaining, progress }) => {
+            if (countdown) countdown.textContent = `${(remaining / 1000).toFixed(1)}s`;
+            if (bar) bar.style.width = `${Math.max(0, (1 - progress) * 100)}%`;
+        },
+        onChordResolved: ({ event, label }) => {
+            dock.classList.add('hidden');
+            if (label) {
+                gameState.updateLastEvent({ labels: [label] });
+                saveCaptureDraft();
+                syncChrome();
+                const lastBar = document.getElementById('lastEventBar');
+                if (lastBar) {
+                    lastBar.classList.remove('glance-flash');
+                    void lastBar.offsetWidth;
+                    lastBar.classList.add('glance-flash');
+                }
+            }
+        },
+        onChordCancelled: () => {
+            dock.classList.add('hidden');
+        }
+    });
+
+    if (pillsContainer) {
+        pillsContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-chord-key]');
+            if (!btn || !liveChordEngine) return;
+            liveChordEngine.selectOption(btn.dataset.chordKey);
+        });
+    }
+}
+
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
 import { draftService, finishCapture } from './services/draftService.js';
 import { openTeamSetupDialog, loadLastTeams, saveLastTeams } from './components/teamSetupDialog.js';
@@ -639,6 +705,7 @@ function notifyRemoved(event) {
 }
 
 function undoLastEvent() {
+    if (liveChordEngine) liveChordEngine.cancel();
     const removed = gameState.removeLastEvent();
     if (!removed) return;
     saveCaptureDraft();
@@ -910,6 +977,9 @@ function registerEventListeners() {
 
         if (gameState.addEvent(eventPayload)) {
             saveCaptureDraft();
+            if (liveChordEngine) {
+                liveChordEngine.startChord(eventPayload);
+            }
         }
     });
 
@@ -1410,6 +1480,7 @@ stateService.subscribe('game', syncChrome);
 
 // Initial navigation based on URL hash or defaults to SavedGames (Matches Hub)
 function handleInitialNavigation() {
+    initLiveChordEngine();
     const fullHash = window.location.hash.substring(1);
     const routeOnly = fullHash.split('?')[0];
     const [hash] = routeOnly.split('/');

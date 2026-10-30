@@ -7,3 +7,4 @@ Nothing in this folder is deployed: GitHub Pages only publishes `src/`.
 | Feature | Status |
 | --- | --- |
 | [Sticky zone board](sticky-zones/spec.md) | In app (default board) |
+| [Single-pass compound tagging](single-pass-coding/spec.md) | Prototype ready for feedback |

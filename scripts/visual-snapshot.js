@@ -652,6 +652,77 @@ async function runSnapshots() {
 
         }
 
+        // Multi-viewport proof for Single-Pass Compound Tagging (Friction 2 Spike)
+        for (const vp of VIEWPORTS) {
+            const chordContext = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const chordPage = await chordContext.newPage();
+
+            // 1. Live sideline event capture
+            await chordPage.goto(`${baseUrl}/#event-capture?mock=active`, { waitUntil: 'domcontentloaded' });
+            await chordPage.waitForSelector('#coding-buttons-container button');
+
+            // Resume clock if paused
+            await chordPage.waitForSelector('#pauseResumeButton');
+            const pauseText = await chordPage.$eval('#pauseResumeButton', el => el.textContent);
+            if (pauseText.includes('Resume')) {
+                await chordPage.click('#pauseResumeButton');
+                await chordPage.waitForTimeout(200);
+            }
+
+            // Dismiss any restore notification/toast before tagging
+            await chordPage.evaluate(() => {
+                document.querySelectorAll('[role="status"], .toast, #notification-container, .notification').forEach(el => el.remove());
+            });
+
+            // Click Circle Entry (CE) button to trigger transient chord thumb dock
+            const ceBtn = await chordPage.waitForSelector('.event-button[data-event*="CE"], .event-button[data-base-event="CE"]');
+            await ceBtn.click();
+            await chordPage.waitForSelector('#chordThumbDock:not(.hidden)', { timeout: 5000 });
+            await chordPage.waitForTimeout(200);
+
+            const activeThumbPath = path.join(OUTPUT_DIR, `live-capture-chord-active-${vp.name}.png`);
+            await chordPage.screenshot({ path: activeThumbPath, fullPage: false });
+
+            // Click 'Left' pill to resolve modifier
+            const leftPill = await chordPage.waitForSelector('#chordPillsContainer [data-chord-key="1"]', { timeout: 3000 });
+            await leftPill.click();
+            await chordPage.waitForTimeout(300);
+
+            const resolvedThumbPath = path.join(OUTPUT_DIR, `live-capture-chord-resolved-${vp.name}.png`);
+            await chordPage.screenshot({ path: resolvedThumbPath, fullPage: false });
+
+            await chordContext.close();
+        }
+
+        // Desktop Video Coding Focus Tagging Chord Proof (1280px)
+        const videoChordCtx = await browser.newContext({
+            viewport: { width: 1280, height: 800 },
+            deviceScaleFactor: 2
+        });
+        const videoChordPage = await videoChordCtx.newPage();
+        await videoChordPage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mode=tag`, { waitUntil: 'domcontentloaded' });
+        await videoChordPage.waitForSelector('#quick-tags-container button');
+
+        // Press '3' (Circle Entry) to trigger transient video chord dock
+        await videoChordPage.keyboard.press('3');
+        await videoChordPage.waitForSelector('#video-chord-dock:not(.hidden)');
+        await videoChordPage.waitForTimeout(200);
+
+        const videoActiveChordPath = path.join(OUTPUT_DIR, 'video-coding-chord-active-desktop.png');
+        await videoChordPage.screenshot({ path: videoActiveChordPath, fullPage: false });
+
+        // Press '1' (Left) to attach modifier
+        await videoChordPage.keyboard.press('1');
+        await videoChordPage.waitForTimeout(300);
+
+        const videoResolvedChordPath = path.join(OUTPUT_DIR, 'video-coding-chord-resolved-desktop.png');
+        await videoChordPage.screenshot({ path: videoResolvedChordPath, fullPage: false });
+
+        await videoChordCtx.close();
+
         // Capture diff.png: Button grid seeded with /dev/preview?state=adelaide-fire&mock=pc-counter
         const diffContext = await browser.newContext({
             viewport: { width: 1280, height: 800 },

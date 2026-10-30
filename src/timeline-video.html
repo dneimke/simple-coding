@@ -306,6 +306,21 @@
                             <!-- Quick tags grid (Row 1) -->
                             <div id="quick-tags-container" class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2"></div>
 
+                            <!-- Transient Modifier Overlay for Video Focus Tagging (Friction 2 Single-Pass Coding) -->
+                            <div id="video-chord-dock" class="hidden mt-2 p-2.5 rounded-lg bg-slate-900 text-white border border-amber-500/70 shadow-lg">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <div class="flex items-center gap-2">
+                                        <span id="video-chord-badge" class="px-2 py-0.5 rounded text-xs font-bold uppercase bg-amber-500 text-slate-950"></span>
+                                        <span id="video-chord-prompt" class="text-xs font-semibold text-slate-200"></span>
+                                    </div>
+                                    <span id="video-chord-countdown" class="text-xs font-mono font-bold text-amber-400">1.5s</span>
+                                </div>
+                                <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-2">
+                                    <div id="video-chord-progress" class="bg-amber-400 h-full w-full transition-all"></div>
+                                </div>
+                                <div id="video-chord-pills" class="flex flex-wrap items-center gap-2"></div>
+                            </div>
+
                             <!-- Quick tags edit / add form (hidden by default) -->
                             <div id="quick-tags-edit-bar" class="hidden mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-md space-y-2">
                                 <!-- Match Teams & Colors Bar -->

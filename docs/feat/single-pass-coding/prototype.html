@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spike: Single-Pass Compound Tagging (Live 1x & Video 2x)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --touch-min: 44px;
+      --navy: #0f172a;
+      --navy-light: #1e293b;
+      --navy-border: #334155;
+      --amber: #f59e0b;
+      --blue: #3b82f6;
+      --green: #10b981;
+      --red: #ef4444;
+    }
+    body {
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      touch-action: manipulation;
+    }
+    .hud-decay-bar {
+      transition-property: width;
+      transition-timing-function: linear;
+    }
+    .touch-target {
+      min-height: var(--touch-min);
+      min-width: var(--touch-min);
+    }
+    @keyframes glanceFlash {
+      0% { background-color: rgba(245, 158, 11, 0.4); }
+      100% { background-color: transparent; }
+    }
+    .glance-flash {
+      animation: glanceFlash 0.6s ease-out;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col p-3 md:p-6 select-none">
+
+  <!-- Header & Spike Context -->
+  <header class="max-w-4xl w-full mx-auto mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30">
+          Spike Prototype
+        </span>
+        <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white">Friction 2: Single-Pass Compound Tagging</h1>
+      </div>
+      <p class="text-xs md:text-sm text-slate-400 mt-1">
+        Testing across <strong>1x live sideline capture</strong> and <strong>1.5x / 2x video review</strong>. Base event logs at <em>t</em>; modifier attaches within decay window (&tau;) without modal lockup.
+      </p>
+    </div>
+
+    <!-- Operating Mode Selector: Live vs Video -->
+    <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 p-1 rounded-lg">
+      <button id="mode-btn-live" onclick="setMatchMode('live')" class="px-3 py-1.5 rounded text-xs font-bold transition bg-emerald-600 text-white">
+        🏟 Live Sideline (1x)
+      </button>
+      <button id="mode-btn-video" onclick="setMatchMode('video')" class="px-3 py-1.5 rounded text-xs font-bold transition text-slate-400 hover:text-white">
+        🎬 Video Coding (1x–2x)
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Work Area -->
+  <main class="max-w-4xl w-full mx-auto flex-1 flex flex-col gap-4">
+
+    <!-- Match Clock / Verification Bar -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-3 md:p-4 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+      
+      <div class="flex items-center gap-3">
+        <!-- Play / Whistle Button -->
+        <button id="btn-play" onclick="togglePlay()" class="touch-target px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-2 text-sm shadow">
+          <span id="play-icon">▶ Whistle Start</span>
+          <span class="text-[10px] text-emerald-200 font-mono bg-emerald-700/50 px-1.5 py-0.5 rounded">Space</span>
+        </button>
+
+        <div class="flex flex-col">
+          <div class="text-2xl font-mono font-bold tracking-tight text-white flex items-center gap-2">
+            <span id="clock-display">00:00.0</span>
+            <span id="quarter-badge" class="text-xs font-sans px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold border border-slate-700">Q1</span>
+          </div>
+          <span class="text-[11px] text-slate-400" id="clock-status">Stopwatch Paused (Tap Whistle to Start)</span>
+        </div>
+      </div>
+
+      <!-- Glance Verification Pill (Persona 2: 0.5s visual confirmation) -->
+      <div id="glance-pill" class="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg transition-colors">
+        <span class="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Last:</span>
+        <span id="glance-text" class="text-xs font-semibold text-slate-300">None yet</span>
+      </div>
+
+      <!-- Video Controls: Speed & Seek (Hidden in Live Mode, Visible in Video Mode) -->
+      <div id="video-controls-group" class="hidden flex items-center gap-3">
+        <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+          <button onclick="setSpeed(1.0)" id="speed-10" class="px-2 py-1 text-xs font-semibold rounded bg-slate-800 text-white">1x</button>
+          <button onclick="setSpeed(1.5)" id="speed-15" class="px-2 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white">1.5x</button>
+          <button onclick="setSpeed(2.0)" id="speed-20" class="px-2 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white">2x</button>
+        </div>
+
+        <div class="flex items-center gap-1 text-xs">
+          <button onclick="seekRel(-5)" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">-5s</button>
+          <button onclick="seekRel(5)" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">+5s</button>
+        </div>
+      </div>
+
+      <!-- Undo Action -->
+      <button onclick="undoLastEvent()" class="px-3 py-1.5 rounded bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-slate-700 flex items-center gap-1 text-xs">
+        <span>Undo</span> <span class="text-[10px] text-slate-500 font-mono">^Z</span>
+      </button>
+
+    </section>
+
+    <!-- Tagging Arena -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- Primary Event Buttons (Tap or Hotkey) -->
+      <section class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">1. Primary Event Tag</h2>
+              <!-- Active Team Toggle -->
+              <div class="flex items-center gap-1">
+                <button id="btn-team-fire" onclick="setTeam('FIRE')" class="px-2 py-0.5 rounded text-[11px] font-bold border border-blue-500 bg-blue-600/30 text-blue-300">
+                  FIRE
+                </button>
+                <button id="btn-team-tigers" onclick="setTeam('TIGERS')" class="px-2 py-0.5 rounded text-[11px] font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:text-white">
+                  TIGERS
+                </button>
+              </div>
+            </div>
+            <span class="text-[11px] text-slate-500">Tap or Press Key</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Circle Entry -->
+            <button id="btn-ce" onclick="triggerBaseEvent('CE', 'Circle Entry', 'flank')" 
+                    class="touch-target p-4 rounded-xl font-bold flex flex-col items-start justify-between bg-blue-600 hover:bg-blue-500 text-white shadow-md active:scale-95 transition">
+              <div class="flex items-center justify-between w-full">
+                <span class="text-base">Circle Entry</span>
+                <span class="text-xs bg-blue-900/60 border border-blue-400/30 px-2 py-0.5 rounded font-mono">C</span>
+              </div>
+              <span class="text-[11px] text-blue-200 mt-2">Chord: Flank (L / C / R)</span>
+            </button>
+
+            <!-- Shot -->
+            <button id="btn-shot" onclick="triggerBaseEvent('SHOT', 'Shot', 'outcome')" 
+                    class="touch-target p-4 rounded-xl font-bold flex flex-col items-start justify-between bg-emerald-600 hover:bg-emerald-500 text-white shadow-md active:scale-95 transition">
+              <div class="flex items-center justify-between w-full">
+                <span class="text-base">Shot</span>
+                <span class="text-xs bg-emerald-900/60 border border-emerald-400/30 px-2 py-0.5 rounded font-mono">S</span>
+              </div>
+              <span class="text-[11px] text-emerald-200 mt-2">Chord: Outcome (Goal/Save/Wide/PC)</span>
+            </button>
+
+            <!-- Ball Win (Turnover / Auto-Inference) -->
+            <button id="btn-bw" onclick="triggerBaseEvent('BW', 'Ball Win', null)" 
+                    class="touch-target p-4 rounded-xl font-bold flex flex-col items-start justify-between bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-md active:scale-95 transition">
+              <div class="flex items-center justify-between w-full">
+                <span class="text-base">Ball Won</span>
+                <span class="text-xs bg-slate-900 border border-slate-600 px-2 py-0.5 rounded font-mono">W</span>
+              </div>
+              <span class="text-[11px] text-slate-400 mt-2">Instant Tag (Marks Counter-Attack)</span>
+            </button>
+
+            <!-- Penalty Corner -->
+            <button id="btn-pc" onclick="triggerBaseEvent('PC', 'Penalty Corner', null)" 
+                    class="touch-target p-4 rounded-xl font-bold flex flex-col items-start justify-between bg-amber-600 hover:bg-amber-500 text-white shadow-md active:scale-95 transition">
+              <div class="flex items-center justify-between w-full">
+                <span class="text-base">Penalty Corner</span>
+                <span class="text-xs bg-amber-900/60 border border-amber-400/30 px-2 py-0.5 rounded font-mono">P</span>
+              </div>
+              <span class="text-[11px] text-amber-200 mt-2">Instant Tag (Lead +10s)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>Derived Origin: <strong class="text-emerald-400" id="inferred-origin-label">Settled</strong></span>
+          <span class="text-slate-500">Auto-inferred if Ball Won within 10s</span>
+        </div>
+      </section>
+
+      <!-- Transient Modifier Overlay / Spike HUD -->
+      <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between relative overflow-hidden">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">2. Transient Modifier HUD</h2>
+            <span id="chord-status-text" class="text-xs font-mono text-slate-500">IDLE</span>
+          </div>
+
+          <!-- Active Chord Container -->
+          <div id="chord-hud-box" class="min-h-[170px] bg-slate-950 rounded-lg p-3 border border-slate-800 flex flex-col justify-between transition-all opacity-40">
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="active-event-badge" class="px-2 py-0.5 rounded text-xs font-bold uppercase bg-slate-800 text-slate-400">
+                  No Event Active
+                </span>
+                <span id="active-event-name" class="text-xs text-slate-300 font-medium">Waiting for C or S...</span>
+              </div>
+              <span id="countdown-num" class="text-xs font-mono text-amber-400">--</span>
+            </div>
+
+            <!-- Progress Decay Line -->
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden my-2">
+              <div id="decay-bar" class="hud-decay-bar bg-amber-500 h-full w-0"></div>
+            </div>
+
+            <!-- Dynamic Pill Chips -->
+            <div id="modifier-chips-container" class="grid grid-cols-3 gap-2 my-1">
+              <div class="text-xs text-slate-500 col-span-3 text-center py-4 italic">
+                Press C (Circle Entry) or S (Shot) to test single-pass chord options
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+              <span>Keys: <code class="text-slate-400 font-mono">1, 2, 3, 4</code></span>
+              <span><code class="text-slate-400 font-mono">Space</code> or <code class="text-slate-400 font-mono">Esc</code> cancels</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Spike Tuning Controls: Presets for 1x vs 1.5x vs 2x -->
+        <div class="mt-4 pt-3 border-t border-slate-800 flex flex-col gap-2 text-xs">
+          
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400">Decay Presets:</span>
+            <div class="flex items-center gap-1">
+              <button onclick="applyPreset(2.0, 'Live 1x')" id="preset-live" class="px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-semibold text-[11px]">
+                Live 1x (2.0s)
+              </button>
+              <button onclick="applyPreset(1.5, 'Video 1.5x')" id="preset-15" class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px] hover:text-white">
+                Video 1.5x (1.5s)
+              </button>
+              <button onclick="applyPreset(1.0, 'Video 2x')" id="preset-20" class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px] hover:text-white">
+                Video 2x (1.0s)
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex-1">
+              <div class="flex justify-between text-slate-400 mb-1 text-[11px]">
+                <span>Fine Tune (&tau;):</span>
+                <strong id="decay-val-label" class="text-amber-400 font-mono">2.0s</strong>
+              </div>
+              <input type="range" id="decay-slider" min="0.8" max="3.0" step="0.1" value="2.0" 
+                     oninput="setDecayDuration(this.value)" class="w-full accent-amber-500 cursor-pointer">
+            </div>
+            <div class="flex items-center gap-1.5">
+              <label class="text-slate-400 text-[11px]">Layout:</label>
+              <select id="hud-position-select" onchange="setHudMode(this.value)" class="bg-slate-800 text-slate-200 border border-slate-700 text-xs rounded px-2 py-1">
+                <option value="docked">Docked</option>
+                <option value="floating">Floating Thumb Dock</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Live Event Stream & XML Inspector -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <!-- Stream of Logged Events -->
+      <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400">Captured Event Stream</h3>
+            <span id="event-count-badge" class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-800 text-slate-300">0 events</span>
+          </div>
+          <button onclick="clearAllEvents()" class="text-xs text-slate-500 hover:text-slate-300">Clear</button>
+        </div>
+
+        <div id="events-list" class="space-y-2 max-h-60 overflow-y-auto pr-1 text-sm font-sans">
+          <div id="empty-stream-placeholder" class="text-center py-8 text-slate-500 text-xs">
+            No events logged yet. Tap Circle Entry or Shot to test single-pass chord tagging.
+          </div>
+        </div>
+      </div>
+
+      <!-- Live XML Preview of Last Event -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Sportscode XML Fidelity</h3>
+            <span class="text-[10px] text-slate-500">Last Tag</span>
+          </div>
+          <pre id="xml-preview" class="p-2.5 rounded bg-slate-950 border border-slate-800 text-[10px] font-mono text-emerald-400 overflow-x-auto max-h-52">
+&lt;!-- Awaiting logged event --&gt;
+          </pre>
+        </div>
+        <div class="text-[11px] text-slate-500 pt-2 border-t border-slate-800">
+          Invariant 1: Direct Sportscode XML import/export compatibility.
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Floating Thumb Dock (Bottom-aligned, ideal for mobile 1-hand reach) -->
+    <div id="floating-hud-dock" class="fixed bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-slate-900/95 border-2 border-amber-500/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md hidden z-50">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span id="floating-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-amber-500 text-slate-950 uppercase">CE</span>
+          <span id="floating-title" class="text-sm font-bold text-white">Circle Entry Flank</span>
+        </div>
+        <span id="floating-countdown" class="text-xs font-mono text-amber-400 font-bold">2.0s</span>
+      </div>
+      <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-3">
+        <div id="floating-decay-bar" class="hud-decay-bar bg-amber-400 h-full w-full"></div>
+      </div>
+      <div id="floating-chips" class="grid grid-cols-3 gap-2"></div>
+      <div class="text-[10px] text-slate-400 text-center mt-2">
+        Tap option or press hotkey &bull; Space skips
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Interactive Logic -->
+  <script>
+    // State
+    let matchMode = 'live'; // 'live' | 'video'
+    let currentTeam = 'FIRE';
+    let isPlaying = false;
+    let playbackSpeed = 1.0;
+    let matchTimeSeconds = 0; // Starts 00:00 for live, 14:20 for video
+    let clockInterval = null;
+    let decayDuration = 3.5; // Default 3.5s for live 1x
+    let activeChord = null; // { baseEvent, timerId, startTime, totalMs, type }
+    let lastBallWonTime = null;
+    let events = [];
+    let hudMode = 'docked';
+
+    // Modifier schemas
+    const MODIFIER_SCHEMAS = {
+      flank: {
+        title: "Flank",
+        options: [
+          { key: "1", label: "Left", color: "bg-blue-600 hover:bg-blue-500" },
+          { key: "2", label: "Center", color: "bg-blue-600 hover:bg-blue-500" },
+          { key: "3", label: "Right", color: "bg-blue-600 hover:bg-blue-500" }
+        ]
+      },
+      outcome: {
+        title: "Outcome",
+        options: [
+          { key: "1", label: "Goal", color: "bg-emerald-600 hover:bg-emerald-500" },
+          { key: "2", label: "Save", color: "bg-amber-600 hover:bg-amber-500" },
+          { key: "3", label: "Wide/Post", color: "bg-rose-600 hover:bg-rose-500" },
+          { key: "4", label: "PC Won", color: "bg-purple-600 hover:bg-purple-500" }
+        ]
+      }
+    };
+
+    function setMatchMode(mode) {
+      matchMode = mode;
+      const btnLive = document.getElementById('mode-btn-live');
+      const btnVideo = document.getElementById('mode-btn-video');
+      const videoControls = document.getElementById('video-controls-group');
+      const clockStatus = document.getElementById('clock-status');
+      const playIcon = document.getElementById('play-icon');
+
+      if (mode === 'live') {
+        btnLive.className = "px-3 py-1.5 rounded text-xs font-bold transition bg-emerald-600 text-white";
+        btnVideo.className = "px-3 py-1.5 rounded text-xs font-bold transition text-slate-400 hover:text-white";
+        videoControls.classList.add('hidden');
+        playbackSpeed = 1.0;
+        playIcon.textContent = isPlaying ? "⏸ Whistle Pause" : "▶ Whistle Start";
+        clockStatus.textContent = isPlaying ? "Live Stopwatch (1x Wall Clock)" : "Stopwatch Paused (Tap Whistle to Start)";
+        applyPreset(2.0, 'Live 1x');
+      } else {
+        btnVideo.className = "px-3 py-1.5 rounded text-xs font-bold transition bg-emerald-600 text-white";
+        btnLive.className = "px-3 py-1.5 rounded text-xs font-bold transition text-slate-400 hover:text-white";
+        videoControls.classList.remove('hidden');
+        if (matchTimeSeconds === 0) matchTimeSeconds = 14 * 60 + 20; // 14:20 for video demo
+        playIcon.textContent = isPlaying ? "⏸ Pause Video" : "▶ Play Video";
+        clockStatus.textContent = isPlaying ? `Playing Video at ${playbackSpeed}x` : "Video Paused";
+        applyPreset(1.5, 'Video 1.5x');
+      }
+      updateClockDisplay();
+    }
+
+    function applyPreset(duration, label) {
+      setDecayDuration(duration);
+      document.getElementById('decay-slider').value = duration;
+      ['live', '15', '20'].forEach(p => {
+        const btn = document.getElementById(`preset-${p}`);
+        if ((p === 'live' && duration === 2.0) || (p === '15' && duration === 1.5) || (p === '20' && duration === 1.0)) {
+          btn.className = "px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-semibold text-[11px]";
+        } else {
+          btn.className = "px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[11px] hover:text-white";
+        }
+      });
+    }
+
+    function setTeam(team) {
+      currentTeam = team;
+      document.getElementById('btn-team-fire').className = team === 'FIRE' 
+        ? "px-2 py-0.5 rounded text-[11px] font-bold border border-blue-500 bg-blue-600/30 text-blue-300"
+        : "px-2 py-0.5 rounded text-[11px] font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:text-white";
+      document.getElementById('btn-team-tigers').className = team === 'TIGERS' 
+        ? "px-2 py-0.5 rounded text-[11px] font-bold border border-amber-500 bg-amber-600/30 text-amber-300"
+        : "px-2 py-0.5 rounded text-[11px] font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:text-white";
+    }
+
+    function setSpeed(speed) {
+      playbackSpeed = speed;
+      ['10', '15', '20'].forEach(s => {
+        const btn = document.getElementById(`speed-${s}`);
+        if (s === String(speed * 10)) {
+          btn.className = "px-2 py-1 text-xs font-semibold rounded bg-slate-800 text-white";
+        } else {
+          btn.className = "px-2 py-1 text-xs font-semibold rounded text-slate-400 hover:text-white";
+        }
+      });
+      if (matchMode === 'video') {
+        const clockStatus = document.getElementById('clock-status');
+        if (isPlaying) clockStatus.textContent = `Playing Video at ${playbackSpeed}x`;
+      }
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      const btn = document.getElementById('btn-play');
+      const icon = document.getElementById('play-icon');
+      const status = document.getElementById('clock-status');
+
+      if (isPlaying) {
+        icon.textContent = matchMode === 'live' ? "⏸ Whistle Pause" : "⏸ Pause";
+        btn.className = "touch-target px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg flex items-center gap-2 text-sm shadow";
+        status.textContent = matchMode === 'live' ? "Live Stopwatch (1x Wall Clock)" : `Playing Video at ${playbackSpeed}x`;
+        status.className = "text-[11px] text-emerald-400";
+        startClock();
+      } else {
+        icon.textContent = matchMode === 'live' ? "▶ Whistle Start" : "▶ Play";
+        btn.className = "touch-target px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-2 text-sm shadow";
+        status.textContent = matchMode === 'live' ? "Stopwatch Paused" : "Paused";
+        status.className = "text-[11px] text-slate-400";
+        stopClock();
+      }
+    }
+
+    function startClock() {
+      stopClock();
+      const tickRateMs = 100;
+      clockInterval = setInterval(() => {
+        matchTimeSeconds += (tickRateMs / 1000) * playbackSpeed;
+        updateClockDisplay();
+      }, tickRateMs);
+    }
+
+    function stopClock() {
+      if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
+      }
+    }
+
+    function seekRel(sec) {
+      matchTimeSeconds = Math.max(0, matchTimeSeconds + sec);
+      updateClockDisplay();
+    }
+
+    function updateClockDisplay() {
+      const mins = Math.floor(matchTimeSeconds / 60);
+      const secs = (matchTimeSeconds % 60).toFixed(1);
+      const formatted = `${String(mins).padStart(2, '0')}:${secs < 10 ? '0' : ''}${secs}`;
+      document.getElementById('clock-display').textContent = formatted;
+    }
+
+    function setDecayDuration(val) {
+      decayDuration = parseFloat(val);
+      document.getElementById('decay-val-label').textContent = `${decayDuration.toFixed(1)}s`;
+    }
+
+    function setHudMode(mode) {
+      hudMode = mode;
+      if (mode === 'docked') {
+        document.getElementById('floating-hud-dock').classList.add('hidden');
+      }
+    }
+
+    // Trigger Primary Event
+    function triggerBaseEvent(code, name, modifierType) {
+      // 1. If another chord is pending, resolve it as unlabelled
+      if (activeChord) {
+        resolveChord(null);
+      }
+
+      // 2. Derive tactical origin
+      let origin = "Settled";
+      if (lastBallWonTime && (matchTimeSeconds - lastBallWonTime <= 10)) {
+        origin = "Counter-Attack";
+      }
+      if (code === 'BW') {
+        lastBallWonTime = matchTimeSeconds;
+      }
+
+      // 3. Immediately log base event
+      const eventId = events.length + 1;
+      const baseEvent = {
+        id: eventId,
+        team: currentTeam,
+        code: code,
+        name: name,
+        time: matchTimeSeconds,
+        origin: origin,
+        lead: 5,
+        lag: 10,
+        modifier: null
+      };
+      events.unshift(baseEvent);
+      renderEvents();
+      updateXmlPreview(baseEvent);
+      updateGlanceBar(baseEvent);
+
+      // 4. If this event supports transient modifier, activate chord HUD
+      if (modifierType && MODIFIER_SCHEMAS[modifierType]) {
+        openChordHud(baseEvent, modifierType);
+      }
+    }
+
+    function updateGlanceBar(ev) {
+      const pill = document.getElementById('glance-pill');
+      const text = document.getElementById('glance-text');
+      const mins = Math.floor(ev.time / 60);
+      const secs = Math.floor(ev.time % 60);
+      const timeStr = `${String(mins).padStart(2, '0')}:${secs < 10 ? '0' : ''}${secs}`;
+      
+      const modStr = ev.modifier ? ` [${ev.modifier}]` : '';
+      text.innerHTML = `<span class="text-white font-bold">${ev.team} ${ev.name}</span>${modStr} &bull; <span class="font-mono text-slate-400">${timeStr}</span>`;
+      
+      pill.classList.remove('glance-flash');
+      void pill.offsetWidth; // trigger reflow
+      pill.classList.add('glance-flash');
+    }
+
+    function openChordHud(baseEvent, modifierType) {
+      const schema = MODIFIER_SCHEMAS[modifierType];
+      const totalMs = decayDuration * 1000;
+      const startTime = Date.now();
+
+      activeChord = {
+        baseEvent,
+        schema,
+        modifierType,
+        totalMs,
+        startTime,
+        timerId: null
+      };
+
+      // UI setup for Docked HUD
+      const box = document.getElementById('chord-hud-box');
+      box.classList.remove('opacity-40');
+      box.classList.add('opacity-100', 'border-amber-500/70', 'ring-1', 'ring-amber-500/50');
+
+      document.getElementById('active-event-badge').textContent = `${baseEvent.team} ${baseEvent.code}`;
+      document.getElementById('active-event-badge').className = "px-2 py-0.5 rounded text-xs font-bold uppercase bg-amber-500 text-slate-950";
+      document.getElementById('active-event-name').textContent = `Select ${schema.title} or wait...`;
+      document.getElementById('chord-status-text').textContent = "LISTENING [1-4]";
+      document.getElementById('chord-status-text').className = "text-xs font-mono text-amber-400 font-bold";
+
+      renderPillChips(schema);
+
+      // If Floating HUD mode, show floating dock
+      if (hudMode === 'floating') {
+        const floatDock = document.getElementById('floating-hud-dock');
+        floatDock.classList.remove('hidden');
+        document.getElementById('floating-badge').textContent = baseEvent.code;
+        document.getElementById('floating-title').textContent = `${baseEvent.team} ${baseEvent.name} ${schema.title}`;
+        renderFloatingChips(schema);
+      }
+
+      // Animate Decay Bar
+      const decayBar = document.getElementById('decay-bar');
+      const floatDecayBar = document.getElementById('floating-decay-bar');
+      decayBar.style.transitionDuration = '0ms';
+      decayBar.style.width = '100%';
+      if (floatDecayBar) {
+        floatDecayBar.style.transitionDuration = '0ms';
+        floatDecayBar.style.width = '100%';
+      }
+
+      requestAnimationFrame(() => {
+        decayBar.style.transitionDuration = `${totalMs}ms`;
+        decayBar.style.width = '0%';
+        if (floatDecayBar) {
+          floatDecayBar.style.transitionDuration = `${totalMs}ms`;
+          floatDecayBar.style.width = '0%';
+        }
+      });
+
+      // Timer ticker for countdown number
+      activeChord.timerId = setInterval(() => {
+        const elapsed = Date.now() - activeChord.startTime;
+        const remaining = Math.max(0, (activeChord.totalMs - elapsed) / 1000);
+        document.getElementById('countdown-num').textContent = `${remaining.toFixed(1)}s`;
+        const floatCount = document.getElementById('floating-countdown');
+        if (floatCount) floatCount.textContent = `${remaining.toFixed(1)}s`;
+
+        if (elapsed >= activeChord.totalMs) {
+          resolveChord(null); // graceful timeout: stays base event
+        }
+      }, 50);
+    }
+
+    function renderPillChips(schema) {
+      const container = document.getElementById('modifier-chips-container');
+      const cols = schema.options.length === 4 ? "grid-cols-4" : "grid-cols-3";
+      container.className = `grid ${cols} gap-2 my-1`;
+      container.innerHTML = schema.options.map(opt => `
+        <button onclick="resolveChord('${opt.label}')" 
+                class="touch-target p-2 rounded-lg font-bold text-xs flex flex-col items-center justify-center text-white ${opt.color} active:scale-95 transition shadow">
+          <span>${opt.label}</span>
+          <span class="text-[10px] opacity-75 font-mono mt-0.5">[${opt.key}]</span>
+        </button>
+      `).join('');
+    }
+
+    function renderFloatingChips(schema) {
+      const container = document.getElementById('floating-chips');
+      const cols = schema.options.length === 4 ? "grid-cols-4" : "grid-cols-3";
+      container.className = `grid ${cols} gap-2`;
+      container.innerHTML = schema.options.map(opt => `
+        <button onclick="resolveChord('${opt.label}')" 
+                class="touch-target p-3 rounded-xl font-bold text-sm flex flex-col items-center justify-center text-white ${opt.color} active:scale-95 transition shadow-lg">
+          <span>${opt.label}</span>
+          <span class="text-[11px] opacity-75 font-mono">[${opt.key}]</span>
+        </button>
+      `).join('');
+    }
+
+    function resolveChord(chosenModifier) {
+      if (!activeChord) return;
+      clearInterval(activeChord.timerId);
+
+      if (chosenModifier) {
+        activeChord.baseEvent.modifier = chosenModifier;
+        updateXmlPreview(activeChord.baseEvent);
+        updateGlanceBar(activeChord.baseEvent);
+      }
+
+      // Reset HUD UI
+      const box = document.getElementById('chord-hud-box');
+      box.classList.add('opacity-40');
+      box.classList.remove('opacity-100', 'border-amber-500/70', 'ring-1', 'ring-amber-500/50');
+      document.getElementById('active-event-badge').textContent = "No Event Active";
+      document.getElementById('active-event-badge').className = "px-2 py-0.5 rounded text-xs font-bold uppercase bg-slate-800 text-slate-400";
+      document.getElementById('active-event-name').textContent = chosenModifier ? `Attached: ${chosenModifier}` : "Timed out (Logged as base)";
+      document.getElementById('countdown-num').textContent = "--";
+      document.getElementById('chord-status-text').textContent = "IDLE";
+      document.getElementById('chord-status-text').className = "text-xs font-mono text-slate-500";
+      document.getElementById('decay-bar').style.width = '0%';
+
+      document.getElementById('modifier-chips-container').innerHTML = `
+        <div class="text-xs text-slate-500 col-span-3 text-center py-4 italic">
+          Press C (Circle Entry) or S (Shot) to test single-pass chord options
+        </div>
+      `;
+
+      if (hudMode === 'floating') {
+        document.getElementById('floating-hud-dock').classList.add('hidden');
+      }
+
+      renderEvents();
+      activeChord = null;
+    }
+
+    function undoLastEvent() {
+      if (activeChord) {
+        clearInterval(activeChord.timerId);
+        activeChord = null;
+      }
+      events.shift();
+      renderEvents();
+      const last = events[0] || null;
+      updateXmlPreview(last);
+      if (last) updateGlanceBar(last);
+      else document.getElementById('glance-text').textContent = "None yet";
+    }
+
+    function clearAllEvents() {
+      if (activeChord) {
+        clearInterval(activeChord.timerId);
+        activeChord = null;
+      }
+      events = [];
+      renderEvents();
+      updateXmlPreview(null);
+      document.getElementById('glance-text').textContent = "None yet";
+    }
+
+    function renderEvents() {
+      const list = document.getElementById('events-list');
+      const countBadge = document.getElementById('event-count-badge');
+      countBadge.textContent = `${events.length} event${events.length === 1 ? '' : 's'}`;
+
+      if (events.length === 0) {
+        list.innerHTML = `
+          <div id="empty-stream-placeholder" class="text-center py-8 text-slate-500 text-xs">
+            No events logged yet. Tap Circle Entry or Shot to test single-pass chord tagging.
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = events.map(ev => {
+        const mins = Math.floor(ev.time / 60);
+        const secs = (ev.time % 60).toFixed(1);
+        const timeStr = `${String(mins).padStart(2, '0')}:${secs < 10 ? '0' : ''}${secs}`;
+        const teamColor = ev.team === 'FIRE' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+        
+        return `
+          <div class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs text-slate-400">${timeStr}</span>
+              <span class="px-1.5 py-0.5 rounded text-[11px] font-bold border ${teamColor}">${ev.team}</span>
+              <span class="font-semibold text-white text-xs">${ev.name}</span>
+              ${ev.modifier ? `
+                <span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  ${ev.modifier}
+                </span>
+              ` : `
+                <span class="text-[10px] text-slate-500 italic">base</span>
+              `}
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-slate-500">${ev.origin}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateXmlPreview(ev) {
+      const preview = document.getElementById('xml-preview');
+      if (!ev) {
+        preview.textContent = '<!-- Awaiting logged event -->';
+        return;
+      }
+
+      const start = Math.max(0, ev.time - ev.lead).toFixed(2);
+      const end = (ev.time + ev.lag).toFixed(2);
+      const labelBlock = ev.modifier ? `  <label>\n    <group>${ev.code === 'CE' ? 'Flank' : 'Outcome'}</group>\n    <text>${ev.modifier}</text>\n  </label>\n` : '';
+      const originBlock = `  <label>\n    <group>Origin</group>\n    <text>${ev.origin}</text>\n  </label>\n`;
+
+      preview.textContent = `<instance>
+  <ID>${ev.id}</ID>
+  <start>${start}</start>
+  <end>${end}</end>
+  <code>${ev.team} ${ev.code}</code>
+${labelBlock}${originBlock}</instance>`;
+    }
+
+    // Keyboard Shortcuts (Space, C, S, W, P, 1-4, Ctrl+Z, Esc)
+    window.addEventListener('keydown', (e) => {
+      // Space for play/pause
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+        return;
+      }
+
+      // Ctrl+Z for undo
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        undoLastEvent();
+        return;
+      }
+
+      // Esc cancels active chord
+      if (e.key === 'Escape' && activeChord) {
+        e.preventDefault();
+        resolveChord(null);
+        return;
+      }
+
+      // Number keys 1-4 for active chord
+      if (activeChord && ['1', '2', '3', '4'].includes(e.key)) {
+        const opt = activeChord.schema.options.find(o => o.key === e.key);
+        if (opt) {
+          e.preventDefault();
+          resolveChord(opt.label);
+          return;
+        }
+      }
+
+      // Primary event hotkeys
+      const k = e.key.toUpperCase();
+      if (k === 'C') {
+        e.preventDefault();
+        triggerBaseEvent('CE', 'Circle Entry', 'flank');
+      } else if (k === 'S') {
+        e.preventDefault();
+        triggerBaseEvent('SHOT', 'Shot', 'outcome');
+      } else if (k === 'W') {
+        e.preventDefault();
+        triggerBaseEvent('BW', 'Ball Win', null);
+      } else if (k === 'P') {
+        e.preventDefault();
+        triggerBaseEvent('PC', 'Penalty Corner', null);
+      } else if (e.key === 'ArrowLeft' && matchMode === 'video') {
+        e.preventDefault();
+        seekRel(-5);
+      } else if (e.key === 'ArrowRight' && matchMode === 'video') {
+        e.preventDefault();
+        seekRel(5);
+      }
+    });
+
+    // Initial Setup
+    updateClockDisplay();
+  </script>
+</body>
+</html>
