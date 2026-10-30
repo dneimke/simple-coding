@@ -29,6 +29,7 @@ Target operational state: zero external NLE dependencies, zero cloud rendering o
 
 - **The bottleneck:** Coding at 2x speed cuts an 80-minute game down to 40 minutes, but a required second pass to add spatial zones, ball origins, and tactical modifiers adds another 15+ minutes, stalling review momentum.
 - **Product goal:** Single-pass compound tagging via modal hotkeys and chorded keyboard inputs (e.g., tap `C` for Circle Entry, triggering a 1.5s transient sub-key overlay for Left/Center/Right). Automatic state memory (e.g., inferring defensive half possession after a BS2 tag) to eliminate redundant modifier tagging.
+- **Current status (In app):** Single-pass compound chord tagging is active across both live capture (3.5s eyes-on-pitch thumb dock) and video coding (1.5s sub-key overlay and touch pills for `1`–`4`). Circle Entry (`CE`) and Shot (`SHOT`) auto-attach flank and outcome modifiers directly to Sportscode XML labels without blocking live play or video scrub. Remaining scope: automatic possession memory / turnover state inference.
 
 ### Friction 3: Post-match clip sizing and assembly overhead (the 45-minute bottleneck)
 
