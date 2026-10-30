@@ -49,7 +49,7 @@ function initLiveChordEngine() {
     if (!dock) return;
 
     liveChordEngine = new ChordEngine({
-        decayDuration: 2000,
+        decayDuration: 3500,
         onChordStart: (chord) => {
             if (badge) badge.textContent = chord.event.event || chord.event.eventCode;
             if (prompt) prompt.textContent = chord.schema.prompt || 'Select modifier';

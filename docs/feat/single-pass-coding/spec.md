@@ -28,7 +28,7 @@ The "two-pass coding slog" exists in two distinct coaching environments:
 1. **Primary Trigger:** The user triggers a base event via keyboard hotkey (e.g., `C` for Circle Entry, `S` for Shot) or touch tap.
 2. **Immediate Event Logging:** The base event is **immediately logged** at the current match time ($t$) with default lead/lag envelopes. The coder never risks losing the event if distracted by live pitch action.
 3. **Transient Modifier Overlay:** A non-blocking, transient modifier HUD appears for a configurable window ($\tau$):
-   * **Live Sideline ($1\times$):** Recommended $\tau \approx 2.0\text{s}$ (allows an eyes-on-pitch coder to tap `CE`, glance down, and tap the flank).
+   * **Live Sideline ($1\times$):** Recommended $\tau \approx 3.5\text{s}$ (allows an eyes-on-pitch coder to track the play, glance down, and tap the flank without rushing).
    * **Video Tagging ($1.5\times$ / $2\times$):** Recommended $\tau \approx 1.2\text{s}$–$1.5\text{s}$ (allows rapid keyboard flicking without waiting).
 4. **Sub-Attributes Covered in Spike:**
    * **Circle Entry (`CE`):**
