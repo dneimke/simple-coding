@@ -459,6 +459,84 @@ async function runSnapshots() {
             await videoCtx.close();
         }
 
+        // Zone suffix on Continue coding: zone 1, zone 3, then the tag editor
+        const zoneTags = [
+            { id: 'fire-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true },
+            { id: 'fire-cd', label: 'CD', team: 'team1', colorClass: 'btn-red', zoned: false },
+            { id: 'tigers-bs', label: 'BS', team: 'team2', colorClass: 'btn-yellow', zoned: true },
+            { id: 'tigers-cd', label: 'CD', team: 'team2', colorClass: 'btn-yellow', zoned: false }
+        ];
+        for (const vp of VIEWPORTS) {
+            const zoneCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const zonePage = await zoneCtx.newPage();
+            await zonePage.addInitScript((tags) => {
+                localStorage.setItem('fieldHockeyVideoQuickTags_v1', JSON.stringify(tags));
+            }, zoneTags);
+            await zonePage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample&mode=tag`, { waitUntil: 'domcontentloaded' });
+            await zonePage.waitForSelector('#video-zone-bar:not(.hidden)');
+            await zonePage.waitForSelector('.zone-button.is-active[data-zone="1"]');
+            await zonePage.waitForFunction(() => {
+                const fire = document.querySelector('[data-tag-id="fire-bs"] .tag-label');
+                const tigers = document.querySelector('[data-tag-id="tigers-bs"] .tag-label');
+                return fire && tigers && fire.textContent === 'BS1' && tigers.textContent === 'BS1';
+            });
+
+            const zone1Path = path.join(OUTPUT_DIR, `video-zone-step1-zone1-${vp.name}.png`);
+            await zonePage.screenshot({ path: zone1Path, fullPage: true });
+            const zone1Stats = fs.statSync(zone1Path);
+            results.push({
+                name: 'video-zone-step1-zone1',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `video-zone-step1-zone1-${vp.name}.png`,
+                bytes: zone1Stats.size
+            });
+
+            await zonePage.click('.zone-button[data-zone="3"]');
+            await zonePage.waitForFunction(() => {
+                const fire = document.querySelector('[data-tag-id="fire-bs"] .tag-label');
+                const tigers = document.querySelector('[data-tag-id="tigers-bs"] .tag-label');
+                const circle = document.querySelector('[data-tag-id="fire-cd"] .tag-label');
+                return fire && tigers && circle && fire.textContent === 'BS3' && tigers.textContent === 'BS3' && circle.textContent === 'CD';
+            });
+
+            const zone3Path = path.join(OUTPUT_DIR, `video-zone-step2-zone3-${vp.name}.png`);
+            await zonePage.screenshot({ path: zone3Path, fullPage: true });
+            const zone3Stats = fs.statSync(zone3Path);
+            results.push({
+                name: 'video-zone-step2-zone3',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `video-zone-step2-zone3-${vp.name}.png`,
+                bytes: zone3Stats.size
+            });
+
+            await zonePage.click('#edit-quick-tags-btn');
+            await zonePage.waitForSelector('#quick-tags-edit-bar:not(.hidden)');
+            await zonePage.click('.quick-tag-btn[data-tag-id="fire-bs"]');
+            await zonePage.waitForFunction(() => {
+                const box = document.getElementById('tag-add-zone-checkbox');
+                const input = document.getElementById('new-tag-label-input');
+                return box && box.checked && input && input.value === 'BS';
+            });
+
+            const editorPath = path.join(OUTPUT_DIR, `video-zone-step3-editor-${vp.name}.png`);
+            await zonePage.screenshot({ path: editorPath, fullPage: true });
+            const editorStats = fs.statSync(editorPath);
+            results.push({
+                name: 'video-zone-step3-editor',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `video-zone-step3-editor-${vp.name}.png`,
+                bytes: editorStats.size
+            });
+
+            await zoneCtx.close();
+        }
+
         
         // Capture Video URL Attachment Flow Proof (Desktop & Mobile)
         for (const vp of VIEWPORTS) {

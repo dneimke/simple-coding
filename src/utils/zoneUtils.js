@@ -39,3 +39,33 @@ export function resolveEventName({ event, zoned, slot }, { zone, zones }) {
     if (!zoned || !zones) return event;
     return `${event}${zoneForTeam(zone, slot ?? 1, zones)}`;
 }
+
+/**
+ * Appends the selected zone to a tag stem. The same number is used for every team.
+ * @param {string} stem - Saved tag name, without a zone digit ("BS")
+ * @param {string} zone - Selected zone ("2")
+ * @returns {string} Code to show and log, e.g. "BS2"
+ */
+export function appendZoneSuffix(stem, zone) {
+    const base = String(stem ?? '').trim();
+    const suffix = String(zone ?? '').trim();
+    if (!base || !suffix) return base;
+    return `${base}${suffix}`;
+}
+
+/**
+ * Removes one trailing zone digit so a name like "BS1" can be saved as the stem "BS".
+ * Leaves the name unchanged when stripping would make it empty, or when it does not end in a zone.
+ * @param {string} label - Name typed in the tag editor
+ * @param {string[]} [values] - Zone values, default 1–4
+ * @returns {string} Stem to store
+ */
+export function stripTrailingZoneDigit(label, values = ['1', '2', '3', '4']) {
+    const trimmed = String(label ?? '').trim();
+    if (!trimmed) return trimmed;
+    const zones = (Array.isArray(values) && values.length ? values : ['1', '2', '3', '4']).map(String);
+    const last = trimmed.slice(-1);
+    if (!zones.includes(last)) return trimmed;
+    const stem = trimmed.slice(0, -1).trim();
+    return stem || trimmed;
+}

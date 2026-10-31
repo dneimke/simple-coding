@@ -2090,6 +2090,42 @@ code {
     background-color: var(--color-surface);
 }
 
+.video-coding-panel > .zone-bar {
+    margin-bottom: var(--space-2);
+    box-shadow: none;
+}
+
+@media (min-width: 768px) {
+    .video-coding-panel > .zone-bar {
+        margin-bottom: var(--space-2);
+        padding: var(--space-2);
+    }
+}
+
+.tag-zone-option {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--touch-min);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tag-zone-option:has(:checked) {
+    border-color: var(--color-ink);
+    box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.tag-zone-option.hidden {
+    display: none;
+}
+
 .review-layout.timeline-collapsed .review-timeline {
     display: none !important;
 }

@@ -1,4 +1,4 @@
-import { mirrorZone, zoneForTeam, resolveEventName } from '../../src/utils/zoneUtils.js';
+import { mirrorZone, zoneForTeam, resolveEventName, appendZoneSuffix, stripTrailingZoneDigit } from '../../src/utils/zoneUtils.js';
 
 const values = ['1', '2', '3', '4'];
 const mirrored = { values, perspective: 'mirrored' };
@@ -42,5 +42,34 @@ describe('resolveEventName', () => {
 
     test('ignores the zoned flag when the board has no zones', () => {
         expect(resolveEventName({ event: 'FIRE BS', zoned: true, slot: 1 }, { zone: null, zones: undefined })).toBe('FIRE BS');
+    });
+});
+
+describe('appendZoneSuffix', () => {
+    test('adds the selected zone to the stem', () => {
+        expect(appendZoneSuffix('BS', '2')).toBe('BS2');
+        expect(appendZoneSuffix('BW', '4')).toBe('BW4');
+    });
+
+    test('returns the stem when the zone is missing', () => {
+        expect(appendZoneSuffix('BS', '')).toBe('BS');
+        expect(appendZoneSuffix('  BS  ', '3')).toBe('BS3');
+    });
+});
+
+describe('stripTrailingZoneDigit', () => {
+    test('strips one trailing zone digit from a baked-in name', () => {
+        expect(stripTrailingZoneDigit('BS1')).toBe('BS');
+        expect(stripTrailingZoneDigit('BW4')).toBe('BW');
+    });
+
+    test('leaves names that do not end in a zone digit', () => {
+        expect(stripTrailingZoneDigit('CD')).toBe('CD');
+        expect(stripTrailingZoneDigit('A25E')).toBe('A25E');
+        expect(stripTrailingZoneDigit('SPECIAL')).toBe('SPECIAL');
+    });
+
+    test('keeps a name that is only a zone digit', () => {
+        expect(stripTrailingZoneDigit('1')).toBe('1');
     });
 });

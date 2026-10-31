@@ -306,6 +306,10 @@
                         <div id="video-coding-panel" class="video-coding-panel surface hidden mt-1.5 p-2 rounded-lg border border-slate-200 shadow-sm">
                             <span id="quick-tag-hint" class="sr-only"></span>
 
+                            <div id="video-zone-bar" class="zone-bar hidden" role="group" aria-label="Zone">
+                                <div id="video-zone-buttons" class="grid grid-cols-4 gap-2"></div>
+                            </div>
+
                             <!-- Quick tags grid (Row 1) -->
                             <div id="quick-tags-container" class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2"></div>
 
@@ -362,8 +366,8 @@
                                         </button>
                                     </div>
                                     <div class="flex flex-wrap items-center gap-1.5">
-                                        <input id="new-tag-label-input" type="text" class="field text-xs py-1 px-2 flex-1 min-w-[120px]" placeholder="Tag name (e.g. BS1, Press)" maxlength="20">
-                                        
+                                        <input id="new-tag-label-input" type="text" class="field text-xs py-1 px-2 flex-1 min-w-[120px]" placeholder="Tag name (e.g. BS, Press)" maxlength="20">
+
                                         <!-- Team assignment -->
                                         <div id="tag-team-assignment" class="flex items-center gap-1 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-xs">
                                             <label class="flex items-center gap-1 cursor-pointer text-[11px] text-slate-700">
@@ -379,6 +383,11 @@
                                                 <span>Neutral</span>
                                             </label>
                                         </div>
+
+                                        <label class="tag-zone-option" for="tag-add-zone-checkbox">
+                                            <input type="checkbox" id="tag-add-zone-checkbox">
+                                            <span>Add zone number</span>
+                                        </label>
 
                                         <div id="new-tag-color-selector" class="flex items-center gap-1" role="radiogroup" aria-label="Tag color"></div>
                                         <span id="new-tag-color-inherited" class="hidden text-[11px] text-slate-500 italic">Inherits team color</span>
