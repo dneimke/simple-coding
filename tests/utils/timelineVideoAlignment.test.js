@@ -10,6 +10,7 @@ import {
     shiftGameTimings,
     revertGameTimings
 } from '../../src/js/timeline-video.js';
+import { storageService } from '../../src/services/storageService.js';
 
 describe('Video Alignment & Time Shifting', () => {
     describe('calculateVideoOffset', () => {
@@ -193,9 +194,24 @@ describe('Video Alignment & Time Shifting', () => {
 
             // Shifted copy updated
             const copy = games.find(g => g.id === result.game.id);
+            expect(copy.title).toBe('FIRE vs TIGERS (Video Aligned)');
+            expect(copy.teams).toBe('FIRE vs TIGERS'); // Preserves pure team name for parser
             expect(copy.events[0].timeMs).toBe(242000);
             expect(copy.events[0].timestamp).toBe('04:02');
             expect(copy.metadata.originalGameId).toBe(GAME_ID);
+        });
+
+        test('returns null when storage fails on quota exceed', () => {
+            const spy = jest.spyOn(storageService, 'setItem').mockReturnValueOnce({
+                success: false,
+                error: 'storage_quota_exceeded',
+                message: 'Browser storage limit exceeded'
+            });
+
+            const result = shiftGameTimings(GAME_ID, 60000, false);
+            expect(result).toBeNull();
+
+            spy.mockRestore();
         });
     });
 });

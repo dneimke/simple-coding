@@ -1920,6 +1920,7 @@ code {
     .segmented > button,
     .timeline-event-seek,
     .timeline-event-action,
+    .timeline-event-menu-item,
     .filter-tag-remove {
         min-height: var(--touch-min);
     }
@@ -2320,7 +2321,7 @@ code {
     border: 0;
     text-align: left;
     cursor: pointer;
-    min-height: 2rem;
+    min-height: var(--touch-min);
     transition: background-color 0.15s ease;
 }
 

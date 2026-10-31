@@ -768,13 +768,21 @@ async function runSnapshots() {
                 });
             }
 
+            // Set video playhead so align modal has real video context to compute
+            await alignPage.evaluate(() => {
+                const video = document.getElementById('video-player');
+                if (video) {
+                    video.src = 'http://localhost/sample-video.mp4';
+                    Object.defineProperty(video, 'readyState', { value: 4, configurable: true });
+                    Object.defineProperty(video, 'currentTime', { value: 242, configurable: true });
+                    video.dispatchEvent(new Event('loadeddata'));
+                }
+            });
+            await alignPage.waitForTimeout(200);
+
             // Click Align Video button in toolbar
-            const alignBtn = await alignPage.$('#align-video-btn');
+            const alignBtn = await alignPage.$('#align-video-btn:not(.hidden)');
             if (alignBtn) {
-                await alignPage.evaluate(() => {
-                    const btn = document.getElementById('align-video-btn');
-                    if (btn) btn.classList.remove('hidden');
-                });
                 await alignBtn.click();
                 await alignPage.waitForSelector('#align-video-modal:not(.hidden)');
                 await alignPage.waitForTimeout(200);

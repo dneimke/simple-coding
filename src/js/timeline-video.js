@@ -2387,7 +2387,7 @@ function shiftGameTimings(gameId, offsetMs, createCopy = false) {
             ...JSON.parse(JSON.stringify(game)),
             id: newGameId,
             title: newTitle,
-            teams: newTitle,
+            teams: game.teams || baseTitle,
             events: shiftedEvents,
             metadata: {
                 ...(game.metadata || {}),
@@ -2397,7 +2397,11 @@ function shiftGameTimings(gameId, offsetMs, createCopy = false) {
             }
         };
         savedGames.unshift(newGame);
-        storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        if (saveRes !== true) {
+            notificationService.notify(saveRes?.message || 'Storage full: could not save aligned match copy', 'error');
+            return null;
+        }
         return { success: true, game: newGame, isCopy: true };
     } else {
         const originalBackup = game.metadata?.backupEvents || JSON.parse(JSON.stringify(game.events));
@@ -2409,7 +2413,18 @@ function shiftGameTimings(gameId, offsetMs, createCopy = false) {
             alignedAt: new Date().toISOString()
         };
         savedGames[index] = game;
-        storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        if (saveRes !== true) {
+            notificationService.notify(saveRes?.message || 'Storage full: could not save shifted match', 'error');
+            return null;
+        }
+
+        // Keep draft in sync if currently active
+        if (currentDraftGame && currentDraftGame.id === game.id) {
+            currentDraftGame.events = game.events;
+            currentDraftGame.metadata = game.metadata;
+        }
+
         timelineEvents = game.events;
         return { success: true, game, isCopy: false };
     }
@@ -2425,7 +2440,17 @@ function revertGameTimings(gameId) {
     delete game.metadata.backupEvents;
     delete game.metadata.videoOffsetMs;
     savedGames[index] = game;
-    storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+    const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+    if (saveRes !== true) {
+        notificationService.notify(saveRes?.message || 'Failed to revert game timings in storage', 'error');
+        return null;
+    }
+
+    if (currentDraftGame && currentDraftGame.id === game.id) {
+        currentDraftGame.events = game.events;
+        currentDraftGame.metadata = game.metadata;
+    }
+
     timelineEvents = game.events;
     return { success: true, game };
 }
@@ -2445,6 +2470,13 @@ function initAlignVideoModal() {
     if (!modal) return;
 
     function openModal() {
+        const video = document.getElementById('video-player');
+        const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
+        if (!videoLoaded) {
+            notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
+            return;
+        }
+
         const game = getCurrentGame();
         if (!game || !Array.isArray(game.events) || game.events.length === 0) {
             notificationService.notify('No recorded events in this match to align.', 'info');
@@ -2468,8 +2500,9 @@ function initAlignVideoModal() {
 
         const video = document.getElementById('video-player');
         const videoSec = video ? (video.currentTime || 0) : 0;
-        const firstEvent = game.events[0];
-        const lastEvent = game.events[game.events.length - 1];
+        const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
+        const firstEvent = sortedEvents[0];
+        const lastEvent = sortedEvents[sortedEvents.length - 1];
         const firstSec = (firstEvent.timeMs || 0) / 1000;
 
         const offset = calculateVideoOffset(videoSec, firstSec);
@@ -2521,11 +2554,17 @@ function initAlignVideoModal() {
 
     if (shiftInplaceBtn) {
         shiftInplaceBtn.addEventListener('click', () => {
+            const video = document.getElementById('video-player');
+            const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
+            if (!videoLoaded) {
+                notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
+                return;
+            }
             const game = getCurrentGame();
             if (!game || !game.events?.length) return;
-            const video = document.getElementById('video-player');
+            const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
             const videoSec = video ? (video.currentTime || 0) : 0;
-            const firstSec = (game.events[0].timeMs || 0) / 1000;
+            const firstSec = (sortedEvents[0].timeMs || 0) / 1000;
             const offset = calculateVideoOffset(videoSec, firstSec);
 
             const result = shiftGameTimings(game.id, offset.offsetMs, false);
@@ -2541,11 +2580,17 @@ function initAlignVideoModal() {
 
     if (shiftCopyBtn) {
         shiftCopyBtn.addEventListener('click', () => {
+            const video = document.getElementById('video-player');
+            const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
+            if (!videoLoaded) {
+                notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
+                return;
+            }
             const game = getCurrentGame();
             if (!game || !game.events?.length) return;
-            const video = document.getElementById('video-player');
+            const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
             const videoSec = video ? (video.currentTime || 0) : 0;
-            const firstSec = (game.events[0].timeMs || 0) / 1000;
+            const firstSec = (sortedEvents[0].timeMs || 0) / 1000;
             const offset = calculateVideoOffset(videoSec, firstSec);
 
             const result = shiftGameTimings(game.id, offset.offsetMs, true);
