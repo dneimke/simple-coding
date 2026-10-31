@@ -1,7 +1,7 @@
 import { addVisualFeedbackToButtons } from '../utils/domUtils.js';
 import { logger } from '../utils/formatUtils.js';
 import { zoneForTeam } from '../utils/zoneUtils.js';
-import { createButtonGrid } from './ui/index.js';
+import { createButtonGrid } from './ui/grid.js';
 import { rowGrids } from './config.js';
 import { DEFAULT_TEAMS, getTeamColor, teamColorClass } from './teamPalette.js';
 
