@@ -1,10 +1,10 @@
 ---
 name: async-ux-pipeline
-description: Enforces the 4-stage autonomous UX & test-first development pipeline. Use whenever implementing features, resolving UX friction, or modifying UI components and state flows.
+description: Enforces the 5-stage autonomous UX & test-first development pipeline. Use whenever implementing features, resolving UX friction, or modifying UI components and state flows.
 globs: src/**/*, components/**/*, app/**/*, pages/**/*, scripts/**/*
 alwaysApply: true
 ---
-# Autonomous 4-Stage UX & Verification Pipeline
+# Autonomous 5-Stage UX & Verification Pipeline
 
 Never optimize merely for "making the static screen pass tests." Optimize for the target persona completing their actual job from Tap 1 to completion without human QA intervention.
 
@@ -17,7 +17,7 @@ When given raw user friction, image comments, or a 5-part brief, do not write pr
    - **Tap 2 (Active Manipulation)**: How the user performs the core edit/action (e.g., *Tap button on visual board → edit in modal*). Ensure the persona never hits a technical dead-end (such as raw JSON or developer instructions) on Tap 2.
    - **Tap 3 (Persisted Outcome)**: How the change saves and reflects immediately in the UI.
 4. **Output the 5-Part Contract**: State the **Goal**, **Friction served**, **Decisions & 3-Tap Journey**, **Invariants**, **Specific Next Step**, and **Traps to Avoid** before touching code.
-5. **Resolve Forks or Execute**: If `Tap 2` has a genuine product fork (e.g., single-item vs. mirrored behaviour), ask 1–2 concise questions alongside the 5-Part Contract. Otherwise, proceed straight through Stages 2–4 autonomously.
+5. **Resolve Forks or Execute**: If `Tap 2` has a genuine product fork (e.g., single-item vs. mirrored behaviour), ask 1–2 concise questions alongside the 5-Part Contract. Otherwise, proceed straight through Stages 2–5 autonomously.
 
 ## Stage 2: Design Tokens, Ergonomics & Copy Hygiene
 1. **Primary Actions Above the Fold**: Primary workflow CTAs must be immediately accessible without scrolling past dense boards or long lists on a `390px` mobile viewport.
@@ -37,4 +37,15 @@ Never ask the user to manually click through localhost in a browser, and never t
    - Unstyled classes, broken layouts, or overlapping elements.
    - Redundant chrome (badges and banners repeating the same message).
    - Developer/implementation jargon in user-facing labels or helper text.
-4. **Concise Handoff**: Present your `<10-line` summary only after all unit tests and your visual self-audit pass.
+
+## Stage 5: Local Guardrail Gate & Pull Request
+Every change ships through a pull request. Never commit or push to `main`.
+1. **Local Pre-PR Guardrail Gate (Catch locally before CI)**:
+   - Run `npm run typecheck` — verify zero TypeScript/JSDoc syntax errors (`tsc -p jsconfig.json`).
+   - Run `npx fallow audit` (or `npm run audit`) — verify zero introduced dead code, ghost exports, or syntax regressions against `main`. Fix any introduced findings locally before pushing.
+2. **Branch & Commit**:
+   - Always branch from `main` using `feature/<short-name>`.
+   - Commit with a concise message describing the user benefit.
+3. **Open Pull Request**:
+   - Push the branch and open a PR against `main` using `gh pr create` (Persona & Journey, What Changed, Behaviour Preserved, Verification).
+4. **Concise Handoff**: Present your `<10-line` summary only after all unit tests, visual self-audit, and local guardrails pass.
