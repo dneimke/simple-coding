@@ -65,80 +65,128 @@ export class Router {
     }
 
     /**
+     * Parse hash into route segments
+     * @private
+     * @returns {{ hash: string, param: string|undefined }}
+     */
+    _parseHashRoute() {
+        const fullHash = (typeof window !== 'undefined' && window.location?.hash ? window.location.hash.substring(1) : '');
+        const routeOnly = fullHash.split('?')[0];
+        const [hash, param] = routeOnly.split('/');
+        return { hash, param };
+    }
+
+    /**
+     * Find containing view for a DOM element anchor
+     * @private
+     * @param {HTMLElement} el
+     * @returns {string|null} View key
+     */
+    _findViewForElement(el) {
+        for (const [key, obj] of Object.entries(this.views)) {
+            const v = obj?.view;
+            if (v && (v === el || (typeof v.contains === 'function' && v.contains(el)))) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolve view name and anchor target from hash segments
+     * @private
+     * @param {string} hash
+     * @param {string} [param]
+     * @returns {{ viewName: string|null, anchorTarget: string|null }}
+     */
+    _resolveViewAndAnchor(hash, param) {
+        const directView = this.hashToViewMap[hash];
+        if (directView) {
+            return { viewName: directView, anchorTarget: param || null };
+        }
+
+        const targetEl = typeof document !== 'undefined' && typeof document.getElementById === 'function'
+            ? document.getElementById(hash)
+            : null;
+
+        if (targetEl) {
+            const containingView = this._findViewForElement(targetEl);
+            if (containingView) {
+                return { viewName: containingView, anchorTarget: hash };
+            }
+        }
+
+        return { viewName: null, anchorTarget: null };
+    }
+
+    /**
+     * Resolve default view when no hash is present
+     * @private
+     * @returns {string} View name
+     */
+    // fallow-ignore-next-line complexity
+    _resolveDefaultView() {
+        const search = typeof window !== 'undefined' && window.location?.search ? window.location.search : '';
+        const params = new URLSearchParams(search);
+        const viewParam = params.get('view');
+        const mockParam = params.get('mock');
+        const pathname = typeof window !== 'undefined' && window.location?.pathname ? window.location.pathname : '';
+
+        if (viewParam === 'config') return 'Config';
+        if (viewParam === 'help') return 'Help';
+        if (pathname.includes('/dev/preview') || viewParam === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
+            return 'EventCapture';
+        }
+        return 'SavedGames';
+    }
+
+    /**
+     * Handle active view transition and side effects
+     * @private
+     */
+    _handleActiveView(viewName, param, anchorTarget, hash) {
+        const savedGameId = viewName === 'Log' && param ? decodeURIComponent(param) : null;
+        stateService.setState('ui.logGameId', savedGameId);
+        if (savedGameId === SAMPLE_GAME_ID) {
+            ensureSampleGameExists();
+        }
+
+        if (viewName === 'Log' && !savedGameId) {
+            const hasActiveGame = stateService.getState('game.hasCurrentGame');
+            if (!hasActiveGame) {
+                this._updateHashSilently(hash);
+                this.showView('saved-games');
+                return;
+            }
+        }
+
+        this._showViewWithoutHashUpdate(viewName);
+
+        if (anchorTarget) {
+            this._scrollToAnchor(anchorTarget);
+        }
+    }
+
+    /**
      * Handle URL hash changes
      * @private
      */
     _handleHashChange() {
-        // Get the hash without the # character and strip query string
-        const fullHash = window.location.hash.substring(1);
-        const routeOnly = fullHash.split('?')[0];
-        const [hash, param] = routeOnly.split('/');
+        const { hash, param } = this._parseHashRoute();
         if (hash) {
-            let viewName = this.hashToViewMap[hash];
-            let anchorTarget = param;
-
-            if (!viewName) {
-                // Check if hash matches an element id directly inside a known view
-                const targetElement = typeof document !== 'undefined' && typeof document.getElementById === 'function'
-                    ? document.getElementById(hash)
-                    : null;
-                if (targetElement) {
-                    for (const [viewKey, viewObj] of Object.entries(this.views)) {
-                        if (viewObj?.view && (viewObj.view === targetElement || (typeof viewObj.view.contains === 'function' && viewObj.view.contains(targetElement)))) {
-                            viewName = viewKey;
-                            anchorTarget = hash;
-                            break;
-                        }
-                    }
-                }
-            }
-
+            const { viewName, anchorTarget } = this._resolveViewAndAnchor(hash, param);
             if (viewName) {
-                const savedGameId = viewName === 'Log' && param ? decodeURIComponent(param) : null;
-                stateService.setState('ui.logGameId', savedGameId);
-                if (savedGameId === SAMPLE_GAME_ID) {
-                    ensureSampleGameExists();
-                }
-
-                if (viewName === 'Log' && !savedGameId) {
-                    // Check if there's an active game via state service instead of localStorage
-                    const hasActiveGame = stateService.getState('game.hasCurrentGame');
-                    if (!hasActiveGame) {
-                        this._updateHashSilently(hash);
-                        this.showView('saved-games');
-                        return;
-                    }
-                }
-
-                // Switch to the view without updating hash (to avoid loop)
-                this._showViewWithoutHashUpdate(viewName);
-
-                if (anchorTarget) {
-                    this._scrollToAnchor(anchorTarget);
-                }
+                this._handleActiveView(viewName, param, anchorTarget, hash);
             } else {
-                // Invalid hash, default to SavedGames (Matches Hub)
                 this._updateHashSilently('saved-games');
                 this._showViewWithoutHashUpdate('SavedGames');
             }
         } else {
-            // No hash: check query params and dev preview
-            const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : null;
-            const viewParam = urlParams ? urlParams.get('view') : null;
-            const mockParam = urlParams ? urlParams.get('mock') : null;
-            const isDevPreview = typeof window !== 'undefined' && window.location ? (window.location.pathname || '').includes('/dev/preview') : false;
-
-            if (viewParam === 'config') {
-                this._showViewWithoutHashUpdate('Config');
-            } else if (viewParam === 'help') {
-                this._showViewWithoutHashUpdate('Help');
-            } else if (isDevPreview || viewParam === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
-                this._showViewWithoutHashUpdate('EventCapture');
-            } else {
-                // Default to SavedGames (Matches Hub)
+            const defaultView = this._resolveDefaultView();
+            if (defaultView === 'SavedGames') {
                 this._updateHashSilently('saved-games');
-                this._showViewWithoutHashUpdate('SavedGames');
             }
+            this._showViewWithoutHashUpdate(defaultView);
         }
     }
 

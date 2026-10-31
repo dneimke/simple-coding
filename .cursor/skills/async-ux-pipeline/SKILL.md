@@ -62,11 +62,17 @@ Use **Direct Seeded URLs** to load state instantly without modal clicks or setup
    - Unstyled classes, broken layouts, or overlapping elements.
    - Redundant chrome (badges and banners repeating the same message).
    - Developer/implementation jargon in user-facing labels or helper text.
-4. **Concise Handoff**: Present your `<10-line` summary only after all unit tests and your visual self-audit pass.
+4. **Concise Handoff**: Present your `<10-line` summary only after all unit tests, visual self-audit, and local guardrails pass.
 
-## Stage 5: Pull Request & Zero-Toil Review
+## Stage 5: Local Guardrail Gate & Pull Request
 
 Every change ships through a pull request. Never commit or push to `main`.
-1. Branch from `main` using `feature/<short-name>`.
-2. Commit with a concise message describing the user benefit.
-3. Push the branch and open a PR against `main` using `gh pr create` (Persona & Journey, What Changed, Behaviour Preserved, Verification).
+
+1. **Local Pre-PR Guardrail Gate (Catch locally before CI)**:
+   - Run `npm run typecheck` — verify zero TypeScript/JSDoc syntax errors (`tsc -p jsconfig.json`).
+   - Run `npx fallow audit` (or `npm run audit`) — verify zero introduced dead code, ghost exports, or syntax regressions against `main`. Fix any introduced findings locally before pushing.
+2. **Branch & Commit**:
+   - Always branch from `main` using `feature/<short-name>`.
+   - Commit with a concise message describing the user benefit.
+3. **Open Pull Request**:
+   - Push the branch and open a PR against `main` using `gh pr create` (Persona & Journey, What Changed, Behaviour Preserved, Verification).

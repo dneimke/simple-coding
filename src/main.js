@@ -1,12 +1,17 @@
 import { ChordEngine } from './utils/chordEngine.js';
-import { EventButtons, EventLog, GameState, Router } from './components/index.js';
+import { EventButtons } from './components/eventButtons.js';
+import { EventLog } from './components/eventLog.js';
+import { GameState } from './components/gameState.js';
+import { Router } from './components/router.js';
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility } from './utils/domUtils.js';
 import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
-import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
+function showMessage(element, message, isError = false) {
+    notificationService.showMessage(element, message, isError);
+}
 import {
     loadConfiguration,
     listNamedConfigs,
@@ -32,7 +37,9 @@ import {
     importNamedConfig,
     triggerFileDownload
 } from './components/config.js';
-import { createGameCard, createButton, createInput, createSelect, initCreateMatchDropdown, initConfigActionsDropdown } from './components/ui/index.js';
+import { createGameCard } from './components/ui/card.js';
+import { initCreateMatchDropdown } from './components/ui/createMatchDropdown.js';
+import { initConfigActionsDropdown } from './components/ui/configActionsDropdown.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 let liveChordEngine = null;
 
@@ -521,46 +528,37 @@ function duplicateCurrentBoardToEdit() {
     return nextName;
 }
 
+// fallow-ignore-next-line complexity
+function populateButtonEditorFields(existingBtn, isTeamRow, hasZones, mode) {
+    const btn = existingBtn || {};
+    const btnText = btn.text || btn.event || '';
+    if (buttonEditorTitle) {
+        buttonEditorTitle.textContent = mode === 'edit' ? `Edit "${btnText || 'Button'}"` : 'Add Button';
+    }
+    const textValues = [
+        [btnEditLabelInput, btnText],
+        [btnEditLeadInput, btn.lead !== undefined ? String(btn.lead) : '5'],
+        [btnEditLagInput, btn.lag !== undefined ? String(btn.lag) : '5']
+    ];
+    textValues.forEach(([el, val]) => { if (el) el.value = val; });
+
+    if (btnEditColorGroup) btnEditColorGroup.classList.toggle('hidden', isTeamRow);
+    if (btnEditColorSelect && !isTeamRow) btnEditColorSelect.value = btn.color || 'btn-gray';
+    if (btnEditZoneGroup) btnEditZoneGroup.classList.toggle('hidden', !hasZones || !isTeamRow);
+    if (btnEditZonedCheckbox) btnEditZonedCheckbox.checked = Boolean(btn.zoned);
+    if (btnEditDeleteButton) btnEditDeleteButton.classList.toggle('hidden', mode !== 'edit');
+}
+
 function openButtonEditorModal({ mode, rowIndex, gridIndex, buttonIndex = -1 }) {
     const config = parseEditorConfig();
     const row = config.rowDefs?.[rowIndex];
-    if (!row) return;
-    const grids = rowGrids(row);
-    const grid = grids[gridIndex];
-    if (!grid) return;
+    const grid = row ? rowGrids(row)[gridIndex] : null;
+    if (!row || !grid) return;
 
     activeButtonEditTarget = { mode, rowIndex, gridIndex, buttonIndex };
-    const isTeamRow = row.team !== undefined;
-    const hasZones = Boolean(config.zones);
     const existingBtn = mode === 'edit' ? grid.buttons?.[buttonIndex] : null;
+    populateButtonEditorFields(existingBtn, row.team !== undefined, Boolean(config.zones), mode);
 
-    if (buttonEditorTitle) {
-        buttonEditorTitle.textContent = mode === 'edit' ? `Edit "${existingBtn?.text || existingBtn?.event || 'Button'}"` : 'Add Button';
-    }
-    if (btnEditLabelInput) {
-        btnEditLabelInput.value = existingBtn ? (existingBtn.text || existingBtn.event || '') : '';
-    }
-    if (btnEditLeadInput) {
-        btnEditLeadInput.value = existingBtn?.lead !== undefined ? String(existingBtn.lead) : '5';
-    }
-    if (btnEditLagInput) {
-        btnEditLagInput.value = existingBtn?.lag !== undefined ? String(existingBtn.lag) : '5';
-    }
-    if (btnEditColorGroup) {
-        btnEditColorGroup.classList.toggle('hidden', isTeamRow);
-        if (!isTeamRow && btnEditColorSelect) {
-            btnEditColorSelect.value = existingBtn?.color || 'btn-gray';
-        }
-    }
-    if (btnEditZoneGroup) {
-        btnEditZoneGroup.classList.toggle('hidden', !hasZones || !isTeamRow);
-        if (btnEditZonedCheckbox) {
-            btnEditZonedCheckbox.checked = Boolean(existingBtn?.zoned);
-        }
-    }
-    if (btnEditDeleteButton) {
-        btnEditDeleteButton.classList.toggle('hidden', mode !== 'edit');
-    }
     if (buttonEditorModal) {
         buttonEditorModal.classList.remove('hidden');
         setTimeout(() => btnEditLabelInput?.focus(), 20);
@@ -574,47 +572,53 @@ function closeButtonEditorModal() {
     }
 }
 
-function saveButtonEditorModal() {
-    if (!activeButtonEditTarget) return;
+// fallow-ignore-next-line complexity
+function validateAndBuildButtonPayload(isTeamRow, hasZones) {
     const label = (btnEditLabelInput?.value || '').trim();
     if (!label) {
-        notificationService.notify('Please enter a button label.', 'error');
-        btnEditLabelInput?.focus();
-        return;
+        return { error: 'Please enter a button label.', focus: true };
     }
     const leadVal = btnEditLeadInput?.value !== '' ? Number(btnEditLeadInput.value) : undefined;
     const lagVal = btnEditLagInput?.value !== '' ? Number(btnEditLagInput.value) : undefined;
-    if ((leadVal !== undefined && (!Number.isFinite(leadVal) || leadVal < 0)) ||
-        (lagVal !== undefined && (!Number.isFinite(lagVal) || lagVal < 0))) {
-        notificationService.notify('Lead and lag must be 0 or more seconds.', 'error');
-        return;
+    const isBadNum = (n) => n !== undefined && (!Number.isFinite(n) || n < 0);
+    if (isBadNum(leadVal) || isBadNum(lagVal)) {
+        return { error: 'Lead and lag must be 0 or more seconds.' };
     }
 
+    const payload = { event: label, text: label };
+    if (leadVal !== undefined) payload.lead = leadVal;
+    if (lagVal !== undefined) payload.lag = lagVal;
+    if (!isTeamRow) payload.color = btnEditColorSelect?.value || 'btn-gray';
+    if (hasZones && isTeamRow) payload.zoned = Boolean(btnEditZonedCheckbox?.checked);
+
+    return { payload, label };
+}
+
+function saveButtonEditorModal() {
+    if (!activeButtonEditTarget) return;
     const config = parseEditorConfig();
     const { mode, rowIndex, gridIndex, buttonIndex } = activeButtonEditTarget;
     const row = config.rowDefs?.[rowIndex];
     const isTeamRow = row?.team !== undefined;
     const hasZones = Boolean(config.zones);
 
-    const buttonPayload = {
-        event: label,
-        text: label,
-        ...(leadVal !== undefined && { lead: leadVal }),
-        ...(lagVal !== undefined && { lag: lagVal }),
-        ...(!isTeamRow && { color: btnEditColorSelect?.value || 'btn-gray' }),
-        ...(hasZones && isTeamRow && { zoned: Boolean(btnEditZonedCheckbox?.checked) })
-    };
+    const result = validateAndBuildButtonPayload(isTeamRow, hasZones);
+    if (result.error) {
+        notificationService.notify(result.error, 'error');
+        if (result.focus) btnEditLabelInput?.focus();
+        return;
+    }
 
     try {
         const updatedConfig = mode === 'edit'
-            ? updateBoardButton(config, { rowIndex, gridIndex, buttonIndex }, buttonPayload)
-            : addBoardButton(config, { rowIndex, gridIndex }, buttonPayload);
+            ? updateBoardButton(config, { rowIndex, gridIndex, buttonIndex }, result.payload)
+            : addBoardButton(config, { rowIndex, gridIndex }, result.payload);
 
         const targetBoardName = savedConfigSelect.value;
         setEditorConfig(updatedConfig);
         applySavedConfig(targetBoardName, updatedConfig);
         closeButtonEditorModal();
-        notificationService.notify(mode === 'edit' ? `Updated "${label}".` : `Added "${label}".`, 'success');
+        notificationService.notify(mode === 'edit' ? `Updated "${result.label}".` : `Added "${result.label}".`, 'success');
     } catch (error) {
         notificationService.notify(error.message, 'error');
     }

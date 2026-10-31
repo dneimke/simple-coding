@@ -30,7 +30,7 @@ The hidden tax of AI-assisted engineering is **"glue toil"**: the human spending
 
 Our goal is **Two-Phase Asynchronous Dispatch**:
 1. **Phase 1: Interactive UX Authority (`/ux-design`)**: Drop a 2-second screenshot, question, or rough idea. The agent inspects current visual snapshots, challenges the idea against personas and push-back rules, grills you on edge cases via low-friction multiple-choice options (`ask_question`), and locks a **5-Part Dispatch Contract** without touching production code.
-2. **Phase 2: Autonomous Execution (`/async-ux-pipeline`)**: Once the contract is locked, dispatch `/async-ux-pipeline` and step away (to the garden or garage). Return to an open Pull Request with **green deterministic tests** and **automated visual snapshots** ready for a 5-second review and 1-tap merge.
+2. **Phase 2: Autonomous Execution (`/async-ux-pipeline`)**: Once the contract is locked, dispatch `/async-ux-pipeline` and step away (to the garden or garage). Return to an open Pull Request with **green deterministic tests**, **automated visual snapshots**, and **clean guardrail audits** ready for a 5-second review and 1-tap merge.
 
 ### Zero-Toil Measurement: Cycle Latency via Git Branches
 Do not track time manually. Measure **Cycle Latency** via Git branches:
@@ -60,7 +60,7 @@ When the user provides feedback, a pain point, or a feature idea:
 1. **(a) Contextualize** *(Phase 1: `.cursor/skills/ux-design/SKILL.md`)*: Identify which **Persona** and **Journey** below the input affects.
 2. **(b) Audit** *(Phase 1: `.cursor/skills/ux-design/SKILL.md`)*: Inspect the current visual snapshots (`.visual-proof/*.png`) and code behaviour against that persona's goal and constraints.
 3. **(c) Challenge or Design** *(Phase 1: `.cursor/skills/ux-design/SKILL.md`)*: Apply the **Push-Back Rules**. If the idea violates one or hurts another persona, push back and propose an alternative before writing code. Grill the user on blind spots via `ask_question` and lock the **5-Part Dispatch Contract**.
-4. **(d) Execute** *(Phase 2: `.cursor/skills/async-ux-pipeline/SKILL.md` or `.cursor/skills/board-config-generator/SKILL.md`)*: Once the contract is approved, execute test-first implementation, multi-state visual proof, vision self-audit, and PR creation autonomously.
+4. **(d) Execute** *(Phase 2: `.cursor/skills/async-ux-pipeline/SKILL.md` or `.cursor/skills/board-config-generator/SKILL.md`)*: Once the contract is approved, execute test-first implementation, multi-state visual proof, vision self-audit, local guardrail gate (`typecheck` + `fallow audit`), and PR creation autonomously.
 
 ---
 

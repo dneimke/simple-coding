@@ -1,6 +1,5 @@
 import { escapeXml } from '../utils/formatUtils.js';
 import { computeGameStatistics } from '../utils/gameUtils.js';
-import { createLogEntry, createLogContainer } from './ui/index.js';
 import { generateSportscodeXml } from '../utils/xmlUtils.js';
 
 // The rendered textContent must equal the XML string so Copy XML yields a valid document.
