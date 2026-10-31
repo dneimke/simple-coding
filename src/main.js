@@ -746,7 +746,7 @@ async function startNewGame() {
 
     const selectedTeam = teams ? eventButtons.selectedTeam : null;
 
-    gameState.newGame({ teams, activeZone, selectedTeam });
+    gameState.newGame({ teams, activeZone, selectedTeam, autoStart: false });
     renderBoard(config);
     saveCaptureDraft();
     showCaptureControls();
@@ -782,7 +782,7 @@ function initializeApplication() {
         stateService.setState('ui.currentView', 'Config');
     } else if (viewParam === 'help' || hash === 'help') {
         stateService.setState('ui.currentView', 'Help');
-    } else if (isDevPreview || viewParam === 'event-capture' || hash === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
+    } else if (isDevPreview || viewParam === 'event-capture' || hash === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter' || mockParam === 'armed') {
         stateService.setState('ui.currentView', 'EventCapture');
     } else if (viewParam === 'log' || hash === 'log') {
         stateService.setState('ui.currentView', 'Log');
@@ -821,7 +821,8 @@ function syncChrome() {
     syncCaptureChrome({
         hasGame,
         isRunning: Boolean(stateService.getState('game.isRunning')),
-        lastEventText: lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : ''
+        lastEventText: lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : '',
+        elapsedTime: stateService.getState('game.elapsedTime') || 0
     });
     eventButtons.updateBadgeCounts(events);
     renderActiveMatchBanner();
@@ -1016,6 +1017,22 @@ function registerEventListeners() {
         const button = event.target.closest('[data-delete-index]');
         if (!button || stateService.getState('ui.logGameId')) return;
         deleteLoggedEvent(Number(button.dataset.deleteIndex));
+    });
+
+
+    // Space starts the clock when armed, or pauses/resumes while a game is active
+    document.addEventListener('keydown', (event) => {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.code !== 'Space' && event.key !== ' ') return;
+        if (stateService.getState('ui.currentView') !== 'EventCapture') return;
+        if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return;
+        if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+        if (!stateService.getState('game.hasCurrentGame')) return;
+
+        event.preventDefault();
+        gameState.pauseResume();
+        saveCaptureDraft();
+        syncChrome();
     });
 
     // Ctrl+Z / Cmd+Z removes the last event while capturing

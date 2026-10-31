@@ -2,7 +2,7 @@
  * Seed Data Utility
  *
  * Provides instant mock state for developer testing, automated Playwright visual snapshots,
- * and deep-linking into specific UI states (?mock=sample, ?mock=active, ?seed=sample)
+ * and deep-linking into specific UI states (?mock=sample, ?mock=active, ?seed=sample, ?mock=armed)
  * without requiring manual click-through or prior localStorage setup.
  */
 
@@ -38,6 +38,19 @@ export const SAMPLE_DRAFT = {
         { event: 'FIRE GOAL', timeMs: 425000, isTeam1: true, lead: 5, lag: 10 }
     ],
     elapsedTime: 425000,
+    runningSince: null,
+    teams: [
+        { code: 'FIRE', color: 'red' },
+        { code: 'TIGERS', color: 'yellow' }
+    ],
+    activeZone: '1',
+    selectedTeam: 1,
+    updatedAt: Date.now()
+};
+
+const ARMED_DRAFT = {
+    events: [],
+    elapsedTime: 0,
     runningSince: null,
     teams: [
         { code: 'FIRE', color: 'red' },
@@ -88,7 +101,7 @@ export const PC_COUNTER_DRAFT = {
 
 /**
  * Seed mock data into localStorage
- * @param {'sample'|'active'|'pc-counter'} [mockType='sample']
+ * @param {'sample'|'active'|'pc-counter'|'armed'} [mockType='sample']
  * @returns {{seededGames: boolean, seededDraft: boolean}}
  */
 export function seedMockData(mockType = 'sample') {
@@ -111,6 +124,9 @@ export function seedMockData(mockType = 'sample') {
         seededDraft = true;
     } else if (mockType === 'pc-counter') {
         storageService.setItem(DRAFT_STORAGE_KEY, PC_COUNTER_DRAFT);
+        seededDraft = true;
+    } else if (mockType === 'armed') {
+        storageService.setItem(DRAFT_STORAGE_KEY, ARMED_DRAFT);
         seededDraft = true;
     }
 
@@ -149,6 +165,11 @@ export function checkAndApplyMockSeed(searchString = (typeof window !== 'undefin
     const params = new URLSearchParams(searchPart);
     const mockVal = params.get('mock') || params.get('seed');
     const stateVal = params.get('state');
+
+    if (mockVal === 'armed') {
+        const { seededGames, seededDraft } = seedMockData('armed');
+        return { mockType: 'armed', seededGames, seededDraft };
+    }
 
     if (mockVal === 'pc-counter' || stateVal === 'adelaide-fire') {
         const { seededGames, seededDraft } = seedMockData('pc-counter');

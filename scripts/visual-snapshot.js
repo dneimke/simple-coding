@@ -52,6 +52,11 @@ const DEFAULT_SCREENS = [
         waitForSelector: '#boardSelect'
     },
     {
+        name: 'event-capture-armed',
+        path: '/#event-capture?mock=armed',
+        waitForSelector: '#pauseResumeButton'
+    },
+    {
         name: 'event-capture-active',
         path: '/#event-capture?mock=active',
         waitForSelector: '#coding-buttons-container button'
@@ -201,6 +206,35 @@ async function runSnapshots() {
 
                 await context.close();
             }
+        }
+
+
+        // Capture Team Setup Modal open state (desktop and mobile)
+        for (const vp of VIEWPORTS) {
+            const setupCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const setupPage = await setupCtx.newPage();
+            await setupPage.goto(`${baseUrl}/#event-capture`, { waitUntil: 'domcontentloaded' });
+            await setupPage.waitForSelector('#newGameButton');
+            await setupPage.click('#newGameButton');
+            await setupPage.waitForSelector('#teamSetupModal:not(.hidden)');
+            await setupPage.waitForTimeout(300);
+
+            const setupModalPath = path.join(OUTPUT_DIR, `event-capture-team-setup-${vp.name}.png`);
+            await setupPage.screenshot({ path: setupModalPath, fullPage: true });
+
+            const stats = fs.statSync(setupModalPath);
+            results.push({
+                name: 'event-capture-team-setup',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `event-capture-team-setup-${vp.name}.png`,
+                bytes: stats.size
+            });
+
+            await setupCtx.close();
         }
 
         // Capture Create Match dropdown open state (desktop and mobile)
@@ -750,7 +784,7 @@ async function runSnapshots() {
             // Resume clock if paused
             await chordPage.waitForSelector('#pauseResumeButton');
             const pauseText = await chordPage.$eval('#pauseResumeButton', el => el.textContent);
-            if (pauseText.includes('Resume')) {
+            if (pauseText.includes('Resume') || pauseText.includes('Start Clock')) {
                 await chordPage.click('#pauseResumeButton');
                 await chordPage.waitForTimeout(200);
             }

@@ -60,7 +60,7 @@ describe('Penalty Corner Counter Badge Component', () => {
 
     test('increments counter badge and logs tagged events at 07:15', () => {
         // 1. Simulate the match clock running at 07:15 in Q1 (435,000 ms)
-        gameState.newGame({ teams, activeZone: '1', selectedTeam: 1 });
+        gameState.newGame({ teams, activeZone: '1', selectedTeam: 1, autoStart: true });
         jest.advanceTimersByTime(435000); // 7m 15s
 
         expect(timerDisplay.textContent).toBe('07:15');

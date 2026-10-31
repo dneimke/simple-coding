@@ -57,6 +57,19 @@ describe('seedData utility', () => {
             expect(draft.teams[1].code).toBe('TIGERS');
         });
 
+        test('seeds armed draft when mockType is armed', () => {
+            const result = seedMockData('armed');
+            expect(result.seededDraft).toBe(true);
+
+            const draft = storageService.getItem(DRAFT_STORAGE_KEY);
+            expect(draft).toBeDefined();
+            expect(draft.elapsedTime).toBe(0);
+            expect(draft.events).toHaveLength(0);
+            expect(draft.teams).toHaveLength(2);
+            expect(draft.teams[0].code).toBe('FIRE');
+            expect(draft.teams[1].code).toBe('TIGERS');
+        });
+
         test('seeds pc-counter draft when mockType is pc-counter', () => {
             const result = seedMockData('pc-counter');
             expect(result.seededDraft).toBe(true);
@@ -83,6 +96,15 @@ describe('seedData utility', () => {
             const result = checkAndApplyMockSeed('?mock=active');
             expect(result.mockType).toBe('active');
             expect(storageService.getItem(DRAFT_STORAGE_KEY)).not.toBeNull();
+        });
+
+        test('seeds armed draft when search string has ?mock=armed', () => {
+            const result = checkAndApplyMockSeed('?mock=armed');
+            expect(result.mockType).toBe('armed');
+            const draft = storageService.getItem(DRAFT_STORAGE_KEY);
+            expect(draft).toBeDefined();
+            expect(draft.elapsedTime).toBe(0);
+            expect(draft.events).toHaveLength(0);
         });
 
         test('seeds pc-counter draft when preview URL has ?state=adelaide-fire&mock=pc-counter', () => {

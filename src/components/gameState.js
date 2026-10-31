@@ -199,14 +199,15 @@ export class GameState {
      * @param {Array<{code: string, color: string}>|null} [options.teams] - Team 1 and Team 2 for team boards
      * @param {string|null} [options.activeZone] - Starting sticky zone
      * @param {number|null} [options.selectedTeam] - Starting team slot for shared team buttons
+     * @param {boolean} [options.autoStart=false] - Whether to start running the clock immediately
      */
-    newGame({ teams = null, activeZone = null, selectedTeam = null } = {}) {
+    newGame({ teams = null, activeZone = null, selectedTeam = null, autoStart = false } = {}) {
         this._stopTimerUpdate();
 
         stateService.setState('game', {
             hasCurrentGame: true,
             isActive: true,
-            isRunning: true,
+            isRunning: autoStart,
             elapsedTime: 0,
             loggedEvents: [],
             teams,
@@ -214,8 +215,26 @@ export class GameState {
             selectedTeam
         });
 
+        if (autoStart) {
+            this.startTime = Date.now();
+            this._startTimerUpdate();
+        } else {
+            this.startTime = 0;
+            this._paintTimer();
+        }
+    }
+
+    /**
+     * Explicitly starts the match clock on an armed game
+     */
+    startClock() {
+        const gameState = stateService.getState('game');
+        if (!gameState.hasCurrentGame || gameState.isRunning) return;
+
+        stateService.setState('game.isRunning', true);
         this.startTime = Date.now();
         this._startTimerUpdate();
+        this._paintTimer();
     }
 
     pauseResume() {
@@ -232,11 +251,13 @@ export class GameState {
             }, true);
 
             this._stopTimerUpdate();
+            this._paintTimer();
         } else {
-            // Resume
+            // Resume or Start Clock
             stateService.setState('game.isRunning', true);
             this.startTime = Date.now();
             this._startTimerUpdate();
+            this._paintTimer();
         }
     }
 
@@ -253,10 +274,7 @@ export class GameState {
             selectedTeam: null
         }, true);
 
-        this.resetTimer();
-    }
-
-    resetTimer() {
+        this.startTime = 0;
         this._stopTimerUpdate();
 
         if (this.timerDisplay) {
