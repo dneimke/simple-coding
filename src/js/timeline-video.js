@@ -3081,15 +3081,21 @@ function showNoGameSelectedState() {
     if (timelineContainerElement) timelineContainerElement.classList.add('hidden');
 }
 
-// Show the add-event button only when both a video and a game are loaded, and not in tagging mode
+// Show the add-event and align-video buttons only when both a video and a game are loaded
 function updateFabVisibility() {
     const fab = document.getElementById('add-event-fab');
+    const alignBtn = document.getElementById('align-video-btn');
     const video = document.getElementById('video-player');
-    if (!fab) return;
+    if (!fab && !alignBtn) return;
 
     const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
     // In tagging mode, custom tags are placed directly in the quick-tag panel with the coding buttons
-    fab.classList.toggle('hidden', !(videoLoaded && currentGameId && !isTaggingMode));
+    if (fab) {
+        fab.classList.toggle('hidden', !(videoLoaded && currentGameId && !isTaggingMode));
+    }
+    if (alignBtn) {
+        alignBtn.classList.toggle('hidden', !(videoLoaded && currentGameId));
+    }
 }
 
 // Toggle favorite status for an event

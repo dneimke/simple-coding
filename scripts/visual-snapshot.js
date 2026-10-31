@@ -771,6 +771,10 @@ async function runSnapshots() {
             // Click Align Video button in toolbar
             const alignBtn = await alignPage.$('#align-video-btn');
             if (alignBtn) {
+                await alignPage.evaluate(() => {
+                    const btn = document.getElementById('align-video-btn');
+                    if (btn) btn.classList.remove('hidden');
+                });
                 await alignBtn.click();
                 await alignPage.waitForSelector('#align-video-modal:not(.hidden)');
                 await alignPage.waitForTimeout(200);
