@@ -118,18 +118,26 @@ let activeVideoZone = '1';
 
 const FALLBACK_ZONE_VALUES = ['1', '2', '3', '4'];
 
-function videoZoneValues() {
+function videoZoneConfig() {
     try {
-        const values = loadConfiguration()?.zones?.values;
-        if (Array.isArray(values) && values.length > 0) return values.map(value => String(value));
+        const zones = loadConfiguration()?.zones;
+        if (Array.isArray(zones?.values) && zones.values.length > 0) {
+            const values = zones.values.map(value => String(value));
+            const fallback = String(zones.default ?? '');
+            return { values, default: values.includes(fallback) ? fallback : values[0] };
+        }
     } catch (_) {}
-    return FALLBACK_ZONE_VALUES.slice();
+    return { values: FALLBACK_ZONE_VALUES.slice(), default: FALLBACK_ZONE_VALUES[0] };
+}
+
+function videoZoneValues() {
+    return videoZoneConfig().values;
 }
 
 function normalizeVideoZone(zone) {
-    const values = videoZoneValues();
+    const { values, default: fallback } = videoZoneConfig();
     const value = String(zone ?? '');
-    return values.includes(value) ? value : values[0];
+    return values.includes(value) ? value : fallback;
 }
 
 function prepareZoneAwareLabel(label, zoned) {

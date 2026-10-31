@@ -768,6 +768,22 @@ describe('video coding workflow', () => {
         expect(saved.events[0].event).toBe('FIRE BS1');
     });
 
+    test('a match without a saved zone opens on the board default zone', () => {
+        localStorage.setItem('fieldHockeyConfig_v1', JSON.stringify({
+            zones: { values: ['1', '2', '3'], default: '2' },
+            rowDefs: []
+        }));
+        mod.saveQuickTags([
+            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true }
+        ]);
+
+        mod.loadGame(GAME_ID);
+        mod.setTaggingMode(true);
+
+        expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
+        expect(document.querySelector('.tag-label').textContent).toBe('BS2');
+    });
+
     test('Add zone number turns a baked-in zone digit into the stem', () => {
         const input = document.getElementById('new-tag-label-input');
         const box = document.getElementById('tag-add-zone-checkbox');
