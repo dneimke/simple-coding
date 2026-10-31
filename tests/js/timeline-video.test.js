@@ -400,9 +400,13 @@ describe('video coding workflow', () => {
                 </div>
                 <div id="video-coding-panel" class="hidden">
                     <button id="edit-quick-tags-btn">Edit Tags</button>
+                    <div id="video-zone-bar" class="zone-bar hidden">
+                        <div id="video-zone-buttons"></div>
+                    </div>
                     <div id="quick-tags-container"></div>
                     <div id="quick-tags-edit-bar" class="hidden">
                         <input id="new-tag-label-input" type="text" />
+                        <input id="tag-add-zone-checkbox" type="checkbox" />
                         <button id="save-new-tag-btn">Add</button>
                         <button id="reset-quick-tags-btn">Reset</button>
                     </div>
@@ -663,6 +667,132 @@ describe('video coding workflow', () => {
         const resolvedNeutral = mod.resolveTagDisplay(tagNeutral, teams);
         expect(resolvedNeutral.displayLabel).toBe('SPECIAL');
         expect(resolvedNeutral.colorClass).toBe('btn-blue');
+    });
+
+    test('zone-aware tags keep the flag and log the same zone number for both teams', () => {
+        mod.setMatchTeams([
+            { code: 'PRIDE', color: 'red' },
+            { code: 'BLAZE', color: 'orange' }
+        ]);
+        mod.saveQuickTags([
+            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true },
+            { id: 'blaze-bs', label: 'BS', team: 'team2', colorClass: 'btn-orange', zoned: true },
+            { id: 'pride-cd', label: 'CD', team: 'team1', colorClass: 'btn-red', zoned: false }
+        ]);
+        const stored = mod.loadQuickTags();
+        expect(stored.find(tag => tag.id === 'pride-bs').zoned).toBe(true);
+        expect(stored.find(tag => tag.id === 'pride-cd').zoned).toBe(false);
+
+        mod.setTaggingMode(true);
+        expect(document.getElementById('video-zone-bar').classList.contains('hidden')).toBe(false);
+        expect(mod.selectVideoZone('2')).toBe(true);
+
+        const labels = [...document.querySelectorAll('.tag-label')].map(el => el.textContent);
+        expect(labels).toEqual(['BS2', 'BS2', 'CD']);
+
+        const video = document.getElementById('video-player');
+        video.currentTime = 12;
+        const pride = mod.quickTagEvent(mod.loadQuickTags()[0]);
+        const blaze = mod.quickTagEvent(mod.loadQuickTags()[1]);
+        const circle = mod.quickTagEvent(mod.loadQuickTags()[2]);
+        expect(pride.event).toBe('PRIDE BS2');
+        expect(blaze.event).toBe('BLAZE BS2');
+        expect(circle.event).toBe('PRIDE CD');
+
+        expect(mod.selectVideoZone('3')).toBe(true);
+        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(saved.events.map(event => event.event)).toEqual(['PRIDE BS2', 'BLAZE BS2', 'PRIDE CD']);
+        expect(saved.metadata.activeZone).toBe('3');
+        expect(document.querySelector('[data-tag-id="pride-bs"] .tag-label').textContent).toBe('BS3');
+        expect(document.querySelector('[data-tag-id="blaze-bs"] .tag-label').textContent).toBe('BS3');
+        expect(document.querySelector('[data-tag-id="pride-cd"] .tag-label').textContent).toBe('CD');
+    });
+
+    test('the zone bar stays hidden when no tag adds the zone number', () => {
+        mod.resetQuickTags();
+        mod.setTaggingMode(true);
+        expect(document.getElementById('video-zone-bar').classList.contains('hidden')).toBe(true);
+        expect(document.querySelector('.zone-button')).toBeNull();
+    });
+
+    test('number keys tag the matching button and leave the zone alone', () => {
+        mod.setMatchTeams([
+            { code: 'PRIDE', color: 'red' },
+            { code: 'BLAZE', color: 'orange' }
+        ]);
+        mod.saveQuickTags([
+            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true },
+            { id: 'blaze-bs', label: 'BS', team: 'team2', colorClass: 'btn-orange', zoned: true }
+        ]);
+        mod.selectVideoZone('2');
+        document.getElementById('video-player').currentTime = 8;
+        mod.handleVideoCodingKey(new KeyboardEvent('keydown', { key: '2' }));
+
+        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(saved.events.map(event => event.event)).toEqual(['BLAZE BS2']);
+        expect(saved.metadata.activeZone).toBe('2');
+        expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
+    });
+
+    test('an unknown zone is ignored and a plain BS1 tag is not rewritten', () => {
+        mod.setMatchTeams([
+            { code: 'PRIDE', color: 'red' },
+            { code: 'BLAZE', color: 'orange' }
+        ]);
+        mod.saveQuickTags([
+            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true }
+        ]);
+        mod.selectVideoZone('2');
+        expect(mod.selectVideoZone('9')).toBe(false);
+        expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
+
+        const created = mod.quickTagEvent({ id: 'old', label: 'BS1', team: 'team1', colorClass: 'btn-red', zoned: false });
+        expect(created.event).toBe('PRIDE BS1');
+    });
+
+    test('opening a saved match restores its zone without changing events already logged', () => {
+        const games = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        games[0].metadata.activeZone = '4';
+        games[0].events = [{ id: 'e1', event: 'FIRE BS1', timeMs: 1000, timestamp: '00:01', isFavorite: false }];
+        localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(games));
+        mod.saveQuickTags([
+            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true }
+        ]);
+
+        mod.loadGame(GAME_ID);
+        mod.setTaggingMode(true);
+
+        expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('4');
+        expect(document.querySelector('.tag-label').textContent).toBe('BS4');
+        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        expect(saved.events[0].event).toBe('FIRE BS1');
+    });
+
+    test('a match without a saved zone opens on the board default zone', () => {
+        localStorage.setItem('fieldHockeyConfig_v1', JSON.stringify({
+            zones: { values: ['1', '2', '3'], default: '2' },
+            rowDefs: []
+        }));
+        mod.saveQuickTags([
+            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true }
+        ]);
+
+        mod.loadGame(GAME_ID);
+        mod.setTaggingMode(true);
+
+        expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
+        expect(document.querySelector('.tag-label').textContent).toBe('BS2');
+    });
+
+    test('Add zone number turns a baked-in zone digit into the stem', () => {
+        const input = document.getElementById('new-tag-label-input');
+        const box = document.getElementById('tag-add-zone-checkbox');
+        input.value = 'BS1';
+        box.checked = true;
+        box.dispatchEvent(new Event('change'));
+        expect(input.value).toBe('BS');
+        expect(mod.prepareZoneAwareLabel('A25E', true)).toBe('A25E');
+        expect(mod.prepareZoneAwareLabel('BS1', false)).toBe('BS1');
     });
 
     test('getMatchTeams, setMatchTeams, and swapMatchTeams sync with game metadata', () => {

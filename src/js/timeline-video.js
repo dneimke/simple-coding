@@ -8,6 +8,8 @@ import { getLabelSchemaForEvent, formatLabelText, getFriendlyEventName, getSweep
 import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor, teamColorClass } from '../components/teamPalette.js';
 import { loadLastTeams, saveLastTeams } from '../components/teamSetupDialog.js';
 import { calculateVideoOffset, shiftEventTimings } from '../utils/gameUtils.js';
+import { appendZoneSuffix, stripTrailingZoneDigit } from '../utils/zoneUtils.js';
+import { loadConfiguration } from '../components/config.js';
 
 const DEFAULT_QUICK_TAGS = [
     { id: 'goal', label: 'Goal', team: 'none', colorClass: 'btn-green', key: '1' },
@@ -112,6 +114,43 @@ let isEditingQuickTags = false;
 let activeEditingTagId = null;
 let selectedNewTagColor = 'btn-blue';
 let selectedNewTagTeam = 'none';
+let activeVideoZone = '1';
+
+const FALLBACK_ZONE_VALUES = ['1', '2', '3', '4'];
+
+function videoZoneConfig() {
+    try {
+        const zones = loadConfiguration()?.zones;
+        if (Array.isArray(zones?.values) && zones.values.length > 0) {
+            const values = zones.values.map(value => String(value));
+            const fallback = String(zones.default ?? '');
+            return { values, default: values.includes(fallback) ? fallback : values[0] };
+        }
+    } catch (_) {}
+    return { values: FALLBACK_ZONE_VALUES.slice(), default: FALLBACK_ZONE_VALUES[0] };
+}
+
+function videoZoneValues() {
+    return videoZoneConfig().values;
+}
+
+function normalizeVideoZone(zone) {
+    const { values, default: fallback } = videoZoneConfig();
+    const value = String(zone ?? '');
+    return values.includes(value) ? value : fallback;
+}
+
+function prepareZoneAwareLabel(label, zoned) {
+    const trimmed = String(label ?? '').trim();
+    if (!trimmed || !zoned) return trimmed;
+    return stripTrailingZoneDigit(trimmed, videoZoneValues());
+}
+
+function codeLabelForTag(tag) {
+    const stem = String(tag?.label ?? '').trim();
+    if (!tag?.zoned) return stem;
+    return appendZoneSuffix(stem, normalizeVideoZone(activeVideoZone));
+}
 let currentPlaylistIndex = 0;
 let favoriteEvents = [];
 let activeEditingEventId = null;
@@ -291,6 +330,7 @@ function createNewVideoGame(customName) {
 
     currentDraftGame = newGame;
     currentGameId = gameId;
+    activeVideoZone = normalizeVideoZone(null);
     timelineEvents = [];
 
     if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
@@ -537,10 +577,13 @@ function resolveTagDisplay(tag, teams = null) {
     const team1 = matchTeams[0] || { code: 'T1', color: 'red' };
     const team2 = matchTeams[1] || { code: 'T2', color: 'yellow' };
 
+    const codeLabel = codeLabelForTag(tag);
+
     if (tag.team === 'team1') {
         const colorClass = `team-color-${team1.color || 'red'}`;
         return {
-            displayLabel: `${team1.code} ${tag.label}`,
+            displayLabel: `${team1.code} ${codeLabel}`,
+            codeLabel,
             baseLabel: tag.label,
             colorClass,
             isTeam1: true,
@@ -549,7 +592,8 @@ function resolveTagDisplay(tag, teams = null) {
     } else if (tag.team === 'team2') {
         const colorClass = `team-color-${team2.color || 'yellow'}`;
         return {
-            displayLabel: `${team2.code} ${tag.label}`,
+            displayLabel: `${team2.code} ${codeLabel}`,
+            codeLabel,
             baseLabel: tag.label,
             colorClass,
             isTeam1: false,
@@ -557,7 +601,8 @@ function resolveTagDisplay(tag, teams = null) {
         };
     } else {
         return {
-            displayLabel: tag.label,
+            displayLabel: codeLabel,
+            codeLabel,
             baseLabel: tag.label,
             colorClass: tag.colorClass || 'btn-blue',
             isTeam1: null,
@@ -576,6 +621,7 @@ function loadQuickTags() {
                 label: String(t.label || 'Tag').trim(),
                 team: (t.team === 'team1' || t.team === 'team2') ? t.team : 'none',
                 colorClass: t.colorClass || 'btn-blue',
+                zoned: Boolean(t.zoned),
                 key: String(i + 1 <= 9 ? i + 1 : '')
             }));
         }
@@ -591,6 +637,7 @@ function saveQuickTags(tags) {
         label: String(t.label || 'Tag').trim(),
         team: (t.team === 'team1' || t.team === 'team2') ? t.team : 'none',
         colorClass: t.colorClass || 'btn-blue',
+        zoned: Boolean(t.zoned),
         key: String(i + 1 <= 9 ? i + 1 : '')
     }));
     storageService.setItem(LOCAL_STORAGE_KEY_QUICK_TAGS, sanitized);
@@ -624,11 +671,13 @@ function updateQuickTag(tagId, updates = {}) {
     if (index === -1) return current;
 
     const existing = current[index];
+    const nextZoned = updates.zoned !== undefined ? Boolean(updates.zoned) : Boolean(existing.zoned);
     current[index] = {
         ...existing,
-        label: updates.label !== undefined ? String(updates.label).trim() : existing.label,
+        label: updates.label !== undefined ? prepareZoneAwareLabel(updates.label, nextZoned) : existing.label,
         team: (updates.team === 'team1' || updates.team === 'team2' || updates.team === 'none') ? updates.team : existing.team,
-        colorClass: updates.colorClass !== undefined ? updates.colorClass : existing.colorClass
+        colorClass: updates.colorClass !== undefined ? updates.colorClass : existing.colorClass,
+        zoned: nextZoned
     };
 
     const updated = saveQuickTags(current);
@@ -637,8 +686,8 @@ function updateQuickTag(tagId, updates = {}) {
 }
 
 // Add a new quick tag
-function addQuickTag(label, colorClass = 'btn-blue', team = 'none') {
-    const trimmed = String(label || '').trim();
+function addQuickTag(label, colorClass = 'btn-blue', team = 'none', zoned = false) {
+    const trimmed = prepareZoneAwareLabel(label, zoned);
     if (!trimmed) return loadQuickTags();
     const current = loadQuickTags();
     const id = 'tag-' + trimmed.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now().toString(36);
@@ -647,6 +696,7 @@ function addQuickTag(label, colorClass = 'btn-blue', team = 'none') {
         label: trimmed,
         team: (team === 'team1' || team === 'team2') ? team : 'none',
         colorClass,
+        zoned: Boolean(zoned),
         key: String(current.length + 1 <= 9 ? current.length + 1 : '')
     };
     current.push(newTag);
@@ -834,6 +884,7 @@ function startEditingTag(tag) {
     const radio1 = document.getElementById('tag-team-1-radio');
     const radio2 = document.getElementById('tag-team-2-radio');
     const radioNone = document.getElementById('tag-team-none-radio');
+    const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
 
     if (formTitle) formTitle.textContent = `Edit Tag: ${tag.label}`;
     if (labelInput) {
@@ -844,6 +895,7 @@ function startEditingTag(tag) {
     if (btnLabel) btnLabel.textContent = 'Save';
     if (btnIcon) btnIcon.className = 'fas fa-check text-xs';
     if (cancelBtn) cancelBtn.classList.remove('hidden');
+    if (zoneCheckbox) zoneCheckbox.checked = Boolean(tag.zoned);
 
     if (tag.team === 'team1' && radio1) radio1.checked = true;
     else if (tag.team === 'team2' && radio2) radio2.checked = true;
@@ -864,6 +916,7 @@ function resetEditFormState() {
     const btnIcon = document.getElementById('save-tag-btn-icon');
     const cancelBtn = document.getElementById('cancel-edit-tag-btn');
     const radioNone = document.getElementById('tag-team-none-radio');
+    const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
 
     if (formTitle) formTitle.textContent = 'Add New Tag';
     if (labelInput) labelInput.value = '';
@@ -871,6 +924,7 @@ function resetEditFormState() {
     if (btnIcon) btnIcon.className = 'fas fa-plus text-xs';
     if (cancelBtn) cancelBtn.classList.add('hidden');
     if (radioNone) radioNone.checked = true;
+    if (zoneCheckbox) zoneCheckbox.checked = false;
 
     updateTagTeamChoiceUI();
     renderQuickTagColorSelector();
@@ -964,7 +1018,7 @@ function renderQuickTagButtons() {
 
         const labelSpan = document.createElement('span');
         labelSpan.className = 'tag-label';
-        labelSpan.textContent = tag.team !== 'none' ? tag.label : resolved.displayLabel;
+        labelSpan.textContent = resolved.codeLabel;
 
         const keySpan = document.createElement('span');
         keySpan.className = 'tag-shortcut';
@@ -1040,11 +1094,68 @@ function renderQuickTagButtons() {
 
         container.appendChild(btn);
     });
+
+    renderVideoZoneBar();
+}
+
+function renderVideoZoneBar() {
+    const bar = document.getElementById('video-zone-bar');
+    const grid = document.getElementById('video-zone-buttons');
+    if (!bar || !grid) return;
+
+    const tags = loadQuickTags();
+    const show = tags.some(tag => tag.zoned);
+    bar.classList.toggle('hidden', !show);
+    grid.innerHTML = '';
+    if (!show) return;
+
+    const values = videoZoneValues();
+    const zone = normalizeVideoZone(activeVideoZone);
+    activeVideoZone = zone;
+
+    values.forEach(value => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'zone-button';
+        button.dataset.zone = value;
+        button.textContent = `Zone ${value}`;
+        const isActive = value === zone;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            selectVideoZone(value);
+        });
+        grid.appendChild(button);
+    });
+}
+
+function selectVideoZone(zone) {
+    const next = String(zone ?? '');
+    if (!videoZoneValues().includes(next)) return false;
+    activeVideoZone = next;
+
+    const game = getCurrentGame();
+    if (game) {
+        if (!game.metadata) game.metadata = {};
+        game.metadata.activeZone = next;
+        const savedGames = getSavedGames();
+        const { game: existing } = findGameById(savedGames, game.id);
+        if (existing) {
+            saveGame(game.id, Array.isArray(game.events) ? game.events : [], {
+                ...(existing.metadata || {}),
+                ...(game.metadata || {}),
+                activeZone: next
+            });
+        }
+    }
+
+    renderQuickTagButtons();
+    return true;
 }
 
 // Keyboard navigation and hotkey coding
-function initKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
+function handleVideoCodingKey(e) {
         const target = e.target;
         if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
             return;
@@ -1116,10 +1227,13 @@ function initKeyboardShortcuts() {
             e.preventDefault();
             const tagDef = tags[keyNum - 1];
             if (tagDef) {
-                quickTagEvent(tagDef.label);
+                quickTagEvent(tagDef);
             }
         }
-    });
+}
+
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', handleVideoCodingKey);
 }
 
 // --- FAB and Add Event Modal Logic ---
@@ -2223,6 +2337,7 @@ function loadGame(gameId) {
 
             // Store current game ID
             currentGameId = gameId;
+            activeVideoZone = normalizeVideoZone(game.metadata && game.metadata.activeZone);
 
             // Update current events and render timeline
             timelineEvents = events;
@@ -3315,7 +3430,9 @@ domReady(() => {
     const newTagInput = document.getElementById('new-tag-label-input');
     if (saveNewTagBtn && newTagInput) {
         const handleSaveTag = () => {
-            const label = newTagInput.value.trim();
+            const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
+            const addZone = Boolean(zoneCheckbox && zoneCheckbox.checked);
+            const label = prepareZoneAwareLabel(newTagInput.value, addZone);
             if (!label) return;
 
             let chosenTeam = 'none';
@@ -3328,12 +3445,14 @@ domReady(() => {
                 updateQuickTag(activeEditingTagId, {
                     label,
                     team: chosenTeam,
-                    colorClass: selectedNewTagColor
+                    colorClass: selectedNewTagColor,
+                    zoned: addZone
                 });
                 resetEditFormState();
             } else {
-                addQuickTag(label, selectedNewTagColor, chosenTeam);
+                addQuickTag(label, selectedNewTagColor, chosenTeam, addZone);
                 newTagInput.value = '';
+                if (zoneCheckbox) zoneCheckbox.checked = false;
                 newTagInput.focus();
             }
         };
@@ -3347,6 +3466,14 @@ domReady(() => {
                 handleSaveTag();
             }
         });
+        const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
+        if (zoneCheckbox) {
+            zoneCheckbox.addEventListener('change', () => {
+                if (!zoneCheckbox.checked) return;
+                const stem = prepareZoneAwareLabel(newTagInput.value, true);
+                if (stem && stem !== newTagInput.value.trim()) newTagInput.value = stem;
+            });
+        }
     }
 
     // Reset quick tags button
@@ -3772,6 +3899,9 @@ export {
     setTimelineCollapsed,
     updateQuickTagTicker,
     quickTagEvent,
+    handleVideoCodingKey,
+    selectVideoZone,
+    prepareZoneAwareLabel,
     createNewVideoGame,
     commitDraftGame,
     renameMatch,
