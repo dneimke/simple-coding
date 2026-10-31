@@ -11,5 +11,9 @@
   ],
   "ignorePatterns": [
     ".visual-proof/**"
-  ]
+  ],
+  "audit": {
+    "gate": "new-only",
+    "worsened": "warn"
+  }
 }

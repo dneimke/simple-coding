@@ -230,6 +230,30 @@ describe('Router', () => {
         expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'SavedGames');
     });
 
+    test('empty hash with ?view=config routes to Config view', () => {
+        window.location.hash = '';
+        window.location.search = '?view=config';
+        router._handleHashChange();
+        expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'Config');
+        window.location.search = '';
+    });
+
+    test('empty hash with ?view=help routes to Help view', () => {
+        window.location.hash = '';
+        window.location.search = '?view=help';
+        router._handleHashChange();
+        expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'Help');
+        window.location.search = '';
+    });
+
+    test('empty hash with ?mock=active routes to EventCapture view', () => {
+        window.location.hash = '';
+        window.location.search = '?mock=active';
+        router._handleHashChange();
+        expect(stateService.setState).toHaveBeenCalledWith('ui.currentView', 'EventCapture');
+        window.location.search = '';
+    });
+
     test('invalid hash defaults to SavedGames (Matches Hub)', () => {
         window.location.hash = 'unknown-route';
         router._handleHashChange();
