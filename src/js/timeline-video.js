@@ -8,7 +8,7 @@ import { getLabelSchemaForEvent, formatLabelText, getFriendlyEventName, getSweep
 import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor, teamColorClass } from '../components/teamPalette.js';
 import { loadLastTeams, saveLastTeams } from '../components/teamSetupDialog.js';
 import { calculateVideoOffset, shiftEventTimings } from '../utils/gameUtils.js';
-import { appendZoneSuffix, stripTrailingZoneDigit } from '../utils/zoneUtils.js';
+import { appendZoneSuffix, stripTrailingZoneDigit, zoneForTeam } from '../utils/zoneUtils.js';
 import { loadConfiguration } from '../components/config.js';
 
 const DEFAULT_QUICK_TAGS = [
@@ -124,10 +124,14 @@ function videoZoneConfig() {
         if (Array.isArray(zones?.values) && zones.values.length > 0) {
             const values = zones.values.map(value => String(value));
             const fallback = String(zones.default ?? '');
-            return { values, default: values.includes(fallback) ? fallback : values[0] };
+            return {
+                values,
+                default: values.includes(fallback) ? fallback : values[0],
+                perspective: zones.perspective ?? 'mirrored'
+            };
         }
     } catch (_) {}
-    return { values: FALLBACK_ZONE_VALUES.slice(), default: FALLBACK_ZONE_VALUES[0] };
+    return { values: FALLBACK_ZONE_VALUES.slice(), default: FALLBACK_ZONE_VALUES[0], perspective: 'mirrored' };
 }
 
 function videoZoneValues() {
@@ -149,7 +153,9 @@ function prepareZoneAwareLabel(label, zoned) {
 function codeLabelForTag(tag) {
     const stem = String(tag?.label ?? '').trim();
     if (!tag?.zoned) return stem;
-    return appendZoneSuffix(stem, normalizeVideoZone(activeVideoZone));
+    const zone = normalizeVideoZone(activeVideoZone);
+    const slot = tag.team === 'team2' ? 2 : 1;
+    return appendZoneSuffix(stem, zoneForTeam(zone, slot, videoZoneConfig()));
 }
 let currentPlaylistIndex = 0;
 let favoriteEvents = [];
@@ -1109,16 +1115,26 @@ function renderVideoZoneBar() {
     grid.innerHTML = '';
     if (!show) return;
 
-    const values = videoZoneValues();
+    const zones = videoZoneConfig();
     const zone = normalizeVideoZone(activeVideoZone);
     activeVideoZone = zone;
+    const team2 = getMatchTeams()[1];
+    const mirrored = zones.perspective === 'mirrored';
 
-    values.forEach(value => {
+    zones.values.forEach(value => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'zone-button';
         button.dataset.zone = value;
-        button.textContent = `Zone ${value}`;
+        const main = document.createElement('span');
+        main.textContent = `Zone ${value}`;
+        button.appendChild(main);
+        if (mirrored && team2) {
+            const mirror = document.createElement('span');
+            mirror.className = 'zone-button-mirror';
+            mirror.textContent = `${team2.code} ${zoneForTeam(value, 2, zones)}`;
+            button.appendChild(mirror);
+        }
         const isActive = value === zone;
         button.classList.toggle('is-active', isActive);
         button.setAttribute('aria-pressed', String(isActive));
