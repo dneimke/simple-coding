@@ -249,7 +249,10 @@
                                 <div id="sweep-chips" class="hidden"></div>
                             </div>
 
-                            <div class="review-video-actions ml-auto">
+                            <div class="review-video-actions ml-auto flex items-center gap-1.5">
+                                <button id="align-video-btn" type="button" class="btn btn-secondary btn-compact hidden" title="Align video to match clock">
+                                    <i class="fas fa-clock text-xs" aria-hidden="true"></i><span>Align Video</span>
+                                </button>
                                 <button id="add-event-fab" type="button" class="btn btn-primary btn-compact hidden">
                                     <i class="fas fa-tag text-xs" aria-hidden="true"></i>
                                     <span>Add tag</span>
@@ -546,8 +549,77 @@
                     <span class="font-bold text-slate-700">Attached:</span>
                     <span id="current-video-source-text" class="text-slate-500 truncate"></span>
                 </div>
-                <button type="button" id="detach-video-btn" class="btn btn-ghost btn-compact text-red-600 hover:text-red-700 flex-shrink-0">
+                <button type="button" id="modal-align-video-btn" class="btn btn-secondary btn-compact mr-1.5">
+                        <i class="fas fa-clock text-xs mr-1" aria-hidden="true"></i>Align Timings
+                    </button>
+                    <button type="button" id="detach-video-btn" class="btn btn-ghost btn-compact text-red-600 hover:text-red-700 flex-shrink-0">
                     <i class="fas fa-trash-alt text-xs mr-1" aria-hidden="true"></i>Remove
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for aligning video to match events -->
+    <div id="align-video-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="align-video-modal-title">
+        <div class="modal-panel max-w-lg relative">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+                <h2 id="align-video-modal-title" class="modal-title text-base sm:text-lg mb-0">Align Video to Match Clock</h2>
+                <button type="button" id="close-align-video-modal" class="btn btn-ghost btn-icon btn-compact text-slate-400 hover:text-slate-700" aria-label="Close">
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-600 mb-3">
+                Pause the video at match pushback or your first recorded event, then align below so review seeking and future video tags match your footage.
+            </p>
+
+            <div class="surface-muted rounded-md p-3 mb-4 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between">
+                    <span class="font-medium text-slate-700">Video Playhead:</span>
+                    <div class="flex items-center gap-1.5">
+                        <span id="align-video-playhead-display" class="font-mono text-sm font-bold text-slate-800">00:00</span>
+                        <button type="button" id="align-use-playhead-btn" class="btn btn-secondary btn-compact text-xs" title="Update to current video frame">
+                            <i class="fas fa-crosshairs text-xs mr-1" aria-hidden="true"></i>Use Current Frame
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="font-medium text-slate-700">First Coded Event (<span id="align-first-event-name">Start</span>):</span>
+                    <span id="align-first-event-time" class="font-mono text-sm font-bold text-slate-800">00:00</span>
+                </div>
+
+                <div class="pt-2 border-t border-slate-200 flex items-center justify-between">
+                    <span class="font-bold text-slate-800">Calculated Time Shift:</span>
+                    <span id="align-offset-display" class="font-mono text-sm font-bold text-blue-600">+00:00 (+0s)</span>
+                </div>
+            </div>
+
+            <!-- Impact Preview -->
+            <div id="align-impact-banner" class="banner banner-info text-xs mb-4">
+                <i class="fas fa-info-circle mr-1.5 flex-shrink-0" aria-hidden="true"></i>
+                <div id="align-impact-text" class="space-y-0.5">
+                    <div>Will shift <strong id="align-event-count">0</strong> events by <strong id="align-shift-amount">+00:00</strong>.</div>
+                    <div class="text-[11px] text-slate-500">Event 1: <span id="align-preview-first">00:00</span> &rarr; <span id="align-preview-first-new">00:00</span> &bull; Last Event: <span id="align-preview-last">00:00</span> &rarr; <span id="align-preview-last-new">00:00</span></div>
+                </div>
+            </div>
+
+            <!-- Revert Banner if game already has shifted timings -->
+            <div id="align-revert-container" class="hidden mb-4 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between text-xs">
+                <span class="text-amber-800">This match has previously shifted timings.</span>
+                <button type="button" id="align-revert-btn" class="btn btn-ghost btn-compact text-red-600 hover:text-red-700 font-semibold">
+                    <i class="fas fa-undo text-xs mr-1" aria-hidden="true"></i>Revert to Original
+                </button>
+            </div>
+
+            <!-- Explicit Action Choices -->
+            <div class="modal-actions pt-2 flex flex-col sm:flex-row sm:justify-end gap-2">
+                <button type="button" id="cancel-align-modal-btn" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="align-shift-copy-btn" class="btn btn-secondary">
+                    <i class="fas fa-clone text-xs mr-1" aria-hidden="true"></i>Shift as New Copy
+                </button>
+                <button type="button" id="align-shift-inplace-btn" class="btn btn-primary">
+                    <i class="fas fa-check text-xs mr-1" aria-hidden="true"></i>Shift This Match
                 </button>
             </div>
         </div>

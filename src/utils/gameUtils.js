@@ -1,7 +1,7 @@
 // Game data utility functions
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
-import { logger } from './formatUtils.js';
+import { logger, formatTime } from './formatUtils.js';
 import { createButton, createGameCard as uiCreateGameCard } from '../components/ui/index.js';
 import { gameStorageManager } from '../services/gameStorageManager.js';
 
@@ -161,4 +161,52 @@ export function updateSavedGame(index, updatedData, storageKey) {
         notificationService.notify('Failed to update game', 'error');
         return false;
     }
+}
+
+/**
+ * Calculates time offset between video playhead and first match event.
+ * Handles both positive shifts (video ahead) and negative shifts (video behind).
+ *
+ * @param {number} videoTimeSec - Current video playhead position in seconds
+ * @param {number} eventTimeSec - Event timestamp in seconds
+ * @returns {Object} Calculated offset details
+ */
+export function calculateVideoOffset(videoTimeSec, eventTimeSec) {
+    const vSec = typeof videoTimeSec === 'number' && !isNaN(videoTimeSec) ? Math.max(0, videoTimeSec) : 0;
+    const eSec = typeof eventTimeSec === 'number' && !isNaN(eventTimeSec) ? Math.max(0, eventTimeSec) : 0;
+    const offsetSec = Math.round(vSec - eSec);
+    const offsetMs = offsetSec * 1000;
+    const sign = offsetSec >= 0 ? '+' : '-';
+    const absSec = Math.abs(offsetSec);
+    const m = Math.floor(absSec / 60);
+    const s = Math.floor(absSec % 60);
+    const formatted = `${sign}${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return {
+        offsetSec,
+        offsetMs,
+        formatted,
+        isPositive: offsetSec >= 0
+    };
+}
+
+/**
+ * Shifts an array of event timestamps by offsetMs (can be positive or negative).
+ * Timestamps that fall below 0ms are safely clamped to 0ms (00:00).
+ *
+ * @param {Array} events - Array of match event objects
+ * @param {number} offsetMs - Milliseconds to shift (positive or negative)
+ * @returns {Array} New array of shifted event objects
+ */
+export function shiftEventTimings(events, offsetMs) {
+    if (!Array.isArray(events)) return [];
+    const shift = typeof offsetMs === 'number' && !isNaN(offsetMs) ? offsetMs : 0;
+    return events.map(evt => {
+        const currentMs = typeof evt.timeMs === 'number' ? evt.timeMs : 0;
+        const newMs = Math.max(0, currentMs + shift);
+        return {
+            ...evt,
+            timeMs: newMs,
+            timestamp: formatTime(newMs)
+        };
+    });
 }

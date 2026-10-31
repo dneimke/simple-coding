@@ -444,7 +444,12 @@ async function runSnapshots() {
                 bytes: splitStats.size
             });
 
-            // 4. In Events Panel, click note editor on first event
+            // 4. In Events Panel, click more menu and note editor on first event
+            const moreBtn = await videoPage.$('.timeline-event .timeline-event-more-btn');
+            if (moreBtn) {
+                await moreBtn.click();
+                await videoPage.waitForTimeout(150);
+            }
             const noteBtn = await videoPage.$('.timeline-event .edit-note-btn');
             if (noteBtn) await noteBtn.click();
             await videoPage.waitForTimeout(300);
@@ -722,6 +727,79 @@ async function runSnapshots() {
         await videoChordPage.screenshot({ path: videoResolvedChordPath, fullPage: false });
 
         await videoChordCtx.close();
+
+        // Video Alignment Modal & Event Log Clean Layout Proof
+        for (const vp of VIEWPORTS) {
+            const alignCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const alignPage = await alignCtx.newPage();
+            await alignPage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample`, { waitUntil: 'domcontentloaded' });
+            await alignPage.waitForSelector('#timeline-events .timeline-event');
+            await alignPage.waitForTimeout(300);
+
+            // Screenshot clean event log with badges on single line and favorite / more buttons
+            const cleanLogPath = path.join(OUTPUT_DIR, `timeline-events-clean-${vp.name}.png`);
+            await alignPage.screenshot({ path: cleanLogPath, fullPage: false });
+            results.push({
+                name: 'timeline-events-clean',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `timeline-events-clean-${vp.name}.png`,
+                bytes: fs.statSync(cleanLogPath).size
+            });
+
+            // Open More Menu on first event
+            const moreBtn = await alignPage.$('.timeline-event-more-btn');
+            if (moreBtn) {
+                await moreBtn.click();
+                await alignPage.waitForSelector('.timeline-event-more-menu:not(.hidden)');
+                await alignPage.waitForTimeout(200);
+
+                const moreMenuPath = path.join(OUTPUT_DIR, `timeline-event-more-menu-${vp.name}.png`);
+                await alignPage.screenshot({ path: moreMenuPath, fullPage: false });
+                results.push({
+                    name: 'timeline-event-more-menu',
+                    viewport: vp.name,
+                    size: `${vp.width}x${vp.height}`,
+                    file: `timeline-event-more-menu-${vp.name}.png`,
+                    bytes: fs.statSync(moreMenuPath).size
+                });
+            }
+
+            // Set video playhead so align modal has real video context to compute
+            await alignPage.evaluate(() => {
+                const video = document.getElementById('video-player');
+                if (video) {
+                    video.src = 'http://localhost/sample-video.mp4';
+                    Object.defineProperty(video, 'readyState', { value: 4, configurable: true });
+                    Object.defineProperty(video, 'currentTime', { value: 242, configurable: true });
+                    video.dispatchEvent(new Event('loadeddata'));
+                }
+            });
+            await alignPage.waitForTimeout(200);
+
+            // Click Align Video button in toolbar
+            const alignBtn = await alignPage.$('#align-video-btn:not(.hidden)');
+            if (alignBtn) {
+                await alignBtn.click();
+                await alignPage.waitForSelector('#align-video-modal:not(.hidden)');
+                await alignPage.waitForTimeout(200);
+
+                const modalPath = path.join(OUTPUT_DIR, `align-video-modal-${vp.name}.png`);
+                await alignPage.screenshot({ path: modalPath, fullPage: false });
+                results.push({
+                    name: 'align-video-modal',
+                    viewport: vp.name,
+                    size: `${vp.width}x${vp.height}`,
+                    file: `align-video-modal-${vp.name}.png`,
+                    bytes: fs.statSync(modalPath).size
+                });
+            }
+
+            await alignCtx.close();
+        }
 
         // Capture diff.png: Button grid seeded with /dev/preview?state=adelaide-fire&mock=pc-counter
         const diffContext = await browser.newContext({

@@ -7,6 +7,7 @@ import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '.
 import { getLabelSchemaForEvent, formatLabelText, getFriendlyEventName, getSweepScopeOptions, extractTeamFromEvent, getSweepSeekSeconds } from '../utils/eventAnalysisUtils.js';
 import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor, teamColorClass } from '../components/teamPalette.js';
 import { loadLastTeams, saveLastTeams } from '../components/teamSetupDialog.js';
+import { calculateVideoOffset, shiftEventTimings } from '../utils/gameUtils.js';
 
 const DEFAULT_QUICK_TAGS = [
     { id: 'goal', label: 'Goal', team: 'none', colorClass: 'btn-green', key: '1' },
@@ -2369,6 +2370,257 @@ function deleteEvent(eventId) {
     showNotification('Event deleted', 'info');
 }
 
+
+// Shift all event timings for a game (in-place or duplicate copy)
+function shiftGameTimings(gameId, offsetMs, createCopy = false) {
+    const savedGames = getSavedGames();
+    const { game, index } = findGameById(savedGames, gameId);
+    if (!game || !Array.isArray(game.events) || game.events.length === 0) return null;
+
+    const shiftedEvents = shiftEventTimings(game.events, offsetMs);
+
+    if (createCopy) {
+        const newGameId = generateGameId();
+        const baseTitle = game.title || game.teams || 'Match';
+        const newTitle = `${baseTitle} (Video Aligned)`;
+        const newGame = {
+            ...JSON.parse(JSON.stringify(game)),
+            id: newGameId,
+            title: newTitle,
+            teams: game.teams || baseTitle,
+            events: shiftedEvents,
+            metadata: {
+                ...(game.metadata || {}),
+                videoOffsetMs: offsetMs,
+                originalGameId: game.id,
+                alignedAt: new Date().toISOString()
+            }
+        };
+        savedGames.unshift(newGame);
+        const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        if (saveRes !== true) {
+            notificationService.notify(saveRes?.message || 'Storage full: could not save aligned match copy', 'error');
+            return null;
+        }
+        return { success: true, game: newGame, isCopy: true };
+    } else {
+        const originalBackup = game.metadata?.backupEvents || JSON.parse(JSON.stringify(game.events));
+        game.events = shiftedEvents;
+        game.metadata = {
+            ...(game.metadata || {}),
+            videoOffsetMs: (game.metadata?.videoOffsetMs || 0) + offsetMs,
+            backupEvents: originalBackup,
+            alignedAt: new Date().toISOString()
+        };
+        savedGames[index] = game;
+        const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        if (saveRes !== true) {
+            notificationService.notify(saveRes?.message || 'Storage full: could not save shifted match', 'error');
+            return null;
+        }
+
+        // Keep draft in sync if currently active
+        if (currentDraftGame && currentDraftGame.id === game.id) {
+            currentDraftGame.events = game.events;
+            currentDraftGame.metadata = game.metadata;
+        }
+
+        timelineEvents = game.events;
+        return { success: true, game, isCopy: false };
+    }
+}
+
+// Revert shifted game timings back to pre-shift live capture state
+function revertGameTimings(gameId) {
+    const savedGames = getSavedGames();
+    const { game, index } = findGameById(savedGames, gameId);
+    if (!game || !game.metadata?.backupEvents) return null;
+
+    game.events = JSON.parse(JSON.stringify(game.metadata.backupEvents));
+    delete game.metadata.backupEvents;
+    delete game.metadata.videoOffsetMs;
+    savedGames[index] = game;
+    const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+    if (saveRes !== true) {
+        notificationService.notify(saveRes?.message || 'Failed to revert game timings in storage', 'error');
+        return null;
+    }
+
+    if (currentDraftGame && currentDraftGame.id === game.id) {
+        currentDraftGame.events = game.events;
+        currentDraftGame.metadata = game.metadata;
+    }
+
+    timelineEvents = game.events;
+    return { success: true, game };
+}
+
+// Initialize the Align Video modal and event wiring
+function initAlignVideoModal() {
+    const alignBtn = document.getElementById('align-video-btn');
+    const modalAlignBtn = document.getElementById('modal-align-video-btn');
+    const modal = document.getElementById('align-video-modal');
+    const closeBtn = document.getElementById('close-align-video-modal');
+    const cancelBtn = document.getElementById('cancel-align-modal-btn');
+    const usePlayheadBtn = document.getElementById('align-use-playhead-btn');
+    const shiftCopyBtn = document.getElementById('align-shift-copy-btn');
+    const shiftInplaceBtn = document.getElementById('align-shift-inplace-btn');
+    const revertBtn = document.getElementById('align-revert-btn');
+
+    if (!modal) return;
+
+    function openModal() {
+        const video = document.getElementById('video-player');
+        const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
+        if (!videoLoaded) {
+            notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
+            return;
+        }
+
+        const game = getCurrentGame();
+        if (!game || !Array.isArray(game.events) || game.events.length === 0) {
+            notificationService.notify('No recorded events in this match to align.', 'info');
+            return;
+        }
+
+        const attachModal = document.getElementById('attach-video-modal');
+        if (attachModal) attachModal.classList.add('hidden');
+
+        updateModalPreview();
+        modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+    }
+
+    function updateModalPreview() {
+        const game = getCurrentGame();
+        if (!game || !Array.isArray(game.events) || game.events.length === 0) return;
+
+        const video = document.getElementById('video-player');
+        const videoSec = video ? (video.currentTime || 0) : 0;
+        const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
+        const firstEvent = sortedEvents[0];
+        const lastEvent = sortedEvents[sortedEvents.length - 1];
+        const firstSec = (firstEvent.timeMs || 0) / 1000;
+
+        const offset = calculateVideoOffset(videoSec, firstSec);
+
+        const playheadDisp = document.getElementById('align-video-playhead-display');
+        const firstEventName = document.getElementById('align-first-event-name');
+        const firstEventTime = document.getElementById('align-first-event-time');
+        const offsetDisp = document.getElementById('align-offset-display');
+        const countDisp = document.getElementById('align-event-count');
+        const shiftAmountDisp = document.getElementById('align-shift-amount');
+        const previewFirst = document.getElementById('align-preview-first');
+        const previewFirstNew = document.getElementById('align-preview-first-new');
+        const previewLast = document.getElementById('align-preview-last');
+        const previewLastNew = document.getElementById('align-preview-last-new');
+        const revertContainer = document.getElementById('align-revert-container');
+
+        if (playheadDisp) playheadDisp.textContent = formatTime(videoSec);
+        if (firstEventName) firstEventName.textContent = formatEventTypeName(firstEvent.event);
+        if (firstEventTime) firstEventTime.textContent = firstEvent.timestamp || formatTime(firstEvent.timeMs);
+        if (offsetDisp) {
+            offsetDisp.textContent = `${offset.formatted} (${offset.offsetSec >= 0 ? '+' : ''}${offset.offsetSec}s)`;
+            offsetDisp.className = `font-mono text-sm font-bold ${offset.offsetSec >= 0 ? 'text-blue-600' : 'text-amber-600'}`;
+        }
+        if (countDisp) countDisp.textContent = game.events.length;
+        if (shiftAmountDisp) shiftAmountDisp.textContent = offset.formatted;
+
+        const firstMs = firstEvent.timeMs || 0;
+        const lastMs = lastEvent.timeMs || 0;
+        if (previewFirst) previewFirst.textContent = firstEvent.timestamp || formatTime(firstMs);
+        if (previewFirstNew) previewFirstNew.textContent = formatTime(Math.max(0, firstMs + offset.offsetMs));
+        if (previewLast) previewLast.textContent = lastEvent.timestamp || formatTime(lastMs);
+        if (previewLastNew) previewLastNew.textContent = formatTime(Math.max(0, lastMs + offset.offsetMs));
+
+        if (revertContainer) {
+            revertContainer.classList.toggle('hidden', !game.metadata?.backupEvents);
+        }
+    }
+
+    if (alignBtn) alignBtn.addEventListener('click', openModal);
+    if (modalAlignBtn) modalAlignBtn.addEventListener('click', openModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+    if (usePlayheadBtn) {
+        usePlayheadBtn.addEventListener('click', () => {
+            updateModalPreview();
+        });
+    }
+
+    if (shiftInplaceBtn) {
+        shiftInplaceBtn.addEventListener('click', () => {
+            const video = document.getElementById('video-player');
+            const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
+            if (!videoLoaded) {
+                notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
+                return;
+            }
+            const game = getCurrentGame();
+            if (!game || !game.events?.length) return;
+            const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
+            const videoSec = video ? (video.currentTime || 0) : 0;
+            const firstSec = (sortedEvents[0].timeMs || 0) / 1000;
+            const offset = calculateVideoOffset(videoSec, firstSec);
+
+            const result = shiftGameTimings(game.id, offset.offsetMs, false);
+            if (result && result.success) {
+                closeModal();
+                renderTimelineEvents();
+                updateQuickTagTicker();
+                updateEventFilters();
+                notificationService.notify(`Shifted ${game.events.length} events by ${offset.formatted}`, 'success');
+            }
+        });
+    }
+
+    if (shiftCopyBtn) {
+        shiftCopyBtn.addEventListener('click', () => {
+            const video = document.getElementById('video-player');
+            const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
+            if (!videoLoaded) {
+                notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
+                return;
+            }
+            const game = getCurrentGame();
+            if (!game || !game.events?.length) return;
+            const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
+            const videoSec = video ? (video.currentTime || 0) : 0;
+            const firstSec = (sortedEvents[0].timeMs || 0) / 1000;
+            const offset = calculateVideoOffset(videoSec, firstSec);
+
+            const result = shiftGameTimings(game.id, offset.offsetMs, true);
+            if (result && result.success && result.game) {
+                closeModal();
+                notificationService.notify(`Created shifted copy "${result.game.title}" (${offset.formatted})`, 'success');
+                loadGame(result.game.id);
+                const url = new URL(window.location.href);
+                url.searchParams.set('game', result.game.id);
+                window.history.pushState({}, '', url.toString());
+            }
+        });
+    }
+
+    if (revertBtn) {
+        revertBtn.addEventListener('click', () => {
+            const game = getCurrentGame();
+            if (!game) return;
+            const result = revertGameTimings(game.id);
+            if (result && result.success) {
+                closeModal();
+                renderTimelineEvents();
+                updateQuickTagTicker();
+                updateEventFilters();
+                notificationService.notify('Reverted events to original live timings', 'success');
+            }
+        });
+    }
+}
+
 // Render timeline with current events (sorted with earliest events at the top)
 function renderTimelineEvents() {
     const timelineContainerId = 'timeline-events';
@@ -2457,19 +2709,23 @@ function renderTimelineEvents() {
             timeEl.textContent = timeFormatted;
 
             const nameEl = document.createElement('span');
-            nameEl.className = 'timeline-event-name flex items-center flex-wrap gap-1';
+            nameEl.className = 'timeline-event-name flex items-center gap-1 min-w-0';
             const nameText = document.createElement('span');
+            nameText.className = 'timeline-event-title-text';
             nameText.textContent = eventName;
             nameEl.appendChild(nameText);
 
             if (Array.isArray(event.labels) && event.labels.length > 0) {
+                const labelsWrapper = document.createElement('span');
+                labelsWrapper.className = 'timeline-event-labels';
                 event.labels.forEach(lbl => {
                     const pill = document.createElement('span');
                     pill.className = `timeline-event-label${lbl.group === 'Origin' ? ' is-origin' : ''}`;
                     pill.textContent = lbl.text;
                     pill.title = `${lbl.group}: ${lbl.text}`;
-                    nameEl.appendChild(pill);
+                    labelsWrapper.appendChild(pill);
                 });
+                nameEl.appendChild(labelsWrapper);
             }
 
             if (note) {
@@ -2481,17 +2737,7 @@ function renderTimelineEvents() {
 
             seekButton.append(timeEl, nameEl);
 
-            const noteBtn = document.createElement('button');
-            noteBtn.type = 'button';
-            noteBtn.className = `edit-note-btn timeline-event-action${note ? ' text-blue-600' : ''}`;
-            noteBtn.dataset.eventId = eventElement.dataset.eventId;
-            noteBtn.setAttribute('aria-label', note ? 'Edit note' : 'Add note');
-            noteBtn.title = note ? `Note: ${note}` : 'Add note';
-            const noteIcon = document.createElement('i');
-            noteIcon.className = note ? 'fas fa-pen text-xs' : 'far fa-comment text-xs';
-            noteIcon.setAttribute('aria-hidden', 'true');
-            noteBtn.appendChild(noteIcon);
-
+            // 1-tap persistent Favorite button
             const favoriteBtn = document.createElement('button');
             favoriteBtn.type = 'button';
             favoriteBtn.className = `favorite-toggle timeline-event-action${isFavorite ? ' is-favorite' : ''}`;
@@ -2503,17 +2749,47 @@ function renderTimelineEvents() {
             favoriteIcon.setAttribute('aria-hidden', 'true');
             favoriteBtn.appendChild(favoriteIcon);
 
+            // More Options Dropdown (Comment / Delete / Adjust Time)
+            const moreWrapper = document.createElement('div');
+            moreWrapper.className = 'timeline-event-more-wrapper';
+
+            const moreBtn = document.createElement('button');
+            moreBtn.type = 'button';
+            moreBtn.className = 'timeline-event-action timeline-event-more-btn';
+            moreBtn.dataset.eventId = eventElement.dataset.eventId;
+            moreBtn.setAttribute('aria-label', 'More options');
+            moreBtn.setAttribute('aria-haspopup', 'true');
+            moreBtn.setAttribute('aria-expanded', 'false');
+            moreBtn.title = 'More options';
+            const moreIcon = document.createElement('i');
+            moreIcon.className = 'fas fa-ellipsis-vertical text-xs';
+            moreIcon.setAttribute('aria-hidden', 'true');
+            moreBtn.appendChild(moreIcon);
+
+            const moreMenu = document.createElement('div');
+            moreMenu.className = 'timeline-event-more-menu hidden';
+            moreMenu.setAttribute('role', 'menu');
+
+            const noteBtn = document.createElement('button');
+            noteBtn.type = 'button';
+            noteBtn.className = `timeline-event-menu-item edit-note-btn${note ? ' text-blue-600' : ''}`;
+            noteBtn.dataset.eventId = eventElement.dataset.eventId;
+            noteBtn.setAttribute('role', 'menuitem');
+            noteBtn.setAttribute('aria-label', note ? 'Edit note' : 'Add note');
+            noteBtn.innerHTML = `<i class="${note ? 'fas fa-pen' : 'far fa-comment'} text-xs" aria-hidden="true"></i><span>${note ? 'Edit Note & Labels' : 'Add Note / Labels'}</span>`;
+
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
-            deleteBtn.className = 'delete-event-btn timeline-event-action';
+            deleteBtn.className = 'timeline-event-menu-item delete-event-btn text-red-600 hover:text-red-700';
             deleteBtn.dataset.eventId = eventElement.dataset.eventId;
+            deleteBtn.setAttribute('role', 'menuitem');
             deleteBtn.setAttribute('aria-label', 'Delete event');
-            const deleteIcon = document.createElement('i');
-            deleteIcon.className = 'fas fa-xmark';
-            deleteIcon.setAttribute('aria-hidden', 'true');
-            deleteBtn.appendChild(deleteIcon);
+            deleteBtn.innerHTML = '<i class="fas fa-trash-alt text-xs" aria-hidden="true"></i><span>Delete Event</span>';
 
-            eventElement.append(seekButton, noteBtn, favoriteBtn, deleteBtn);
+            moreMenu.append(noteBtn, deleteBtn);
+            moreWrapper.append(moreBtn, moreMenu);
+
+            eventElement.append(seekButton, favoriteBtn, moreWrapper);
 
             if (activeEditingEventId === event.id) {
                 eventElement.classList.add('has-editor');
@@ -2628,8 +2904,21 @@ function renderTimelineEvents() {
                 }
             });
 
+            moreBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = moreMenu.classList.contains('hidden');
+                document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
+                document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+                if (isHidden) {
+                    moreMenu.classList.remove('hidden');
+                    moreBtn.setAttribute('aria-expanded', 'true');
+                }
+            });
+
             noteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                moreMenu.classList.add('hidden');
+                moreBtn.setAttribute('aria-expanded', 'false');
                 activeEditingEventId = (activeEditingEventId === event.id ? null : event.id);
                 renderTimelineEvents();
             });
@@ -2641,6 +2930,7 @@ function renderTimelineEvents() {
 
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                moreMenu.classList.add('hidden');
                 deleteEvent(eventElement.dataset.eventId);
             });
 
@@ -2836,15 +3126,21 @@ function showNoGameSelectedState() {
     if (timelineContainerElement) timelineContainerElement.classList.add('hidden');
 }
 
-// Show the add-event button only when both a video and a game are loaded, and not in tagging mode
+// Show the add-event and align-video buttons only when both a video and a game are loaded
 function updateFabVisibility() {
     const fab = document.getElementById('add-event-fab');
+    const alignBtn = document.getElementById('align-video-btn');
     const video = document.getElementById('video-player');
-    if (!fab) return;
+    if (!fab && !alignBtn) return;
 
     const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
     // In tagging mode, custom tags are placed directly in the quick-tag panel with the coding buttons
-    fab.classList.toggle('hidden', !(videoLoaded && currentGameId && !isTaggingMode));
+    if (fab) {
+        fab.classList.toggle('hidden', !(videoLoaded && currentGameId && !isTaggingMode));
+    }
+    if (alignBtn) {
+        alignBtn.classList.toggle('hidden', !(videoLoaded && currentGameId));
+    }
 }
 
 // Toggle favorite status for an event
@@ -2887,7 +3183,26 @@ domReady(() => {
     }
 
     initFilterUI();
+    initAlignVideoModal();
     loadGameFromQuery();
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.timeline-event-more-wrapper')) {
+            document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
+            document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const alignModal = document.getElementById('align-video-modal');
+            if (alignModal && !alignModal.classList.contains('hidden')) {
+                alignModal.classList.add('hidden');
+            }
+            document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
+            document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+        }
+    });
     renderQuickTagButtons();
     initKeyboardShortcuts();
 
@@ -3488,5 +3803,8 @@ export {
     startLabelSweep,
     exitLabelSweep,
     applySweepLabel,
-    replayCurrentSweepClip
+    replayCurrentSweepClip,
+    shiftGameTimings,
+    revertGameTimings,
+    initAlignVideoModal
 };
