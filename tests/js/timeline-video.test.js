@@ -669,7 +669,7 @@ describe('video coding workflow', () => {
         expect(resolvedNeutral.colorClass).toBe('btn-blue');
     });
 
-    test('zone-aware tags keep the flag and log the same zone number for both teams', () => {
+    test('zone-aware tags log the selected zone for Team 1 and the mirrored zone for Team 2', () => {
         mod.setMatchTeams([
             { code: 'PRIDE', color: 'red' },
             { code: 'BLAZE', color: 'orange' }
@@ -688,7 +688,8 @@ describe('video coding workflow', () => {
         expect(mod.selectVideoZone('2')).toBe(true);
 
         const labels = [...document.querySelectorAll('.tag-label')].map(el => el.textContent);
-        expect(labels).toEqual(['BS2', 'BS2', 'CD']);
+        expect(labels).toEqual(['BS2', 'BS3', 'CD']);
+        expect(document.querySelector('.zone-button[data-zone="1"] .zone-button-mirror').textContent).toBe('BLAZE 4');
 
         const video = document.getElementById('video-player');
         video.currentTime = 12;
@@ -696,15 +697,15 @@ describe('video coding workflow', () => {
         const blaze = mod.quickTagEvent(mod.loadQuickTags()[1]);
         const circle = mod.quickTagEvent(mod.loadQuickTags()[2]);
         expect(pride.event).toBe('PRIDE BS2');
-        expect(blaze.event).toBe('BLAZE BS2');
+        expect(blaze.event).toBe('BLAZE BS3');
         expect(circle.event).toBe('PRIDE CD');
 
-        expect(mod.selectVideoZone('3')).toBe(true);
+        expect(mod.selectVideoZone('1')).toBe(true);
         const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
-        expect(saved.events.map(event => event.event)).toEqual(['PRIDE BS2', 'BLAZE BS2', 'PRIDE CD']);
-        expect(saved.metadata.activeZone).toBe('3');
-        expect(document.querySelector('[data-tag-id="pride-bs"] .tag-label').textContent).toBe('BS3');
-        expect(document.querySelector('[data-tag-id="blaze-bs"] .tag-label').textContent).toBe('BS3');
+        expect(saved.events.map(event => event.event)).toEqual(['PRIDE BS2', 'BLAZE BS3', 'PRIDE CD']);
+        expect(saved.metadata.activeZone).toBe('1');
+        expect(document.querySelector('[data-tag-id="pride-bs"] .tag-label').textContent).toBe('BS1');
+        expect(document.querySelector('[data-tag-id="blaze-bs"] .tag-label').textContent).toBe('BS4');
         expect(document.querySelector('[data-tag-id="pride-cd"] .tag-label').textContent).toBe('CD');
     });
 
@@ -729,7 +730,7 @@ describe('video coding workflow', () => {
         mod.handleVideoCodingKey(new KeyboardEvent('keydown', { key: '2' }));
 
         const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
-        expect(saved.events.map(event => event.event)).toEqual(['BLAZE BS2']);
+        expect(saved.events.map(event => event.event)).toEqual(['BLAZE BS3']);
         expect(saved.metadata.activeZone).toBe('2');
         expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
     });
@@ -766,6 +767,23 @@ describe('video coding workflow', () => {
         expect(document.querySelector('.tag-label').textContent).toBe('BS4');
         const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
         expect(saved.events[0].event).toBe('FIRE BS1');
+    });
+
+    test('a pitch-fixed board gives both teams the selected zone', () => {
+        localStorage.setItem('fieldHockeyConfig_v1', JSON.stringify({
+            zones: { values: ['1', '2', '3', '4'], default: '1', perspective: 'pitch' },
+            rowDefs: []
+        }));
+        mod.saveQuickTags([
+            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true },
+            { id: 'blaze-bs', label: 'BS', team: 'team2', colorClass: 'btn-orange', zoned: true }
+        ]);
+        mod.setTaggingMode(true);
+        mod.selectVideoZone('2');
+
+        const labels = [...document.querySelectorAll('.tag-label')].map(el => el.textContent);
+        expect(labels).toEqual(['BS2', 'BS2']);
+        expect(document.querySelector('.zone-button-mirror')).toBeNull();
     });
 
     test('a match without a saved zone opens on the board default zone', () => {

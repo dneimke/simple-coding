@@ -481,7 +481,7 @@ async function runSnapshots() {
             await zonePage.waitForFunction(() => {
                 const fire = document.querySelector('[data-tag-id="fire-bs"] .tag-label');
                 const tigers = document.querySelector('[data-tag-id="tigers-bs"] .tag-label');
-                return fire && tigers && fire.textContent === 'BS1' && tigers.textContent === 'BS1';
+                return fire && tigers && fire.textContent === 'BS1' && tigers.textContent === 'BS4';
             });
 
             const zone1Path = path.join(OUTPUT_DIR, `video-zone-step1-zone1-${vp.name}.png`);
@@ -500,7 +500,7 @@ async function runSnapshots() {
                 const fire = document.querySelector('[data-tag-id="fire-bs"] .tag-label');
                 const tigers = document.querySelector('[data-tag-id="tigers-bs"] .tag-label');
                 const circle = document.querySelector('[data-tag-id="fire-cd"] .tag-label');
-                return fire && tigers && circle && fire.textContent === 'BS3' && tigers.textContent === 'BS3' && circle.textContent === 'CD';
+                return fire && tigers && circle && fire.textContent === 'BS3' && tigers.textContent === 'BS2' && circle.textContent === 'CD';
             });
 
             const zone3Path = path.join(OUTPUT_DIR, `video-zone-step2-zone3-${vp.name}.png`);
