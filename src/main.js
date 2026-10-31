@@ -1,12 +1,17 @@
 import { ChordEngine } from './utils/chordEngine.js';
-import { EventButtons, EventLog, GameState, Router } from './components/index.js';
+import { EventButtons } from './components/eventButtons.js';
+import { EventLog } from './components/eventLog.js';
+import { GameState } from './components/gameState.js';
+import { Router } from './components/router.js';
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility } from './utils/domUtils.js';
 import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
 import { showPreview } from './utils/importUtils.js';
-import { showMessage } from './utils/utils.js'; // Legacy function still in utils.js
+function showMessage(element, message, isError = false) {
+    notificationService.showMessage(element, message, isError);
+}
 import {
     loadConfiguration,
     listNamedConfigs,
@@ -32,7 +37,9 @@ import {
     importNamedConfig,
     triggerFileDownload
 } from './components/config.js';
-import { createGameCard, createButton, createInput, createSelect, initCreateMatchDropdown, initConfigActionsDropdown } from './components/ui/index.js';
+import { createGameCard } from './components/ui/card.js';
+import { initCreateMatchDropdown } from './components/ui/createMatchDropdown.js';
+import { initConfigActionsDropdown } from './components/ui/configActionsDropdown.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 let liveChordEngine = null;
 

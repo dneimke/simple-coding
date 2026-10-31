@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "entry": [
+    "src/main.js",
+    "src/js/timeline-video.js",
+    "src/styles.css",
+    "scripts/visual-snapshot.js"
+  ],
+  "ignoreDependencies": [
+    "@babel/preset-env"
+  ],
+  "ignorePatterns": [
+    ".visual-proof/**"
+  ]
+}
