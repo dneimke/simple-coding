@@ -2,7 +2,7 @@ import { storageService } from '../services/storageService.js';
 import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor } from './teamPalette.js';
 
 export const LAST_TEAMS_STORAGE_KEY = 'fieldHockeyLastTeams_v1';
-export const MAX_TEAM_CODE_LENGTH = 12;
+const MAX_TEAM_CODE_LENGTH = 12;
 
 /**
  * Trim and upper-case team codes so they read consistently in event names

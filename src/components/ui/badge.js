@@ -3,7 +3,7 @@
  * @module components/ui/badge
  */
 
-export const BADGE_HIGH_CONTRAST_CLASS = 'bg-amber-500 text-slate-950 font-bold';
+const BADGE_HIGH_CONTRAST_CLASS = 'bg-amber-500 text-slate-950 font-bold';
 
 /**
  * Creates a Badge element
@@ -42,4 +42,4 @@ export function createBadge({
     return badge;
 }
 
-export const Badge = createBadge;
+

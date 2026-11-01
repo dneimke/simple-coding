@@ -22,13 +22,6 @@ export class ChordEngine {
         this.tickIntervalId = null;
     }
 
-    /**
-     * Update the decay window duration in milliseconds.
-     * @param {number} ms 
-     */
-    setDecayDuration(ms) {
-        this.decayDuration = Math.max(500, ms);
-    }
 
     /**
      * Check if a chord is currently active and listening for modifier input.

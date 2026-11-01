@@ -98,7 +98,7 @@ const BUILT_IN_NAMED_CONFIGS = {
     'simple-starter': SIMPLE_STARTER_CONFIG
 };
 
-export const CONFIG_DISPLAY_NAMES = {
+const CONFIG_DISPLAY_NAMES = {
     'simple-starter': 'Simple (6 Events)',
     'hockey-one-zoned': 'Hockey One Zoned'
 };
@@ -213,7 +213,7 @@ export function loadConfiguration() {
 }
 
 // Utility function to save configuration to localStorage
-export function saveConfiguration(config) {
+function saveConfiguration(config) {
     try {
         localStorage.setItem(LOCAL_STORAGE_KEY_CONFIG, JSON.stringify(config));
         return true;
@@ -224,7 +224,7 @@ export function saveConfiguration(config) {
 }
 
 // Utility function to reset configuration to default
-export function resetConfiguration() {
+function resetConfiguration() {
     try {
         localStorage.setItem(LOCAL_STORAGE_KEY_CONFIG, JSON.stringify(DEFAULT_CONFIG));
         return DEFAULT_CONFIG;

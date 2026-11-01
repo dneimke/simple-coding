@@ -10,7 +10,7 @@ const BUTTON_VARIANTS = ['primary', 'secondary', 'success', 'warning', 'danger',
  * @param {string} type - Variant name; unknown values fall back to secondary
  * @returns {string} Class list, e.g. "btn btn-primary"
  */
-export const buttonVariantClass = (type) =>
+const buttonVariantClass = (type) =>
     `btn btn-${BUTTON_VARIANTS.includes(type) ? type : 'secondary'}`;
 
 /**

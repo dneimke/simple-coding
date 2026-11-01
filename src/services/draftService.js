@@ -101,4 +101,3 @@ export function finishCapture(gameSnapshot, storageManager) {
     return { success: true };
 }
 
-export default draftService;

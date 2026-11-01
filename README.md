@@ -9,7 +9,7 @@ Field hockey match coding and review in one browser app. Log the game on the sid
 
 The full product test for what we build next is [Core Friction Points & Product Intent](docs/core-friction-points.md).
 
-![Live event capture: clock, sticky zones, and team-coloured buttons](src/assets/help/mode-live-match.png)
+![Live event capture: clock, sticky zones, and team-coloured buttons](docs/assets/mode-live-match.png)
 
 ## Run it
 
@@ -63,7 +63,7 @@ Today, every match starts from **+ Create Match** on the Matches screen. The sam
 - **From Video** has no separate stopwatch. Scrub or pause at `14:20`, tap a code, and the event is stored at `14:20` with that button's lead and lag. Playback runs at `1.5x` or `2x`, with `-5s` / `+5s` / `+10s` to skip stoppages.
 - **Import XML** turns a Sportscode or MyVA file into a saved match. Each instance keeps its start and end, so a click seeks to the build-up of the play.
 
-![Create Match menu: Live Match, From Video, and Import XML](src/assets/help/create-match-modes.png)
+![Create Match menu: Live Match, From Video, and Import XML](docs/assets/create-match-modes.png)
 
 Product goal: teams are defined once and chosen from a short list, and one clock engine accepts either the match stopwatch or `video.currentTime` without a different workflow. See [Friction 1](docs/core-friction-points.md#friction-1-game-setup-divergence-live-vs-video-and-new-teams).
 
@@ -77,7 +77,7 @@ Today the first pass already carries the spatial code, and the second pass is a 
 - From video, the Quick Tag bar sits under the player. Tags save as you go. **Continue coding** on any saved match opens that same timeline at `1x`, `1.5x`, or `2x` so a coach tag (`Press`, `Outlet`, `Turnover`) lands on the events you already have.
 - In Match Review, **Sweep** jumps about 3 seconds before each unlabelled clip. Keys `1`–`3` assign the pill (Left, Center, Right), Space skips, and the next clip loads immediately. Twenty circle entries can be flanked in about a minute. Possession origin is derived: a Ball Won within 10 seconds marks the entry as a counter-attack; otherwise it is settled build-up. You do not tap a separate origin button.
 
-![Focus Tagging: video, speed controls, and quick tags](src/assets/help/mode-from-video.png)
+![Focus Tagging: video, speed controls, and quick tags](docs/assets/mode-from-video.png)
 
 Product goal: the modifier is part of the first tag. Tap `C` for Circle Entry and a short overlay offers Left, Center, or Right before the moment is gone, and state memory fills the modifiers that follow from the code you just logged. See [Friction 2](docs/core-friction-points.md#friction-2-the-two-pass-coding-slog-event-logging-plus-secondary-labeling).
 
@@ -92,7 +92,7 @@ Today the clip window is decided when the button is designed, and review plays t
 - Star the 6–10 teaching moments and step through them in **Presentation Mode**. The browser player seeks from window to window. Nothing is rendered out to a file.
 - **Export XML** is there when the film still has to go to MyVA or Hudl Sportscode. The file is Sportscode XML (`<ALL_INSTANCES>` and `<ROWS>`), and labels travel in `<label>` tags. Lead and lag are the instance start and end.
 
-![Match Review: timeline, filters, favorites, and the video player](src/assets/help/mode-import-xml.png)
+![Match Review: timeline, filters, favorites, and the video player](docs/assets/mode-import-xml.png)
 
 Product goal: presentation stays a browser playlist of those pre-sized windows, including starred and filtered sets, with no export step required to run the meeting. See [Friction 3](docs/core-friction-points.md#friction-3-post-match-clip-sizing-and-assembly-overhead-the-45-minute-bottleneck).
 

@@ -6,7 +6,7 @@ import { stateService } from '../../src/services/stateService.js';
 import { getNamedConfig } from '../../src/components/config.js';
 import { formatTime } from '../../src/utils/formatUtils.js';
 import { CodingButton, createCodingButton } from '../../src/components/ui/codingButton.js';
-import { Badge, createBadge } from '../../src/components/ui/badge.js';
+import { createBadge } from '../../src/components/ui/badge.js';
 
 describe('Penalty Corner Counter Badge Component', () => {
     let container;

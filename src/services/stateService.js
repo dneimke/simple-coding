@@ -115,4 +115,3 @@ export const stateService = {
     }
 };
 
-export default stateService;

@@ -5,38 +5,6 @@
 import { createCodingButton } from './codingButton.js';
 
 /**
- * Creates a grid layout container with specified columns
- *
- * @param {Object} options - Grid configuration
- * @param {string} [options.columns="grid-cols-1"] - Tailwind grid column classes
- * @param {string} [options.gap="gap-4"] - Tailwind gap classes
- * @param {Array} [options.children=[]] - Child elements to add to the grid
- * @param {string} [options.className=""] - Additional CSS classes
- * @returns {HTMLDivElement} Created grid container
- */
-export const createGrid = ({
-    columns = 'grid-cols-1',
-    gap = 'gap-4',
-    children = [],
-    className = ''
-}) => {
-    const grid = document.createElement('div');
-    grid.className = `grid ${columns} ${gap} ${className}`;
-
-    children.forEach(child => {
-        if (child instanceof HTMLElement) {
-            grid.appendChild(child);
-        } else if (typeof child === 'string') {
-            const div = document.createElement('div');
-            div.innerHTML = child;
-            grid.appendChild(div);
-        }
-    });
-
-    return grid;
-};
-
-/**
  * Creates a grid specifically for button groups
  *
  * @param {Object} options - Button grid configuration
@@ -90,42 +58,4 @@ export const createButtonGrid = ({
     });
 
     return buttonGrid;
-};
-
-/**
- * Creates a responsive grid container that adjusts columns based on screen size
- *
- * @param {Object} options - Responsive grid configuration
- * @param {string} [options.sm="grid-cols-1"] - Columns for small screens
- * @param {string} [options.md="grid-cols-2"] - Columns for medium screens
- * @param {string} [options.lg="grid-cols-3"] - Columns for large screens
- * @param {string} [options.xl="grid-cols-4"] - Columns for extra large screens
- * @param {string} [options.gap="gap-4"] - Tailwind gap classes
- * @param {Array} [options.children=[]] - Child elements to add to the grid
- * @param {string} [options.className=""] - Additional CSS classes
- * @returns {HTMLDivElement} Created responsive grid container
- */
-export const createResponsiveGrid = ({
-    sm = 'grid-cols-1',
-    md = 'grid-cols-2',
-    lg = 'grid-cols-3',
-    xl = 'grid-cols-4',
-    gap = 'gap-4',
-    children = [],
-    className = ''
-}) => {
-    const grid = document.createElement('div');
-    grid.className = `grid ${sm} md:${md} lg:${lg} xl:${xl} ${gap} ${className}`;
-
-    children.forEach(child => {
-        if (child instanceof HTMLElement) {
-            grid.appendChild(child);
-        } else if (typeof child === 'string') {
-            const div = document.createElement('div');
-            div.innerHTML = child;
-            grid.appendChild(div);
-        }
-    });
-
-    return grid;
 };
