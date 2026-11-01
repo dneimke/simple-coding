@@ -3,7 +3,7 @@ import { bindChordDock } from '../utils/chordDockController.js';
 import { renderTimeline } from './timeline.js';
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
-import { generateGameId } from '../services/gameStorageManager.js';
+import { generateGameId, gameStorageManager, findGameInArray } from '../services/gameStorageManager.js';
 import { checkAndApplyMockSeed, ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
 import { getLabelSchemaForEvent, formatLabelText, getFriendlyEventName, getSweepScopeOptions, extractTeamFromEvent, getSweepSeekSeconds } from '../utils/eventAnalysisUtils.js';
 import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor, teamColorClass } from '../components/teamPalette.js';
@@ -578,19 +578,23 @@ function resolveTagDisplay(tag, teams = null) {
     }
 }
 
+function sanitizeQuickTag(t, i) {
+    return {
+        id: t.id || `tag-${i}`,
+        label: String(t.label || 'Tag').trim(),
+        team: (t.team === 'team1' || t.team === 'team2') ? t.team : 'none',
+        colorClass: t.colorClass || 'btn-blue',
+        zoned: Boolean(t.zoned),
+        key: String(i + 1 <= 9 ? i + 1 : '')
+    };
+}
+
 // Load quick tags from storage or fall back to defaults
 function loadQuickTags() {
     try {
         const stored = storageService.getItem(LOCAL_STORAGE_KEY_QUICK_TAGS);
         if (Array.isArray(stored) && stored.length > 0) {
-            return stored.map((t, i) => ({
-                id: t.id || `tag-${i}`,
-                label: String(t.label || 'Tag').trim(),
-                team: (t.team === 'team1' || t.team === 'team2') ? t.team : 'none',
-                colorClass: t.colorClass || 'btn-blue',
-                zoned: Boolean(t.zoned),
-                key: String(i + 1 <= 9 ? i + 1 : '')
-            }));
+            return stored.map(sanitizeQuickTag);
         }
     } catch (_) {}
     return DEFAULT_QUICK_TAGS.map(t => ({ ...t }));
@@ -599,14 +603,7 @@ function loadQuickTags() {
 // Persist quick tags in storage
 function saveQuickTags(tags) {
     if (!Array.isArray(tags)) return [];
-    const sanitized = tags.map((t, i) => ({
-        id: t.id || `tag-${i}`,
-        label: String(t.label || 'Tag').trim(),
-        team: (t.team === 'team1' || t.team === 'team2') ? t.team : 'none',
-        colorClass: t.colorClass || 'btn-blue',
-        zoned: Boolean(t.zoned),
-        key: String(i + 1 <= 9 ? i + 1 : '')
-    }));
+    const sanitized = tags.map(sanitizeQuickTag);
     storageService.setItem(LOCAL_STORAGE_KEY_QUICK_TAGS, sanitized);
     return sanitized;
 }
@@ -701,11 +698,7 @@ function undoLastQuickTag() {
     if (!game || !Array.isArray(game.events) || game.events.length === 0) return false;
 
     const removedEvent = game.events.pop();
-    const metadata = { ...game.metadata, teams: game.teams };
-    saveGame(game.id, game.events, metadata);
-    timelineEvents = game.events;
-    updateEventFilters();
-    renderTimelineEvents();
+    persistGameEventsAndRefresh(game);
     updateQuickTagTicker();
     showNotification(`Undid ${formatEventTypeName(removedEvent.event)}`, 'info');
     return true;
@@ -840,18 +833,24 @@ function updateTagTeamChoiceUI() {
     }
 }
 
+function getTagEditFormElements() {
+    return {
+        formTitle: document.getElementById('quick-tag-form-title'),
+        labelInput: document.getElementById('new-tag-label-input'),
+        btnLabel: document.getElementById('save-tag-btn-label'),
+        btnIcon: document.getElementById('save-tag-btn-icon'),
+        cancelBtn: document.getElementById('cancel-edit-tag-btn'),
+        radio1: document.getElementById('tag-team-1-radio'),
+        radio2: document.getElementById('tag-team-2-radio'),
+        radioNone: document.getElementById('tag-team-none-radio'),
+        zoneCheckbox: document.getElementById('tag-add-zone-checkbox')
+    };
+}
+
 // Start in-place editing of an existing quick tag
 function startEditingTag(tag) {
     activeEditingTagId = tag.id;
-    const formTitle = document.getElementById('quick-tag-form-title');
-    const labelInput = document.getElementById('new-tag-label-input');
-    const btnLabel = document.getElementById('save-tag-btn-label');
-    const btnIcon = document.getElementById('save-tag-btn-icon');
-    const cancelBtn = document.getElementById('cancel-edit-tag-btn');
-    const radio1 = document.getElementById('tag-team-1-radio');
-    const radio2 = document.getElementById('tag-team-2-radio');
-    const radioNone = document.getElementById('tag-team-none-radio');
-    const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
+    const { formTitle, labelInput, btnLabel, btnIcon, cancelBtn, radio1, radio2, radioNone, zoneCheckbox } = getTagEditFormElements();
 
     if (formTitle) formTitle.textContent = `Edit Tag: ${tag.label}`;
     if (labelInput) {
@@ -877,13 +876,7 @@ function startEditingTag(tag) {
 // Reset tag edit form to default Add New Tag state
 function resetEditFormState() {
     activeEditingTagId = null;
-    const formTitle = document.getElementById('quick-tag-form-title');
-    const labelInput = document.getElementById('new-tag-label-input');
-    const btnLabel = document.getElementById('save-tag-btn-label');
-    const btnIcon = document.getElementById('save-tag-btn-icon');
-    const cancelBtn = document.getElementById('cancel-edit-tag-btn');
-    const radioNone = document.getElementById('tag-team-none-radio');
-    const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
+    const { formTitle, labelInput, btnLabel, btnIcon, cancelBtn, radioNone, zoneCheckbox } = getTagEditFormElements();
 
     if (formTitle) formTitle.textContent = 'Add New Tag';
     if (labelInput) labelInput.value = '';
@@ -913,45 +906,28 @@ function renderMatchTeamsEditor() {
     if (t1RadioLabel) t1RadioLabel.textContent = `T1 (${teams[0].code})`;
     if (t2RadioLabel) t2RadioLabel.textContent = `T2 (${teams[1].code})`;
 
-    // Render palette swatches for Team 1
-    if (t1Selector) {
-        t1Selector.innerHTML = '';
+    const renderTeamSwatches = (container, teamIdx, inputEl) => {
+        if (!container) return;
+        container.innerHTML = '';
         TEAM_PALETTE.forEach(color => {
             const swatch = document.createElement('button');
             swatch.type = 'button';
-            swatch.className = `team-swatch-select team-color-${color.id} ${teams[0].color === color.id ? 'is-selected' : ''}`;
-            swatch.setAttribute('aria-label', `Team 1 color ${color.name}`);
-            swatch.title = `Team 1: ${color.name}`;
+            swatch.className = `team-swatch-select team-color-${color.id} ${teams[teamIdx].color === color.id ? 'is-selected' : ''}`;
+            swatch.setAttribute('aria-label', `Team ${teamIdx + 1} color ${color.name}`);
+            swatch.title = `Team ${teamIdx + 1}: ${color.name}`;
             swatch.addEventListener('click', (e) => {
                 e.preventDefault();
-                setMatchTeams([
-                    { code: (t1Input ? t1Input.value.trim() : teams[0].code) || teams[0].code, color: color.id },
-                    teams[1]
-                ]);
+                const code = (inputEl ? inputEl.value.trim() : teams[teamIdx].code) || teams[teamIdx].code;
+                const updatedTeams = [...teams];
+                updatedTeams[teamIdx] = { code, color: color.id };
+                setMatchTeams(updatedTeams);
             });
-            t1Selector.appendChild(swatch);
+            container.appendChild(swatch);
         });
-    }
+    };
 
-    // Render palette swatches for Team 2
-    if (t2Selector) {
-        t2Selector.innerHTML = '';
-        TEAM_PALETTE.forEach(color => {
-            const swatch = document.createElement('button');
-            swatch.type = 'button';
-            swatch.className = `team-swatch-select team-color-${color.id} ${teams[1].color === color.id ? 'is-selected' : ''}`;
-            swatch.setAttribute('aria-label', `Team 2 color ${color.name}`);
-            swatch.title = `Team 2: ${color.name}`;
-            swatch.addEventListener('click', (e) => {
-                e.preventDefault();
-                setMatchTeams([
-                    teams[0],
-                    { code: (t2Input ? t2Input.value.trim() : teams[1].code) || teams[1].code, color: color.id }
-                ]);
-            });
-            t2Selector.appendChild(swatch);
-        });
-    }
+    renderTeamSwatches(t1Selector, 0, t1Input);
+    renderTeamSwatches(t2Selector, 1, t2Input);
 }
 
 // Render quick tag buttons (supports normal 1-tap mode and edit/reorder mode)
@@ -1348,9 +1324,7 @@ function persistGameEventsAndRefresh(game, metadata = {}) {
 }
 
 function findGameById(gamesArray, gameId) {
-    if (!Array.isArray(gamesArray)) return { game: null, index: -1 };
-    const index = gamesArray.findIndex(g => g && g.id === gameId);
-    return { game: index >= 0 ? gamesArray[index] : null, index };
+    return findGameInArray(gamesArray, gameId);
 }
 
 // Initialize navigation functionality
@@ -1604,9 +1578,7 @@ function getTeamColorBadgeClass(teamName) {
     return 'bg-blue-600 text-white';
 }
 
-function replayCurrentSweepClip() {
-    if (!sweepModeActive || sweepEvents.length === 0) return;
-    const event = sweepEvents[currentSweepIndex];
+function seekAndPlaySweepVideo(event) {
     if (!event) return;
     const seekSec = getSweepSeekSeconds(event);
     const video = document.getElementById('video-player');
@@ -1617,6 +1589,12 @@ function replayCurrentSweepClip() {
             playPromise.catch(() => {});
         }
     }
+}
+
+function replayCurrentSweepClip() {
+    if (!sweepModeActive || sweepEvents.length === 0) return;
+    const event = sweepEvents[currentSweepIndex];
+    seekAndPlaySweepVideo(event);
 }
 
 function startLabelSweep(filterFn = null) {
@@ -1771,15 +1749,7 @@ function loadSweepEvent(index) {
     }
 
     // Seek video to 3s before event
-    const seekSec = getSweepSeekSeconds(event);
-    const video = document.getElementById('video-player');
-    if (video) {
-        video.currentTime = seekSec;
-        const playPromise = video.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(() => { /* autoplay handling */ });
-        }
-    }
+    seekAndPlaySweepVideo(event);
 
     highlightTimelineEvent(event.id);
 
@@ -1875,65 +1845,12 @@ function getSavedGames() {
 }
 
 function saveGame(gameId, events, metadata = {}) {
-    const savedGames = getSavedGames() || [];
-
-    // Ensure all events are in standard format while preserving any existing properties (eventCode, team, leadTime, lagTime, etc.)
-    const standardEvents = events.map(evt => ({
-        ...evt,
-        event: evt.event,
-        timeMs: evt.timeMs,
-        id: evt.id,
-        isFavorite: evt.isFavorite || false,
-        ...(evt.note !== undefined && { note: evt.note }),
-        ...(evt.timestamp !== undefined && { timestamp: evt.timestamp }),
-        ...(evt.lead !== undefined && { lead: evt.lead }),
-        ...(evt.lag !== undefined && { lag: evt.lag })
-    }));
-
-    // Preserve existing entry fields (timestamp, teams, teamCodes, elapsedTime, metadata) when possible
-    const { game: existing, index } = findGameById(savedGames, gameId);
-    const existingTeams = (existing && (existing.teams || (existing.metadata && existing.metadata.teams))) || null;
-    const existingTimestamp = (existing && (existing.timestamp || (existing.metadata && existing.metadata.timestamp))) || null;
-
-    const teamsName = metadata.teams ?? existingTeams ?? null;
-    const timestamp = existingTimestamp ?? new Date().toISOString();
-    const maxEventTimeMs = standardEvents.reduce((max, e) => Math.max(max, Number(e.timeMs) || 0), 0);
-    const reconciledElapsedTime = Math.max(Number(existing && existing.elapsedTime) || 0, maxEventTimeMs);
-    const shouldIncludeElapsedTime = (existing && existing.elapsedTime !== undefined) || maxEventTimeMs > 0;
-
-    // Merge metadata, preferring incoming metadata but keeping existing metadata where absent
-    const mergedMetadata = {
-        ...((existing && existing.metadata) || {}),
-        ...metadata,
-        lastUpdated: new Date().toISOString()
-    };
-
-    // Create or update game in the saved games object, keeping top-level properties for compatibility
-    const mergedGame = {
-        ...(existing || {}),
-        id: gameId,
-        events: standardEvents,
-        teams: teamsName,
-        timestamp,
-        ...(shouldIncludeElapsedTime && { elapsedTime: reconciledElapsedTime }),
-        metadata: mergedMetadata
-    };
-
-    if (index >= 0) {
-        savedGames[index] = mergedGame;
-    } else {
-        savedGames.unshift(mergedGame);
-    }
-
-    // Save to localStorage using storage service
-    const result = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-    if (result === true) {
-        return true;
-    } else {
-        console.error("Error saving game:", result.message);
-        showNotification("Error saving game: " + result.message, "error");
+    const success = gameStorageManager.upsertGame(gameId, events, metadata);
+    if (!success) {
+        showNotification("Error saving game", "error");
         return false;
     }
+    return true;
 }
 
 
@@ -2193,12 +2110,7 @@ function deleteEvent(eventId) {
     if (idx === -1) return;
     if (!window.confirm('Are you sure you want to delete this event? This cannot be undone.')) return;
     game.events.splice(idx, 1);
-    // Ensure teams property is preserved when saving
-    const metadata = { ...game.metadata, teams: game.teams };
-    saveGame(game.id, game.events, metadata);
-    timelineEvents = game.events;
-    updateEventFilters();
-    renderTimelineEvents();
+    persistGameEventsAndRefresh(game);
     updateQuickTagTicker();
     showNotification('Event deleted', 'info');
 }
@@ -3201,28 +3113,39 @@ domReady(() => {
         });
     }
 
+    function loadVideoFileToPlayer(file) {
+        const player = document.getElementById('video-player');
+        if (!player || !file) return;
+        while (player.firstChild) player.removeChild(player.firstChild);
+        const source = document.createElement('source');
+        source.src = URL.createObjectURL(file);
+        source.type = file.type;
+        player.appendChild(source);
+        player.load();
+        player.play().catch(err => console.warn("Couldn't auto-play video:", err));
+    }
+
+    function handleVideoFileSelection(file) {
+        if (!file) return;
+        if (!file.type.startsWith('video/')) {
+            showNotification('Please select a valid video file', 'error');
+            return;
+        }
+        if (!currentGameId) {
+            const baseName = file.name.replace(/\.[^/.]+$/, '');
+            createNewVideoGame(baseName);
+        } else {
+            autoRenameFromVideo(file.name);
+        }
+        commitDraftGame();
+        loadVideoFileToPlayer(file);
+    }
+
     const uploadDirectInput = document.getElementById('video-upload-direct');
     if (uploadDirectInput) {
         uploadDirectInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            if (!currentGameId) {
-                const baseName = file.name.replace(/\.[^/.]+$/, '');
-                createNewVideoGame(baseName);
-            } else {
-                autoRenameFromVideo(file.name);
-            }
-            commitDraftGame();
-            if (videoPlayer) {
-                const videoUrl = URL.createObjectURL(file);
-                while (videoPlayer.firstChild) videoPlayer.removeChild(videoPlayer.firstChild);
-                const source = document.createElement('source');
-                source.src = videoUrl;
-                source.type = file.type;
-                videoPlayer.appendChild(source);
-                videoPlayer.load();
-                videoPlayer.play().catch(err => console.warn("Couldn't auto-play video:", err));
-            }
+            const file = e.target.files && e.target.files[0];
+            handleVideoFileSelection(file);
         });
     }
 
@@ -3230,47 +3153,8 @@ domReady(() => {
     const videoUploadInput = document.getElementById('video-upload');
     if (videoUploadInput) {
         videoUploadInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            // Check if file is a video
-            if (!file.type.startsWith('video/')) {
-                showNotification('Please select a valid video file', 'error');
-                return;
-            }
-
-            if (!currentGameId) {
-                const baseName = file.name.replace(/\.[^/.]+$/, '');
-                createNewVideoGame(baseName);
-            } else {
-                autoRenameFromVideo(file.name);
-            }
-            commitDraftGame();
-
-            // Create object URL for the file
-            const videoUrl = URL.createObjectURL(file);
-
-            // Set as video source
-            if (videoPlayer) {
-                // Remove any existing sources
-                while (videoPlayer.firstChild) {
-                    videoPlayer.removeChild(videoPlayer.firstChild);
-                }
-
-                // Create and add new source
-                const source = document.createElement('source');
-                source.src = videoUrl;
-                source.type = file.type;
-                videoPlayer.appendChild(source);
-
-                // Reload video with new source
-                videoPlayer.load();
-
-                // Start playing
-                videoPlayer.play().catch(err => {
-                    console.warn("Couldn't auto-play video:", err);
-                });
-            }
+            const file = e.target.files && e.target.files[0];
+            handleVideoFileSelection(file);
         });
     }    
     // Attach Video Modal triggers
@@ -3367,28 +3251,9 @@ domReady(() => {
     const modalFileInput = document.getElementById('video-modal-file-input');
     if (modalFileInput) {
         modalFileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
+            const file = e.target.files && e.target.files[0];
             if (!file) return;
-            if (!file.type.startsWith('video/')) {
-                showNotification('Please select a valid video file', 'error');
-                return;
-            }
-            if (!currentGameId) {
-                const baseName = file.name.replace(/\.[^/.]+$/, '');
-                createNewVideoGame(baseName);
-            } else {
-                autoRenameFromVideo(file.name);
-            }
-            commitDraftGame();
-            if (videoPlayer) {
-                while (videoPlayer.firstChild) videoPlayer.removeChild(videoPlayer.firstChild);
-                const source = document.createElement('source');
-                source.src = URL.createObjectURL(file);
-                source.type = file.type;
-                videoPlayer.appendChild(source);
-                videoPlayer.load();
-                videoPlayer.play().catch(err => console.warn("Couldn't auto-play video:", err));
-            }
+            handleVideoFileSelection(file);
             updateVideoStageOverlays();
             updateCurrentVideoBanner();
             closeAttachVideoModal();

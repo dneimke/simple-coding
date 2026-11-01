@@ -15,6 +15,82 @@ export function generateGameId() {
     return 'game-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
 }
 
+/**
+ * Finds a game by id in a games array
+ * @param {Array} gamesArray
+ * @param {string} gameId
+ * @returns {{ game: Object|null, index: number }}
+ */
+export function findGameInArray(gamesArray, gameId) {
+    if (!Array.isArray(gamesArray)) return { game: null, index: -1 };
+    const index = gamesArray.findIndex(g => g && g.id === gameId);
+    return { game: index >= 0 ? gamesArray[index] : null, index };
+}
+
+function standardizeEvent(evt) {
+    return {
+        ...evt,
+        event: evt.event,
+        timeMs: evt.timeMs,
+        id: evt.id,
+        isFavorite: evt.isFavorite || false,
+        ...(evt.note !== undefined && { note: evt.note }),
+        ...(evt.timestamp !== undefined && { timestamp: evt.timestamp }),
+        ...(evt.lead !== undefined && { lead: evt.lead }),
+        ...(evt.lag !== undefined && { lag: evt.lag })
+    };
+}
+
+function extractTeamsName(existing, metadata) {
+    if (metadata.teams) return metadata.teams;
+    if (existing) {
+        return existing.teams || (existing.metadata && existing.metadata.teams) || null;
+    }
+    return null;
+}
+
+function extractTimestamp(existing) {
+    if (existing) {
+        return existing.timestamp || (existing.metadata && existing.metadata.timestamp) || new Date().toISOString();
+    }
+    return new Date().toISOString();
+}
+
+function calculateElapsedTime(existing, standardEvents) {
+    let maxMs = 0;
+    for (let i = 0; i < standardEvents.length; i++) {
+        const ms = Number(standardEvents[i].timeMs) || 0;
+        if (ms > maxMs) maxMs = ms;
+    }
+    const existingElapsed = Number(existing && existing.elapsedTime) || 0;
+    const reconciled = Math.max(existingElapsed, maxMs);
+    const shouldInclude = (existing && existing.elapsedTime !== undefined) || maxMs > 0;
+    return { reconciled, shouldInclude };
+}
+
+function buildMergedGame(existing, gameId, standardEvents, metadata) {
+    const teamsName = extractTeamsName(existing, metadata);
+    const timestamp = extractTimestamp(existing);
+    const { reconciled, shouldInclude } = calculateElapsedTime(existing, standardEvents);
+
+    const mergedMetadata = Object.assign({}, existing && existing.metadata, metadata, {
+        lastUpdated: new Date().toISOString()
+    });
+
+    const mergedGame = Object.assign({}, existing, {
+        id: gameId,
+        events: standardEvents,
+        teams: teamsName,
+        timestamp,
+        metadata: mergedMetadata
+    });
+
+    if (shouldInclude) {
+        mergedGame.elapsedTime = reconciled;
+    }
+    return mergedGame;
+}
+
 export class GameStorageManager {
     /**
      * Initialize the GameStorageManager
@@ -70,6 +146,42 @@ export class GameStorageManager {
     }
 
     /**
+     * Upserts a game by id with updated events and metadata.
+     * Preserves existing game fields (timestamp, elapsedTime, teams) when present.
+     * @param {string} gameId
+     * @param {Array} events
+     * @param {Object} [metadata]
+     * @returns {boolean} True if saved successfully
+     */
+    upsertGame(gameId, events = [], metadata = {}) {
+        try {
+            const games = this.getAllGames();
+            const standardEvents = events.map(standardizeEvent);
+            const { game: existing, index } = findGameInArray(games, gameId);
+            const mergedGame = buildMergedGame(existing, gameId, standardEvents, metadata);
+
+            if (index >= 0) {
+                games[index] = mergedGame;
+            } else {
+                games.unshift(mergedGame);
+                if (games.length > this.MAX_GAMES) {
+                    games.splice(this.MAX_GAMES);
+                }
+            }
+
+            const result = storageService.setItem(this.STORAGE_KEY, games);
+            if (result === true) {
+                return true;
+            }
+            logger.error('Error saving game:', result.message);
+            return false;
+        } catch (error) {
+            logger.error('Error in GameStorageManager.upsertGame:', error);
+            return false;
+        }
+    }
+
+    /**
      * Gets all saved games from localStorage
      * @returns {Array} Array of game objects
      */
@@ -105,7 +217,6 @@ export class GameStorageManager {
         }
         return games;
     }
-
 
     /**
      * Gets a specific game by its id
@@ -223,7 +334,6 @@ export class GameStorageManager {
         }
     }
 
-
     /**
      * Helper method to determine if error is related to storage quota
      * @private
@@ -239,4 +349,3 @@ export class GameStorageManager {
 
 // Export a singleton instance for easy access
 export const gameStorageManager = new GameStorageManager();
-
