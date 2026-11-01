@@ -1169,4 +1169,96 @@ describe('video coding workflow', () => {
             expect(sweepControls.classList.contains('flex')).toBe(false);
         });
     });
+
+    describe('parseTeamsFromString', () => {
+        test('parses "FIRE vs TIGERS" into two teams with default colors', () => {
+            const teams = mod.parseTeamsFromString('FIRE vs TIGERS');
+            expect(teams).toHaveLength(2);
+            expect(teams[0]).toEqual({ code: 'FIRE', color: 'red' });
+            expect(teams[1]).toEqual({ code: 'TIGERS', color: 'yellow' });
+        });
+
+        test('parses multi-word team names taking the last clean word as team code', () => {
+            const teams = mod.parseTeamsFromString('Adelaide Fire vs Melbourne Tigers');
+            expect(teams).toEqual([
+                { code: 'FIRE', color: 'red' },
+                { code: 'TIGERS', color: 'yellow' }
+            ]);
+        });
+
+        test('handles "v" delimiter and case-insensitivity', () => {
+            const teams = mod.parseTeamsFromString('EAGLES v HAWKS');
+            expect(teams).toEqual([
+                { code: 'EAGLES', color: 'red' },
+                { code: 'HAWKS', color: 'yellow' }
+            ]);
+        });
+
+        test('returns null for invalid, non-string, or non-fixture inputs', () => {
+            expect(mod.parseTeamsFromString(null)).toBeNull();
+            expect(mod.parseTeamsFromString(undefined)).toBeNull();
+            expect(mod.parseTeamsFromString(123)).toBeNull();
+            expect(mod.parseTeamsFromString('Solo Training')).toBeNull();
+            expect(mod.parseTeamsFromString('vs Just One Team')).toBeNull();
+        });
+    });
+
+    describe('Timeline Event DOM Components', () => {
+        test('createTimelineEventSeekButton formats time and labels correctly', () => {
+            const event = {
+                id: 'ev-test',
+                event: 'Circle Entry',
+                timeMs: 75000,
+                labels: [{ group: 'Origin', text: 'Left' }, { group: 'Outcome', text: 'Shot' }],
+                note: 'Fast counter attack'
+            };
+            const btn = mod.createTimelineEventSeekButton(event, 'Circle Entry', '01:15');
+            expect(btn.tagName).toBe('BUTTON');
+            expect(btn.className).toContain('timeline-event-seek');
+            expect(btn.getAttribute('aria-label')).toBe('Play Circle Entry at 01:15');
+
+            const timeSpan = btn.querySelector('.timeline-event-time');
+            expect(timeSpan.textContent).toBe('01:15');
+
+            const labelSpans = btn.querySelectorAll('.timeline-event-label');
+            expect(labelSpans.length).toBe(2);
+            expect(labelSpans[0].textContent).toBe('Left');
+            expect(labelSpans[0].classList.contains('is-origin')).toBe(true);
+            expect(labelSpans[1].textContent).toBe('Shot');
+
+            const notePreview = btn.querySelector('.timeline-event-note-text');
+            expect(notePreview.textContent).toBe('Fast counter attack');
+        });
+
+        test('createTimelineEventCard renders complete card with favorite and menu actions', () => {
+            const event = {
+                id: 'ev-card-1',
+                event: 'Penalty Corner',
+                timeMs: 120000,
+                isFavorite: true,
+                note: 'Direct drag flick'
+            };
+            const card = mod.createTimelineEventCard(event, 0);
+            expect(card.className).toContain('timeline-event');
+            expect(card.dataset.eventId).toBe('ev-card-1');
+
+            // Favorite button
+            const favBtn = card.querySelector('.favorite-toggle');
+            expect(favBtn).not.toBeNull();
+            expect(favBtn.classList.contains('is-favorite')).toBe(true);
+            expect(favBtn.getAttribute('aria-pressed')).toBe('true');
+            expect(favBtn.getAttribute('aria-label')).toBe('Remove from favorites');
+
+            // More options dropdown
+            const moreBtn = card.querySelector('.timeline-event-more-btn');
+            expect(moreBtn).not.toBeNull();
+            expect(moreBtn.getAttribute('aria-haspopup')).toBe('true');
+
+            // Menu items
+            const editBtn = card.querySelector('.edit-note-btn');
+            expect(editBtn.textContent).toContain('Edit Note & Labels');
+            const deleteBtn = card.querySelector('.delete-event-btn');
+            expect(deleteBtn.textContent).toContain('Delete Event');
+        });
+    });
 });
