@@ -1,4 +1,4 @@
-import { updateNavbarVisibility } from '../../src/utils/domUtils.js';
+import { updateNavbarVisibility, setupMobileMenu } from '../../src/utils/domUtils.js';
 
 describe('updateNavbarVisibility', () => {
     beforeEach(() => {
@@ -17,5 +17,46 @@ describe('updateNavbarVisibility', () => {
 
         expect(link.classList.contains('hidden')).toBe(true);
         expect(link.style.display).toBe('');
+    });
+});
+
+describe('setupMobileMenu', () => {
+    beforeEach(() => {
+        jest.useFakeTimers();
+        document.body.innerHTML = `
+            <button id="mobileMenuButton"><i class="fas fa-bars text-xl"></i></button>
+            <div id="mainMenu" class="hidden">
+                <a href="#link1">Link 1</a>
+            </div>
+        `;
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    test('toggles menu open and closed on click', () => {
+        const btn = document.getElementById('mobileMenuButton');
+        const menu = document.getElementById('mainMenu');
+
+        setupMobileMenu(btn, menu);
+        expect(btn.getAttribute('aria-expanded')).toBe('false');
+
+        // Click to open
+        btn.click();
+        jest.advanceTimersByTime(20);
+        expect(menu.classList.contains('hidden')).toBe(false);
+        expect(menu.classList.contains('flex')).toBe(true);
+        expect(btn.getAttribute('aria-expanded')).toBe('true');
+
+        // Click to close
+        btn.click();
+        jest.advanceTimersByTime(250);
+        expect(menu.classList.contains('hidden')).toBe(true);
+        expect(btn.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    test('gracefully handles missing elements', () => {
+        expect(() => setupMobileMenu(null, null)).not.toThrow();
     });
 });

@@ -1,4 +1,5 @@
 import { ChordEngine } from '../utils/chordEngine.js';
+import { bindChordDock } from '../utils/chordDockController.js';
 import { renderTimeline } from './timeline.js';
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
@@ -10,6 +11,23 @@ import { loadLastTeams, saveLastTeams } from '../components/teamSetupDialog.js';
 import { calculateVideoOffset, shiftEventTimings } from '../utils/gameUtils.js';
 import { appendZoneSuffix, stripTrailingZoneDigit, zoneForTeam } from '../utils/zoneUtils.js';
 import { loadConfiguration } from '../components/config.js';
+import { setupMobileMenu } from '../utils/domUtils.js';
+import { PresentationController } from './presentationController.js';
+
+import {
+    validateVideoUrl,
+    updateVideoStageOverlays,
+    updateCurrentVideoBanner,
+    switchAttachVideoTab,
+    openAttachVideoModal,
+    closeAttachVideoModal
+} from './videoSourceManager.js';
+import {
+    shiftGameTimings as execShiftGameTimings,
+    revertGameTimings as execRevertGameTimings,
+    calculateAlignmentState
+} from './videoAlignmentManager.js';
+
 
 const DEFAULT_QUICK_TAGS = [
     { id: 'goal', label: 'Goal', team: 'none', colorClass: 'btn-green', key: '1' },
@@ -36,40 +54,17 @@ let videoChordEngine = null;
 
 function initVideoChordEngine() {
     if (videoChordEngine) return;
-    const dock = document.getElementById('video-chord-dock');
-    const badge = document.getElementById('video-chord-badge');
-    const prompt = document.getElementById('video-chord-prompt');
-    const countdown = document.getElementById('video-chord-countdown');
-    const bar = document.getElementById('video-chord-progress');
-    const pills = document.getElementById('video-chord-pills');
-
-    if (!dock) return;
-
-    videoChordEngine = new ChordEngine({
+    videoChordEngine = bindChordDock({
+        dockElement: document.getElementById('video-chord-dock'),
+        badgeElement: document.getElementById('video-chord-badge'),
+        promptElement: document.getElementById('video-chord-prompt'),
+        countdownElement: document.getElementById('video-chord-countdown'),
+        progressBarElement: document.getElementById('video-chord-progress'),
+        pillsContainer: document.getElementById('video-chord-pills'),
         decayDuration: 1500,
-        onChordStart: (chord) => {
-            if (badge) badge.textContent = chord.event.event || 'Tag';
-            if (prompt) prompt.textContent = chord.schema.prompt || 'Select modifier (1-4)';
-            if (countdown) countdown.textContent = `${(chord.duration / 1000).toFixed(1)}s`;
-            if (bar) bar.style.width = '100%';
-
-            if (pills) {
-                pills.innerHTML = chord.schema.options.map(opt => `
-                    <button type="button" class="chord-action-pill px-3 py-1.5 rounded bg-slate-800 hover:bg-blue-600 text-white font-bold text-xs border border-slate-700 flex items-center gap-1.5 transition active:scale-95" data-chord-key="${opt.key}">
-                        <span>${opt.text}</span>
-                        <span class="text-[10px] opacity-75 font-mono">[${opt.key}]</span>
-                    </button>
-                `).join('');
-            }
-
-            dock.classList.remove('hidden');
-        },
-        onChordTick: ({ remaining, progress }) => {
-            if (countdown) countdown.textContent = `${(remaining / 1000).toFixed(1)}s`;
-            if (bar) bar.style.width = `${Math.max(0, (1 - progress) * 100)}%`;
-        },
-        onChordResolved: ({ event, label }) => {
-            dock.classList.add('hidden');
+        pillClass: 'chord-action-pill px-3 py-1.5 rounded bg-slate-800 hover:bg-blue-600 text-white font-bold text-xs border border-slate-700 flex items-center gap-1.5 transition active:scale-95',
+        keyClass: 'text-[10px] opacity-75 font-mono',
+        onResolved: ({ event, label }) => {
             if (label && currentGameId) {
                 if (!Array.isArray(event.labels)) event.labels = [];
                 event.labels.push(label);
@@ -84,19 +79,8 @@ function initVideoChordEngine() {
                     updateQuickTagTicker();
                 }
             }
-        },
-        onChordCancelled: () => {
-            dock.classList.add('hidden');
         }
     });
-
-    if (pills) {
-        pills.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-chord-key]');
-            if (!btn || !videoChordEngine) return;
-            videoChordEngine.selectOption(btn.dataset.chordKey);
-        });
-    }
 }
 
 const LOCAL_STORAGE_KEY_QUICK_TAGS = 'fieldHockeyVideoQuickTags_v1';
@@ -106,6 +90,8 @@ let activeTypeFilters = new Set();
 let favoritesOnly = false;
 let filterViewMode = 'all'; // 'all' | 'favorites' | 'unlabelled'
 let presentationModeActive = false;
+const presentationController = new PresentationController();
+
 let sweepModeActive = false;
 let currentSweepIndex = 0;
 let sweepEvents = [];
@@ -409,22 +395,7 @@ function quickTagEvent(eventType, note = '') {
     };
     game.events.push(newEvent);
 
-    const metadata = (game && game.metadata) ? { ...game.metadata } : {};
-    saveGame(game.id, game.events, metadata);
-
-    const savedGames = getSavedGames();
-    if (game.teams) {
-        const { game: existing, index } = findGameById(savedGames, game.id);
-        if (existing) {
-            existing.teams = game.teams;
-            savedGames[index] = existing;
-            storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-        }
-    }
-
-    timelineEvents = game.events;
-    updateEventFilters();
-    renderTimelineEvents();
+    persistGameEventsAndRefresh(game);
     updateQuickTagTicker();
 
     showQuickTagFeedback(eventType, ts);
@@ -439,13 +410,8 @@ function quickTagEvent(eventType, note = '') {
 
 // Update note for slow analysis pass
 function updateEventNote(eventId, note) {
-    if (!currentGameId) return false;
-    const savedGames = getSavedGames();
-    const { game } = findGameById(savedGames, currentGameId);
-    if (!game || !Array.isArray(game.events)) return false;
-
-    const event = game.events.find(e => e.id === eventId);
-    if (!event) return false;
+    const { game, event } = findEventInCurrentGame(eventId);
+    if (!game || !event) return false;
 
     event.note = String(note || '').trim();
     const metadata = { ...game.metadata, teams: game.teams };
@@ -457,13 +423,8 @@ function updateEventNote(eventId, note) {
 
 // Nudge or retarget event timestamp
 function retargetEventTime(eventId, timeSeconds) {
-    if (!currentGameId) return false;
-    const savedGames = getSavedGames();
-    const { game } = findGameById(savedGames, currentGameId);
-    if (!game || !Array.isArray(game.events)) return false;
-
-    const event = game.events.find(e => e.id === eventId);
-    if (!event) return false;
+    const { game, event } = findEventInCurrentGame(eventId);
+    if (!game || !event) return false;
 
     const clampedSec = Math.max(0, timeSeconds);
     event.timeMs = Math.round(clampedSec * 1000);
@@ -1315,21 +1276,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 id: generateEventId()
             });
 
-            const metadata = (game && game.metadata) ? { ...game.metadata } : {};
-            saveGame(game.id, game.events, metadata);
-
-            const savedGames = getSavedGames();
-            if (game.teams) {
-                const { game: existing, index } = findGameById(savedGames, game.id);
-                if (existing) {
-                    existing.teams = game.teams;
-                    savedGames[index] = existing;
-                    storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-                }
-            }
-            timelineEvents = game.events;
-            updateEventFilters();
-            renderTimelineEvents();
+            persistGameEventsAndRefresh(game);
             closeModal();
         });
     }
@@ -1372,6 +1319,34 @@ function normalizeSavedGamesToArray(raw) {
     return { games: [], changed: false };
 }
 
+function findEventInCurrentGame(eventId) {
+    if (!currentGameId) return { game: null, event: null };
+    const savedGames = getSavedGames();
+    const { game } = findGameById(savedGames, currentGameId);
+    if (!game || !Array.isArray(game.events)) return { game: null, event: null };
+    const event = game.events.find(e => e.id === eventId);
+    return { game, event };
+}
+
+function persistGameEventsAndRefresh(game, metadata = {}) {
+    const meta = (game && game.metadata) ? { ...game.metadata, ...metadata } : { ...metadata };
+    saveGame(game.id, game.events, meta);
+
+    const savedGames = getSavedGames();
+    if (game.teams) {
+        const { game: existing, index } = findGameById(savedGames, game.id);
+        if (existing) {
+            existing.teams = game.teams;
+            savedGames[index] = existing;
+            storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        }
+    }
+
+    timelineEvents = game.events;
+    updateEventFilters();
+    renderTimelineEvents();
+}
+
 function findGameById(gamesArray, gameId) {
     if (!Array.isArray(gamesArray)) return { game: null, index: -1 };
     const index = gamesArray.findIndex(g => g && g.id === gameId);
@@ -1389,38 +1364,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initLabelSweep();
 });
 
-// Initialize mobile menu functionality
 function initMobileMenu() {
-    const mobileMenuButton = document.getElementById('mobileMenuButton');
-    const mainMenu = document.getElementById('mainMenu');
-
-    if (mobileMenuButton && mainMenu) {
-        mobileMenuButton.addEventListener('click', () => {
-            const isOpen = !mainMenu.classList.contains('hidden');
-
-            if (isOpen) {
-                // Close menu with smooth transition
-                mainMenu.classList.add('opacity-0');
-                setTimeout(() => {
-                    mainMenu.classList.add('hidden');
-                    mainMenu.classList.remove('opacity-0');
-                }, 200);
-                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-                mobileMenuButton.setAttribute('aria-expanded', 'false');
-            } else {
-                // Open menu with smooth transition
-                mainMenu.classList.remove('hidden');
-                // Small delay to allow the display change before starting opacity transition
-                setTimeout(() => {
-                    mainMenu.classList.add('flex');
-                }, 10);
-                mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
-                mobileMenuButton.setAttribute('aria-expanded', 'true');
-            }
-        });
-    }
-    // Initialize with menu closed
-    mobileMenuButton.setAttribute('aria-expanded', 'false');
+    setupMobileMenu('#mobileMenuButton', '#mainMenu');
 }
 
 // Initialize favorites UI and handlers
@@ -1448,161 +1393,38 @@ function initFavoritesUI() {
     }
 }
 
-// Initialize presentation mode functionality
 function initPresentationMode() {
-    const presentationModeBtn = document.getElementById('presentation-mode');
-    const playlistControls = document.getElementById('playlist-controls');
-    const prevFavoriteBtn = document.getElementById('prev-favorite');
-    const nextFavoriteBtn = document.getElementById('next-favorite');
-
-    if (presentationModeBtn && playlistControls) {
-        presentationModeBtn.addEventListener('click', () => {
-            togglePresentationMode();
-        });
-
-        if (prevFavoriteBtn && nextFavoriteBtn) {
-            prevFavoriteBtn.addEventListener('click', () => {
-                navigatePlaylist('previous');
-            });
-
-            nextFavoriteBtn.addEventListener('click', () => {
-                navigatePlaylist('next');
-            });
-        }
-    }
+    presentationController.init({
+        onToggle: () => togglePresentationMode(),
+        onNavigate: (dir) => navigatePlaylist(dir)
+    });
 }
 
-// Toggle between presentation mode and normal mode
+// Presentation mode delegates to PresentationController
 function togglePresentationMode() {
-    presentationModeActive = !presentationModeActive;
-    const presentationModeBtn = document.getElementById('presentation-mode');
-    const playlistControls = document.getElementById('playlist-controls');
-    const timelineContainer = document.getElementById('timeline-container');
-
-    if (presentationModeActive) {
-        // First, filter out only favorite events
-        favoriteEvents = timelineEvents.filter(event => event.isFavorite);
-
-        // Ensure all favorite events have a unique id
-        favoriteEvents.forEach((evt, idx) => {
-            if (!evt.id) evt.id = `event-fav-${idx}`;
-        });
-
-        // If no favorites, show notification and exit presentation mode
-        if (favoriteEvents.length === 0) {
-            showNotification('Add some favorites first to start a presentation', 'warning');
-            presentationModeActive = false;
-            return;
-        }
-
-        // Enter presentation mode
-        presentationModeBtn.classList.add('is-active');
-        presentationModeBtn.setAttribute('aria-pressed', 'true');
-        playlistControls.classList.replace('hidden', 'flex');
-
-        // Give the video the full width
-        timelineContainer.classList.add('hidden');
-
-        // Reset playlist position and navigate to first favorite
-        currentPlaylistIndex = 0;
-        updatePlaylistCounter();
-        // Render timeline filtered to favorites before jumping
-        setFavoritesOnly(true);
-        if (favoriteEvents.length > 0) {
-            setTimeout(() => {
-                jumpToEventTime(favoriteEvents[0]);
-            }, 50); // Allow DOM update
-        }
-    } else {
-        // Exit presentation mode
-        presentationModeBtn.classList.remove('is-active');
-        presentationModeBtn.setAttribute('aria-pressed', 'false');
-        playlistControls.classList.replace('flex', 'hidden');
-
-        // Restore original layout
-        timelineContainer.classList.remove('hidden');
-
-        // Hide overlay when exiting presentation mode
-        updatePresentationOverlay(null);
-    }
+    const ctrl = presentationController;
+    ctrl.toggle(timelineEvents);
+    presentationModeActive = ctrl.isActive;
+    favoriteEvents = ctrl.favoriteEvents;
+    currentPlaylistIndex = ctrl.currentIndex;
 }
 
-// Navigate through the playlist of favorite events
 function navigatePlaylist(direction) {
-    if (favoriteEvents.length === 0) return;
-
-    if (direction === 'next') {
-        currentPlaylistIndex = (currentPlaylistIndex + 1) % favoriteEvents.length;
-    } else {
-        currentPlaylistIndex = (currentPlaylistIndex - 1 + favoriteEvents.length) % favoriteEvents.length;
-    }
-
-    updatePlaylistCounter();
-    jumpToEventTime(favoriteEvents[currentPlaylistIndex]);
+    const ctrl = presentationController;
+    ctrl.navigate(direction);
+    currentPlaylistIndex = ctrl.currentIndex;
 }
 
-// Update the playlist counter display
 function updatePlaylistCounter() {
-    const counter = document.getElementById('playlist-counter');
-    if (counter && favoriteEvents.length > 0) {
-        counter.textContent = `${currentPlaylistIndex + 1}/${favoriteEvents.length}`;
-    }
+    presentationController.updateCounter();
 }
 
-// Jump to a specific event time in the video
 function jumpToEventTime(event) {
-    const videoPlayer = document.getElementById('video-player');
-    if (!videoPlayer || !event || !event.timeMs) return;
-
-    // Convert milliseconds to seconds
-    const timeSeconds = event.timeMs / 1000;
-    videoPlayer.currentTime = timeSeconds;
-
-    // Start playing from this point
-    videoPlayer.play().catch(e => console.error("Error playing video:", e));
-
-    // Highlight the event in the timeline (fallback if id is missing)
-    if (event.id) {
-        highlightTimelineEvent(event.id);
-    } else {
-        // Try to highlight by time if id is missing
-        const events = document.querySelectorAll('.timeline-event');
-        for (const el of events) {
-            if (el.textContent.includes(formatTime(event.timeMs))) {
-                el.classList.add('is-active');
-                if (typeof el.scrollIntoView === 'function') {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-                break;
-            }
-        }
-    }
-
-    // Show overlay with tag and description if in presentation mode
-    updatePresentationOverlay(event);
+    presentationController.jumpToEvent(event);
 }
 
-// Update the presentation overlay with tag and description
 function updatePresentationOverlay(event) {
-    const overlay = document.getElementById('presentation-overlay');
-    const tag = document.getElementById('presentation-tag');
-    const desc = document.getElementById('presentation-description');
-    if (!overlay || !tag || !desc) {
-        console.warn('Presentation overlay elements not found.');
-        return;
-    }
-
-    // Debug: Log event and mode
-    console.log('updatePresentationOverlay called', { presentationModeActive, event });
-
-    // Only show overlay in presentation mode
-    if (presentationModeActive && event) {
-        tag.textContent = formatEventTypeName(event.event);
-        desc.textContent = event.note || '';
-        overlay.classList.remove('hidden');
-    } else {
-        overlay.classList.add('hidden');
-    }
+    presentationController.updateOverlay(event);
 }
 
 // Highlight the current event in the timeline
@@ -1997,13 +1819,8 @@ function applySweepLabel(group, text) {
 }
 
 function updateEventLabel(eventId, group, text) {
-    if (!currentGameId) return false;
-    const savedGames = getSavedGames();
-    const { game } = findGameById(savedGames, currentGameId);
-    if (!game || !Array.isArray(game.events)) return false;
-
-    const event = game.events.find(e => e.id === eventId);
-    if (!event) return false;
+    const { game, event } = findEventInCurrentGame(eventId);
+    if (!game || !event) return false;
 
     if (!Array.isArray(event.labels)) event.labels = [];
     const existingIndex = event.labels.findIndex(l => l.group === group);
@@ -2122,122 +1939,7 @@ function saveGame(gameId, events, metadata = {}) {
 
 // --- Video URL & Source Management ---
 
-function validateVideoUrl(url) {
-    if (!url || typeof url !== 'string' || !url.trim()) {
-        return { valid: false, error: 'Please enter a valid video link' };
-    }
-    const clean = url.trim();
-    try {
-        const parsed = new URL(clean);
-        if (!['http:', 'https:'].includes(parsed.protocol)) {
-            return { valid: false, error: 'Please enter an http or https video link' };
-        }
-        const host = parsed.hostname.toLowerCase();
-        if (host.includes('youtube.com') || host.includes('youtu.be')) {
-            return {
-                valid: true,
-                isSupportedDirect: false,
-                warning: 'YouTube watch pages cannot be controlled for frame-accurate hockey coding. Please supply a direct MP4/WebM video stream or downloaded video file.'
-            };
-        }
-        if (host.includes('vimeo.com')) {
-            return {
-                valid: true,
-                isSupportedDirect: false,
-                warning: 'Vimeo watch pages require direct MP4/WebM links to support frame seeking and playback speeds.'
-            };
-        }
-        return {
-            valid: true,
-            isSupportedDirect: true
-        };
-    } catch (_) {
-        return { valid: false, error: 'Please enter a complete, valid URL (e.g. https://example.com/video.mp4)' };
-    }
-}
-
-function updateVideoStageOverlays() {
-    const video = document.getElementById('video-player');
-    const emptyOverlay = document.getElementById('video-stage-empty-overlay');
-    const errorOverlay = document.getElementById('video-error-overlay');
-    const hasSource = Boolean(video && (video.currentSrc || video.src || video.querySelector('source')));
-
-    if (emptyOverlay) {
-        emptyOverlay.classList.toggle('hidden', hasSource);
-    }
-    if (errorOverlay && !hasSource) {
-        errorOverlay.classList.add('hidden');
-    }
-}
-
-function updateCurrentVideoBanner() {
-    const banner = document.getElementById('current-video-banner');
-    const textEl = document.getElementById('current-video-source-text');
-    const video = document.getElementById('video-player');
-    const game = getCurrentGame();
-
-    const currentSrc = (game && (game.videoUrl || (game.metadata && game.metadata.videoUrl))) ||
-                       (video && (video.src || video.currentSrc || ''));
-
-    if (banner && textEl) {
-        if (currentSrc) {
-            banner.classList.remove('hidden');
-            textEl.textContent = currentSrc.length > 40 ? (currentSrc.slice(0, 37) + '...') : currentSrc;
-            textEl.title = currentSrc;
-        } else {
-            banner.classList.add('hidden');
-            textEl.textContent = '';
-        }
-    }
-}
-
-function switchAttachVideoTab(tab = 'url') {
-    const tabUrl = document.getElementById('tab-attach-url');
-    const tabFile = document.getElementById('tab-attach-file');
-    const panelUrl = document.getElementById('panel-attach-url');
-    const panelFile = document.getElementById('panel-attach-file');
-
-    if (tab === 'file') {
-        if (tabFile) {
-            tabFile.classList.add('is-active');
-            tabFile.setAttribute('aria-selected', 'true');
-        }
-        if (tabUrl) {
-            tabUrl.classList.remove('is-active');
-            tabUrl.setAttribute('aria-selected', 'false');
-        }
-        if (panelFile) panelFile.classList.remove('hidden');
-        if (panelUrl) panelUrl.classList.add('hidden');
-    } else {
-        if (tabUrl) {
-            tabUrl.classList.add('is-active');
-            tabUrl.setAttribute('aria-selected', 'true');
-        }
-        if (tabFile) {
-            tabFile.classList.remove('is-active');
-            tabFile.setAttribute('aria-selected', 'false');
-        }
-        if (panelUrl) panelUrl.classList.remove('hidden');
-        if (panelFile) panelFile.classList.add('hidden');
-        const input = document.getElementById('video-url-input');
-        if (input) setTimeout(() => input.focus(), 100);
-    }
-}
-
-function openAttachVideoModal(initialTab = 'url') {
-    const modal = document.getElementById('attach-video-modal');
-    if (!modal) return;
-    switchAttachVideoTab(initialTab);
-    updateCurrentVideoBanner();
-    modal.classList.remove('hidden');
-}
-
-function closeAttachVideoModal() {
-    const modal = document.getElementById('attach-video-modal');
-    if (modal) modal.classList.add('hidden');
-    const warning = document.getElementById('video-url-warning');
-    if (warning) warning.classList.add('hidden');
-}
+// Video URL & source modal functions imported from ./videoSourceManager.js
 
 function attachVideoUrl(url, options = { saveToStorage: true }) {
     const validation = validateVideoUrl(url);
@@ -2504,88 +2206,22 @@ function deleteEvent(eventId) {
 
 // Shift all event timings for a game (in-place or duplicate copy)
 function shiftGameTimings(gameId, offsetMs, createCopy = false) {
-    const savedGames = getSavedGames();
-    const { game, index } = findGameById(savedGames, gameId);
-    if (!game || !Array.isArray(game.events) || game.events.length === 0) return null;
-
-    const shiftedEvents = shiftEventTimings(game.events, offsetMs);
-
-    if (createCopy) {
-        const newGameId = generateGameId();
-        const baseTitle = game.title || game.teams || 'Match';
-        const newTitle = `${baseTitle} (Video Aligned)`;
-        const newGame = {
-            ...JSON.parse(JSON.stringify(game)),
-            id: newGameId,
-            title: newTitle,
-            teams: game.teams || baseTitle,
-            events: shiftedEvents,
-            metadata: {
-                ...(game.metadata || {}),
-                videoOffsetMs: offsetMs,
-                originalGameId: game.id,
-                alignedAt: new Date().toISOString()
-            }
-        };
-        savedGames.unshift(newGame);
-        const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-        if (saveRes !== true) {
-            notificationService.notify(saveRes?.message || 'Storage full: could not save aligned match copy', 'error');
-            return null;
-        }
-        return { success: true, game: newGame, isCopy: true };
-    } else {
-        const originalBackup = game.metadata?.backupEvents || JSON.parse(JSON.stringify(game.events));
-        game.events = shiftedEvents;
-        game.metadata = {
-            ...(game.metadata || {}),
-            videoOffsetMs: (game.metadata?.videoOffsetMs || 0) + offsetMs,
-            backupEvents: originalBackup,
-            alignedAt: new Date().toISOString()
-        };
-        savedGames[index] = game;
-        const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-        if (saveRes !== true) {
-            notificationService.notify(saveRes?.message || 'Storage full: could not save shifted match', 'error');
-            return null;
-        }
-
-        // Keep draft in sync if currently active
-        if (currentDraftGame && currentDraftGame.id === game.id) {
-            currentDraftGame.events = game.events;
-            currentDraftGame.metadata = game.metadata;
-        }
-
-        timelineEvents = game.events;
-        return { success: true, game, isCopy: false };
-    }
+    return execShiftGameTimings(gameId, offsetMs, createCopy, {
+        getSavedGames,
+        findGameById,
+        getCurrentDraftGame: () => currentDraftGame,
+        updateCurrentDraftEvents: (evts) => { timelineEvents = evts; }
+    });
 }
 
-// Revert shifted game timings back to pre-shift live capture state
 function revertGameTimings(gameId) {
-    const savedGames = getSavedGames();
-    const { game, index } = findGameById(savedGames, gameId);
-    if (!game || !game.metadata?.backupEvents) return null;
-
-    game.events = JSON.parse(JSON.stringify(game.metadata.backupEvents));
-    delete game.metadata.backupEvents;
-    delete game.metadata.videoOffsetMs;
-    savedGames[index] = game;
-    const saveRes = storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-    if (saveRes !== true) {
-        notificationService.notify(saveRes?.message || 'Failed to revert game timings in storage', 'error');
-        return null;
-    }
-
-    if (currentDraftGame && currentDraftGame.id === game.id) {
-        currentDraftGame.events = game.events;
-        currentDraftGame.metadata = game.metadata;
-    }
-
-    timelineEvents = game.events;
-    return { success: true, game };
+    return execRevertGameTimings(gameId, {
+        getSavedGames,
+        findGameById,
+        getCurrentDraftGame: () => currentDraftGame,
+        updateCurrentDraftEvents: (evts) => { timelineEvents = evts; }
+    });
 }
-
 // Initialize the Align Video modal and event wiring
 function initAlignVideoModal() {
     const alignBtn = document.getElementById('align-video-btn');
@@ -2683,57 +2319,36 @@ function initAlignVideoModal() {
         });
     }
 
-    if (shiftInplaceBtn) {
-        shiftInplaceBtn.addEventListener('click', () => {
-            const video = document.getElementById('video-player');
-            const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
-            if (!videoLoaded) {
-                notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
-                return;
-            }
-            const game = getCurrentGame();
-            if (!game || !game.events?.length) return;
-            const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
-            const videoSec = video ? (video.currentTime || 0) : 0;
-            const firstSec = (sortedEvents[0].timeMs || 0) / 1000;
-            const offset = calculateVideoOffset(videoSec, firstSec);
+    function handleShiftExecution(createCopy) {
+        const video = document.getElementById('video-player');
+        const state = calculateAlignmentState(video, getCurrentGame());
+        if (!state) return;
+        const { offset, game } = state;
 
-            const result = shiftGameTimings(game.id, offset.offsetMs, false);
-            if (result && result.success) {
-                closeModal();
-                renderTimelineEvents();
-                updateQuickTagTicker();
-                updateEventFilters();
-                notificationService.notify(`Shifted ${game.events.length} events by ${offset.formatted}`, 'success');
-            }
-        });
-    }
-
-    if (shiftCopyBtn) {
-        shiftCopyBtn.addEventListener('click', () => {
-            const video = document.getElementById('video-player');
-            const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
-            if (!videoLoaded) {
-                notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
-                return;
-            }
-            const game = getCurrentGame();
-            if (!game || !game.events?.length) return;
-            const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
-            const videoSec = video ? (video.currentTime || 0) : 0;
-            const firstSec = (sortedEvents[0].timeMs || 0) / 1000;
-            const offset = calculateVideoOffset(videoSec, firstSec);
-
-            const result = shiftGameTimings(game.id, offset.offsetMs, true);
-            if (result && result.success && result.game) {
-                closeModal();
+        const result = shiftGameTimings(game.id, offset.offsetMs, createCopy);
+        if (result && result.success) {
+            closeModal();
+            if (createCopy && result.game) {
                 notificationService.notify(`Created shifted copy "${result.game.title}" (${offset.formatted})`, 'success');
                 loadGame(result.game.id);
                 const url = new URL(window.location.href);
                 url.searchParams.set('game', result.game.id);
                 window.history.pushState({}, '', url.toString());
+            } else {
+                renderTimelineEvents();
+                updateQuickTagTicker();
+                updateEventFilters();
+                notificationService.notify(`Shifted ${game.events.length} events by ${offset.formatted}`, 'success');
             }
-        });
+        }
+    }
+
+    if (shiftInplaceBtn) {
+        shiftInplaceBtn.addEventListener('click', () => handleShiftExecution(false));
+    }
+
+    if (shiftCopyBtn) {
+        shiftCopyBtn.addEventListener('click', () => handleShiftExecution(true));
     }
 
     if (revertBtn) {

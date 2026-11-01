@@ -1,11 +1,12 @@
 import { ChordEngine } from './utils/chordEngine.js';
+import { bindChordDock } from './utils/chordDockController.js';
 import { EventButtons } from './components/eventButtons.js';
 import { EventLog } from './components/eventLog.js';
 import { GameState } from './components/gameState.js';
 import { Router } from './components/router.js';
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
-import { updateNavbarVisibility } from './utils/domUtils.js';
+import { updateNavbarVisibility, setupMobileMenu } from './utils/domUtils.js';
 import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard, mergeXmlEventStreams } from './utils/xmlUtils.js';
 import { showPreview, showAppendPreview, appendEventsToGame } from './utils/importUtils.js';
@@ -34,42 +35,16 @@ import { gameStorageManager } from './services/gameStorageManager.js';
 let liveChordEngine = null;
 
 function initLiveChordEngine() {
-    console.log("initLiveChordEngine CALLED, dock exists:", !!document.getElementById("chordThumbDock"));
     if (liveChordEngine) return;
-    const dock = document.getElementById('chordThumbDock');
-    const badge = document.getElementById('chordEventBadge');
-    const prompt = document.getElementById('chordPromptText');
-    const countdown = document.getElementById('chordCountdownText');
-    const bar = document.getElementById('chordProgressBar');
-    const pillsContainer = document.getElementById('chordPillsContainer');
-
-    if (!dock) return;
-
-    liveChordEngine = new ChordEngine({
+    liveChordEngine = bindChordDock({
+        dockElement: document.getElementById('chordThumbDock'),
+        badgeElement: document.getElementById('chordEventBadge'),
+        promptElement: document.getElementById('chordPromptText'),
+        countdownElement: document.getElementById('chordCountdownText'),
+        progressBarElement: document.getElementById('chordProgressBar'),
+        pillsContainer: document.getElementById('chordPillsContainer'),
         decayDuration: 3500,
-        onChordStart: (chord) => {
-            if (badge) badge.textContent = chord.event.event || chord.event.eventCode;
-            if (prompt) prompt.textContent = chord.schema.prompt || 'Select modifier';
-            if (countdown) countdown.textContent = `${(chord.duration / 1000).toFixed(1)}s`;
-            if (bar) bar.style.width = '100%';
-
-            if (pillsContainer) {
-                pillsContainer.innerHTML = chord.schema.options.map(opt => `
-                    <button type="button" class="chord-action-pill" data-chord-key="${opt.key}">
-                        <span>${opt.text}</span>
-                        <span class="chord-pill-key">[${opt.key}]</span>
-                    </button>
-                `).join('');
-            }
-
-            dock.classList.remove('hidden');
-        },
-        onChordTick: ({ remaining, progress }) => {
-            if (countdown) countdown.textContent = `${(remaining / 1000).toFixed(1)}s`;
-            if (bar) bar.style.width = `${Math.max(0, (1 - progress) * 100)}%`;
-        },
-        onChordResolved: ({ event, label }) => {
-            dock.classList.add('hidden');
+        onResolved: ({ label }) => {
             if (label) {
                 gameState.updateLastEvent({ labels: [label] });
                 saveCaptureDraft();
@@ -81,19 +56,8 @@ function initLiveChordEngine() {
                     lastBar.classList.add('glance-flash');
                 }
             }
-        },
-        onChordCancelled: () => {
-            dock.classList.add('hidden');
         }
     });
-
-    if (pillsContainer) {
-        pillsContainer.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-chord-key]');
-            if (!btn || !liveChordEngine) return;
-            liveChordEngine.selectOption(btn.dataset.chordKey);
-        });
-    }
 }
 
 import { checkStorageQuota } from './utils/storageWarningUtils.js';
@@ -1134,46 +1098,7 @@ if (typeof document !== 'undefined' && document.readyState === 'loading') {
  * Initialize the mobile menu toggle and its behavior
  */
 function initMobileMenu() {
-    // Mobile menu toggle with animation
-    mobileMenuButton.addEventListener('click', () => {
-        const isOpen = !mainMenu.classList.contains('hidden');
-
-        if (isOpen) {
-            // Close menu with smooth transition
-            mainMenu.classList.add('opacity-0');
-            setTimeout(() => {
-                mainMenu.classList.add('hidden');
-                mainMenu.classList.remove('opacity-0');
-            }, 200);
-            mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-        } else {
-            // Open menu with smooth transition
-            mainMenu.classList.remove('hidden');
-            // Small delay to allow the display change before starting opacity transition
-            setTimeout(() => {
-                mainMenu.classList.add('flex');
-            }, 10);
-            mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
-            mobileMenuButton.setAttribute('aria-expanded', 'true');
-        }
-    });
-
-    // Handle mobile menu item clicks (close menu after click)
-    const navLinks = mainMenu.querySelectorAll('a');
-    navLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            if (window.innerWidth < 768) { // Only on mobile
-                // Close menu with animation
-                mainMenu.classList.add('opacity-0');
-                setTimeout(() => {
-                    mainMenu.classList.add('hidden');
-                    mainMenu.classList.remove('opacity-0', 'flex');
-                }, 200);
-                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-                mobileMenuButton.setAttribute('aria-expanded', 'false');
-            }
-        });
-    });
+    setupMobileMenu(mobileMenuButton, mainMenu);
 
     // Handle mobile brand link
     if (navEventCaptureMobile) {
@@ -1182,24 +1107,6 @@ function initMobileMenu() {
             window.router.showView('SavedGames');
         });
     }
-
-    // Handle window resize to show/hide menu appropriately
-    window.addEventListener('resize', () => {
-        if (window.innerWidth >= 768) {
-            // Desktop view - ensure menu is visible
-            mainMenu.classList.remove('hidden');
-            mainMenu.classList.add('flex');
-        } else if (!mainMenu.classList.contains('hidden')) {
-            // Mobile view - hide menu if it was open
-            mainMenu.classList.add('hidden');
-            mainMenu.classList.remove('flex');
-            mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-            mobileMenuButton.setAttribute('aria-expanded', 'false');
-        }
-    });
-
-    // Set initial ARIA state
-    mobileMenuButton.setAttribute('aria-expanded', 'false');
 }
 
 initializeApplication();
