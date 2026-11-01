@@ -467,37 +467,40 @@ function seekRelative(seconds) {
     }
 }
 
+function parseTeamsFromString(teamsStr) {
+    if (typeof teamsStr !== 'string') return null;
+    const parts = teamsStr.split(/\s+(?:vs\.?|v)\s+/i);
+    if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim()) return null;
+    const cleanCode = (str) => {
+        const words = str.trim().split(/\s+/);
+        const code = words[words.length - 1].toUpperCase().replace(/[^A-Z0-9]/g, '');
+        return code || 'TEAM';
+    };
+    let last = [];
+    try { last = loadLastTeams(); } catch (_) {}
+    return [
+        { code: cleanCode(parts[0]), color: last?.[0]?.color || 'red' },
+        { code: cleanCode(parts[1]), color: last?.[1]?.color || 'yellow' }
+    ];
+}
+
 // Get current match teams (team1, team2) with code and color
 function getMatchTeams() {
     const game = getCurrentGame();
-    if (game && game.metadata && Array.isArray(game.metadata.teamsData) && game.metadata.teamsData.length === 2) {
-        return game.metadata.teamsData;
+    const meta = game?.metadata;
+    if (Array.isArray(meta?.teamsData) && meta.teamsData.length === 2) {
+        return meta.teamsData;
     }
-    if (game && game.metadata && Array.isArray(game.metadata.teamCodes) && game.metadata.teamCodes.length >= 2) {
-        const colors = game.metadata.teamColors || ['red', 'yellow'];
+    if (Array.isArray(meta?.teamCodes) && meta.teamCodes.length >= 2) {
+        const colors = meta.teamColors || ['red', 'yellow'];
         return [
-            { code: game.metadata.teamCodes[0], color: colors[0] || 'red' },
-            { code: game.metadata.teamCodes[1], color: colors[1] || 'yellow' }
+            { code: meta.teamCodes[0], color: colors[0] || 'red' },
+            { code: meta.teamCodes[1], color: colors[1] || 'yellow' }
         ];
     }
-    if (game && typeof game.teams === 'string') {
-        const parts = game.teams.split(/\s+(?:vs\.?|v)\s+/i);
-        if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
-            const cleanCode = (str) => {
-                const words = str.trim().split(/\s+/);
-                const code = words[words.length - 1].toUpperCase().replace(/[^A-Z0-9]/g, '');
-                return code || 'TEAM';
-            };
-            const code1 = cleanCode(parts[0]);
-            const code2 = cleanCode(parts[1]);
-            let last = [];
-            try { last = loadLastTeams(); } catch (_) {}
-            return [
-                { code: code1, color: (last && last[0] && last[0].color) || 'red' },
-                { code: code2, color: (last && last[1] && last[1].color) || 'yellow' }
-            ];
-        }
-    }
+    const fromString = parseTeamsFromString(game?.teams);
+    if (fromString) return fromString;
+
     try {
         const last = loadLastTeams();
         if (Array.isArray(last) && last.length === 2) return last;
@@ -2186,38 +2189,35 @@ function initAlignVideoModal() {
         const firstEvent = sortedEvents[0];
         const lastEvent = sortedEvents[sortedEvents.length - 1];
         const firstSec = (firstEvent.timeMs || 0) / 1000;
-
         const offset = calculateVideoOffset(videoSec, firstSec);
 
-        const playheadDisp = document.getElementById('align-video-playhead-display');
-        const firstEventName = document.getElementById('align-first-event-name');
-        const firstEventTime = document.getElementById('align-first-event-time');
-        const offsetDisp = document.getElementById('align-offset-display');
-        const countDisp = document.getElementById('align-event-count');
-        const shiftAmountDisp = document.getElementById('align-shift-amount');
-        const previewFirst = document.getElementById('align-preview-first');
-        const previewFirstNew = document.getElementById('align-preview-first-new');
-        const previewLast = document.getElementById('align-preview-last');
-        const previewLastNew = document.getElementById('align-preview-last-new');
-        const revertContainer = document.getElementById('align-revert-container');
+        const firstMs = firstEvent.timeMs || 0;
+        const lastMs = lastEvent.timeMs || 0;
 
-        if (playheadDisp) playheadDisp.textContent = formatTime(videoSec);
-        if (firstEventName) firstEventName.textContent = formatEventTypeName(firstEvent.event);
-        if (firstEventTime) firstEventTime.textContent = firstEvent.timestamp || formatTime(firstEvent.timeMs);
+        const textMap = {
+            'align-video-playhead-display': formatTime(videoSec),
+            'align-first-event-name': formatEventTypeName(firstEvent.event),
+            'align-first-event-time': firstEvent.timestamp || formatTime(firstEvent.timeMs),
+            'align-event-count': String(game.events.length),
+            'align-shift-amount': offset.formatted,
+            'align-preview-first': firstEvent.timestamp || formatTime(firstMs),
+            'align-preview-first-new': formatTime(Math.max(0, firstMs + offset.offsetMs)),
+            'align-preview-last': lastEvent.timestamp || formatTime(lastMs),
+            'align-preview-last-new': formatTime(Math.max(0, lastMs + offset.offsetMs))
+        };
+
+        for (const [id, text] of Object.entries(textMap)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+
+        const offsetDisp = document.getElementById('align-offset-display');
         if (offsetDisp) {
             offsetDisp.textContent = `${offset.formatted} (${offset.offsetSec >= 0 ? '+' : ''}${offset.offsetSec}s)`;
             offsetDisp.className = `font-mono text-sm font-bold ${offset.offsetSec >= 0 ? 'text-blue-600' : 'text-amber-600'}`;
         }
-        if (countDisp) countDisp.textContent = game.events.length;
-        if (shiftAmountDisp) shiftAmountDisp.textContent = offset.formatted;
 
-        const firstMs = firstEvent.timeMs || 0;
-        const lastMs = lastEvent.timeMs || 0;
-        if (previewFirst) previewFirst.textContent = firstEvent.timestamp || formatTime(firstMs);
-        if (previewFirstNew) previewFirstNew.textContent = formatTime(Math.max(0, firstMs + offset.offsetMs));
-        if (previewLast) previewLast.textContent = lastEvent.timestamp || formatTime(lastMs);
-        if (previewLastNew) previewLastNew.textContent = formatTime(Math.max(0, lastMs + offset.offsetMs));
-
+        const revertContainer = document.getElementById('align-revert-container');
         if (revertContainer) {
             revertContainer.classList.toggle('hidden', !game.metadata?.backupEvents);
         }
@@ -2282,329 +2282,326 @@ function initAlignVideoModal() {
     }
 }
 
-// Render timeline with current events (sorted with earliest events at the top)
-function renderTimelineEvents() {
-    const timelineContainerId = 'timeline-events';
-    const timelineContainer = document.getElementById(timelineContainerId);
+function createTimelineEventSeekButton(event, eventName, timeFormatted) {
+    const seekButton = document.createElement('button');
+    seekButton.type = 'button';
+    seekButton.className = 'timeline-event-seek';
+    seekButton.setAttribute('aria-label', `Play ${eventName} at ${timeFormatted}`);
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'timeline-event-time';
+    timeEl.textContent = timeFormatted;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'timeline-event-name flex items-center gap-1 min-w-0';
+    const nameText = document.createElement('span');
+    nameText.className = 'timeline-event-title-text';
+    nameText.textContent = eventName;
+    nameEl.appendChild(nameText);
+
+    if (Array.isArray(event.labels) && event.labels.length > 0) {
+        const labelsWrapper = document.createElement('span');
+        labelsWrapper.className = 'timeline-event-labels';
+        event.labels.forEach(lbl => {
+            const pill = document.createElement('span');
+            pill.className = `timeline-event-label${lbl.group === 'Origin' ? ' is-origin' : ''}`;
+            pill.textContent = lbl.text;
+            pill.title = `${lbl.group}: ${lbl.text}`;
+            labelsWrapper.appendChild(pill);
+        });
+        nameEl.appendChild(labelsWrapper);
+    }
+
+    if (event.note) {
+        const notePreview = document.createElement('span');
+        notePreview.className = 'timeline-event-note-text block w-full text-xs text-slate-500 font-normal truncate';
+        notePreview.textContent = String(event.note);
+        nameEl.appendChild(notePreview);
+    }
+
+    seekButton.append(timeEl, nameEl);
+    return seekButton;
+}
+
+function createTimelineEventActions(eventElementId, note, isFavorite) {
+    const favoriteBtn = document.createElement('button');
+    favoriteBtn.type = 'button';
+    favoriteBtn.className = `favorite-toggle timeline-event-action${isFavorite ? ' is-favorite' : ''}`;
+    favoriteBtn.dataset.eventId = eventElementId;
+    favoriteBtn.setAttribute('aria-label', isFavorite ? 'Remove from favorites' : 'Add to favorites');
+    favoriteBtn.setAttribute('aria-pressed', isFavorite ? 'true' : 'false');
+    const favoriteIcon = document.createElement('i');
+    favoriteIcon.className = isFavorite ? 'fas fa-star' : 'far fa-star';
+    favoriteIcon.setAttribute('aria-hidden', 'true');
+    favoriteBtn.appendChild(favoriteIcon);
+
+    const moreWrapper = document.createElement('div');
+    moreWrapper.className = 'timeline-event-more-wrapper';
+
+    const moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'timeline-event-action timeline-event-more-btn';
+    moreBtn.dataset.eventId = eventElementId;
+    moreBtn.setAttribute('aria-label', 'More options');
+    moreBtn.setAttribute('aria-haspopup', 'true');
+    moreBtn.setAttribute('aria-expanded', 'false');
+    moreBtn.title = 'More options';
+    const moreIcon = document.createElement('i');
+    moreIcon.className = 'fas fa-ellipsis-vertical text-xs';
+    moreIcon.setAttribute('aria-hidden', 'true');
+    moreBtn.appendChild(moreIcon);
+
+    const moreMenu = document.createElement('div');
+    moreMenu.className = 'timeline-event-more-menu hidden';
+    moreMenu.setAttribute('role', 'menu');
+
+    const noteBtn = document.createElement('button');
+    noteBtn.type = 'button';
+    noteBtn.className = `timeline-event-menu-item edit-note-btn${note ? ' text-blue-600' : ''}`;
+    noteBtn.dataset.eventId = eventElementId;
+    noteBtn.setAttribute('role', 'menuitem');
+    noteBtn.setAttribute('aria-label', note ? 'Edit note' : 'Add note');
+    noteBtn.innerHTML = `<i class="${note ? 'fas fa-pen' : 'far fa-comment'} text-xs" aria-hidden="true"></i><span>${note ? 'Edit Note & Labels' : 'Add Note / Labels'}</span>`;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'timeline-event-menu-item delete-event-btn text-red-600 hover:text-red-700';
+    deleteBtn.dataset.eventId = eventElementId;
+    deleteBtn.setAttribute('role', 'menuitem');
+    deleteBtn.setAttribute('aria-label', 'Delete event');
+    deleteBtn.innerHTML = '<i class="fas fa-trash-alt text-xs" aria-hidden="true"></i><span>Delete Event</span>';
+
+    moreMenu.append(noteBtn, deleteBtn);
+    moreWrapper.append(moreBtn, moreMenu);
+
+    return { favoriteBtn, moreWrapper, moreBtn, moreMenu, noteBtn, deleteBtn };
+}
+
+function renderEventLabelRow(event) {
+    const schema = getLabelSchemaForEvent(event);
+    if (!schema) return null;
+
+    const labelRow = document.createElement('div');
+    labelRow.className = 'flex items-center gap-1.5 mb-2 flex-wrap';
+    const labelTitle = document.createElement('span');
+    labelTitle.className = 'text-xs font-semibold text-slate-700 mr-1';
+    labelTitle.textContent = `${schema.group}:`;
+    labelRow.appendChild(labelTitle);
+
+    const activeText = event.labels?.find(l => l.group === schema.group)?.text;
+
+    schema.options.forEach(opt => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        const isActive = activeText === opt.text;
+        chip.className = `btn btn-compact text-xs label-chip ${isActive ? 'btn-primary is-active' : 'btn-secondary'}`;
+        chip.textContent = opt.text;
+        chip.setAttribute('aria-pressed', String(isActive));
+        chip.addEventListener('click', (e) => {
+            e.stopPropagation();
+            updateEventLabel(event.id, schema.group, opt.text);
+        });
+        labelRow.appendChild(chip);
+    });
+    return labelRow;
+}
+
+function createEventTimeAdjustRow(event) {
+    const timeRow = document.createElement('div');
+    timeRow.className = 'flex items-center justify-between text-xs text-muted';
+    timeRow.innerHTML = `
+        <span>Adjust time:</span>
+        <div class="flex items-center gap-1">
+            <button type="button" class="btn btn-secondary btn-compact nudge-minus" title="1s earlier">-1s</button>
+            <button type="button" class="btn btn-secondary btn-compact nudge-plus" title="1s later">+1s</button>
+            <button type="button" class="btn btn-secondary btn-compact sync-playhead" title="Sync to video playhead">Sync</button>
+        </div>
+    `;
+
+    timeRow.querySelector('.nudge-minus')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        retargetEventTime(event.id, Math.max(0, (event.timeMs / 1000) - 1));
+    });
+    timeRow.querySelector('.nudge-plus')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        retargetEventTime(event.id, (event.timeMs / 1000) + 1);
+    });
+    timeRow.querySelector('.sync-playhead')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const vid = document.getElementById('video-player');
+        retargetEventTime(event.id, vid ? vid.currentTime : (event.timeMs / 1000));
+    });
+
+    return timeRow;
+}
+
+function createTimelineEventEditor(event, note) {
+    const editorEl = document.createElement('div');
+    editorEl.className = 'timeline-event-editor';
+
+    const labelRow = renderEventLabelRow(event);
+    if (labelRow) editorEl.appendChild(labelRow);
+
+    const noteRow = document.createElement('div');
+    noteRow.className = 'flex items-center gap-2 mb-2';
+
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.className = 'field text-xs py-1 px-2 flex-1 event-note-input';
+    noteInput.placeholder = 'Add coaching note (e.g., high press turnover)';
+    noteInput.value = note;
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn btn-primary btn-compact';
+    saveBtn.textContent = 'Save';
+
+    noteRow.append(noteInput, saveBtn);
+
+    const timeRow = createEventTimeAdjustRow(event);
+    editorEl.append(noteRow, timeRow);
+
+    const commitNote = () => {
+        updateEventNote(event.id, noteInput.value);
+        activeEditingEventId = null;
+    };
+
+    saveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        commitNote();
+    });
+
+    noteInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commitNote();
+        } else if (e.key === 'Escape') {
+            activeEditingEventId = null;
+            renderTimelineEvents();
+        }
+    });
+
+    return editorEl;
+}
+
+function createTimelineEventCard(event, index) {
+    const eventElement = document.createElement('div');
+    eventElement.className = 'timeline-event';
+    const eventElementId = event.id || `event-${index}`;
+    eventElement.dataset.eventId = eventElementId;
+
+    const timeFormatted = formatTime(event.timeMs);
+    const eventName = formatEventTypeName(event.event);
+    const isFavorite = !!event.isFavorite;
+    const note = event.note ? String(event.note) : '';
+    eventElement.title = note ? `${eventName} — ${note}` : eventName;
+
+    const seekButton = createTimelineEventSeekButton(event, eventName, timeFormatted);
+    const { favoriteBtn, moreWrapper, moreBtn, moreMenu, noteBtn, deleteBtn } =
+        createTimelineEventActions(eventElementId, note, isFavorite);
+
+    eventElement.append(seekButton, favoriteBtn, moreWrapper);
+
+    if (activeEditingEventId === event.id) {
+        eventElement.classList.add('has-editor');
+        eventElement.appendChild(createTimelineEventEditor(event, note));
+    }
+
+    eventElement.addEventListener('click', (e) => {
+        if (!e.target.closest('.timeline-event-action') && !e.target.closest('.timeline-event-editor')) {
+            jumpToVideoTime(event.timeMs);
+            highlightTimelineEvent(eventElement.dataset.eventId);
+        }
+    });
+
+    moreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = moreMenu.classList.contains('hidden');
+        document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
+        document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+        if (isHidden) {
+            moreMenu.classList.remove('hidden');
+            moreBtn.setAttribute('aria-expanded', 'true');
+        }
+    });
+
+    noteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moreMenu.classList.add('hidden');
+        moreBtn.setAttribute('aria-expanded', 'false');
+        activeEditingEventId = (activeEditingEventId === event.id ? null : event.id);
+        renderTimelineEvents();
+    });
+
+    favoriteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFavorite(eventElement.dataset.eventId);
+    });
+
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moreMenu.classList.add('hidden');
+        deleteEvent(eventElement.dataset.eventId);
+    });
+
+    return eventElement;
+}
+
+function updateTimelineEmptyStateUI(timelineContainer, timelineEvents, eventsToRender, favoritesOnly) {
     const favoritesEmptyState = document.getElementById('favorites-empty-state');
     const timelineEmptyState = document.getElementById('timeline-empty-state');
+    const filterContainer = document.getElementById('timeline-filters');
 
+    if (timelineEvents.length === 0) {
+        timelineEmptyState?.classList.remove('hidden');
+        favoritesEmptyState?.classList.add('hidden');
+        timelineContainer.classList.add('hidden');
+        filterContainer?.classList.add('hidden');
+        return false;
+    }
+
+    filterContainer?.classList.remove('hidden');
+
+    if (favoritesOnly && eventsToRender.length === 0) {
+        if (favoritesEmptyState) {
+            favoritesEmptyState.classList.remove('hidden');
+            if (filterContainer && filterContainer.nextElementSibling !== favoritesEmptyState) {
+                filterContainer.parentNode.insertBefore(favoritesEmptyState, filterContainer.nextSibling);
+            }
+        }
+        timelineEmptyState?.classList.add('hidden');
+        timelineContainer.classList.add('hidden');
+        return false;
+    }
+
+    favoritesEmptyState?.classList.add('hidden');
+    timelineEmptyState?.classList.add('hidden');
+    timelineContainer.classList.remove('hidden');
+    return true;
+}
+
+// Render timeline with current events (sorted with earliest events at the top)
+function renderTimelineEvents() {
+    const timelineContainer = document.getElementById('timeline-events');
     syncFilterUI();
-
     if (!timelineContainer) return;
 
     try {
         const eventsToRender = getVisibleEvents();
+        const hasVisible = updateTimelineEmptyStateUI(timelineContainer, timelineEvents, eventsToRender, favoritesOnly);
+        if (!hasVisible) return;
 
-        // Check if there are events to display
-        if (timelineEvents.length === 0) {
-            // No events at all - show regular empty state
-            if (timelineEmptyState) timelineEmptyState.classList.remove('hidden');
-            if (favoritesEmptyState) favoritesEmptyState.classList.add('hidden');
-            timelineContainer.classList.add('hidden');
-
-            // Hide filter container
-            const filterContainer = document.getElementById('timeline-filters');
-            if (filterContainer) {
-                filterContainer.classList.add('hidden');
-            }
-
-            return;
-        }
-
-        const filterContainer = document.getElementById('timeline-filters');
-        if (filterContainer) filterContainer.classList.remove('hidden');
-
-        // There are events, but need to check if favorites mode has events
-        if (favoritesOnly && eventsToRender.length === 0) {
-            // No favorites - show favorites empty state
-            if (favoritesEmptyState) {
-                favoritesEmptyState.classList.remove('hidden');
-
-                // Move the favorites empty state element to be right after the timeline filters
-                const timelineFilters = document.getElementById('timeline-filters');
-                if (timelineFilters && timelineFilters.nextElementSibling !== favoritesEmptyState) {
-                    timelineFilters.parentNode.insertBefore(favoritesEmptyState, timelineFilters.nextSibling);
-                }
-
-                // Make sure timeline filters are visible even when no favorites
-                if (timelineFilters) timelineFilters.classList.remove('hidden');
-            }
-
-            if (timelineEmptyState) timelineEmptyState.classList.add('hidden');
-            timelineContainer.classList.add('hidden');
-            return;
-        }
-
-        // Has events to display - hide empty states
-        if (favoritesEmptyState) favoritesEmptyState.classList.add('hidden');
-        if (timelineEmptyState) timelineEmptyState.classList.add('hidden');
-        timelineContainer.classList.remove('hidden');
-
-        // Generate custom timeline with star buttons
         timelineContainer.innerHTML = '';
-
-        // Sort events by time (earliest first)
         eventsToRender.sort((a, b) => a.timeMs - b.timeMs);
 
-
-        // Create events in timeline
         eventsToRender.forEach((event, index) => {
-            const eventElement = document.createElement('div');
-            eventElement.className = 'timeline-event';
-            eventElement.dataset.eventId = event.id || `event-${index}`;
-
-            const timeFormatted = formatTime(event.timeMs);
-            const eventName = formatEventTypeName(event.event);
-            const isFavorite = !!event.isFavorite;
-            const note = event.note ? String(event.note) : '';
-            eventElement.title = note ? `${eventName} — ${note}` : eventName;
-
-            const seekButton = document.createElement('button');
-            seekButton.type = 'button';
-            seekButton.className = 'timeline-event-seek';
-            seekButton.setAttribute('aria-label', `Play ${eventName} at ${timeFormatted}`);
-
-            const timeEl = document.createElement('span');
-            timeEl.className = 'timeline-event-time';
-            timeEl.textContent = timeFormatted;
-
-            const nameEl = document.createElement('span');
-            nameEl.className = 'timeline-event-name flex items-center gap-1 min-w-0';
-            const nameText = document.createElement('span');
-            nameText.className = 'timeline-event-title-text';
-            nameText.textContent = eventName;
-            nameEl.appendChild(nameText);
-
-            if (Array.isArray(event.labels) && event.labels.length > 0) {
-                const labelsWrapper = document.createElement('span');
-                labelsWrapper.className = 'timeline-event-labels';
-                event.labels.forEach(lbl => {
-                    const pill = document.createElement('span');
-                    pill.className = `timeline-event-label${lbl.group === 'Origin' ? ' is-origin' : ''}`;
-                    pill.textContent = lbl.text;
-                    pill.title = `${lbl.group}: ${lbl.text}`;
-                    labelsWrapper.appendChild(pill);
-                });
-                nameEl.appendChild(labelsWrapper);
-            }
-
-            if (note) {
-                const notePreview = document.createElement('span');
-                notePreview.className = 'timeline-event-note-text block w-full text-xs text-slate-500 font-normal truncate';
-                notePreview.textContent = note;
-                nameEl.appendChild(notePreview);
-            }
-
-            seekButton.append(timeEl, nameEl);
-
-            // 1-tap persistent Favorite button
-            const favoriteBtn = document.createElement('button');
-            favoriteBtn.type = 'button';
-            favoriteBtn.className = `favorite-toggle timeline-event-action${isFavorite ? ' is-favorite' : ''}`;
-            favoriteBtn.dataset.eventId = eventElement.dataset.eventId;
-            favoriteBtn.setAttribute('aria-label', isFavorite ? 'Remove from favorites' : 'Add to favorites');
-            favoriteBtn.setAttribute('aria-pressed', isFavorite ? 'true' : 'false');
-            const favoriteIcon = document.createElement('i');
-            favoriteIcon.className = isFavorite ? 'fas fa-star' : 'far fa-star';
-            favoriteIcon.setAttribute('aria-hidden', 'true');
-            favoriteBtn.appendChild(favoriteIcon);
-
-            // More Options Dropdown (Comment / Delete / Adjust Time)
-            const moreWrapper = document.createElement('div');
-            moreWrapper.className = 'timeline-event-more-wrapper';
-
-            const moreBtn = document.createElement('button');
-            moreBtn.type = 'button';
-            moreBtn.className = 'timeline-event-action timeline-event-more-btn';
-            moreBtn.dataset.eventId = eventElement.dataset.eventId;
-            moreBtn.setAttribute('aria-label', 'More options');
-            moreBtn.setAttribute('aria-haspopup', 'true');
-            moreBtn.setAttribute('aria-expanded', 'false');
-            moreBtn.title = 'More options';
-            const moreIcon = document.createElement('i');
-            moreIcon.className = 'fas fa-ellipsis-vertical text-xs';
-            moreIcon.setAttribute('aria-hidden', 'true');
-            moreBtn.appendChild(moreIcon);
-
-            const moreMenu = document.createElement('div');
-            moreMenu.className = 'timeline-event-more-menu hidden';
-            moreMenu.setAttribute('role', 'menu');
-
-            const noteBtn = document.createElement('button');
-            noteBtn.type = 'button';
-            noteBtn.className = `timeline-event-menu-item edit-note-btn${note ? ' text-blue-600' : ''}`;
-            noteBtn.dataset.eventId = eventElement.dataset.eventId;
-            noteBtn.setAttribute('role', 'menuitem');
-            noteBtn.setAttribute('aria-label', note ? 'Edit note' : 'Add note');
-            noteBtn.innerHTML = `<i class="${note ? 'fas fa-pen' : 'far fa-comment'} text-xs" aria-hidden="true"></i><span>${note ? 'Edit Note & Labels' : 'Add Note / Labels'}</span>`;
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.type = 'button';
-            deleteBtn.className = 'timeline-event-menu-item delete-event-btn text-red-600 hover:text-red-700';
-            deleteBtn.dataset.eventId = eventElement.dataset.eventId;
-            deleteBtn.setAttribute('role', 'menuitem');
-            deleteBtn.setAttribute('aria-label', 'Delete event');
-            deleteBtn.innerHTML = '<i class="fas fa-trash-alt text-xs" aria-hidden="true"></i><span>Delete Event</span>';
-
-            moreMenu.append(noteBtn, deleteBtn);
-            moreWrapper.append(moreBtn, moreMenu);
-
-            eventElement.append(seekButton, favoriteBtn, moreWrapper);
-
-            if (activeEditingEventId === event.id) {
-                eventElement.classList.add('has-editor');
-                const editorEl = document.createElement('div');
-                editorEl.className = 'timeline-event-editor';
-
-                const schema = getLabelSchemaForEvent(event);
-                if (schema) {
-                    const labelRow = document.createElement('div');
-                    labelRow.className = 'flex items-center gap-1.5 mb-2 flex-wrap';
-                    const labelTitle = document.createElement('span');
-                    labelTitle.className = 'text-xs font-semibold text-slate-700 mr-1';
-                    labelTitle.textContent = `${schema.group}:`;
-                    labelRow.appendChild(labelTitle);
-
-                    const activeText = event.labels?.find(l => l.group === schema.group)?.text;
-
-                    schema.options.forEach(opt => {
-                        const chip = document.createElement('button');
-                        chip.type = 'button';
-                        const isActive = activeText === opt.text;
-                        chip.className = `btn btn-compact text-xs label-chip ${isActive ? 'btn-primary is-active' : 'btn-secondary'}`;
-                        chip.textContent = opt.text;
-                        chip.setAttribute('aria-pressed', String(isActive));
-                        chip.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            updateEventLabel(event.id, schema.group, opt.text);
-                        });
-                        labelRow.appendChild(chip);
-                    });
-                    editorEl.appendChild(labelRow);
-                }
-
-                const noteRow = document.createElement('div');
-                noteRow.className = 'flex items-center gap-2 mb-2';
-
-                const noteInput = document.createElement('input');
-                noteInput.type = 'text';
-                noteInput.className = 'field text-xs py-1 px-2 flex-1 event-note-input';
-                noteInput.placeholder = 'Add coaching note (e.g., high press turnover)';
-                noteInput.value = note;
-
-                const saveBtn = document.createElement('button');
-                saveBtn.type = 'button';
-                saveBtn.className = 'btn btn-primary btn-compact';
-                saveBtn.textContent = 'Save';
-
-                noteRow.append(noteInput, saveBtn);
-
-                const timeRow = document.createElement('div');
-                timeRow.className = 'flex items-center justify-between text-xs text-muted';
-                timeRow.innerHTML = `
-                    <span>Adjust time:</span>
-                    <div class="flex items-center gap-1">
-                        <button type="button" class="btn btn-secondary btn-compact nudge-minus" title="1s earlier">-1s</button>
-                        <button type="button" class="btn btn-secondary btn-compact nudge-plus" title="1s later">+1s</button>
-                        <button type="button" class="btn btn-secondary btn-compact sync-playhead" title="Sync to video playhead">Sync</button>
-                    </div>
-                `;
-
-                editorEl.append(noteRow, timeRow);
-                eventElement.appendChild(editorEl);
-
-                saveBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    updateEventNote(event.id, noteInput.value);
-                    activeEditingEventId = null;
-                });
-
-                noteInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        updateEventNote(event.id, noteInput.value);
-                        activeEditingEventId = null;
-                    } else if (e.key === 'Escape') {
-                        activeEditingEventId = null;
-                        renderTimelineEvents();
-                    }
-                });
-
-                const nudgeMinus = timeRow.querySelector('.nudge-minus');
-                if (nudgeMinus) {
-                    nudgeMinus.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        retargetEventTime(event.id, Math.max(0, (event.timeMs / 1000) - 1));
-                    });
-                }
-                const nudgePlus = timeRow.querySelector('.nudge-plus');
-                if (nudgePlus) {
-                    nudgePlus.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        retargetEventTime(event.id, (event.timeMs / 1000) + 1);
-                    });
-                }
-                const syncBtn = timeRow.querySelector('.sync-playhead');
-                if (syncBtn) {
-                    syncBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const vid = document.getElementById('video-player');
-                        retargetEventTime(event.id, vid ? vid.currentTime : (event.timeMs / 1000));
-                    });
-                }
-            }
-
-            // Add event listener to jump to this time in video
-            eventElement.addEventListener('click', (e) => {
-                // Don't trigger when clicking action buttons or editor
-                if (!e.target.closest('.timeline-event-action') && !e.target.closest('.timeline-event-editor')) {
-                    const timeMs = event.timeMs;
-                    jumpToVideoTime(timeMs);
-                    highlightTimelineEvent(eventElement.dataset.eventId);
-                }
-            });
-
-            moreBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isHidden = moreMenu.classList.contains('hidden');
-                document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
-                document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
-                if (isHidden) {
-                    moreMenu.classList.remove('hidden');
-                    moreBtn.setAttribute('aria-expanded', 'true');
-                }
-            });
-
-            noteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                moreMenu.classList.add('hidden');
-                moreBtn.setAttribute('aria-expanded', 'false');
-                activeEditingEventId = (activeEditingEventId === event.id ? null : event.id);
-                renderTimelineEvents();
-            });
-
-            favoriteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                toggleFavorite(eventElement.dataset.eventId);
-            });
-
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                moreMenu.classList.add('hidden');
-                deleteEvent(eventElement.dataset.eventId);
-            });
-
-            timelineContainer.appendChild(eventElement);
+            timelineContainer.appendChild(createTimelineEventCard(event, index));
         });
 
         updateFilterToggleUI();
-
-
         console.log(`Timeline rendered with ${eventsToRender.length} events${favoritesOnly ? ' (favorites only)' : ''}`);
     } catch (error) {
         console.error("Error rendering timeline:", error);
-        // Display an error message to the user in the timeline container
         timelineContainer.innerHTML = '<p class="text-red-600">Could not load timeline events.</p>';
     }
 }
@@ -3333,6 +3330,9 @@ export {
     moveQuickTag,
     updateQuickTag,
     resolveTagDisplay,
+    parseTeamsFromString,
+    createTimelineEventSeekButton,
+    createTimelineEventCard,
     getMatchTeams,
     setMatchTeams,
     swapMatchTeams,
