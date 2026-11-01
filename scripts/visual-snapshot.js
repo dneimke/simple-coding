@@ -337,92 +337,6 @@ async function runSnapshots() {
             await appendCtx.close();
         }
 
-        // Capture Board Actions dropdown open state on Configure (desktop and mobile)
-        for (const vp of VIEWPORTS) {
-            const configActionsCtx = await browser.newContext({
-                viewport: { width: vp.width, height: vp.height },
-                deviceScaleFactor: 2
-            });
-            const configActionsPage = await configActionsCtx.newPage();
-            await configActionsPage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
-            await configActionsPage.waitForSelector('#configActionsDropdownButton');
-            await configActionsPage.click('#configActionsDropdownButton');
-            await configActionsPage.waitForSelector('#configActionsMenu:not(.hidden)');
-            await configActionsPage.waitForTimeout(300);
-
-            const configActionsOpenPath = path.join(OUTPUT_DIR, `configure-actions-dropdown-open-${vp.name}.png`);
-            await configActionsPage.screenshot({ path: configActionsOpenPath, fullPage: true });
-
-            const stats = fs.statSync(configActionsOpenPath);
-            results.push({
-                name: 'configure-actions-dropdown-open',
-                viewport: vp.name,
-                size: `${vp.width}x${vp.height}`,
-                file: `configure-actions-dropdown-open-${vp.name}.png`,
-                bytes: stats.size
-            });
-
-            await configActionsCtx.close();
-        }
-
-        // Capture custom board flow proof: Duplication, Import, and Event Capture
-        const sampleImportBoardPath = path.join(OUTPUT_DIR, 'sample-coach-board.json');
-        const sampleImportData = {
-            name: 'Under-16 Pressing',
-            zones: { values: ['1', '2', '3', '4'], default: '1', perspective: 'mirrored' },
-            rowDefs: [
-                { gridCols: 'grid-cols-3', buttons: [{ event: 'START', text: 'START', color: 'btn-gray' }, { event: 'END', text: 'END', color: 'btn-gray' }, { event: 'UMP', text: 'UMP', color: 'btn-gray' }] },
-                { team: 1, grids: [{ gridCols: 'grid-cols-4', buttons: [{ event: 'HIGH PRESS', text: 'HIGH PRESS', lead: 10, lag: 10 }, { event: 'HALF COURT', text: 'HALF COURT', lead: 10, lag: 10 }, { event: 'TURNOVER FOR', text: 'TURNOVER FOR', lead: 5, lag: 10 }, { event: 'CIRCLE ENTRY', text: 'CIRCLE ENTRY', lead: 8, lag: 5 }] }] },
-                { team: 2, grids: [{ gridCols: 'grid-cols-4', buttons: [{ event: 'HIGH PRESS', text: 'HIGH PRESS', lead: 10, lag: 10 }, { event: 'HALF COURT', text: 'HALF COURT', lead: 10, lag: 10 }, { event: 'TURNOVER AG', text: 'TURNOVER AG', lead: 5, lag: 10 }, { event: 'CIRCLE ENTRY', text: 'CIRCLE ENTRY', lead: 8, lag: 5 }] }] }
-            ]
-        };
-        fs.writeFileSync(sampleImportBoardPath, JSON.stringify(sampleImportData, null, 2), 'utf8');
-
-        // Test custom board creation via Duplicate
-        const customContext = await browser.newContext({
-            viewport: { width: 1280, height: 800 },
-            deviceScaleFactor: 2
-        });
-        const customPage = await customContext.newPage();
-        await customPage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
-        await customPage.waitForSelector('#duplicateConfigButton');
-        await customPage.click('#duplicateConfigButton');
-        await customPage.waitForTimeout(400);
-
-        const configCustomPath = path.join(OUTPUT_DIR, 'configure-custom-board-desktop.png');
-        await customPage.screenshot({ path: configCustomPath, fullPage: true });
-
-        // Navigate to Event Capture to prove the duplicated board is in boardSelect
-        await customPage.goto(`${baseUrl}/#event-capture`, { waitUntil: 'domcontentloaded' });
-        await customPage.waitForSelector('#boardSelect');
-        await customPage.waitForTimeout(400);
-
-        const captureCustomPath = path.join(OUTPUT_DIR, 'event-capture-custom-board-desktop.png');
-        await customPage.screenshot({ path: captureCustomPath, fullPage: true });
-        await customContext.close();
-
-        // Test custom board creation and actions on mobile
-        const customMobileContext = await browser.newContext({
-            viewport: { width: 390, height: 844 },
-            deviceScaleFactor: 2
-        });
-        const customMobilePage = await customMobileContext.newPage();
-        await customMobilePage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
-        await customMobilePage.waitForSelector('#duplicateConfigButton');
-        await customMobilePage.click('#duplicateConfigButton');
-        await customMobilePage.waitForTimeout(400);
-
-        const configCustomMobilePath = path.join(OUTPUT_DIR, 'configure-custom-board-mobile.png');
-        await customMobilePage.screenshot({ path: configCustomMobilePath, fullPage: true });
-
-        await customMobilePage.click('#configActionsDropdownButton');
-        await customMobilePage.waitForSelector('#configActionsMenu:not(.hidden)');
-        await customMobilePage.waitForTimeout(300);
-        const configCustomMobileActionsPath = path.join(OUTPUT_DIR, 'configure-custom-actions-open-mobile.png');
-        await customMobilePage.screenshot({ path: configCustomMobileActionsPath, fullPage: true });
-
-        await customMobileContext.close();
-
         // Capture Video Coding active interaction (desktop and mobile)
         for (const vp of VIEWPORTS) {
             const videoCtx = await browser.newContext({
@@ -760,6 +674,17 @@ async function runSnapshots() {
         }
 
         // Multi-viewport proof for Board Import flow (Desktop & Mobile)
+        const sampleImportBoardPath = path.join(OUTPUT_DIR, 'sample-coach-board.json');
+        const sampleImportData = {
+            name: 'Under-16 Pressing',
+            zones: { values: ['1', '2', '3', '4'], default: '1', perspective: 'mirrored' },
+            rowDefs: [
+                { team: null, grids: [{ gridCols: 'grid-cols-4', buttons: [{ event: 'A25E', text: 'A25E', lead: 5, lag: 3 }, { event: 'CE', text: 'CE', lead: 5, lag: 5 }, { event: 'SHOT', text: 'SHOT', lead: 5, lag: 5 }, { event: 'GOAL', text: 'GOAL', lead: 10, lag: 10 }] }] },
+                { team: 1, grids: [{ gridCols: 'grid-cols-4', buttons: [{ event: 'HIGH PRESS', text: 'HIGH PRESS', lead: 10, lag: 10 }, { event: 'HALF COURT', text: 'HALF COURT', lead: 10, lag: 10 }, { event: 'TURNOVER FOR', lead: 5, lag: 10 }, { event: 'CIRCLE ENTRY', text: 'CIRCLE ENTRY', lead: 8, lag: 5 }] }] },
+                { team: 2, grids: [{ gridCols: 'grid-cols-4', buttons: [{ event: 'HIGH PRESS', text: 'HIGH PRESS', lead: 10, lag: 10 }, { event: 'HALF COURT', text: 'HALF COURT', lead: 10, lag: 10 }, { event: 'TURNOVER AG', lead: 5, lag: 10 }, { event: 'CIRCLE ENTRY', text: 'CIRCLE ENTRY', lead: 8, lag: 5 }] }] }
+            ]
+        };
+        fs.writeFileSync(sampleImportBoardPath, JSON.stringify(sampleImportData, null, 2), 'utf8');
         for (const vp of VIEWPORTS) {
             const importContext = await browser.newContext({
                 viewport: { width: vp.width, height: vp.height },
@@ -769,9 +694,7 @@ async function runSnapshots() {
 
             // 1. Go to Configure
             await importPage.goto(`${baseUrl}/#configure`, { waitUntil: 'domcontentloaded' });
-            await importPage.waitForSelector('#configActionsDropdownButton');
-            await importPage.click('#configActionsDropdownButton');
-            await importPage.waitForSelector('#importConfigButton');
+                                    await importPage.waitForSelector('#importConfigButton');
             await importPage.waitForSelector('#boardFileInput', { state: 'attached' });
 
             // 2. Import the sample coach board file

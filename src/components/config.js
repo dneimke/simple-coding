@@ -353,101 +353,8 @@ export function activateNamedConfig(name) {
 }
 
 
-const COPY_BASE_NAMES = {
-    'simple-starter': 'Simple',
-    'hockey-one-zoned': 'Hockey One Zoned'
-};
 
-export function getNextCopyName(sourceName) {
-    const trimmed = String(sourceName ?? '').trim();
-    const rawBase = COPY_BASE_NAMES[trimmed] || getConfigDisplayName(trimmed) || 'Custom Board';
-    const base = rawBase.replace(/\s*\(\d+\)$/, '').trim();
-    const existing = new Set(listNamedConfigs());
-    let index = 1;
-    while (existing.has(`${base} (${index})`)) {
-        index += 1;
-    }
-    return `${base} (${index})`;
-}
 
-export function renameNamedConfig(oldName, newName) {
-    const fromName = String(oldName ?? '').trim();
-    const toName = String(newName ?? '').trim();
-    if (isBuiltInConfig(fromName)) {
-        throw new Error(`Cannot rename built-in configuration "${fromName}".`);
-    }
-    if (!toName) {
-        throw new Error('Configuration name is required.');
-    }
-    if (isBuiltInConfig(toName)) {
-        throw new Error(`Cannot overwrite built-in configuration "${toName}".`);
-    }
-    const configs = readNamedConfigs();
-    if (!configs[fromName]) return false;
-    if (fromName === toName) return true;
-
-    const config = cloneConfig(configs[fromName]);
-    delete configs[fromName];
-    configs[toName] = config;
-    lastActiveNamedConfig = toName;
-    return writeNamedConfigs(configs) && saveConfiguration(config);
-}
-
-function getTargetGrid(clonedConfig, rowIndex, gridIndex = 0) {
-    const row = clonedConfig?.rowDefs?.[rowIndex];
-    if (!row) {
-        throw new Error('Invalid row index.');
-    }
-    const grids = rowGrids(row);
-    const grid = grids[gridIndex];
-    if (!grid || !Array.isArray(grid.buttons)) {
-        throw new Error('Invalid grid index.');
-    }
-    return grid;
-}
-
-function cleanButtonFields(btn) {
-    const cleaned = { ...btn };
-    for (const key of ['lead', 'lag', 'zoned', 'color']) {
-        if (cleaned[key] === undefined || cleaned[key] === null || cleaned[key] === '' || cleaned[key] === false) {
-            delete cleaned[key];
-        }
-    }
-    return cleaned;
-}
-
-export function updateBoardButton(config, { rowIndex, gridIndex = 0, buttonIndex }, updates) {
-    const next = cloneConfig(config);
-    const grid = getTargetGrid(next, rowIndex, gridIndex);
-    if (buttonIndex < 0 || buttonIndex >= grid.buttons.length) {
-        throw new Error('Invalid button index.');
-    }
-    grid.buttons[buttonIndex] = cleanButtonFields({
-        ...grid.buttons[buttonIndex],
-        ...updates
-    });
-    validateConfig(next);
-    return next;
-}
-
-export function addBoardButton(config, { rowIndex, gridIndex = 0 }, newButton) {
-    const next = cloneConfig(config);
-    const grid = getTargetGrid(next, rowIndex, gridIndex);
-    grid.buttons.push(cleanButtonFields(newButton));
-    validateConfig(next);
-    return next;
-}
-
-export function removeBoardButton(config, { rowIndex, gridIndex = 0, buttonIndex }) {
-    const next = cloneConfig(config);
-    const grid = getTargetGrid(next, rowIndex, gridIndex);
-    if (buttonIndex < 0 || buttonIndex >= grid.buttons.length) {
-        throw new Error('Invalid button index.');
-    }
-    grid.buttons.splice(buttonIndex, 1);
-    validateConfig(next);
-    return next;
-}
 
 /**
  * Populates a select element with available button boards grouped by
@@ -459,6 +366,23 @@ export function removeBoardButton(config, { rowIndex, gridIndex = 0, buttonIndex
  * @param {boolean} [options.includeUnsaved=false]
  * @param {string} [options.unsavedLabel='Unsaved layout']
  */
+const COPY_BASE_NAMES = {
+    'simple-starter': 'Simple',
+    'hockey-one-zoned': 'Hockey One Zoned'
+};
+
+function getNextCopyName(sourceName) {
+    const trimmed = String(sourceName ?? '').trim();
+    const rawBase = COPY_BASE_NAMES[trimmed] || getConfigDisplayName(trimmed) || 'Custom Board';
+    const base = rawBase.replace(/\s*\(\d+\)$/, '').trim();
+    const existing = new Set(listNamedConfigs());
+    let index = 1;
+    while (existing.has(`${base} (${index})`)) {
+        index += 1;
+    }
+    return `${base} (${index})`;
+}
+
 export function populateBoardSelect(selectElement, {
     selectedName = '',
     includeUnsaved = false,
