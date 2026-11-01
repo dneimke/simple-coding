@@ -1,4 +1,5 @@
 import { ChordEngine } from '../utils/chordEngine.js';
+import { bindChordDock } from '../utils/chordDockController.js';
 import { renderTimeline } from './timeline.js';
 import { storageService } from '../services/storageService.js';
 import { notificationService } from '../services/notificationService.js';
@@ -10,6 +11,7 @@ import { loadLastTeams, saveLastTeams } from '../components/teamSetupDialog.js';
 import { calculateVideoOffset, shiftEventTimings } from '../utils/gameUtils.js';
 import { appendZoneSuffix, stripTrailingZoneDigit, zoneForTeam } from '../utils/zoneUtils.js';
 import { loadConfiguration } from '../components/config.js';
+import { setupMobileMenu } from '../utils/domUtils.js';
 import { PresentationController } from './presentationController.js';
 
 import {
@@ -52,40 +54,17 @@ let videoChordEngine = null;
 
 function initVideoChordEngine() {
     if (videoChordEngine) return;
-    const dock = document.getElementById('video-chord-dock');
-    const badge = document.getElementById('video-chord-badge');
-    const prompt = document.getElementById('video-chord-prompt');
-    const countdown = document.getElementById('video-chord-countdown');
-    const bar = document.getElementById('video-chord-progress');
-    const pills = document.getElementById('video-chord-pills');
-
-    if (!dock) return;
-
-    videoChordEngine = new ChordEngine({
+    videoChordEngine = bindChordDock({
+        dockElement: document.getElementById('video-chord-dock'),
+        badgeElement: document.getElementById('video-chord-badge'),
+        promptElement: document.getElementById('video-chord-prompt'),
+        countdownElement: document.getElementById('video-chord-countdown'),
+        progressBarElement: document.getElementById('video-chord-progress'),
+        pillsContainer: document.getElementById('video-chord-pills'),
         decayDuration: 1500,
-        onChordStart: (chord) => {
-            if (badge) badge.textContent = chord.event.event || 'Tag';
-            if (prompt) prompt.textContent = chord.schema.prompt || 'Select modifier (1-4)';
-            if (countdown) countdown.textContent = `${(chord.duration / 1000).toFixed(1)}s`;
-            if (bar) bar.style.width = '100%';
-
-            if (pills) {
-                pills.innerHTML = chord.schema.options.map(opt => `
-                    <button type="button" class="chord-action-pill px-3 py-1.5 rounded bg-slate-800 hover:bg-blue-600 text-white font-bold text-xs border border-slate-700 flex items-center gap-1.5 transition active:scale-95" data-chord-key="${opt.key}">
-                        <span>${opt.text}</span>
-                        <span class="text-[10px] opacity-75 font-mono">[${opt.key}]</span>
-                    </button>
-                `).join('');
-            }
-
-            dock.classList.remove('hidden');
-        },
-        onChordTick: ({ remaining, progress }) => {
-            if (countdown) countdown.textContent = `${(remaining / 1000).toFixed(1)}s`;
-            if (bar) bar.style.width = `${Math.max(0, (1 - progress) * 100)}%`;
-        },
-        onChordResolved: ({ event, label }) => {
-            dock.classList.add('hidden');
+        pillClass: 'chord-action-pill px-3 py-1.5 rounded bg-slate-800 hover:bg-blue-600 text-white font-bold text-xs border border-slate-700 flex items-center gap-1.5 transition active:scale-95',
+        keyClass: 'text-[10px] opacity-75 font-mono',
+        onResolved: ({ event, label }) => {
             if (label && currentGameId) {
                 if (!Array.isArray(event.labels)) event.labels = [];
                 event.labels.push(label);
@@ -100,19 +79,8 @@ function initVideoChordEngine() {
                     updateQuickTagTicker();
                 }
             }
-        },
-        onChordCancelled: () => {
-            dock.classList.add('hidden');
         }
     });
-
-    if (pills) {
-        pills.addEventListener('click', (e) => {
-            const btn = e.target.closest('[data-chord-key]');
-            if (!btn || !videoChordEngine) return;
-            videoChordEngine.selectOption(btn.dataset.chordKey);
-        });
-    }
 }
 
 const LOCAL_STORAGE_KEY_QUICK_TAGS = 'fieldHockeyVideoQuickTags_v1';
@@ -427,22 +395,7 @@ function quickTagEvent(eventType, note = '') {
     };
     game.events.push(newEvent);
 
-    const metadata = (game && game.metadata) ? { ...game.metadata } : {};
-    saveGame(game.id, game.events, metadata);
-
-    const savedGames = getSavedGames();
-    if (game.teams) {
-        const { game: existing, index } = findGameById(savedGames, game.id);
-        if (existing) {
-            existing.teams = game.teams;
-            savedGames[index] = existing;
-            storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-        }
-    }
-
-    timelineEvents = game.events;
-    updateEventFilters();
-    renderTimelineEvents();
+    persistGameEventsAndRefresh(game);
     updateQuickTagTicker();
 
     showQuickTagFeedback(eventType, ts);
@@ -457,13 +410,8 @@ function quickTagEvent(eventType, note = '') {
 
 // Update note for slow analysis pass
 function updateEventNote(eventId, note) {
-    if (!currentGameId) return false;
-    const savedGames = getSavedGames();
-    const { game } = findGameById(savedGames, currentGameId);
-    if (!game || !Array.isArray(game.events)) return false;
-
-    const event = game.events.find(e => e.id === eventId);
-    if (!event) return false;
+    const { game, event } = findEventInCurrentGame(eventId);
+    if (!game || !event) return false;
 
     event.note = String(note || '').trim();
     const metadata = { ...game.metadata, teams: game.teams };
@@ -475,13 +423,8 @@ function updateEventNote(eventId, note) {
 
 // Nudge or retarget event timestamp
 function retargetEventTime(eventId, timeSeconds) {
-    if (!currentGameId) return false;
-    const savedGames = getSavedGames();
-    const { game } = findGameById(savedGames, currentGameId);
-    if (!game || !Array.isArray(game.events)) return false;
-
-    const event = game.events.find(e => e.id === eventId);
-    if (!event) return false;
+    const { game, event } = findEventInCurrentGame(eventId);
+    if (!game || !event) return false;
 
     const clampedSec = Math.max(0, timeSeconds);
     event.timeMs = Math.round(clampedSec * 1000);
@@ -1333,21 +1276,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 id: generateEventId()
             });
 
-            const metadata = (game && game.metadata) ? { ...game.metadata } : {};
-            saveGame(game.id, game.events, metadata);
-
-            const savedGames = getSavedGames();
-            if (game.teams) {
-                const { game: existing, index } = findGameById(savedGames, game.id);
-                if (existing) {
-                    existing.teams = game.teams;
-                    savedGames[index] = existing;
-                    storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-                }
-            }
-            timelineEvents = game.events;
-            updateEventFilters();
-            renderTimelineEvents();
+            persistGameEventsAndRefresh(game);
             closeModal();
         });
     }
@@ -1390,6 +1319,34 @@ function normalizeSavedGamesToArray(raw) {
     return { games: [], changed: false };
 }
 
+function findEventInCurrentGame(eventId) {
+    if (!currentGameId) return { game: null, event: null };
+    const savedGames = getSavedGames();
+    const { game } = findGameById(savedGames, currentGameId);
+    if (!game || !Array.isArray(game.events)) return { game: null, event: null };
+    const event = game.events.find(e => e.id === eventId);
+    return { game, event };
+}
+
+function persistGameEventsAndRefresh(game, metadata = {}) {
+    const meta = (game && game.metadata) ? { ...game.metadata, ...metadata } : { ...metadata };
+    saveGame(game.id, game.events, meta);
+
+    const savedGames = getSavedGames();
+    if (game.teams) {
+        const { game: existing, index } = findGameById(savedGames, game.id);
+        if (existing) {
+            existing.teams = game.teams;
+            savedGames[index] = existing;
+            storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        }
+    }
+
+    timelineEvents = game.events;
+    updateEventFilters();
+    renderTimelineEvents();
+}
+
 function findGameById(gamesArray, gameId) {
     if (!Array.isArray(gamesArray)) return { game: null, index: -1 };
     const index = gamesArray.findIndex(g => g && g.id === gameId);
@@ -1407,38 +1364,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initLabelSweep();
 });
 
-// Initialize mobile menu functionality
 function initMobileMenu() {
-    const mobileMenuButton = document.getElementById('mobileMenuButton');
-    const mainMenu = document.getElementById('mainMenu');
-
-    if (mobileMenuButton && mainMenu) {
-        mobileMenuButton.addEventListener('click', () => {
-            const isOpen = !mainMenu.classList.contains('hidden');
-
-            if (isOpen) {
-                // Close menu with smooth transition
-                mainMenu.classList.add('opacity-0');
-                setTimeout(() => {
-                    mainMenu.classList.add('hidden');
-                    mainMenu.classList.remove('opacity-0');
-                }, 200);
-                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-                mobileMenuButton.setAttribute('aria-expanded', 'false');
-            } else {
-                // Open menu with smooth transition
-                mainMenu.classList.remove('hidden');
-                // Small delay to allow the display change before starting opacity transition
-                setTimeout(() => {
-                    mainMenu.classList.add('flex');
-                }, 10);
-                mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
-                mobileMenuButton.setAttribute('aria-expanded', 'true');
-            }
-        });
-    }
-    // Initialize with menu closed
-    mobileMenuButton.setAttribute('aria-expanded', 'false');
+    setupMobileMenu('#mobileMenuButton', '#mainMenu');
 }
 
 // Initialize favorites UI and handlers
@@ -1892,13 +1819,8 @@ function applySweepLabel(group, text) {
 }
 
 function updateEventLabel(eventId, group, text) {
-    if (!currentGameId) return false;
-    const savedGames = getSavedGames();
-    const { game } = findGameById(savedGames, currentGameId);
-    if (!game || !Array.isArray(game.events)) return false;
-
-    const event = game.events.find(e => e.id === eventId);
-    if (!event) return false;
+    const { game, event } = findEventInCurrentGame(eventId);
+    if (!game || !event) return false;
 
     if (!Array.isArray(event.labels)) event.labels = [];
     const existingIndex = event.labels.findIndex(l => l.group === group);
