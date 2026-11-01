@@ -28,15 +28,34 @@ describe('GameState capture clock', () => {
         jest.useRealTimers();
     });
 
-    test('getLiveElapsedTime includes the current run while running', () => {
+    test('newGame arms the game at 00:00 with isRunning false by default', () => {
         gameState.newGame();
+
+        expect(stateService.getState('game.hasCurrentGame')).toBe(true);
+        expect(stateService.getState('game.isRunning')).toBe(false);
+        expect(gameState.getLiveElapsedTime()).toBe(0);
+        expect(timerDisplay.textContent).toBe('00:00');
+    });
+
+    test('startClock starts an armed game and advances timer', () => {
+        gameState.newGame();
+        gameState.startClock();
+
+        expect(stateService.getState('game.isRunning')).toBe(true);
+        jest.advanceTimersByTime(15000);
+        expect(gameState.getLiveElapsedTime()).toBe(15000);
+        expect(timerDisplay.textContent).toBe('00:15');
+    });
+
+    test('getLiveElapsedTime includes the current run while running', () => {
+        gameState.newGame({ autoStart: true });
         jest.advanceTimersByTime(90000);
 
         expect(gameState.getLiveElapsedTime()).toBe(90000);
     });
 
     test('getLiveElapsedTime returns the banked time while paused', () => {
-        gameState.newGame();
+        gameState.newGame({ autoStart: true });
         jest.advanceTimersByTime(60000);
         gameState.pauseResume();
         jest.advanceTimersByTime(30000);
@@ -45,7 +64,7 @@ describe('GameState capture clock', () => {
     });
 
     test('getDraftSnapshot records runningSince only while running', () => {
-        gameState.newGame();
+        gameState.newGame({ autoStart: true });
         const startedAt = Date.now();
         expect(gameState.getDraftSnapshot()).toEqual({
             events: [], elapsedTime: 0, runningSince: startedAt, teams: null, activeZone: null, selectedTeam: null
@@ -116,13 +135,18 @@ describe('GameState capture clock', () => {
     test('addEvent reports whether the event was logged', () => {
         expect(gameState.addEvent({ event: 'GOAL', timeMs: 0 })).toBe(false);
 
+        // While armed at 00:00 (not running), events are not logged
         gameState.newGame();
+        expect(gameState.addEvent({ event: 'GOAL', timeMs: 0 })).toBe(false);
+
+        // Once started, events are logged
+        gameState.startClock();
         expect(gameState.addEvent({ event: 'GOAL', timeMs: 0 })).toBe(true);
         expect(stateService.getState('game.loggedEvents')).toHaveLength(1);
     });
 
     test('removeEvent removes the event at an index and returns it', () => {
-        gameState.newGame();
+        gameState.newGame({ autoStart: true });
         ['A', 'B', 'C'].forEach(event => gameState.addEvent({ event, timeMs: 0 }));
 
         expect(gameState.removeEvent(1)).toEqual({ event: 'B', timeMs: 0 });
@@ -130,7 +154,7 @@ describe('GameState capture clock', () => {
     });
 
     test('removeLastEvent removes the newest event, including while paused', () => {
-        gameState.newGame();
+        gameState.newGame({ autoStart: true });
         gameState.addEvent({ event: 'A', timeMs: 0 });
         gameState.addEvent({ event: 'B', timeMs: 1000 });
         gameState.pauseResume();
@@ -142,7 +166,7 @@ describe('GameState capture clock', () => {
     test('removeEvent and removeLastEvent return null when nothing can be removed', () => {
         expect(gameState.removeLastEvent()).toBeNull();
 
-        gameState.newGame();
+        gameState.newGame({ autoStart: true });
         expect(gameState.removeLastEvent()).toBeNull();
         gameState.addEvent({ event: 'A', timeMs: 0 });
         expect(gameState.removeEvent(5)).toBeNull();
@@ -152,7 +176,7 @@ describe('GameState capture clock', () => {
     });
 
     test('completeGame clears logged events', () => {
-        gameState.newGame();
+        gameState.newGame({ autoStart: true });
         gameState.addEvent({ event: 'GOAL', timeMs: 0 });
         gameState.completeGame();
 
@@ -169,7 +193,7 @@ describe('GameState capture clock', () => {
     });
 
     test('updateLastEvent updates the newest event with partial fields like labels', () => {
-        gameState.newGame();
+        gameState.newGame({ autoStart: true });
         gameState.addEvent({ event: 'FIRE CE', timeMs: 5000 });
 
         const updated = gameState.updateLastEvent({ labels: [{ group: 'Channel', text: 'Left' }] });
@@ -183,7 +207,7 @@ describe('GameState capture clock', () => {
 
     test('updateLastEvent returns null when no current game or no events', () => {
         expect(gameState.updateLastEvent({ labels: [] })).toBeNull();
-        gameState.newGame();
+        gameState.newGame({ autoStart: true });
         expect(gameState.updateLastEvent({ labels: [] })).toBeNull();
     });
 });

@@ -1,10 +1,12 @@
 /**
  * Shows the capture bar for the current game.
- * Before a game: board selector and Start.
- * During a game: Log beside the last code, plus Pause and Finish. The board is hidden.
- * @param {{ hasGame: boolean, isRunning: boolean, lastEventText: string }} state
+ * Before a game: board selector and Set Up Match.
+ * Armed game (elapsedTime === 0, !isRunning): Start Clock (btn-green) and Finish menu.
+ * During a running game: Log beside the last code, plus Pause (btn-yellow) and Finish.
+ * During a paused game (elapsedTime > 0, !isRunning): Log, Resume (btn-green), and Finish.
+ * @param {{ hasGame: boolean, isRunning: boolean, lastEventText: string, elapsedTime?: number }} state
  */
-export function syncCaptureChrome({ hasGame, isRunning, lastEventText }) {
+export function syncCaptureChrome({ hasGame, isRunning, lastEventText, elapsedTime = 0 }) {
     const board = document.getElementById('captureBoard');
     const context = document.getElementById('captureContext');
     const last = document.getElementById('lastEventBar');
@@ -26,11 +28,22 @@ export function syncCaptureChrome({ hasGame, isRunning, lastEventText }) {
 
     start.classList.toggle('hidden', hasGame);
     log.classList.toggle('hidden', !hasGame);
-    pause.classList.toggle('hidden', !hasGame);
-    pause.textContent = hasGame && !isRunning ? 'Resume' : 'Pause';
     finish.classList.toggle('hidden', !hasGame);
 
+    syncPauseButton(pause, hasGame, isRunning, elapsedTime);
+
     if (!hasGame) closeFinishMenu();
+}
+
+function syncPauseButton(button, hasGame, isRunning, elapsedTime) {
+    button.classList.toggle('hidden', !hasGame);
+    if (!hasGame) return;
+
+    const isArmed = !isRunning && elapsedTime === 0;
+    const isPaused = !isRunning && elapsedTime > 0;
+    button.textContent = isArmed ? 'Start Clock' : (isPaused ? 'Resume' : 'Pause');
+    button.classList.toggle('btn-green', !isRunning);
+    button.classList.toggle('btn-yellow', isRunning);
 }
 
 let openFinishMenu = null;

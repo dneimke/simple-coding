@@ -1,51 +1,42 @@
 ---
-name: async-ux-pipeline
-description: Enforces the 5-stage autonomous UX & test-first development pipeline. Use whenever implementing features, resolving UX friction, or modifying UI components and state flows.
-globs: src/**/*, components/**/*, app/**/*, pages/**/*, scripts/**/*
-alwaysApply: true
+description: Phase 2 Autonomous Execution Pipeline rules for test-first, multi-state visual proof, and PR delivery.
+globs: src/**/*, tests/**/*, scripts/**/*
+alwaysApply: false
 ---
-# Autonomous 5-Stage UX & Verification Pipeline
+
+# Autonomous UX & Verification Pipeline Rules (Phase 2)
 
 Never optimize merely for "making the static screen pass tests." Optimize for the target persona completing their actual job from Tap 1 to completion without human QA intervention.
 
-## Stage 1: Autonomous Spec & 3-Tap Journey Trace
-When given raw user friction, image comments, or a 5-part brief, do not write production code until you have:
-1. **Passed the product gate**: Name which friction in `docs/core-friction-points.md` this change reduces (game setup divergence, two-pass coding, or post-match assembly). If it reduces none of them, and it is not an invariant repair or a regression fix for an existing solution, stop. Do not write code.
-2. **Investigated Current State**: Inspect the relevant UI components, routes, and state helpers first.
-3. **Traced the Full User Journey (`Tap 1 → Tap 2 → Tap 3`)**: Never design only the entry state. Explicitly map:
-   - **Tap 1 (Entry Trigger)**: What the user clicks/taps to start (e.g., *Duplicate to edit*).
-   - **Tap 2 (Active Manipulation)**: How the user performs the core edit/action (e.g., *Tap button on visual board → edit in modal*). Ensure the persona never hits a technical dead-end (such as raw JSON or developer instructions) on Tap 2.
-   - **Tap 3 (Persisted Outcome)**: How the change saves and reflects immediately in the UI.
-4. **Output the 5-Part Contract**: State the **Goal**, **Friction served**, **Decisions & 3-Tap Journey**, **Invariants**, **Specific Next Step**, and **Traps to Avoid** before touching code.
-5. **Resolve Forks or Execute**: If `Tap 2` has a genuine product fork (e.g., single-item vs. mirrored behaviour), ask 1–2 concise questions alongside the 5-Part Contract. Otherwise, proceed straight through Stages 2–5 autonomously.
+## Repository Binding
+Read `docs/core-friction-points.md` and the **Product gate** in `AGENTS.md` before changing code. If the work reduces none of the three frictions and is not an invariant repair or a regression fix, stop.
+Read `AGENTS.md` (personas, journeys, push-back rules, execution protocol) and `docs/design-language.md` before changing markup, CSS, or JavaScript.
+
+## Stage 1: Contract Check or Rapid 3-Tap Trace
+- If a 5-Part Dispatch Contract is already locked, execute autonomously Stage 2 -> Stage 5.
+- If invoked directly, audit current code and `.visual-proof/*.png` first, push back if unaligned, or output contract before coding.
 
 ## Stage 2: Design Tokens, Ergonomics & Copy Hygiene
-1. **Primary Actions Above the Fold**: Primary workflow CTAs must be immediately accessible without scrolling past dense boards or long lists on a `390px` mobile viewport.
-2. **Verified Styling**: Only use CSS classes/tokens that exist in the stylesheet. Never leave raw unstyled text or duplicate status messages (e.g., a badge and a banner repeating the same sentence).
-3. **Zero Implementation Leakage**: Never expose developer jargon (`localStorage`, `JSON`, `factory default`, `schema`, `state`) in user-facing copy. Speak strictly in the user's domain language.
+- Primary Actions Above the Fold on `390px` mobile viewport; touch targets $\ge 44\text{px}$ (`--touch-min`).
+- Strict Design Tokens in `src/styles.css` (`btn-blue`, `team-color-*`), Tailwind for layout/spacing only.
+- Zero developer jargon in UI copy (`localStorage`, `JSON`, `factory default`, etc.).
 
 ## Stage 3: Test-First State Verification
-1. Write or update deterministic unit/state tests (e.g., `*.test.js` with fake timers where applicable) covering the full state transition before or alongside UI changes.
-2. All unit tests must pass with exit code `0` before running visual verification.
+- Write deterministic unit/state tests in `tests/` before or alongside UI changes.
+- `npm test` must be 100% green with exit code `0`.
 
 ## Stage 4: Multi-State Visual Proof & Mandatory Vision Self-Audit
-Never ask the user to manually click through localhost in a browser, and never treat `npm run test:visual` exit code `0` as the finish line.
-1. **Snapshot Interactive States, Not Just Landing URLs**: When a feature involves a multi-step flow (e.g., duplicating, opening an edit modal, saving), update the visual snapshot script to drive through and capture each active state in `.visual-proof/` (e.g., `step-1-readonly.png`, `step-2-duplicated.png`, `step-3-edit-modal.png`).
-2. **Mandatory Multimodal Self-Audit (`read_file`)**: After running `npm run test:visual`, you **MUST** inspect every generated `.visual-proof/*.png` using `read_file` / vision tools before replying to the user.
-3. **Self-Reject & Fix Before Handoff**: If your visual inspection reveals any of the following, fix the code and re-run `npm run test:visual` before yielding your turn:
-   - Primary actions buried below the fold on `390px` mobile.
-   - Unstyled classes, broken layouts, or overlapping elements.
-   - Redundant chrome (badges and banners repeating the same message).
-   - Developer/implementation jargon in user-facing labels or helper text.
+- Use direct seeded URLs (`?mock=active`, `?mock=sample`, `?seed=sample`, `?mock=armed`).
+- Run `npm run test:visual` to snapshot multi-state flows into `.visual-proof/`.
+- **Mandatory Multimodal Self-Audit**: Open and inspect every generated `.visual-proof/*.png` with vision tools. Self-reject and fix any below-fold actions, unstyled elements, redundant banners, or jargon before handing back.
 
 ## Stage 5: Local Guardrail Gate & Pull Request
 Every change ships through a pull request. Never commit or push to `main`.
 1. **Local Pre-PR Guardrail Gate (Catch locally before CI)**:
    - Run `npm run typecheck` — verify zero TypeScript/JSDoc syntax errors (`tsc -p jsconfig.json`).
-   - Run `npx fallow audit` (or `npm run audit`) — verify zero introduced dead code, ghost exports, or syntax regressions against `main`. Fix any introduced findings locally before pushing.
+   - Run `npx fallow audit --base origin/main` — verify zero introduced dead code, ghost exports, duplication, or quality gate violations against `origin/main`. Fix any introduced findings locally before pushing.
 2. **Branch & Commit**:
    - Always branch from `main` using `feature/<short-name>`.
    - Commit with a concise message describing the user benefit.
 3. **Open Pull Request**:
    - Push the branch and open a PR against `main` using `gh pr create` (Persona & Journey, What Changed, Behaviour Preserved, Verification).
-4. **Concise Handoff**: Present your `<10-line` summary only after all unit tests, visual self-audit, and local guardrails pass.

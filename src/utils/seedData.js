@@ -2,7 +2,7 @@
  * Seed Data Utility
  *
  * Provides instant mock state for developer testing, automated Playwright visual snapshots,
- * and deep-linking into specific UI states (?mock=sample, ?mock=active, ?seed=sample)
+ * and deep-linking into specific UI states (?mock=sample, ?mock=active, ?seed=sample, ?mock=armed)
  * without requiring manual click-through or prior localStorage setup.
  */
 
@@ -10,9 +10,9 @@ import { storageService } from '../services/storageService.js';
 import { DRAFT_STORAGE_KEY } from '../services/draftService.js';
 
 export const SAMPLE_GAME_ID = 'sample-game';
-export const GAMES_STORAGE_KEY = 'fieldHockeyGames_v1';
+const GAMES_STORAGE_KEY = 'fieldHockeyGames_v1';
 
-export const SAMPLE_GAMES = [
+const SAMPLE_GAMES = [
     {
         id: SAMPLE_GAME_ID,
         name: 'FIRE vs TIGERS',
@@ -30,7 +30,7 @@ export const SAMPLE_GAMES = [
     }
 ];
 
-export const SAMPLE_DRAFT = {
+const SAMPLE_DRAFT = {
     events: [
         { event: 'FIRE BS1', timeMs: 45000, isTeam1: true, lead: 3, lag: 7 },
         { event: 'TIGERS A25E', timeMs: 120000, isTeam1: false, lead: 5, lag: 5 },
@@ -48,7 +48,20 @@ export const SAMPLE_DRAFT = {
     updatedAt: Date.now()
 };
 
-export const PC_COUNTER_DRAFT = {
+const ARMED_DRAFT = {
+    events: [],
+    elapsedTime: 0,
+    runningSince: null,
+    teams: [
+        { code: 'FIRE', color: 'red' },
+        { code: 'TIGERS', color: 'yellow' }
+    ],
+    activeZone: '1',
+    selectedTeam: 1,
+    updatedAt: Date.now()
+};
+
+const PC_COUNTER_DRAFT = {
     events: [
         {
             id: 'pc-1',
@@ -88,7 +101,7 @@ export const PC_COUNTER_DRAFT = {
 
 /**
  * Seed mock data into localStorage
- * @param {'sample'|'active'|'pc-counter'} [mockType='sample']
+ * @param {'sample'|'active'|'pc-counter'|'armed'} [mockType='sample']
  * @returns {{seededGames: boolean, seededDraft: boolean}}
  */
 export function seedMockData(mockType = 'sample') {
@@ -111,6 +124,9 @@ export function seedMockData(mockType = 'sample') {
         seededDraft = true;
     } else if (mockType === 'pc-counter') {
         storageService.setItem(DRAFT_STORAGE_KEY, PC_COUNTER_DRAFT);
+        seededDraft = true;
+    } else if (mockType === 'armed') {
+        storageService.setItem(DRAFT_STORAGE_KEY, ARMED_DRAFT);
         seededDraft = true;
     }
 
@@ -149,6 +165,11 @@ export function checkAndApplyMockSeed(searchString = (typeof window !== 'undefin
     const params = new URLSearchParams(searchPart);
     const mockVal = params.get('mock') || params.get('seed');
     const stateVal = params.get('state');
+
+    if (mockVal === 'armed') {
+        const { seededGames, seededDraft } = seedMockData('armed');
+        return { mockType: 'armed', seededGames, seededDraft };
+    }
 
     if (mockVal === 'pc-counter' || stateVal === 'adelaide-fire') {
         const { seededGames, seededDraft } = seedMockData('pc-counter');

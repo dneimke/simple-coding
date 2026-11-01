@@ -746,7 +746,7 @@ async function startNewGame() {
 
     const selectedTeam = teams ? eventButtons.selectedTeam : null;
 
-    gameState.newGame({ teams, activeZone, selectedTeam });
+    gameState.newGame({ teams, activeZone, selectedTeam, autoStart: false });
     renderBoard(config);
     saveCaptureDraft();
     showCaptureControls();
@@ -782,7 +782,7 @@ function initializeApplication() {
         stateService.setState('ui.currentView', 'Config');
     } else if (viewParam === 'help' || hash === 'help') {
         stateService.setState('ui.currentView', 'Help');
-    } else if (isDevPreview || viewParam === 'event-capture' || hash === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
+    } else if (isDevPreview || viewParam === 'event-capture' || hash === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter' || mockParam === 'armed') {
         stateService.setState('ui.currentView', 'EventCapture');
     } else if (viewParam === 'log' || hash === 'log') {
         stateService.setState('ui.currentView', 'Log');
@@ -821,7 +821,8 @@ function syncChrome() {
     syncCaptureChrome({
         hasGame,
         isRunning: Boolean(stateService.getState('game.isRunning')),
-        lastEventText: lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : ''
+        lastEventText: lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : '',
+        elapsedTime: stateService.getState('game.elapsedTime') || 0
     });
     eventButtons.updateBadgeCounts(events);
     renderActiveMatchBanner();
@@ -897,6 +898,14 @@ function discardCapture() {
     draftService.clearDraft();
     renderBoard();
     showStartControls();
+}
+
+
+function shouldIgnoreCaptureKeydown(event) {
+    if (stateService.getState('ui.currentView') !== 'EventCapture') return true;
+    if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return true;
+    if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return true;
+    return false;
 }
 
 function registerEventListeners() {
@@ -1018,12 +1027,24 @@ function registerEventListeners() {
         deleteLoggedEvent(Number(button.dataset.deleteIndex));
     });
 
+
+    // Space starts the clock when armed, or pauses/resumes while a game is active
+    document.addEventListener('keydown', (event) => {
+                if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.code !== 'Space' && event.key !== ' ') return;
+        if (shouldIgnoreCaptureKeydown(event)) return;
+        if (!stateService.getState('game.hasCurrentGame')) return;
+
+        event.preventDefault();
+        gameState.pauseResume();
+        saveCaptureDraft();
+        syncChrome();
+    });
+
     // Ctrl+Z / Cmd+Z removes the last event while capturing
     document.addEventListener('keydown', (event) => {
-        if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
-        if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return;
-        if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+                if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
+        if (shouldIgnoreCaptureKeydown(event)) return;
 
         event.preventDefault();
         undoLastEvent();
@@ -1047,10 +1068,8 @@ function registerEventListeners() {
 
     // Number keys pick the sticky zone (from Team 1's perspective); T switches the team for shared team buttons
     document.addEventListener('keydown', (event) => {
-        if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return;
-        if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+                if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (shouldIgnoreCaptureKeydown(event)) return;
 
         if (event.key === 't' || event.key === 'T') {
             if (!codingButtonsContainer.querySelector('.team-toggle')) return;
