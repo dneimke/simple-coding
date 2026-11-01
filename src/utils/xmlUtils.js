@@ -375,3 +375,51 @@ export const validateXmlStructure = (xmlContent) => {
  * @returns {string} Sportscode XML document for the game
  */
 export const generateGameXml = (game, gameTitle) => generateSportscodeXml(game?.events);
+
+/**
+ * Merges two event arrays chronologically, deduplicating identical events within a time tolerance.
+ * Two events are duplicates if they share the same event name/code and their timeMs differs by <= dedupeWindowMs.
+ *
+ * @param {Array} baseEvents - Existing event stream
+ * @param {Array} incomingEvents - New event stream to append/merge
+ * @param {Object} [options={}] - Configuration options
+ * @param {number} [options.dedupeWindowMs=500] - Tolerance window in ms for duplicate detection
+ * @returns {Array} Array of chronologically merged events, with .addedCount and .duplicateCount properties attached
+ */
+export const mergeXmlEventStreams = (baseEvents = [], incomingEvents = [], options = {}) => {
+    const dedupeWindowMs = typeof options.dedupeWindowMs === 'number' ? options.dedupeWindowMs : 500;
+    const base = Array.isArray(baseEvents) ? baseEvents.slice() : [];
+    const incoming = Array.isArray(incomingEvents) ? incomingEvents.slice() : [];
+
+    let duplicateCount = 0;
+    let addedCount = 0;
+
+    const isDuplicate = (cand, targetList) => {
+        return targetList.some(item =>
+            item &&
+            item.event === cand.event &&
+            Math.abs((item.timeMs || 0) - (cand.timeMs || 0)) <= dedupeWindowMs
+        );
+    };
+
+    const acceptedIncoming = [];
+    for (const ev of incoming) {
+        if (!ev || !ev.event) continue;
+        if (isDuplicate(ev, base) || isDuplicate(ev, acceptedIncoming)) {
+            duplicateCount++;
+        } else {
+            acceptedIncoming.push(ev);
+            addedCount++;
+        }
+    }
+
+    const merged = [...base, ...acceptedIncoming];
+    merged.sort((a, b) => (a.timeMs || 0) - (b.timeMs || 0));
+
+    merged.addedCount = addedCount;
+    merged.duplicateCount = duplicateCount;
+    if (base.teamsAttribute || incoming.teamsAttribute) {
+        merged.teamsAttribute = base.teamsAttribute || incoming.teamsAttribute;
+    }
+    return merged;
+};

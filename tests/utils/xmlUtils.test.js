@@ -5,7 +5,8 @@ import {
     parseXmlToEvents,
     validateXmlStructure,
     generateGameXml,
-    generateSportscodeXml
+    generateSportscodeXml,
+    mergeXmlEventStreams
 } from '../../src/utils/xmlUtils.js';
 
 jest.mock('../../src/utils/formatUtils.js', () => ({
@@ -272,6 +273,58 @@ describe('XML Utils', () => {
             expect(() => validateXmlStructure(sportscodeWithInstance(
                 '<instance><ID>1</ID><start>1</start><end>2</end><code_id>99</code_id><code>GOAL_FOR</code></instance>'
             ))).toThrow('code_id 99 has no matching row');
+        });
+    });
+
+    describe('mergeXmlEventStreams', () => {
+        test('interleaves two event streams chronologically by timeMs', () => {
+            const base = [
+                { event: 'CE', timeMs: 10000 },
+                { event: 'SHOT', timeMs: 30000 }
+            ];
+            const incoming = [
+                { event: 'TURNOVER', timeMs: 20000 },
+                { event: 'GOAL', timeMs: 40000 }
+            ];
+            const result = mergeXmlEventStreams(base, incoming);
+            expect(result.map(e => e.event)).toEqual(['CE', 'TURNOVER', 'SHOT', 'GOAL']);
+            expect(result.addedCount).toBe(2);
+            expect(result.duplicateCount).toBe(0);
+        });
+
+        test('deduplicates events with identical codes within the tolerance window', () => {
+            const base = [
+                { event: 'SHOT', timeMs: 15000 }
+            ];
+            const incoming = [
+                { event: 'SHOT', timeMs: 15300 },
+                { event: 'SHOT', timeMs: 17000 }
+            ];
+            const result = mergeXmlEventStreams(base, incoming, { dedupeWindowMs: 500 });
+            expect(result).toHaveLength(2);
+            expect(result.addedCount).toBe(1);
+            expect(result.duplicateCount).toBe(1);
+            expect(result[0].timeMs).toBe(15000);
+            expect(result[1].timeMs).toBe(17000);
+        });
+
+        test('handles intra-file duplicates in incoming stream', () => {
+            const base = [];
+            const incoming = [
+                { event: 'PC', timeMs: 5000 },
+                { event: 'PC', timeMs: 5200 }
+            ];
+            const result = mergeXmlEventStreams(base, incoming);
+            expect(result).toHaveLength(1);
+            expect(result.addedCount).toBe(1);
+            expect(result.duplicateCount).toBe(1);
+        });
+
+        test('handles empty or null inputs gracefully', () => {
+            const result = mergeXmlEventStreams(null, null);
+            expect(result).toHaveLength(0);
+            expect(result.addedCount).toBe(0);
+            expect(result.duplicateCount).toBe(0);
         });
     });
 });

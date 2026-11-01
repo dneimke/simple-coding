@@ -7,8 +7,8 @@ import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility } from './utils/domUtils.js';
 import { logger, formatTime } from './utils/formatUtils.js';
-import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard } from './utils/xmlUtils.js';
-import { showPreview } from './utils/importUtils.js';
+import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard, mergeXmlEventStreams } from './utils/xmlUtils.js';
+import { showPreview, showAppendPreview } from './utils/importUtils.js';
 function showMessage(element, message, isError = false) {
     notificationService.showMessage(element, message, isError);
 }
@@ -174,6 +174,8 @@ const configBoardPreview = document.getElementById('configBoardPreview');
 const configVisualBannerText = document.getElementById('configVisualBannerText');
 const importXmlButton = document.getElementById('importXmlButton');
 const xmlFileInput = document.getElementById('xmlFileInput');
+const appendXmlFileInput = document.getElementById('appendXmlFileInput');
+let pendingAppendGame = null;
 const previewModal = document.getElementById('previewModal');
 const previewContainer = document.getElementById('previewContainer');
 const tabButtonRecent = document.getElementById('tabButtonRecent');
@@ -269,6 +271,12 @@ function renderSavedGames() {
                     },
                     onViewLog: () => {
                         window.location.hash = `log/${encodeURIComponent(game.id)}`;
+                    },
+                    onAppendXml: () => {
+                        pendingAppendGame = game;
+                        if (appendXmlFileInput) {
+                            appendXmlFileInput.click();
+                        }
                     },
                     onRename: () => {
                         // Get the current name or use a placeholder
@@ -1431,32 +1439,83 @@ function registerEventListeners() {
         xmlFileInput.click();
     });
 
-    xmlFileInput.addEventListener('change', async (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            try {
-                const xmlContent = await file.text();
-                validateXmlStructure(xmlContent);
-                const events = parseXmlToEvents(xmlContent);
-                if (!events.teamsAttribute) {
-                    events.teamsAttribute = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim() || null;
-                }
-
-                showPreview(previewContainer, events, LOCAL_STORAGE_KEY_GAMES, (e) => {
-                    if (e.importedFileCount > 0) {
-                        renderSavedGames();
-                    }
-                });
-
-                previewModal.classList.remove('hidden');
-            } catch (error) {
-                console.error('Error importing XML:', error);
-                notificationService.notify(`Failed to import XML: ${error.message}`, 'error');
-            } finally {
-                xmlFileInput.value = '';
+    async function parseXmlFiles(files) {
+        if (files.length === 1) {
+            const file = files[0];
+            const xmlContent = await file.text();
+            validateXmlStructure(xmlContent);
+            const events = parseXmlToEvents(xmlContent);
+            if (!events.teamsAttribute) {
+                events.teamsAttribute = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim() || null;
             }
+            return events;
+        }
+
+        let combinedEvents = [];
+        let detectedTeams = null;
+        for (const file of files) {
+            const xmlContent = await file.text();
+            validateXmlStructure(xmlContent);
+            const parsed = parseXmlToEvents(xmlContent);
+            if (!detectedTeams && parsed.teamsAttribute) {
+                detectedTeams = parsed.teamsAttribute;
+            } else if (!detectedTeams) {
+                detectedTeams = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim();
+            }
+            combinedEvents = mergeXmlEventStreams(combinedEvents, parsed);
+        }
+        combinedEvents.teamsAttribute = detectedTeams;
+        return combinedEvents;
+    }
+
+    xmlFileInput.addEventListener('change', async (event) => {
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) return;
+
+        try {
+            const events = await parseXmlFiles(files);
+            showPreview(previewContainer, events, LOCAL_STORAGE_KEY_GAMES, (e) => {
+                if (e.importedFileCount > 0) {
+                    renderSavedGames();
+                }
+            });
+            previewModal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error importing XML:', error);
+            notificationService.notify(`Failed to import XML: ${error.message}`, 'error');
+        } finally {
+            xmlFileInput.value = '';
         }
     });
+
+    if (appendXmlFileInput) {
+        appendXmlFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files?.[0];
+            if (file && pendingAppendGame) {
+                try {
+                    const xmlContent = await file.text();
+                    validateXmlStructure(xmlContent);
+                    const events = parseXmlToEvents(xmlContent);
+                    if (events.length === 0) {
+                        throw new Error('No events found in the XML file.');
+                    }
+
+                    showAppendPreview(previewContainer, pendingAppendGame, events, (res) => {
+                        if (res && res.appended) {
+                            renderSavedGames();
+                        }
+                    });
+
+                    previewModal.classList.remove('hidden');
+                } catch (error) {
+                    console.error('Error appending XML:', error);
+                    notificationService.notify(`Failed to append XML: ${error.message}`, 'error');
+                } finally {
+                    appendXmlFileInput.value = '';
+                }
+            }
+        });
+    }
 }
 
 const router = new Router(

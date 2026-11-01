@@ -312,6 +312,48 @@ async function runSnapshots() {
             await continueCtx.close();
         }
 
+        // Capture Append XML Preview Modal (desktop and mobile)
+        for (const vp of VIEWPORTS) {
+            const appendCtx = await browser.newContext({
+                viewport: { width: vp.width, height: vp.height },
+                deviceScaleFactor: 2
+            });
+            const appendPage = await appendCtx.newPage();
+            await appendPage.goto(`${baseUrl}/#saved-games?mock=sample`, { waitUntil: 'domcontentloaded' });
+            await appendPage.waitForSelector('#savedGamesList .saved-game-card');
+
+            await appendPage.evaluate(async () => {
+                const importUtilsPath = '/utils/importUtils.js';
+                const { showAppendPreview } = await import(importUtilsPath);
+                const storagePath = '/services/gameStorageManager.js';
+                const { gameStorageManager } = await import(storagePath);
+                const games = gameStorageManager.ensureGameIds();
+                const target = games[0] || { id: 'sample', teams: 'FIRE vs TIGERS', events: [] };
+                const incoming = [
+                    { event: 'SHOT', timeMs: 45000 },
+                    { event: 'TURNOVER', timeMs: 50000 },
+                    { event: 'CE', timeMs: 12000 }
+                ];
+                const previewContainer = document.getElementById('previewContainer');
+                showAppendPreview(previewContainer, target, incoming);
+                document.getElementById('previewModal').classList.remove('hidden');
+            });
+            await appendPage.waitForSelector('#previewModal:not(.hidden)');
+            await appendPage.waitForTimeout(300);
+
+            const appendModalPath = path.join(OUTPUT_DIR, `append-xml-preview-modal-${vp.name}.png`);
+            await appendPage.screenshot({ path: appendModalPath, fullPage: true });
+            results.push({
+                name: 'append-xml-preview-modal',
+                viewport: vp.name,
+                size: `${vp.width}x${vp.height}`,
+                file: `append-xml-preview-modal-${vp.name}.png`,
+                bytes: fs.statSync(appendModalPath).size
+            });
+
+            await appendCtx.close();
+        }
+
         // Capture Board Actions dropdown open state on Configure (desktop and mobile)
         for (const vp of VIEWPORTS) {
             const configActionsCtx = await browser.newContext({

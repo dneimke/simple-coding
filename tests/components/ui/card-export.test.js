@@ -281,6 +281,17 @@ describe('Saved game actions', () => {
         expect(findMenuItem(card, 'View log')).toBeUndefined();
     });
 
+    test('Append XML… is listed when onAppendXml handler is provided', () => {
+        const onAppendXml = jest.fn();
+        const card = createGameCard({ game, index: 0, ...handlers, onAppendXml });
+        expect(findMenuItem(card, 'Append XML…')).toBeDefined();
+
+        const stopPropagation = jest.fn();
+        findMenuItem(card, 'Append XML…').onclick({ stopPropagation });
+        expect(stopPropagation).toHaveBeenCalled();
+        expect(onAppendXml).toHaveBeenCalled();
+    });
+
     test.each([
         ['Continue coding', 'onContinueCoding'],
         ['View log', 'onViewLog'],
