@@ -900,6 +900,14 @@ function discardCapture() {
     showStartControls();
 }
 
+
+function shouldIgnoreCaptureKeydown(event) {
+    if (stateService.getState('ui.currentView') !== 'EventCapture') return true;
+    if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return true;
+    if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return true;
+    return false;
+}
+
 function registerEventListeners() {
     bindFinishMenu();
 
@@ -1022,11 +1030,9 @@ function registerEventListeners() {
 
     // Space starts the clock when armed, or pauses/resumes while a game is active
     document.addEventListener('keydown', (event) => {
-        if (event.ctrlKey || event.metaKey || event.altKey) return;
+                if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (event.code !== 'Space' && event.key !== ' ') return;
-        if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return;
-        if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+        if (shouldIgnoreCaptureKeydown(event)) return;
         if (!stateService.getState('game.hasCurrentGame')) return;
 
         event.preventDefault();
@@ -1037,10 +1043,8 @@ function registerEventListeners() {
 
     // Ctrl+Z / Cmd+Z removes the last event while capturing
     document.addEventListener('keydown', (event) => {
-        if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
-        if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return;
-        if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+                if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
+        if (shouldIgnoreCaptureKeydown(event)) return;
 
         event.preventDefault();
         undoLastEvent();
@@ -1064,10 +1068,8 @@ function registerEventListeners() {
 
     // Number keys pick the sticky zone (from Team 1's perspective); T switches the team for shared team buttons
     document.addEventListener('keydown', (event) => {
-        if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (stateService.getState('ui.currentView') !== 'EventCapture') return;
-        if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return;
-        if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+                if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (shouldIgnoreCaptureKeydown(event)) return;
 
         if (event.key === 't' || event.key === 'T') {
             if (!codingButtonsContainer.querySelector('.team-toggle')) return;

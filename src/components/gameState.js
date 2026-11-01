@@ -45,17 +45,6 @@ export class GameState {
         }
     }
 
-    setGameState(newState) {
-        this._stopTimerUpdate();
-        stateService.setState('game', newState, true);
-
-        // Set up timer if game is running
-        if (newState.isRunning) {
-            this.startTime = Date.now();
-            this._startTimerUpdate();
-        }
-    }
-
     /**
      * Restore a capture in progress. A clock that was running keeps counting from
      * runningSince, so time spent offline or reloading is included.

@@ -18,38 +18,32 @@ export function syncCaptureChrome({ hasGame, isRunning, lastEventText, elapsedTi
     const finish = document.getElementById('finishGameMenu');
 
     const showLast = Boolean(hasGame && lastEventText);
-    if (board) board.classList.toggle('hidden', hasGame);
-    if (last) last.classList.toggle('hidden', !showLast);
-    if (context) context.classList.remove('hidden');
-    if (lastLabel) lastLabel.textContent = showLast ? lastEventText : '';
+    board.classList.toggle('hidden', hasGame);
+    last.classList.toggle('hidden', !showLast);
+    context.classList.remove('hidden');
+    lastLabel.textContent = showLast ? lastEventText : '';
 
-    if (boardSelect) {
-        boardSelect.disabled = hasGame;
-        boardSelect.title = hasGame ? 'Complete or discard the game to change board' : 'Choose the button board';
-    }
+    boardSelect.disabled = hasGame;
+    boardSelect.title = hasGame ? 'Complete or discard the game to change board' : 'Choose the button board';
 
-    if (start) {
-        start.classList.toggle('hidden', hasGame);
-        start.textContent = 'Set Up Match';
-        start.classList.remove('btn-green');
-        start.classList.add('btn-blue');
-    }
-    if (log) log.classList.toggle('hidden', !hasGame);
-    if (pause) {
-        pause.classList.toggle('hidden', !hasGame);
-        if (hasGame && !isRunning) {
-            pause.textContent = (elapsedTime === 0) ? 'Start Clock' : 'Resume';
-            pause.classList.remove('btn-yellow');
-            pause.classList.add('btn-green');
-        } else {
-            pause.textContent = 'Pause';
-            pause.classList.remove('btn-green');
-            pause.classList.add('btn-yellow');
-        }
-    }
-    if (finish) finish.classList.toggle('hidden', !hasGame);
+    start.classList.toggle('hidden', hasGame);
+    log.classList.toggle('hidden', !hasGame);
+    finish.classList.toggle('hidden', !hasGame);
+
+    syncPauseButton(pause, hasGame, isRunning, elapsedTime);
 
     if (!hasGame) closeFinishMenu();
+}
+
+function syncPauseButton(button, hasGame, isRunning, elapsedTime) {
+    button.classList.toggle('hidden', !hasGame);
+    if (!hasGame) return;
+
+    const isArmed = !isRunning && elapsedTime === 0;
+    const isPaused = !isRunning && elapsedTime > 0;
+    button.textContent = isArmed ? 'Start Clock' : (isPaused ? 'Resume' : 'Pause');
+    button.classList.toggle('btn-green', !isRunning);
+    button.classList.toggle('btn-yellow', isRunning);
 }
 
 let openFinishMenu = null;
@@ -90,31 +84,30 @@ export function bindFinishMenu() {
                 toggle.focus();
                 return;
             }
-            if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                const next = (items.indexOf(document.activeElement) + 1) % items.length;
-                items[next].focus();
-            } else if (event.key === 'ArrowUp') {
-                event.preventDefault();
-                const currentIndex = items.indexOf(document.activeElement);
-                const prev = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
-                items[prev].focus();
-            }
+            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+            if (!wrapper.contains(document.activeElement) && document.activeElement !== toggle) return;
+            event.preventDefault();
+            const step = event.key === 'ArrowDown' ? 1 : -1;
+            const current = items.indexOf(document.activeElement);
+            const next = current === -1
+                ? (step > 0 ? 0 : items.length - 1)
+                : (current + step + items.length) % items.length;
+            items[next].focus();
         };
 
+        openFinishMenu = { menu, toggle, onDocClick, onKeydown };
         document.addEventListener('click', onDocClick, true);
         document.addEventListener('keydown', onKeydown);
-        openFinishMenu = { menu, toggle, onDocClick, onKeydown };
         items[0]?.focus();
     };
 
-    toggle.addEventListener('click', () => {
-        if (menu.classList.contains('hidden')) {
-            open();
-        } else {
-            closeFinishMenu();
-        }
+    toggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (menu.classList.contains('hidden')) open();
+        else closeFinishMenu();
     });
 
-    items.forEach(item => item.addEventListener('click', () => closeFinishMenu()));
+    menu.addEventListener('click', (event) => {
+        if (event.target.closest('[role="menuitem"]')) closeFinishMenu();
+    });
 }

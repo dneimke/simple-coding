@@ -10,9 +10,9 @@ import { storageService } from '../services/storageService.js';
 import { DRAFT_STORAGE_KEY } from '../services/draftService.js';
 
 export const SAMPLE_GAME_ID = 'sample-game';
-export const GAMES_STORAGE_KEY = 'fieldHockeyGames_v1';
+const GAMES_STORAGE_KEY = 'fieldHockeyGames_v1';
 
-export const SAMPLE_GAMES = [
+const SAMPLE_GAMES = [
     {
         id: SAMPLE_GAME_ID,
         name: 'FIRE vs TIGERS',
@@ -30,7 +30,7 @@ export const SAMPLE_GAMES = [
     }
 ];
 
-export const SAMPLE_DRAFT = {
+const SAMPLE_DRAFT = {
     events: [
         { event: 'FIRE BS1', timeMs: 45000, isTeam1: true, lead: 3, lag: 7 },
         { event: 'TIGERS A25E', timeMs: 120000, isTeam1: false, lead: 5, lag: 5 },
@@ -61,7 +61,7 @@ const ARMED_DRAFT = {
     updatedAt: Date.now()
 };
 
-export const PC_COUNTER_DRAFT = {
+const PC_COUNTER_DRAFT = {
     events: [
         {
             id: 'pc-1',

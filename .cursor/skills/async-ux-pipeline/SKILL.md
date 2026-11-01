@@ -70,7 +70,7 @@ Every change ships through a pull request. Never commit or push to `main`.
 
 1. **Local Pre-PR Guardrail Gate (Catch locally before CI)**:
    - Run `npm run typecheck` — verify zero TypeScript/JSDoc syntax errors (`tsc -p jsconfig.json`).
-   - Run `npx fallow audit` (or `npm run audit`) — verify zero introduced dead code, ghost exports, or syntax regressions against `main`. Fix any introduced findings locally before pushing.
+   - Run `npx fallow audit --base origin/main` — verify zero introduced dead code, ghost exports, duplication, or quality gate violations against `origin/main`. Fix any introduced findings locally before pushing.
 2. **Branch & Commit**:
    - Always branch from `main` using `feature/<short-name>`.
    - Commit with a concise message describing the user benefit.
