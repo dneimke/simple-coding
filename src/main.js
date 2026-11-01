@@ -65,7 +65,7 @@ import { draftService, finishCapture } from './services/draftService.js';
 import { openTeamSetupDialog, loadLastTeams, saveLastTeams } from './components/teamSetupDialog.js';
 import { openCompleteGameDialog } from './components/completeGameDialog.js';
 import { bindFinishMenu, syncCaptureChrome } from './components/captureChrome.js';
-import { resolveEventName } from './utils/zoneUtils.js';
+import { createCaptureEventPayload } from './utils/capturePayloadUtils.js';
 import { renderRecentEvents } from './components/recentEvents.js';
 import { checkAndApplyMockSeed } from './utils/seedData.js';
 
@@ -649,28 +649,22 @@ function shouldIgnoreCaptureKeydown(event) {
     return false;
 }
 
-function registerEventListeners() {
+function initNavEventListeners() {
     bindFinishMenu();
 
     tabNavContainer.addEventListener('click', (event) => {
         const button = event.target.closest('.tab-button');
-        if (!button) return; // Ignore clicks on unrelated elements
+        if (!button) return;
 
         const tab = button.dataset.tab;
         router.switchTab(tab);
     });
 
     navContainer.addEventListener('click', (event) => {
-        // Find the closest ancestor with an id starting with 'nav'
         const navButton = event.target.closest('[id^="nav"]');
-        if (!navButton) {
-            return;
-        }
+        if (!navButton) return;
 
-        // Extract the view name from the button ID
         const viewName = navButton.id.slice(3);
-
-        // Use the router to navigate, which will now update the hash
         router.showView(viewName, () => {
             if (viewName === 'SavedGames') {
                 renderSavedGames();
@@ -683,8 +677,9 @@ function registerEventListeners() {
     backToSavedGamesButton.addEventListener('click', () => {
         router.showView('SavedGames', renderSavedGames);
     });
+}
 
-
+function initCodingButtonListeners() {
     codingButtonsContainer.addEventListener('click', (event) => {
         const zoneButton = event.target.closest('.zone-button[data-zone]');
         if (zoneButton) {
@@ -699,36 +694,14 @@ function registerEventListeners() {
         }
 
         const button = event.target.closest('.event-button[data-event]');
-        if (!button) return; // Ignore clicks on unrelated elements
+        if (!button) return;
 
-        const eventName = resolveEventName(
-            { event: button.dataset.event, zoned: button.dataset.zoned === 'true', slot: button.dataset.teamSlot },
-            { zone: eventButtons.zone, zones: eventButtons.config?.zones }
-        );
-        const clip = {};
-        if (button.dataset.lead !== undefined) clip.lead = Number(button.dataset.lead);
-        if (button.dataset.lag !== undefined) clip.lag = Number(button.dataset.lag);
-
-        const timeMs = gameState.getLiveElapsedTime();
-        const teamSlot = button.dataset.teamSlot;
-        const teamCode = teamSlot && eventButtons.teams ? (eventButtons.teams[Number(teamSlot) - 1]?.code || null) : null;
-        const isPC =
-            button.dataset.baseEvent === 'PC' ||
-            (button.dataset.event && button.dataset.event.endsWith('PC')) ||
-            (button.textContent && button.textContent.includes('Penalty Corner'));
-
-        const eventPayload = {
-            id: 'pc-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-            event: eventName,
-            timeMs,
-            timestamp: formatTime(timeMs),
-            eventCode: isPC ? 'PC' : (button.dataset.baseEvent || button.dataset.event || eventName),
-            team: teamCode,
-            leadTime: isPC ? 10 : (clip.lead ?? 10),
-            lagTime: isPC ? 15 : (clip.lag ?? 15),
-            ...clip
-        };
-
+        const eventPayload = createCaptureEventPayload(button, {
+            zone: eventButtons.zone,
+            zones: eventButtons.config?.zones,
+            teams: eventButtons.teams,
+            elapsedTime: gameState.getLiveElapsedTime()
+        });
         if (gameState.addEvent(eventPayload)) {
             saveCaptureDraft();
             if (liveChordEngine) {
@@ -736,7 +709,9 @@ function registerEventListeners() {
             }
         }
     });
+}
 
+function initTrackerControlListeners() {
     trackerView.addEventListener('click', (event) => {
         const { id } = event.target;
 
@@ -767,11 +742,12 @@ function registerEventListeners() {
         if (!button || stateService.getState('ui.logGameId')) return;
         deleteLoggedEvent(Number(button.dataset.deleteIndex));
     });
+}
 
-
+function initCaptureKeyboardShortcuts() {
     // Space starts the clock when armed, or pauses/resumes while a game is active
     document.addEventListener('keydown', (event) => {
-                if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (event.code !== 'Space' && event.key !== ' ') return;
         if (shouldIgnoreCaptureKeydown(event)) return;
         if (!stateService.getState('game.hasCurrentGame')) return;
@@ -784,32 +760,16 @@ function registerEventListeners() {
 
     // Ctrl+Z / Cmd+Z removes the last event while capturing
     document.addEventListener('keydown', (event) => {
-                if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
+        if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
         if (shouldIgnoreCaptureKeydown(event)) return;
 
         event.preventDefault();
         undoLastEvent();
     });
 
-    boardSelect.addEventListener('change', () => {
-        if (stateService.getState('game.hasCurrentGame') || boardSelect.value === CUSTOM_BOARD_VALUE) {
-            renderBoardOptions();
-            return;
-        }
-        try {
-            const config = activateNamedConfig(boardSelect.value);
-            eventButtons.setConfig(config);
-            renderBoard(config);
-        } catch (error) {
-            logger.error('Failed to switch board:', error);
-            notificationService.notify(error.message, 'error');
-        }
-        renderBoardOptions();
-    });
-
     // Number keys pick the sticky zone (from Team 1's perspective); T switches the team for shared team buttons
     document.addEventListener('keydown', (event) => {
-                if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (shouldIgnoreCaptureKeydown(event)) return;
 
         if (event.key === 't' || event.key === 'T') {
@@ -826,11 +786,23 @@ function registerEventListeners() {
         event.preventDefault();
         selectZone(zones.values[index]);
     });
+}
 
-    // Copy XML button
-    copyXmlButton.addEventListener('click', () => {
-        const xmlContent = xmlOutputContainer.textContent;
-        copyXmlToClipboard(xmlContent);
+function initConfigViewEventListeners() {
+    boardSelect.addEventListener('change', () => {
+        if (stateService.getState('game.hasCurrentGame') || boardSelect.value === CUSTOM_BOARD_VALUE) {
+            renderBoardOptions();
+            return;
+        }
+        try {
+            const config = activateNamedConfig(boardSelect.value);
+            eventButtons.setConfig(config);
+            renderBoard(config);
+        } catch (error) {
+            logger.error('Failed to switch board:', error);
+            notificationService.notify(error.message, 'error');
+        }
+        renderBoardOptions();
     });
 
     if (savedConfigSelect) {
@@ -910,38 +882,67 @@ function registerEventListeners() {
             }
         });
     }
+}
+
+async function parseSingleXmlFile(file) {
+    const xmlContent = await file.text();
+    validateXmlStructure(xmlContent);
+    const events = parseXmlToEvents(xmlContent);
+    if (!events.teamsAttribute) {
+        events.teamsAttribute = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim() || null;
+    }
+    return events;
+}
+
+async function parseXmlFiles(files) {
+    if (files.length === 1) {
+        return parseSingleXmlFile(files[0]);
+    }
+
+    let combinedEvents = [];
+    let detectedTeams = null;
+    for (const file of files) {
+        const parsed = await parseSingleXmlFile(file);
+        detectedTeams = detectedTeams || parsed.teamsAttribute;
+        combinedEvents = mergeXmlEventStreams(combinedEvents, parsed);
+    }
+    combinedEvents.teamsAttribute = detectedTeams;
+    return combinedEvents;
+}
+
+async function handleAppendFileSelected(file, game) {
+    try {
+        const xmlContent = await file.text();
+        validateXmlStructure(xmlContent);
+        const events = parseXmlToEvents(xmlContent);
+        if (events.length === 0) {
+            throw new Error('No events found in the XML file.');
+        }
+
+        showAppendPreview(previewContainer, game, events, (res) => {
+            if (res && res.appended) {
+                renderSavedGames();
+            }
+        });
+
+        previewModal.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error appending XML:', error);
+        notificationService.notify(`Failed to append XML: ${error.message}`, 'error');
+    }
+}
+
+function initXmlImportEventListeners() {
+    copyXmlButton.addEventListener('click', () => {
+        const xmlContent = xmlOutputContainer.textContent;
+        copyXmlToClipboard(xmlContent);
+    });
 
     initCreateMatchDropdown();
 
     importXmlButton.addEventListener('click', () => {
         xmlFileInput.click();
     });
-
-    async function parseSingleXmlFile(file) {
-        const xmlContent = await file.text();
-        validateXmlStructure(xmlContent);
-        const events = parseXmlToEvents(xmlContent);
-        if (!events.teamsAttribute) {
-            events.teamsAttribute = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim() || null;
-        }
-        return events;
-    }
-
-    async function parseXmlFiles(files) {
-        if (files.length === 1) {
-            return parseSingleXmlFile(files[0]);
-        }
-
-        let combinedEvents = [];
-        let detectedTeams = null;
-        for (const file of files) {
-            const parsed = await parseSingleXmlFile(file);
-            detectedTeams = detectedTeams || parsed.teamsAttribute;
-            combinedEvents = mergeXmlEventStreams(combinedEvents, parsed);
-        }
-        combinedEvents.teamsAttribute = detectedTeams;
-        return combinedEvents;
-    }
 
     xmlFileInput.addEventListener('change', async (event) => {
         const files = Array.from(event.target.files || []);
@@ -963,28 +964,6 @@ function registerEventListeners() {
         }
     });
 
-    async function handleAppendFileSelected(file, game) {
-        try {
-            const xmlContent = await file.text();
-            validateXmlStructure(xmlContent);
-            const events = parseXmlToEvents(xmlContent);
-            if (events.length === 0) {
-                throw new Error('No events found in the XML file.');
-            }
-
-            showAppendPreview(previewContainer, game, events, (res) => {
-                if (res && res.appended) {
-                    renderSavedGames();
-                }
-            });
-
-            previewModal.classList.remove('hidden');
-        } catch (error) {
-            console.error('Error appending XML:', error);
-            notificationService.notify(`Failed to append XML: ${error.message}`, 'error');
-        }
-    }
-
     if (appendXmlFileInput) {
         appendXmlFileInput.addEventListener('change', async (event) => {
             const file = event.target.files?.[0];
@@ -994,6 +973,15 @@ function registerEventListeners() {
             appendXmlFileInput.value = '';
         });
     }
+}
+
+function registerEventListeners() {
+    initNavEventListeners();
+    initCodingButtonListeners();
+    initTrackerControlListeners();
+    initCaptureKeyboardShortcuts();
+    initConfigViewEventListeners();
+    initXmlImportEventListeners();
 }
 
 const router = new Router(
