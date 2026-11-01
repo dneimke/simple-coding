@@ -1107,82 +1107,85 @@ function selectVideoZone(zone) {
     return true;
 }
 
+function isTextInputElement(target) {
+    return Boolean(target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable));
+}
+
+function handleChordNavigation(e, chordEngine) {
+    if (!chordEngine || !chordEngine.isListening()) return false;
+    if (['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault();
+        chordEngine.selectOption(e.key);
+        return true;
+    }
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        chordEngine.cancel();
+        return true;
+    }
+    return false;
+}
+
+function toggleVideoPlayback(video) {
+    if (!video) return;
+    if (video.paused) {
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => {});
+        }
+    } else {
+        video.pause();
+    }
+}
+
+function handleVideoPlaybackShortcut(e, video) {
+    if (e.code === 'Space' || e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        toggleVideoPlayback(video);
+        return true;
+    }
+    const seekOffsets = {
+        ArrowLeft: -5,
+        ArrowRight: 5,
+        j: -10,
+        J: -10,
+        l: 10,
+        L: 10
+    };
+    const offset = seekOffsets[e.key];
+    if (offset !== undefined) {
+        if (e.key.startsWith('Arrow')) e.preventDefault();
+        seekRelative(offset);
+        return true;
+    }
+    return false;
+}
+
 // Keyboard navigation and hotkey coding
 function handleVideoCodingKey(e) {
-        const target = e.target;
-        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-            return;
-        }
+    if (isTextInputElement(e.target)) return;
 
-        const video = document.getElementById('video-player');
-        if (!video) return;
+    const video = document.getElementById('video-player');
+    if (!video) return;
 
-        if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
-            e.preventDefault();
-            undoLastQuickTag();
-            return;
-        }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        undoLastQuickTag();
+        return;
+    }
 
-        if (videoChordEngine && videoChordEngine.isListening()) {
-            if (['1', '2', '3', '4'].includes(e.key)) {
-                e.preventDefault();
-                videoChordEngine.selectOption(e.key);
-                return;
-            }
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                videoChordEngine.cancel();
-                return;
-            }
-        }
+    if (handleChordNavigation(e, videoChordEngine)) return;
+    if (handleVideoPlaybackShortcut(e, video)) return;
 
-        if (e.code === 'Space') {
-            e.preventDefault();
-            if (video.paused) {
-                const playPromise = video.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(() => {});
-                }
-            } else {
-                video.pause();
-            }
-            return;
+    const keyNum = parseInt(e.key, 10);
+    const tags = loadQuickTags();
+    if (keyNum >= 1 && keyNum <= tags.length) {
+        e.preventDefault();
+        const tagDef = tags[keyNum - 1];
+        if (tagDef) {
+            quickTagEvent(tagDef);
         }
-
-        if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            seekRelative(-5);
-            return;
-        }
-        if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            seekRelative(5);
-            return;
-        }
-
-        if (e.key === 'j' || e.key === 'J') {
-            seekRelative(-10);
-            return;
-        }
-        if (e.key === 'l' || e.key === 'L') {
-            seekRelative(10);
-            return;
-        }
-        if (e.key === 'k' || e.key === 'K') {
-            if (video.paused) video.play().catch(() => {});
-            else video.pause();
-            return;
-        }
-
-        const keyNum = parseInt(e.key, 10);
-        const tags = loadQuickTags();
-        if (keyNum >= 1 && keyNum <= tags.length) {
-            e.preventDefault();
-            const tagDef = tags[keyNum - 1];
-            if (tagDef) {
-                quickTagEvent(tagDef);
-            }
-        }
+    }
 }
 
 function initKeyboardShortcuts() {
@@ -2831,19 +2834,7 @@ function domReady(callback) {
     }
 }
 
-domReady(() => {
-    console.log('DOM fully loaded and parsed');
-
-    const video = document.getElementById('video-player');
-    if (video) {
-        video.addEventListener('loadeddata', updateFabVisibility);
-        video.addEventListener('emptied', updateFabVisibility);
-    }
-
-    initFilterUI();
-    initAlignVideoModal();
-    loadGameFromQuery();
-
+function initOutsideClickDismissal() {
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.timeline-event-more-wrapper')) {
             document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
@@ -2861,10 +2852,9 @@ domReady(() => {
             document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
         }
     });
-    renderQuickTagButtons();
-    initKeyboardShortcuts();
+}
 
-    // Speed buttons
+function initPlaybackSpeedAndSeek() {
     document.querySelectorAll('[data-speed]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2873,17 +2863,15 @@ domReady(() => {
         });
     });
 
-    // 5s and 10s seek buttons
     const rewind5s = document.getElementById('rewind-5s');
     const forward5s = document.getElementById('forward-5s');
-    if (rew5s => rew5s) {}
     if (rewind5s) rewind5s.addEventListener('click', () => { seekRelative(-5); });
     if (forward5s) forward5s.addEventListener('click', () => { seekRelative(5); });
 
-    // Custom Tag button in Quick Tag panel
     const customTagBtn = document.getElementById('add-custom-tag-btn');
     const modal = document.getElementById('add-event-modal');
     const timestampInput = document.getElementById('event-timestamp');
+    const video = document.getElementById('video-player');
     if (customTagBtn && modal) {
         customTagBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2894,8 +2882,9 @@ domReady(() => {
             modal.classList.remove('hidden');
         });
     }
+}
 
-    // Edit Quick Tags toggle button
+function initQuickTagsEditor() {
     const editTagsBtn = document.getElementById('edit-quick-tags-btn');
     const editTagsLabel = document.getElementById('edit-quick-tags-label');
     const editBar = document.getElementById('quick-tags-edit-bar');
@@ -2922,14 +2911,12 @@ domReady(() => {
         });
     }
 
-    // Team assignment radio buttons
     document.querySelectorAll('input[name="tag-team-choice"]').forEach(radio => {
         radio.addEventListener('change', () => {
             updateTagTeamChoiceUI();
         });
     });
 
-    // Match Teams Swap button
     const swapTeamsBtn = document.getElementById('swap-match-teams-btn');
     if (swapTeamsBtn) {
         swapTeamsBtn.addEventListener('click', (e) => {
@@ -2938,7 +2925,6 @@ domReady(() => {
         });
     }
 
-    // Match Teams Code input changes
     const team1CodeInput = document.getElementById('match-team1-code');
     const team2CodeInput = document.getElementById('match-team2-code');
     const handleTeamCodeChange = () => {
@@ -2959,7 +2945,6 @@ domReady(() => {
         team2CodeInput.addEventListener('blur', handleTeamCodeChange);
     }
 
-    // Cancel edit tag button
     const cancelEditTagBtn = document.getElementById('cancel-edit-tag-btn');
     if (cancelEditTagBtn) {
         cancelEditTagBtn.addEventListener('click', (e) => {
@@ -2968,7 +2953,6 @@ domReady(() => {
         });
     }
 
-    // Add / Update quick tag button & Enter key
     const saveNewTagBtn = document.getElementById('save-new-tag-btn');
     const newTagInput = document.getElementById('new-tag-label-input');
     if (saveNewTagBtn && newTagInput) {
@@ -3019,7 +3003,6 @@ domReady(() => {
         }
     }
 
-    // Reset quick tags button
     const resetTagsBtn = document.getElementById('reset-quick-tags-btn');
     if (resetTagsBtn) {
         resetTagsBtn.addEventListener('click', (e) => {
@@ -3029,7 +3012,6 @@ domReady(() => {
         });
     }
 
-    // Undo button in ticker
     const undoQuickTagBtn = document.getElementById('quick-tag-undo-btn');
     if (undoQuickTagBtn) {
         undoQuickTagBtn.addEventListener('click', (e) => {
@@ -3038,7 +3020,6 @@ domReady(() => {
         });
     }
 
-    // Toggle Events Panel side-by-side in ticker without losing quick tag buttons
     const reviewModeBtn = document.getElementById('quick-tag-review-btn');
     if (reviewModeBtn) {
         reviewModeBtn.addEventListener('click', (e) => {
@@ -3047,7 +3028,6 @@ domReady(() => {
         });
     }
 
-    // Collapse Timeline panel button in panel header
     const collapseTimelineBtn = document.getElementById('collapse-timeline-btn');
     if (collapseTimelineBtn) {
         collapseTimelineBtn.addEventListener('click', (e) => {
@@ -3055,8 +3035,9 @@ domReady(() => {
             setTimelineCollapsed(true);
         });
     }
+}
 
-    // Inline Match Title Editor
+function initMatchTitleEditor() {
     const gameTitleEl = document.getElementById('review-game-title');
     const editTitleBtn = document.getElementById('edit-title-btn');
     const titleForm = document.getElementById('inline-title-form');
@@ -3095,7 +3076,6 @@ domReady(() => {
         });
     }
 
-    // Save & Exit button in header
     const saveAndExitBtn = document.getElementById('save-and-exit-btn');
     if (saveAndExitBtn) {
         saveAndExitBtn.addEventListener('click', (e) => {
@@ -3104,7 +3084,6 @@ domReady(() => {
         });
     }
 
-    // Direct Start & Upload on Empty State
     const startNewBtn = document.getElementById('start-new-video-game-btn');
     if (startNewBtn) {
         startNewBtn.addEventListener('click', (e) => {
@@ -3112,134 +3091,68 @@ domReady(() => {
             createNewVideoGame();
         });
     }
+}
 
-    function loadVideoFileToPlayer(file) {
-        const player = document.getElementById('video-player');
-        if (!player || !file) return;
-        while (player.firstChild) player.removeChild(player.firstChild);
-        const source = document.createElement('source');
-        source.src = URL.createObjectURL(file);
-        source.type = file.type;
-        player.appendChild(source);
-        player.load();
-        player.play().catch(err => console.warn("Couldn't auto-play video:", err));
-    }
+function initAttachModalButtons() {
+    const bindClick = (id, handler) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', handler);
+    };
 
-    function handleVideoFileSelection(file) {
-        if (!file) return;
-        if (!file.type.startsWith('video/')) {
-            showNotification('Please select a valid video file', 'error');
-            return;
-        }
-        if (!currentGameId) {
-            const baseName = file.name.replace(/\.[^/.]+$/, '');
-            createNewVideoGame(baseName);
-        } else {
-            autoRenameFromVideo(file.name);
-        }
-        commitDraftGame();
-        loadVideoFileToPlayer(file);
-    }
+    bindClick('attach-video-btn', () => openAttachVideoModal('url'));
+    bindClick('open-attach-video-direct-btn', () => openAttachVideoModal('url'));
+    bindClick('stage-attach-video-btn', () => openAttachVideoModal('url'));
+    bindClick('stage-upload-file-btn', () => openAttachVideoModal('file'));
+    bindClick('close-attach-video-modal', closeAttachVideoModal);
+    bindClick('cancel-attach-url-btn', closeAttachVideoModal);
+    bindClick('cancel-attach-file-btn', closeAttachVideoModal);
+    bindClick('tab-attach-url', () => switchAttachVideoTab('url'));
+    bindClick('tab-attach-file', () => switchAttachVideoTab('file'));
+    bindClick('detach-video-btn', detachVideo);
+    bindClick('change-video-url-btn', () => openAttachVideoModal('url'));
 
-    const uploadDirectInput = document.getElementById('video-upload-direct');
-    if (uploadDirectInput) {
-        uploadDirectInput.addEventListener('change', (e) => {
-            const file = e.target.files && e.target.files[0];
-            handleVideoFileSelection(file);
-        });
-    }
-
-    // --- Video Upload Setup ---
-    const videoUploadInput = document.getElementById('video-upload');
-    if (videoUploadInput) {
-        videoUploadInput.addEventListener('change', (e) => {
-            const file = e.target.files && e.target.files[0];
-            handleVideoFileSelection(file);
-        });
-    }    
-    // Attach Video Modal triggers
-    const attachVideoBtn = document.getElementById('attach-video-btn');
-    if (attachVideoBtn) {
-        attachVideoBtn.addEventListener('click', () => openAttachVideoModal('url'));
-    }
-    const directAttachBtn = document.getElementById('open-attach-video-direct-btn');
-    if (directAttachBtn) {
-        directAttachBtn.addEventListener('click', () => openAttachVideoModal('url'));
-    }
-    const stageAttachBtn = document.getElementById('stage-attach-video-btn');
-    if (stageAttachBtn) {
-        stageAttachBtn.addEventListener('click', () => openAttachVideoModal('url'));
-    }
-    const stageUploadFileBtn = document.getElementById('stage-upload-file-btn');
-    if (stageUploadFileBtn) {
-        stageUploadFileBtn.addEventListener('click', () => openAttachVideoModal('file'));
-    }
-    const closeAttachModalBtn = document.getElementById('close-attach-video-modal');
-    if (closeAttachModalBtn) {
-        closeAttachModalBtn.addEventListener('click', closeAttachVideoModal);
-    }
-    const cancelAttachUrlBtn = document.getElementById('cancel-attach-url-btn');
-    if (cancelAttachUrlBtn) {
-        cancelAttachUrlBtn.addEventListener('click', closeAttachVideoModal);
-    }
-    const cancelAttachFileBtn = document.getElementById('cancel-attach-file-btn');
-    if (cancelAttachFileBtn) {
-        cancelAttachFileBtn.addEventListener('click', closeAttachVideoModal);
-    }
-    const tabAttachUrl = document.getElementById('tab-attach-url');
-    if (tabAttachUrl) {
-        tabAttachUrl.addEventListener('click', () => switchAttachVideoTab('url'));
-    }
-    const tabAttachFile = document.getElementById('tab-attach-file');
-    if (tabAttachFile) {
-        tabAttachFile.addEventListener('click', () => switchAttachVideoTab('file'));
-    }
-    const detachVideoBtn = document.getElementById('detach-video-btn');
-    if (detachVideoBtn) {
-        detachVideoBtn.addEventListener('click', detachVideo);
-    }
-    const retryVideoUrlBtn = document.getElementById('retry-video-url-btn');
-    if (retryVideoUrlBtn) {
-        retryVideoUrlBtn.addEventListener('click', () => {
+    const retryBtn = document.getElementById('retry-video-url-btn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
             const errOverlay = document.getElementById('video-error-overlay');
             if (errOverlay) errOverlay.classList.add('hidden');
-            if (videoPlayer) {
-                videoPlayer.load();
-                videoPlayer.play().catch(e => console.warn("Retry play error:", e));
+            const player = document.getElementById('video-player');
+            if (player) {
+                player.load();
+                player.play().catch(e => console.warn('Retry play error:', e));
             }
         });
     }
-    const changeVideoUrlBtn = document.getElementById('change-video-url-btn');
-    if (changeVideoUrlBtn) {
-        changeVideoUrlBtn.addEventListener('click', () => openAttachVideoModal('url'));
-    }
+}
 
+function initVideoUrlInput() {
     const videoUrlInput = document.getElementById('video-url-input');
     const videoUrlWarning = document.getElementById('video-url-warning');
     const videoUrlWarningText = document.getElementById('video-url-warning-text');
-    if (videoUrlInput) {
-        videoUrlInput.addEventListener('input', () => {
-            const check = validateVideoUrl(videoUrlInput.value);
-            if (check.warning && videoUrlWarning && videoUrlWarningText) {
-                videoUrlWarningText.textContent = check.warning;
-                videoUrlWarning.classList.remove('hidden');
-            } else if (videoUrlWarning) {
-                videoUrlWarning.classList.add('hidden');
-            }
-        });
-        videoUrlInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (videoUrlInput.value.trim()) {
-                    attachVideoUrl(videoUrlInput.value.trim());
-                }
-            }
-        });
-    }
+    if (!videoUrlInput) return;
 
-    const submitAttachUrlBtn = document.getElementById('submit-attach-url-btn');
-    if (submitAttachUrlBtn && videoUrlInput) {
-        submitAttachUrlBtn.addEventListener('click', () => {
+    videoUrlInput.addEventListener('input', () => {
+        const check = validateVideoUrl(videoUrlInput.value);
+        if (check.warning && videoUrlWarning && videoUrlWarningText) {
+            videoUrlWarningText.textContent = check.warning;
+            videoUrlWarning.classList.remove('hidden');
+        } else if (videoUrlWarning) {
+            videoUrlWarning.classList.add('hidden');
+        }
+    });
+
+    videoUrlInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (videoUrlInput.value.trim()) {
+                attachVideoUrl(videoUrlInput.value.trim());
+            }
+        }
+    });
+
+    const submitBtn = document.getElementById('submit-attach-url-btn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', () => {
             if (videoUrlInput.value.trim()) {
                 attachVideoUrl(videoUrlInput.value.trim());
             } else {
@@ -3247,90 +3160,123 @@ domReady(() => {
             }
         });
     }
+}
 
-    const modalFileInput = document.getElementById('video-modal-file-input');
-    if (modalFileInput) {
-        modalFileInput.addEventListener('change', (e) => {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-            handleVideoFileSelection(file);
-            updateVideoStageOverlays();
-            updateCurrentVideoBanner();
-            closeAttachVideoModal();
-            updateFabVisibility();
-            showNotification('Video file loaded', 'success');
-        });
-    }
+function initVideoFileInputs() {
+    const bindFileInput = (id, onLoaded) => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('change', (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                handleVideoFileSelection(file);
+                if (onLoaded) onLoaded();
+            });
+        }
+    };
 
-    // --- Video Player Setup ---
+    bindFileInput('video-upload-direct');
+    bindFileInput('video-upload');
+    bindFileInput('video-modal-file-input', () => {
+        updateVideoStageOverlays();
+        updateCurrentVideoBanner();
+        closeAttachVideoModal();
+        updateFabVisibility();
+        showNotification('Video file loaded', 'success');
+    });
+}
+
+function initVideoAttachmentUI() {
+    initVideoFileInputs();
+    initAttachModalButtons();
+    initVideoUrlInput();
+}
+
+function initVideoPlayerControls() {
     const videoPlayer = document.getElementById('video-player');
-    if (videoPlayer) {
-        console.log('Video player element found.');
+    if (!videoPlayer) {
+        console.warn('Video player element not found.');
+        return;
+    }
 
-        // Setup video navigation controls (10 second skip)
-        const rewind10sButton = document.getElementById('rewind-10s');
-        const forward10sButton = document.getElementById('forward-10s');
+    console.log('Video player element found.');
 
-        if (rewind10sButton) {
-            rewind10sButton.addEventListener('click', () => {
-                if (videoPlayer.readyState > 0) {
-                    // Move back 10 seconds, ensuring we don't go below 0
-                    videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
-                }
-            });
-        }
+    const rewind10sButton = document.getElementById('rewind-10s');
+    const forward10sButton = document.getElementById('forward-10s');
 
-        if (forward10sButton) {
-            forward10sButton.addEventListener('click', () => {
-                if (videoPlayer.readyState > 0) {
-                    // Move forward 10 seconds, ensuring we don't exceed duration
-                    videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
-                }
-            });
-        }
-
-        // Handle errors
-        videoPlayer.addEventListener('error', (e) => {
-            console.error('Video Player Error:', videoPlayer.error);
-            const errorOverlay = document.getElementById('video-error-overlay');
-            const errorMessageEl = document.getElementById('video-error-message');
-            if (errorOverlay) {
-                if (errorMessageEl) {
-                    errorMessageEl.textContent = 'Unable to stream video from this source. Please verify that the link is accessible and is a direct MP4 or WebM file.';
-                }
-                errorOverlay.classList.remove('hidden');
-            }
-        });        // Listen for timeline event clicks to seek the video
-        document.addEventListener('timeline-event-clicked', (e) => {
-            const { event, seekTime } = e.detail;
-            console.log(`Seeking video to ${seekTime} seconds for event: ${event}`);
-
-            try {
-                // Check if video is loaded
-                if (videoPlayer.readyState > 0) {
-                    // Seek the video to the desired timestamp
-                    videoPlayer.currentTime = seekTime;
-
-                    // Start playing if it's not already playing
-                    if (videoPlayer.paused) {
-                        videoPlayer.play().catch(err => {
-                            console.warn("Couldn't auto-play video:", err);
-                        });
-                    }
-                } else {
-                    console.warn("Video not ready for seeking");
-                    showNotification("Video not loaded yet. Please try again.");
-                }
-            } catch (error) {
-                console.error("Error seeking video:", error);
-                showNotification("Error seeking video.");
+    if (rewind10sButton) {
+        rewind10sButton.addEventListener('click', () => {
+            if (videoPlayer.readyState > 0) {
+                videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
             }
         });
-    } else {
-        console.warn('Video player element not found.');
     }
-});
 
+    if (forward10sButton) {
+        forward10sButton.addEventListener('click', () => {
+            if (videoPlayer.readyState > 0) {
+                videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
+            }
+        });
+    }
+
+    videoPlayer.addEventListener('error', () => {
+        console.error('Video Player Error:', videoPlayer.error);
+        const errorOverlay = document.getElementById('video-error-overlay');
+        const errorMessageEl = document.getElementById('video-error-message');
+        if (errorOverlay) {
+            if (errorMessageEl) {
+                errorMessageEl.textContent = 'Unable to stream video from this source. Please verify that the link is accessible and is a direct MP4 or WebM file.';
+            }
+            errorOverlay.classList.remove('hidden');
+        }
+    });
+
+    document.addEventListener('timeline-event-clicked', (e) => {
+        const { event, seekTime } = e.detail;
+        console.log(`Seeking video to ${seekTime} seconds for event: ${event}`);
+
+        try {
+            if (videoPlayer.readyState > 0) {
+                videoPlayer.currentTime = seekTime;
+                if (videoPlayer.paused) {
+                    videoPlayer.play().catch(err => {
+                        console.warn("Couldn't auto-play video:", err);
+                    });
+                }
+            } else {
+                console.warn("Video not ready for seeking");
+                showNotification("Video not loaded yet. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error seeking video:", error);
+            showNotification("Error seeking video.");
+        }
+    });
+}
+
+domReady(() => {
+    console.log('DOM fully loaded and parsed');
+
+    const video = document.getElementById('video-player');
+    if (video) {
+        video.addEventListener('loadeddata', updateFabVisibility);
+        video.addEventListener('emptied', updateFabVisibility);
+    }
+
+    initFilterUI();
+    initAlignVideoModal();
+    loadGameFromQuery();
+    renderQuickTagButtons();
+    initKeyboardShortcuts();
+
+    initOutsideClickDismissal();
+    initPlaybackSpeedAndSeek();
+    initQuickTagsEditor();
+    initMatchTitleEditor();
+    initVideoAttachmentUI();
+    initVideoPlayerControls();
+});
 // Load the game named by the ?game=<id> query parameter, set by the Saved Games list
 function loadGameFromQuery() {
     checkAndApplyMockSeed();
