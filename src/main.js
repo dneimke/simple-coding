@@ -65,7 +65,7 @@ import { draftService, finishCapture } from './services/draftService.js';
 import { openTeamSetupDialog, loadLastTeams, saveLastTeams } from './components/teamSetupDialog.js';
 import { openCompleteGameDialog } from './components/completeGameDialog.js';
 import { bindFinishMenu, syncCaptureChrome } from './components/captureChrome.js';
-import { resolveEventName } from './utils/zoneUtils.js';
+import { createCaptureEventPayload } from './utils/capturePayloadUtils.js';
 import { renderRecentEvents } from './components/recentEvents.js';
 import { checkAndApplyMockSeed } from './utils/seedData.js';
 
@@ -679,46 +679,6 @@ function initNavEventListeners() {
     });
 }
 
-function isPenaltyCornerButton(button) {
-    const ds = button.dataset;
-    return ds.baseEvent === 'PC' ||
-        Boolean(ds.event?.endsWith('PC')) ||
-        Boolean(button.textContent?.includes('Penalty Corner'));
-}
-
-function getButtonTeamCode(teamSlot) {
-    if (!teamSlot || !eventButtons.teams) return null;
-    const index = Number(teamSlot) - 1;
-    return eventButtons.teams[index]?.code || null;
-}
-
-function createCaptureEventPayload(button) {
-    const ds = button.dataset;
-    const eventName = resolveEventName(
-        { event: ds.event, zoned: ds.zoned === 'true', slot: ds.teamSlot },
-        { zone: eventButtons.zone, zones: eventButtons.config?.zones }
-    );
-    const clip = {};
-    if (ds.lead !== undefined) clip.lead = Number(ds.lead);
-    if (ds.lag !== undefined) clip.lag = Number(ds.lag);
-
-    const timeMs = gameState.getLiveElapsedTime();
-    const isPC = isPenaltyCornerButton(button);
-    const teamCode = getButtonTeamCode(ds.teamSlot);
-
-    return {
-        id: `pc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-        event: eventName,
-        timeMs,
-        timestamp: formatTime(timeMs),
-        eventCode: isPC ? 'PC' : (ds.baseEvent || ds.event || eventName),
-        team: teamCode,
-        leadTime: isPC ? 10 : (clip.lead ?? 10),
-        lagTime: isPC ? 15 : (clip.lag ?? 15),
-        ...clip
-    };
-}
-
 function initCodingButtonListeners() {
     codingButtonsContainer.addEventListener('click', (event) => {
         const zoneButton = event.target.closest('.zone-button[data-zone]');
@@ -736,7 +696,12 @@ function initCodingButtonListeners() {
         const button = event.target.closest('.event-button[data-event]');
         if (!button) return;
 
-        const eventPayload = createCaptureEventPayload(button);
+        const eventPayload = createCaptureEventPayload(button, {
+            zone: eventButtons.zone,
+            zones: eventButtons.config?.zones,
+            teams: eventButtons.teams,
+            elapsedTime: gameState.getLiveElapsedTime()
+        });
         if (gameState.addEvent(eventPayload)) {
             saveCaptureDraft();
             if (liveChordEngine) {
