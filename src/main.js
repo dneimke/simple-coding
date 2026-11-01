@@ -8,7 +8,7 @@ import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility } from './utils/domUtils.js';
 import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard, mergeXmlEventStreams } from './utils/xmlUtils.js';
-import { showPreview, showAppendPreview } from './utils/importUtils.js';
+import { showPreview, showAppendPreview, appendEventsToGame } from './utils/importUtils.js';
 function showMessage(element, message, isError = false) {
     notificationService.showMessage(element, message, isError);
 }

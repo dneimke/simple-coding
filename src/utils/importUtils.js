@@ -1,47 +1,55 @@
 // Import utility functions
 import { notificationService } from '../services/notificationService.js';
 import { gameStorageManager } from '../services/gameStorageManager.js';
+import { storageService } from '../services/storageService.js';
 import { checkStorageQuota } from './storageWarningUtils.js';
 import { logger, formatTime, escapeXml } from './formatUtils.js';
-import { generateGameXml, mergeXmlEventStreams } from './xmlUtils.js';
+import { mergeXmlEventStreams } from './xmlUtils.js';
+
+function findGameIndex(games, idOrIndex) {
+    if (typeof idOrIndex === 'number') return idOrIndex;
+    return games.findIndex(g => g && g.id === idOrIndex);
+}
+
+function calculateMaxGameTime(events, fallbackTime) {
+    return events.reduce((max, ev) => Math.max(max, ev.timeMs || 0), fallbackTime || 0);
+}
 
 /**
- * Shows a preview of parsed events in a modal
- * @param {HTMLElement} previewContainer - Container for the preview content
- * @param {Array} events - Array of event objects
- * @param {string} storageKey - Storage key for game data
- * @param {Function} [callback=null] - Optional callback function
+ * Appends events to an existing saved game, merging and sorting chronologically
+ * @param {string|number} idOrIndex - Game ID (string) or index (number)
+ * @param {Array} newEvents - Array of new event objects
+ * @param {Object} [options={}] - Merge options
+ * @returns {Object} Result object { success: boolean, addedCount: number, duplicateCount: number, game?: Object, message?: string }
  */
-export const showPreview = (previewContainer, events, storageKey, callback = null) => {
-    const teamsAttribute = events.teamsAttribute || null;
+export function appendEventsToGame(idOrIndex, newEvents, options = {}) {
+    try {
+        const games = gameStorageManager.ensureGameIds();
+        const index = findGameIndex(games, idOrIndex);
+        if (index < 0 || index >= games.length) {
+            return { success: false, message: 'Game not found', addedCount: 0, duplicateCount: 0 };
+        }
 
-    setupImportButtons(events, storageKey, teamsAttribute, callback);
+        const target = games[index];
+        const merged = mergeXmlEventStreams(target.events || [], newEvents, options);
+        games[index] = {
+            ...target,
+            events: merged,
+            elapsedTime: calculateMaxGameTime(merged, target.elapsedTime),
+            timestamp: new Date().toISOString()
+        };
 
-    const titleEl = document.getElementById('previewTitle');
-    if (titleEl) titleEl.textContent = 'Preview Imported Events';
-
-    let headerHtml = '';
-    if (teamsAttribute) {
-        headerHtml = `
-            <div class="p-4 mb-4 bg-blue-50 border-blue-200 border rounded">
-                <p class="font-bold text-ink">Teams: ${escapeXml(teamsAttribute)}</p>
-                <p class="text-xs text-ink-muted mt-1">${events.length} event${events.length === 1 ? '' : 's'} ready to import</p>
-            </div>
-        `;
+        const saved = storageService.setItem(gameStorageManager.STORAGE_KEY, games);
+        return saved === true
+            ? { success: true, addedCount: merged.addedCount, duplicateCount: merged.duplicateCount, game: games[index] }
+            : { success: false, message: (saved && saved.message) || 'Storage error', addedCount: 0, duplicateCount: 0 };
+    } catch (error) {
+        logger.error('Error appending events to game:', error);
+        return { success: false, message: error.message, addedCount: 0, duplicateCount: 0 };
     }
+}
 
-    const eventsHtml = events.slice(0, 100).map(event => `
-        <div class="event-preview p-3 border-b border-edge flex items-center justify-between text-sm">
-            <span class="font-semibold text-ink">${escapeXml(event.event)}</span>
-            <span class="text-ink-muted text-xs font-mono">${formatTime(event.timeMs || 0)}</span>
-        </div>
-    `).join('') + (events.length > 100 ? `<div class="p-2 text-center text-xs text-ink-muted">… and ${events.length - 100} more events</div>` : '');
-
-    previewContainer.innerHTML = headerHtml + eventsHtml;
-};
-
-// fallow-ignore-next-line unused-export
-export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = null, callback = null) => {
+const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = null, callback = null) => {
     const confirmButton = document.getElementById('confirmImportButton');
     const cancelButton = document.getElementById('cancelImportButton');
     const titleEl = document.getElementById('previewTitle');
@@ -116,30 +124,67 @@ export const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = nu
     }
 };
 
+/**
+ * Shows a preview of parsed events in a modal
+ * @param {HTMLElement} previewContainer - Container for the preview content
+ * @param {Array} events - Array of event objects
+ * @param {string} storageKey - Storage key for game data
+ * @param {Function} [callback=null] - Optional callback function
+ */
+export const showPreview = (previewContainer, events, storageKey, callback = null) => {
+    const teamsAttribute = events.teamsAttribute || null;
+
+    setupImportButtons(events, storageKey, teamsAttribute, callback);
+
+    const titleEl = document.getElementById('previewTitle');
+    if (titleEl) titleEl.textContent = 'Preview Imported Events';
+
+    let headerHtml = '';
+    if (teamsAttribute) {
+        headerHtml = `
+            <div class="p-4 mb-4 bg-blue-50 border-blue-200 border rounded">
+                <p class="font-bold text-ink">Teams: ${escapeXml(teamsAttribute)}</p>
+                <p class="text-xs text-ink-muted mt-1">${events.length} event${events.length === 1 ? '' : 's'} ready to import</p>
+            </div>
+        `;
+    }
+
+    const eventsHtml = events.slice(0, 100).map(event => `
+        <div class="event-preview p-3 border-b border-edge flex items-center justify-between text-sm">
+            <span class="font-semibold text-ink">${escapeXml(event.event)}</span>
+            <span class="text-ink-muted text-xs font-mono">${formatTime(event.timeMs || 0)}</span>
+        </div>
+    `).join('') + (events.length > 100 ? `<div class="p-2 text-center text-xs text-ink-muted">… and ${events.length - 100} more events</div>` : '');
+
+    previewContainer.innerHTML = headerHtml + eventsHtml;
+};
+
+function handleAppendFailure(errorMsg, modal, resetModalChrome, callback) {
+    logger.error('Failed to append events:', errorMsg);
+    notificationService.notify(`Failed to append events: ${errorMsg}`, 'error');
+    if (modal) modal.classList.add('hidden');
+    resetModalChrome();
+    if (callback) callback({ appended: false, addedCount: 0, duplicateCount: 0 });
+}
+
+function handleAppendSuccess(targetGame, result, modal, resetModalChrome, callback) {
+    checkStorageQuota();
+    if (modal) modal.classList.add('hidden');
+    resetModalChrome();
+    if (callback) callback({ appended: true, addedCount: result.addedCount, duplicateCount: result.duplicateCount });
+    notificationService.notify(`Added ${result.addedCount} event${result.addedCount === 1 ? '' : 's'} to ${(targetGame && targetGame.teams) || 'match'}!`, 'success');
+}
+
 function executeAppendAction(targetGame, incomingEvents, callback, modal, resetModalChrome) {
     try {
-        const result = gameStorageManager.appendEventsToGame(targetGame.id, incomingEvents);
+        const result = appendEventsToGame(targetGame.id, incomingEvents);
         if (!result || !result.success) {
-            const errorMsg = (result && result.message) || 'Unknown error';
-            logger.error('Failed to append events:', errorMsg);
-            notificationService.notify(`Failed to append events: ${errorMsg}`, 'error');
-            if (modal) modal.classList.add('hidden');
-            resetModalChrome();
-            if (callback) callback({ appended: false, addedCount: 0, duplicateCount: 0 });
+            handleAppendFailure((result && result.message) || 'Unknown error', modal, resetModalChrome, callback);
             return;
         }
-
-        checkStorageQuota();
-        if (modal) modal.classList.add('hidden');
-        resetModalChrome();
-        if (callback) callback({ appended: true, addedCount: result.addedCount, duplicateCount: result.duplicateCount });
-        notificationService.notify(`Added ${result.addedCount} event${result.addedCount === 1 ? '' : 's'} to ${(targetGame && targetGame.teams) || 'match'}!`, 'success');
+        handleAppendSuccess(targetGame, result, modal, resetModalChrome, callback);
     } catch (error) {
-        logger.error('Error appending events:', error);
-        notificationService.notify(`Error appending events: ${error.message}`, 'error');
-        if (modal) modal.classList.add('hidden');
-        resetModalChrome();
-        if (callback) callback({ appended: false, addedCount: 0, duplicateCount: 0 });
+        handleAppendFailure(error.message, modal, resetModalChrome, callback);
     }
 }
 
@@ -217,19 +262,4 @@ export const showAppendPreview = (previewContainer, targetGame, incomingEvents, 
             notificationService.notify('Append canceled.', 'warning');
         };
     }
-};
-
-// fallow-ignore-next-line unused-export
-export const generateSampleXml = () => {
-    const sampleGame = {
-        teams: 'Sample Team A vs Sample Team B',
-        timestamp: new Date().toISOString(),
-        events: [
-            { event: 'GOAL_FOR', timeMs: 60000 },
-            { event: 'FOUL', timeMs: 120000 },
-            { event: 'PENALTY_CORNER', timeMs: 180000 }
-        ]
-    };
-
-    return generateGameXml(sampleGame, 'Sample');
 };

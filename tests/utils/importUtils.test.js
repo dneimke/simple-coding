@@ -1,14 +1,22 @@
 /**
  * @jest-environment jsdom
  */
-import { showPreview, showAppendPreview, setupImportButtons } from '../../src/utils/importUtils.js';
+import { showPreview, showAppendPreview, appendEventsToGame } from '../../src/utils/importUtils.js';
 import { gameStorageManager } from '../../src/services/gameStorageManager.js';
+import { storageService } from '../../src/services/storageService.js';
 import { notificationService } from '../../src/services/notificationService.js';
 
 jest.mock('../../src/services/gameStorageManager.js', () => ({
     gameStorageManager: {
         saveGame: jest.fn(),
-        appendEventsToGame: jest.fn()
+        ensureGameIds: jest.fn(),
+        STORAGE_KEY: 'fieldHockeyGames_v1'
+    }
+}));
+
+jest.mock('../../src/services/storageService.js', () => ({
+    storageService: {
+        setItem: jest.fn(() => true)
     }
 }));
 
@@ -94,6 +102,62 @@ describe('importUtils', () => {
         });
     });
 
+    describe('appendEventsToGame', () => {
+        test('successfully appends events to an existing game by id', () => {
+            const games = [
+                {
+                    id: 'game-1',
+                    teams: 'Team A vs Team B',
+                    elapsedTime: 20000,
+                    events: [{ event: 'CE', timeMs: 10000 }]
+                }
+            ];
+            gameStorageManager.ensureGameIds.mockReturnValue(games);
+
+            const newEvents = [{ event: 'SHOT', timeMs: 30000 }];
+            const result = appendEventsToGame('game-1', newEvents);
+
+            expect(result.success).toBe(true);
+            expect(result.addedCount).toBe(1);
+            expect(result.duplicateCount).toBe(0);
+            expect(result.game.events).toHaveLength(2);
+            expect(result.game.elapsedTime).toBe(30000);
+            expect(storageService.setItem).toHaveBeenCalledWith(
+                gameStorageManager.STORAGE_KEY,
+                expect.arrayContaining([expect.objectContaining({ id: 'game-1' })])
+            );
+        });
+
+        test('deduplicates matching events and returns accurate counts', () => {
+            const games = [
+                {
+                    id: 'game-1',
+                    elapsedTime: 20000,
+                    events: [{ event: 'SHOT', timeMs: 15000 }]
+                }
+            ];
+            gameStorageManager.ensureGameIds.mockReturnValue(games);
+
+            const newEvents = [
+                { event: 'SHOT', timeMs: 15200 },
+                { event: 'GOAL', timeMs: 16000 }
+            ];
+
+            const result = appendEventsToGame('game-1', newEvents);
+            expect(result.success).toBe(true);
+            expect(result.addedCount).toBe(1);
+            expect(result.duplicateCount).toBe(1);
+            expect(result.game.events).toHaveLength(2);
+        });
+
+        test('returns failure when game is not found', () => {
+            gameStorageManager.ensureGameIds.mockReturnValue([]);
+            const result = appendEventsToGame('non-existent', [{ event: 'SHOT', timeMs: 1000 }]);
+            expect(result.success).toBe(false);
+            expect(result.message).toBe('Game not found');
+        });
+    });
+
     describe('showAppendPreview', () => {
         const targetGame = {
             id: 'game-123',
@@ -122,19 +186,14 @@ describe('importUtils', () => {
             expect(previewContainer.innerHTML).toContain('Total will be 3 events');
         });
 
-        test('confirm button calls appendEventsToGame and notifies on success', () => {
+        test('confirm button appends events and notifies on success', () => {
+            gameStorageManager.ensureGameIds.mockReturnValue([targetGame]);
             const incomingEvents = [{ event: 'GOAL', timeMs: 25000 }];
             const callback = jest.fn();
-            gameStorageManager.appendEventsToGame.mockReturnValue({
-                success: true,
-                addedCount: 1,
-                duplicateCount: 0
-            });
 
             showAppendPreview(previewContainer, targetGame, incomingEvents, callback);
             confirmBtn.click();
 
-            expect(gameStorageManager.appendEventsToGame).toHaveBeenCalledWith('game-123', incomingEvents);
             expect(callback).toHaveBeenCalledWith({ appended: true, addedCount: 1, duplicateCount: 0 });
             expect(modal.classList.contains('hidden')).toBe(true);
             expect(notificationService.notify).toHaveBeenCalledWith(

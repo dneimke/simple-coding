@@ -10,7 +10,6 @@
 import { storageService } from './storageService.js';
 import { logger } from '../utils/formatUtils.js';
 import { notificationService } from './notificationService.js';
-import { mergeXmlEventStreams } from '../utils/xmlUtils.js';
 
 export function generateGameId() {
     return 'game-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
@@ -112,7 +111,6 @@ export class GameStorageManager {
      * @param {number} index - Index of the game to retrieve
      * @returns {Object|null} Game object if found, null otherwise
      */
-    // fallow-ignore-next-line unused-class-member
     getGameByIndex(index) {
         const games = this.getAllGames();
         return (index >= 0 && index < games.length) ? games[index] : null;
@@ -165,65 +163,6 @@ export class GameStorageManager {
      * @param {number} index - Index of game to remove
      * @returns {boolean|Object} True if successful, error object if failed
      */
-    /**
-     * Appends events to an existing saved game, merging and sorting chronologically
-     * @param {string|number} idOrIndex - Game ID (string) or index (number)
-     * @param {Array} newEvents - Array of new event objects
-     * @param {Object} [options={}] - Merge options
-     * @returns {Object} Result object { success: boolean, addedCount: number, duplicateCount: number, game?: Object, message?: string }
-     */
-    appendEventsToGame(idOrIndex, newEvents, options = {}) {
-        try {
-            const games = this.ensureGameIds();
-            let index = -1;
-            if (typeof idOrIndex === 'number') {
-                index = idOrIndex;
-            } else if (typeof idOrIndex === 'string') {
-                index = games.findIndex(g => g && g.id === idOrIndex);
-            }
-
-            if (index < 0 || index >= games.length) {
-                return { success: false, message: 'Game not found', addedCount: 0, duplicateCount: 0 };
-            }
-
-            const targetGame = games[index];
-            const baseEvents = targetGame.events || [];
-            const mergedEvents = mergeXmlEventStreams(baseEvents, newEvents, options);
-
-            const maxTimeMs = mergedEvents.reduce(
-                (max, ev) => Math.max(max, ev.timeMs || 0),
-                targetGame.elapsedTime || 0
-            );
-
-            games[index] = {
-                ...targetGame,
-                events: mergedEvents,
-                elapsedTime: maxTimeMs,
-                timestamp: new Date().toISOString()
-            };
-
-            const result = storageService.setItem(this.STORAGE_KEY, games);
-            if (result === true) {
-                return {
-                    success: true,
-                    addedCount: mergedEvents.addedCount,
-                    duplicateCount: mergedEvents.duplicateCount,
-                    game: games[index]
-                };
-            } else {
-                return {
-                    success: false,
-                    message: (result && result.message) || 'Storage error',
-                    addedCount: 0,
-                    duplicateCount: 0
-                };
-            }
-        } catch (error) {
-            logger.error('Error appending events to game:', error);
-            return { success: false, message: error.message, addedCount: 0, duplicateCount: 0 };
-        }
-    }
-
     removeGame(index) {
         try {
             const games = this.getAllGames();
@@ -299,7 +238,6 @@ export class GameStorageManager {
      * @param {boolean} replace - Whether to replace existing games (true) or append (false)
      * @returns {Object} Result with success status and count of imported games
      */
-    // fallow-ignore-next-line unused-class-member
     importGames(games, replace = false) {
         try {
             if (!Array.isArray(games) || games.length === 0) {
@@ -361,5 +299,4 @@ export class GameStorageManager {
 // Export a singleton instance for easy access
 export const gameStorageManager = new GameStorageManager();
 
-// fallow-ignore-next-line unused-export
 export default gameStorageManager;
