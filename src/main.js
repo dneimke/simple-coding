@@ -17,21 +17,12 @@ import {
     listNamedConfigs,
     populateBoardSelect,
     getNamedConfig,
-    saveNamedConfig,
     findNamedConfigName,
-    validateConfig,
     activateNamedConfig,
     usesTeams,
     isBuiltInConfig,
-    resetNamedConfigToDefault,
     deleteNamedConfig,
     getConfigDisplayName,
-    getNextCopyName,
-    renameNamedConfig,
-    updateBoardButton,
-    addBoardButton,
-    removeBoardButton,
-    rowGrids,
     createBoardExportPayload,
     getBoardExportFilename,
     importNamedConfig,
@@ -39,7 +30,6 @@ import {
 } from './components/config.js';
 import { createGameCard } from './components/ui/card.js';
 import { initCreateMatchDropdown } from './components/ui/createMatchDropdown.js';
-import { initConfigActionsDropdown } from './components/ui/configActionsDropdown.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 let liveChordEngine = null;
 
@@ -384,8 +374,16 @@ function deleteLoggedEvent(index) {
 
 // An empty select value stands for the active layout when it matches no saved name
 const UNSAVED_CONFIG_VALUE = '';
-let configEditorBaseline = '';
 let selectedConfigName = UNSAVED_CONFIG_VALUE;
+let previewEventButtons = null;
+
+function updateDeleteButtonState() {
+    const name = savedConfigSelect?.value;
+    const isCustom = Boolean(name && !isBuiltInConfig(name));
+    if (deleteConfigButton) {
+        deleteConfigButton.classList.toggle('hidden', !isCustom);
+    }
+}
 
 function renderSavedConfigOptions(selectedName, includeUnsaved = false) {
     populateBoardSelect(savedConfigSelect, {
@@ -393,11 +391,8 @@ function renderSavedConfigOptions(selectedName, includeUnsaved = false) {
         includeUnsaved
     });
     selectedConfigName = savedConfigSelect.value;
+    updateDeleteButtonState();
 }
-
-let previewEventButtons = null;
-let currentConfigMode = 'visual'; // 'visual' | 'json'
-let activeButtonEditTarget = null; // { mode: 'edit'|'add', rowIndex, gridIndex, buttonIndex }
 
 function getPreviewEventButtons() {
     if (!previewEventButtons && configBoardPreview) {
@@ -409,7 +404,7 @@ function getPreviewEventButtons() {
 function renderConfigVisualPreview(config) {
     if (!configBoardPreview) return;
     if (!config || !Array.isArray(config.rowDefs)) {
-        configBoardPreview.innerHTML = '<p class="empty-state text-sm py-6">Invalid board configuration. Switch to JSON to fix syntax.</p>';
+        configBoardPreview.innerHTML = '<p class="empty-state text-sm py-6">Invalid board configuration.</p>';
         return;
     }
     try {
@@ -420,73 +415,14 @@ function renderConfigVisualPreview(config) {
                 zone: config.zones?.default ?? (config.zones?.values?.[0] ?? '1'),
                 selectedTeam: 1
             });
-            const isEditable = Boolean(selectedConfigName && !isBuiltInConfig(selectedConfigName));
             configBoardPreview.querySelectorAll('.event-button').forEach(button => {
                 button.disabled = false;
-                button.title = isEditable ? 'Tap to edit or remove this button' : 'Tap to duplicate board and edit this button';
             });
-
-            if (isEditable) {
-                configBoardPreview.querySelectorAll('.button-grid[data-row-index]').forEach(gridEl => {
-                    const addBtn = document.createElement('button');
-                    addBtn.type = 'button';
-                    addBtn.className = 'board-add-button';
-                    addBtn.dataset.addButton = 'true';
-                    addBtn.dataset.rowIndex = gridEl.dataset.rowIndex;
-                    addBtn.dataset.gridIndex = gridEl.dataset.gridIndex;
-                    addBtn.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i><span>Add</span>';
-                    addBtn.title = 'Add a button to this row';
-                    gridEl.appendChild(addBtn);
-                });
-            }
         }
     } catch (err) {
         configBoardPreview.innerHTML = `<p class="empty-state text-sm py-6 text-red-500">Preview error: ${err.message}</p>`;
     }
-}
-
-function setConfigViewMode(mode) {
-    currentConfigMode = mode;
-    const isVisual = mode === 'visual';
-    if (toggleConfigModeText) toggleConfigModeText.textContent = isVisual ? 'Advanced code editor' : 'Visual editor';
-    if (toggleConfigModeIcon) {
-        toggleConfigModeIcon.className = isVisual ? 'fas fa-code w-5 mr-2 text-ink-soft' : 'fas fa-eye w-5 mr-2 text-ink-soft';
-    }
-    if (exitJsonModeButton) exitJsonModeButton.classList.toggle('hidden', isVisual);
-    if (configVisualContainer) configVisualContainer.classList.toggle('hidden', !isVisual);
-    if (configJsonContainer) configJsonContainer.classList.toggle('hidden', isVisual);
-    updateConfigProtectionState(savedConfigSelect.value);
-
-    if (isVisual) {
-        try {
-            const parsed = parseEditorConfig();
-            renderConfigVisualPreview(parsed);
-        } catch {
-            renderConfigVisualPreview(null);
-        }
-    }
-}
-
-function updateConfigProtectionState(name) {
-    const isBuiltIn = isBuiltInConfig(name);
-    const isUnsaved = name === UNSAVED_CONFIG_VALUE;
-    const isJsonMode = currentConfigMode === 'json';
-
-    if (duplicateConfigButton) duplicateConfigButton.classList.toggle('hidden', !isBuiltIn || isJsonMode);
-    if (renameConfigButton) renameConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
-    if (saveConfigButton) saveConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved || !isJsonMode);
-    if (exitJsonModeButton) exitJsonModeButton.classList.toggle('hidden', !isJsonMode);
-    if (saveAsConfigButton) saveAsConfigButton.classList.toggle('hidden', true);
-    if (deleteConfigButton) deleteConfigButton.classList.toggle('hidden', isBuiltIn || isUnsaved);
-    if (resetConfigDefaultButton) resetConfigDefaultButton.classList.toggle('hidden', true);
-
-    if (configVisualBannerText) {
-        if (isBuiltIn) {
-            configVisualBannerText.innerHTML = 'Read-only template. Click <strong>Duplicate to edit</strong> (or tap any button below) to customize a copy.';
-        } else {
-            configVisualBannerText.innerHTML = 'Custom board — tap any button to edit or remove it, or tap <strong>+ Add</strong> to add a button to a row.';
-        }
-    }
+    updateDeleteButtonState();
 }
 
 function handleBoardFile(file) {
@@ -498,196 +434,29 @@ function handleBoardFile(file) {
             const imported = importNamedConfig(fileContent, file.name);
             renderSavedConfigOptions(imported.name);
             selectedConfigName = imported.name;
-            setEditorConfig(imported.config);
-            hideSaveAsForm();
-            updateConfigProtectionState(imported.name);
             renderConfigVisualPreview(imported.config);
             renderBoard(imported.config);
             renderBoardOptions();
-            configMessage.classList.add('hidden');
             notificationService.notify(`Imported "${imported.name}" as a custom board.`, 'success');
         } catch (error) {
             logger.error('Failed to import board:', error);
-            showMessage(configMessage, error.message, true);
             notificationService.notify(`Failed to import board: ${error.message}`, 'error');
         } finally {
             if (boardFileInput) boardFileInput.value = '';
         }
     };
     reader.onerror = () => {
-        const msg = 'Could not read the selected board file.';
-        showMessage(configMessage, msg, true);
-        notificationService.notify(msg, 'error');
+        notificationService.notify('Could not read the selected board file.', 'error');
         if (boardFileInput) boardFileInput.value = '';
     };
     reader.readAsText(file);
-}
-
-function duplicateCurrentBoardToEdit() {
-    const baseName = savedConfigSelect.value || 'simple-starter';
-    const nextName = getNextCopyName(baseName);
-    const currentConfig = parseEditorConfig();
-    applySavedConfig(nextName, currentConfig);
-    setEditorConfig(currentConfig);
-    hideSaveAsForm();
-    updateConfigProtectionState(nextName);
-    renderConfigVisualPreview(currentConfig);
-    notificationService.notify(`Created "${nextName}". Tap any button to edit it.`, 'success');
-    return nextName;
-}
-
-// fallow-ignore-next-line complexity
-function populateButtonEditorFields(existingBtn, isTeamRow, hasZones, mode) {
-    const btn = existingBtn || {};
-    const btnText = btn.text || btn.event || '';
-    if (buttonEditorTitle) {
-        buttonEditorTitle.textContent = mode === 'edit' ? `Edit "${btnText || 'Button'}"` : 'Add Button';
-    }
-    const textValues = [
-        [btnEditLabelInput, btnText],
-        [btnEditLeadInput, btn.lead !== undefined ? String(btn.lead) : '5'],
-        [btnEditLagInput, btn.lag !== undefined ? String(btn.lag) : '5']
-    ];
-    textValues.forEach(([el, val]) => { if (el) el.value = val; });
-
-    if (btnEditColorGroup) btnEditColorGroup.classList.toggle('hidden', isTeamRow);
-    if (btnEditColorSelect && !isTeamRow) btnEditColorSelect.value = btn.color || 'btn-gray';
-    if (btnEditZoneGroup) btnEditZoneGroup.classList.toggle('hidden', !hasZones || !isTeamRow);
-    if (btnEditZonedCheckbox) btnEditZonedCheckbox.checked = Boolean(btn.zoned);
-    if (btnEditDeleteButton) btnEditDeleteButton.classList.toggle('hidden', mode !== 'edit');
-}
-
-function openButtonEditorModal({ mode, rowIndex, gridIndex, buttonIndex = -1 }) {
-    const config = parseEditorConfig();
-    const row = config.rowDefs?.[rowIndex];
-    const grid = row ? rowGrids(row)[gridIndex] : null;
-    if (!row || !grid) return;
-
-    activeButtonEditTarget = { mode, rowIndex, gridIndex, buttonIndex };
-    const existingBtn = mode === 'edit' ? grid.buttons?.[buttonIndex] : null;
-    populateButtonEditorFields(existingBtn, row.team !== undefined, Boolean(config.zones), mode);
-
-    if (buttonEditorModal) {
-        buttonEditorModal.classList.remove('hidden');
-        setTimeout(() => btnEditLabelInput?.focus(), 20);
-    }
-}
-
-function closeButtonEditorModal() {
-    activeButtonEditTarget = null;
-    if (buttonEditorModal) {
-        buttonEditorModal.classList.add('hidden');
-    }
-}
-
-// fallow-ignore-next-line complexity
-function validateAndBuildButtonPayload(isTeamRow, hasZones) {
-    const label = (btnEditLabelInput?.value || '').trim();
-    if (!label) {
-        return { error: 'Please enter a button label.', focus: true };
-    }
-    const leadVal = btnEditLeadInput?.value !== '' ? Number(btnEditLeadInput.value) : undefined;
-    const lagVal = btnEditLagInput?.value !== '' ? Number(btnEditLagInput.value) : undefined;
-    const isBadNum = (n) => n !== undefined && (!Number.isFinite(n) || n < 0);
-    if (isBadNum(leadVal) || isBadNum(lagVal)) {
-        return { error: 'Lead and lag must be 0 or more seconds.' };
-    }
-
-    const payload = { event: label, text: label };
-    if (leadVal !== undefined) payload.lead = leadVal;
-    if (lagVal !== undefined) payload.lag = lagVal;
-    if (!isTeamRow) payload.color = btnEditColorSelect?.value || 'btn-gray';
-    if (hasZones && isTeamRow) payload.zoned = Boolean(btnEditZonedCheckbox?.checked);
-
-    return { payload, label };
-}
-
-function saveButtonEditorModal() {
-    if (!activeButtonEditTarget) return;
-    const config = parseEditorConfig();
-    const { mode, rowIndex, gridIndex, buttonIndex } = activeButtonEditTarget;
-    const row = config.rowDefs?.[rowIndex];
-    const isTeamRow = row?.team !== undefined;
-    const hasZones = Boolean(config.zones);
-
-    const result = validateAndBuildButtonPayload(isTeamRow, hasZones);
-    if (result.error) {
-        notificationService.notify(result.error, 'error');
-        if (result.focus) btnEditLabelInput?.focus();
-        return;
-    }
-
-    try {
-        const updatedConfig = mode === 'edit'
-            ? updateBoardButton(config, { rowIndex, gridIndex, buttonIndex }, result.payload)
-            : addBoardButton(config, { rowIndex, gridIndex }, result.payload);
-
-        const targetBoardName = savedConfigSelect.value;
-        setEditorConfig(updatedConfig);
-        applySavedConfig(targetBoardName, updatedConfig);
-        closeButtonEditorModal();
-        notificationService.notify(mode === 'edit' ? `Updated "${result.label}".` : `Added "${result.label}".`, 'success');
-    } catch (error) {
-        notificationService.notify(error.message, 'error');
-    }
-}
-
-function deleteButtonFromModal() {
-    if (!activeButtonEditTarget || activeButtonEditTarget.mode !== 'edit') return;
-    const { rowIndex, gridIndex, buttonIndex } = activeButtonEditTarget;
-    try {
-        const config = parseEditorConfig();
-        const updatedConfig = removeBoardButton(config, { rowIndex, gridIndex, buttonIndex });
-        const targetBoardName = savedConfigSelect.value;
-        setEditorConfig(updatedConfig);
-        applySavedConfig(targetBoardName, updatedConfig);
-        closeButtonEditorModal();
-        notificationService.notify('Button removed.', 'success');
-    } catch (error) {
-        notificationService.notify(error.message, 'error');
-    }
-}
-
-function isEditorDirty() {
-    return configJsonInput.value !== configEditorBaseline;
-}
-
-function updateDirtyIndicator() {
-    configDirtyIndicator.classList.toggle('hidden', !isEditorDirty());
-}
-
-function setEditorConfig(config) {
-    configJsonInput.value = JSON.stringify(config, null, 2);
-    configEditorBaseline = configJsonInput.value;
-    updateDirtyIndicator();
-    renderConfigVisualPreview(config);
-}
-
-function hideSaveAsForm() {
-    saveAsConfigForm.classList.add('hidden');
-    configNameInput.value = '';
-    updateConfigProtectionState(savedConfigSelect.value);
 }
 
 function showConfigView() {
     const activeConfig = loadConfiguration();
     const activeName = findNamedConfigName(activeConfig);
     renderSavedConfigOptions(activeName ?? UNSAVED_CONFIG_VALUE, !activeName);
-    setEditorConfig(activeConfig);
-    hideSaveAsForm();
-    updateConfigProtectionState(activeName ?? UNSAVED_CONFIG_VALUE);
     renderConfigVisualPreview(activeConfig);
-}
-
-function applySavedConfig(name, config) {
-    if (!saveNamedConfig(name, config)) {
-        throw new Error("Failed to save configuration.");
-    }
-    renderSavedConfigOptions(name);
-    configEditorBaseline = configJsonInput.value;
-    updateDirtyIndicator();
-    renderBoard(config);
-    renderBoardOptions();
 }
 
 // Team rows show the game's teams, or the last-used teams as placeholders before a game starts
@@ -1100,167 +869,35 @@ function registerEventListeners() {
         copyXmlToClipboard(xmlContent);
     });
 
-    savedConfigSelect.addEventListener('change', () => {
-        const name = savedConfigSelect.value;
-        if (isEditorDirty() &&
-            !notificationService.confirm('Discard your unsaved changes to the configuration JSON?')) {
-            savedConfigSelect.value = selectedConfigName;
-            return;
-        }
-        const config = name === UNSAVED_CONFIG_VALUE ? loadConfiguration() : getNamedConfig(name);
-        if (!config) {
-            savedConfigSelect.value = selectedConfigName;
-            showMessage(configMessage, `No saved configuration named "${name}".`, true);
-            return;
-        }
-        selectedConfigName = name;
-        setEditorConfig(config);
-        hideSaveAsForm();
-        updateConfigProtectionState(name);
-        renderConfigVisualPreview(config);
-    });
-
-    copyConfigButton.addEventListener('click', async () => {
-        try {
-            await navigator.clipboard.writeText(configJsonInput.value);
-            notificationService.notify('Configuration copied to clipboard.', 'success');
-        } catch (err) {
-            logger.error('Failed to copy configuration to clipboard:', err);
-            configJsonInput.focus();
-            configJsonInput.select();
-            showMessage(configMessage, 'Copy failed. The configuration is selected so you can copy it manually.', true);
-        }
-    });
-
-    replaceConfigButton.addEventListener('click', async () => {
-        let text;
-        try {
-            text = await navigator.clipboard.readText();
-        } catch (err) {
-            logger.error('Failed to read configuration from clipboard:', err);
-            configJsonInput.focus();
-            configJsonInput.select();
-            showMessage(configMessage, 'Clipboard access was blocked. The configuration is selected, so long-press and choose Paste.', true);
-            return;
-        }
-
-        let parsedConfig;
-        try {
-            parsedConfig = JSON.parse(text);
-        } catch {
-            parsedConfig = null;
-        }
-        if (!parsedConfig || !Array.isArray(parsedConfig.rowDefs)) {
-            showMessage(configMessage, "The clipboard doesn't contain a valid configuration.", true);
-            return;
-        }
-        try {
-            validateConfig(parsedConfig);
-        } catch (error) {
-            showMessage(configMessage, `The clipboard configuration is invalid. ${error.message}`, true);
-            return;
-        }
-
-        if (isEditorDirty() &&
-            !notificationService.confirm('Replace your unsaved changes with the clipboard contents?')) {
-            return;
-        }
-
-        const formatted = JSON.stringify(parsedConfig, null, 2);
-        configJsonInput.focus();
-        configJsonInput.select();
-        if (!document.execCommand('insertText', false, formatted)) {
-            configJsonInput.value = formatted;
-        }
-        configJsonInput.setSelectionRange(0, 0);
-        configJsonInput.scrollTop = 0;
-        updateDirtyIndicator();
-        showMessage(configMessage, 'Configuration replaced. Tap Save or Save as to keep it.');
-    });
-
-    configJsonInput.addEventListener('input', updateDirtyIndicator);
-
-    configJsonInput.addEventListener('keydown', (event) => {
-        if (event.key !== 'Tab' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
-            return;
-        }
-        event.preventDefault();
-        if (!document.execCommand('insertText', false, '  ')) {
-            configJsonInput.setRangeText('  ', configJsonInput.selectionStart, configJsonInput.selectionEnd, 'end');
-            updateDirtyIndicator();
-        }
-    });
-
-    saveConfigButton.addEventListener('click', () => {
-        const name = savedConfigSelect.value;
-        try {
-            if (name === UNSAVED_CONFIG_VALUE) {
-                throw new Error("This layout has no name yet. Use Save as to name it.");
-            }
-            applySavedConfig(name, parseEditorConfig());
-            showMessage(configMessage, `Configuration "${name}" saved and set as active.`, false);
-        } catch (error) {
-            logger.error("Failed to save configuration:", error);
-            showMessage(configMessage, error.message, true);
-        }
-    });
-
-    if (saveAsConfigButton) {
-        saveAsConfigButton.addEventListener('click', () => {
-            saveConfigButton?.classList.add('hidden');
-            saveAsConfigButton.classList.add('hidden');
-            saveAsConfigForm?.classList.remove('hidden');
-            if (configNameInput) {
-                configNameInput.value = '';
-                configNameInput.focus();
-            }
-        });
-    }
-
-    if (cancelSaveAsConfigButton) {
-        cancelSaveAsConfigButton.addEventListener('click', hideSaveAsForm);
-    }
-
-    if (toggleConfigModeButton) {
-        toggleConfigModeButton.addEventListener('click', () => {
-            setConfigViewMode(currentConfigMode === 'visual' ? 'json' : 'visual');
-        });
-    }
-
-    if (duplicateConfigButton) {
-        duplicateConfigButton.addEventListener('click', () => {
-            try {
-                duplicateCurrentBoardToEdit();
-            } catch (error) {
-                showMessage(configMessage, error.message, true);
-            }
-        });
-    }
-
-    if (renameConfigButton) {
-        renameConfigButton.addEventListener('click', () => {
-            const currentName = savedConfigSelect.value;
-            if (!currentName || isBuiltInConfig(currentName)) return;
-            saveAsConfigForm.classList.remove('hidden');
-            configNameInput.value = currentName;
-            configNameInput.focus();
-            configNameInput.select();
-        });
-    }
-
-    if (deleteConfigButton) {
-        deleteConfigButton.addEventListener('click', () => {
+    if (savedConfigSelect) {
+        savedConfigSelect.addEventListener('change', () => {
             const name = savedConfigSelect.value;
-            if (isBuiltInConfig(name) || name === UNSAVED_CONFIG_VALUE) return;
-            const displayName = getConfigDisplayName(name);
-            if (!notificationService.confirm(`Are you sure you want to delete "${displayName}"?`)) {
-                return;
+            const config = getNamedConfig(name);
+            if (config) {
+                activateNamedConfig(name);
+                selectedConfigName = name;
+                renderConfigVisualPreview(config);
+                renderBoard(config);
+                renderBoardOptions();
+                notificationService.notify(`Switched active board to ${getConfigDisplayName(name)}`, 'success');
             }
-            deleteNamedConfig(name);
-            notificationService.notify(`Deleted board "${displayName}".`, 'success');
-            activateNamedConfig('simple-starter');
-            showConfigView();
-            renderBoardOptions();
+        });
+    }
+
+    if (exportConfigButton) {
+        exportConfigButton.addEventListener('click', () => {
+            try {
+                const currentName = savedConfigSelect?.value || selectedConfigName || 'Custom Board';
+                const config = getNamedConfig(currentName) || loadConfiguration();
+                const payload = createBoardExportPayload(currentName, config);
+                const filename = getBoardExportFilename(currentName);
+                const displayName = getConfigDisplayName(currentName) || currentName;
+                triggerFileDownload(filename, payload);
+                notificationService.notify(`Exported "${displayName}" board file.`, 'success');
+            } catch (error) {
+                logger.error('Failed to export board:', error);
+                notificationService.notify(`Failed to export board: ${error.message}`, 'error');
+            }
         });
     }
 
@@ -1279,44 +916,19 @@ function registerEventListeners() {
         });
     }
 
-    if (exportConfigButton) {
-        exportConfigButton.addEventListener('click', () => {
-            try {
-                const currentName = savedConfigSelect.value || selectedConfigName || 'Custom Board';
-                const config = parseEditorConfig();
-                const payload = createBoardExportPayload(currentName, config);
-                const filename = getBoardExportFilename(currentName);
-                const displayName = getConfigDisplayName(currentName) || currentName;
-                triggerFileDownload(filename, payload);
-                notificationService.notify(`Exported "${displayName}" board file.`, 'success');
-            } catch (error) {
-                logger.error('Failed to export board:', error);
-                showMessage(configMessage, error.message, true);
-                notificationService.notify(`Failed to export board: ${error.message}`, 'error');
+    if (deleteConfigButton) {
+        deleteConfigButton.addEventListener('click', () => {
+            const name = savedConfigSelect?.value;
+            if (!name || isBuiltInConfig(name) || name === UNSAVED_CONFIG_VALUE) return;
+            const displayName = getConfigDisplayName(name);
+            if (!notificationService.confirm(`Are you sure you want to delete "${displayName}"?`)) {
+                return;
             }
-        });
-    }
-
-    if (configView) {
-        ['dragover', 'dragenter'].forEach(eventName => {
-            configView.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                configView.classList.add('config-drag-over');
-            });
-        });
-        ['dragleave', 'drop'].forEach(eventName => {
-            configView.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                configView.classList.remove('config-drag-over');
-            });
-        });
-        configView.addEventListener('drop', (e) => {
-            const file = e.dataTransfer?.files?.[0];
-            if (file) {
-                handleBoardFile(file);
-            }
+            deleteNamedConfig(name);
+            notificationService.notify(`Deleted board "${displayName}".`, 'success');
+            activateNamedConfig('simple-starter');
+            showConfigView();
+            renderBoardOptions();
         });
     }
 
@@ -1332,108 +944,10 @@ function registerEventListeners() {
                 getPreviewEventButtons()?.setSelectedTeam(Number(teamToggleBtn.dataset.teamSlot));
                 return;
             }
-            const addBtn = event.target.closest('[data-add-button]');
-            if (addBtn) {
-                const rowIndex = Number(addBtn.dataset.rowIndex);
-                const gridIndex = Number(addBtn.dataset.gridIndex);
-                openButtonEditorModal({ mode: 'add', rowIndex, gridIndex });
-                return;
-            }
-            const eventBtn = event.target.closest('.event-button[data-row-index]');
-            if (eventBtn) {
-                const rowIndex = Number(eventBtn.dataset.rowIndex);
-                const gridIndex = Number(eventBtn.dataset.gridIndex);
-                const buttonIndex = Number(eventBtn.dataset.buttonIndex);
-                const currentBoard = savedConfigSelect.value;
-                if (isBuiltInConfig(currentBoard)) {
-                    const suggestedCopy = getNextCopyName(currentBoard);
-                    if (!notificationService.confirm(`Create an editable copy ("${suggestedCopy}") so you can customize this button?`)) {
-                        return;
-                    }
-                    duplicateCurrentBoardToEdit();
-                }
-                openButtonEditorModal({ mode: 'edit', rowIndex, gridIndex, buttonIndex });
-            }
         });
     }
-
-    if (btnEditSaveButton) {
-        btnEditSaveButton.addEventListener('click', saveButtonEditorModal);
-    }
-    if (btnEditCancelButton) {
-        btnEditCancelButton.addEventListener('click', closeButtonEditorModal);
-    }
-    if (btnEditDeleteButton) {
-        btnEditDeleteButton.addEventListener('click', deleteButtonFromModal);
-    }
-    if (btnEditLabelInput) {
-        btnEditLabelInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                saveButtonEditorModal();
-            } else if (event.key === 'Escape') {
-                closeButtonEditorModal();
-            }
-        });
-    }
-
-    const saveAsNewName = () => {
-        const newName = configNameInput.value.trim();
-        const currentName = savedConfigSelect.value;
-        try {
-            if (!newName) {
-                throw new Error("Enter a name for this board.");
-            }
-            if (currentName && !isBuiltInConfig(currentName) && currentName !== UNSAVED_CONFIG_VALUE) {
-                if (newName !== currentName && listNamedConfigs().includes(newName) &&
-                    !notificationService.confirm(`A board named "${newName}" already exists. Overwrite it?`)) {
-                    return;
-                }
-                renameNamedConfig(currentName, newName);
-                renderSavedConfigOptions(newName);
-                updateConfigProtectionState(newName);
-                renderBoardOptions();
-                hideSaveAsForm();
-                notificationService.notify(`Renamed board to "${newName}".`, 'success');
-                return;
-            }
-            const parsedConfig = parseEditorConfig();
-            applySavedConfig(newName, parsedConfig);
-            hideSaveAsForm();
-            notificationService.notify(`Saved board "${newName}".`, 'success');
-        } catch (error) {
-            logger.error("Failed to save named configuration:", error);
-            showMessage(configMessage, error.message, true);
-        }
-    };
-
-    confirmSaveAsConfigButton.addEventListener('click', saveAsNewName);
-    configNameInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            saveAsNewName();
-        } else if (event.key === 'Escape') {
-            hideSaveAsForm();
-        }
-    });
 
     initCreateMatchDropdown();
-    initConfigActionsDropdown();
-
-    if (exitJsonModeButton) {
-        exitJsonModeButton.addEventListener('click', () => {
-            setConfigViewMode('visual');
-        });
-    }
-
-    if (duplicateBoardMenuItem) {
-        duplicateBoardMenuItem.addEventListener('click', () => {
-            try {
-                duplicateCurrentBoardToEdit();
-            } catch (error) {
-                showMessage(configMessage, error.message, true);
-            }
-        });
-    };
 
     importXmlButton.addEventListener('click', () => {
         xmlFileInput.click();

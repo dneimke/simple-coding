@@ -13,11 +13,6 @@ import {
     usesTeams,
     isBuiltInConfig,
     getConfigDisplayName,
-    getNextCopyName,
-    renameNamedConfig,
-    updateBoardButton,
-    addBoardButton,
-    removeBoardButton,
     resetNamedConfigToDefault,
     deleteNamedConfig,
     RETIRED_BUILT_IN_CONFIGS,
@@ -296,88 +291,11 @@ describe('validateConfig', () => {
 });
 
 
-describe('visual board customization helpers', () => {
-    beforeEach(() => {
-        localStorage.clear();
-    });
-
-    test('getNextCopyName generates sequential copy names like Simple (1), Simple (2)', () => {
-        expect(getNextCopyName('simple-starter')).toBe('Simple (1)');
-        const simpleConfig = getNamedConfig('simple-starter');
-        saveNamedConfig('Simple (1)', simpleConfig);
-
-        expect(getNextCopyName('simple-starter')).toBe('Simple (2)');
-        expect(getNextCopyName('Simple (1)')).toBe('Simple (2)');
-        expect(getNextCopyName('hockey-one-zoned')).toBe('Hockey One Zoned (1)');
-    });
-
-    test('renameNamedConfig renames a custom board and rejects built-in names', () => {
-        const simpleConfig = getNamedConfig('simple-starter');
-        saveNamedConfig('Simple (1)', simpleConfig);
-
-        expect(renameNamedConfig('Simple (1)', 'Under-14s')).toBe(true);
-        expect(listNamedConfigs()).not.toContain('Simple (1)');
-        expect(listNamedConfigs()).toContain('Under-14s');
-        expect(getNamedConfig('Under-14s')).toEqual(simpleConfig);
-
-        expect(() => renameNamedConfig('simple-starter', 'My Simple')).toThrow(/built-in/i);
-        expect(() => renameNamedConfig('Under-14s', 'hockey-one-zoned')).toThrow(/built-in/i);
-        expect(() => renameNamedConfig('Under-14s', '   ')).toThrow(/required/i);
-    });
-
-    test('updateBoardButton modifies only the targeted button and leaves other rows untouched', () => {
-        const base = getNamedConfig('simple-starter');
-        const updated = updateBoardButton(
-            base,
-            { rowIndex: 1, gridIndex: 0, buttonIndex: 0 },
-            { event: 'PRESS', text: 'PRESS', lead: 8, lag: 12 }
-        );
-
-        // Team 1 first button updated
-        expect(updated.rowDefs[1].grids[0].buttons[0]).toEqual({
-            event: 'PRESS',
-            text: 'PRESS',
-            lead: 8,
-            lag: 12
-        });
-        // Team 2 first button remains A25E (not modified)
-        expect(updated.rowDefs[2].grids[0].buttons[0].event).toBe('A25E');
-        // Original config not mutated
-        expect(base.rowDefs[1].grids[0].buttons[0].event).toBe('A25E');
-    });
-
-    test('addBoardButton appends a button only to the targeted row and grid', () => {
-        const base = getNamedConfig('simple-starter');
-        const updated = addBoardButton(
-            base,
-            { rowIndex: 1, gridIndex: 0 },
-            { event: 'OVERHEAD', text: 'OVERHEAD', lead: 5, lag: 10 }
-        );
-
-        expect(updated.rowDefs[1].grids[0].buttons).toHaveLength(7);
-        expect(updated.rowDefs[1].grids[0].buttons[6]).toEqual({
-            event: 'OVERHEAD',
-            text: 'OVERHEAD',
-            lead: 5,
-            lag: 10
-        });
-        // Team 2 still has 6 buttons
-        expect(updated.rowDefs[2].grids[0].buttons).toHaveLength(6);
-    });
-
-    test('removeBoardButton removes only the targeted button', () => {
-        const base = getNamedConfig('simple-starter');
-        const updated = removeBoardButton(base, { rowIndex: 2, gridIndex: 0, buttonIndex: 5 });
-
-        // Team 2 had CARD removed (now 5 buttons)
-        expect(updated.rowDefs[2].grids[0].buttons.map(b => b.event)).toEqual(['A25E', 'CE', 'SHOT', 'PC', 'GOAL']);
-        // Team 1 still has all 6 buttons including CARD
-        expect(updated.rowDefs[1].grids[0].buttons).toHaveLength(6);
-    });
-    describe('populateBoardSelect', () => {
+describe('populateBoardSelect', () => {
         let select;
 
         beforeEach(() => {
+            localStorage.clear();
             select = document.createElement('select');
         });
 
@@ -586,5 +504,3 @@ describe('visual board customization helpers', () => {
             });
         });
     });
-
-});
