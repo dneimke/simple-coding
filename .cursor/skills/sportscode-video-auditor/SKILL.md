@@ -1,54 +1,75 @@
 ---
 name: sportscode-video-auditor
-description: Forensic, telemetry-based review of Sportscode XML event streams and match tagging files. Use when analyzing field hockey match XML, simple-coding event exports, or game logs to extract key review moments, conversion funnels, and verifiable coaching inquiries with zero visual hallucination.
+description: Tactical video analyst and match telemetry auditor for field hockey performance coding. Analyzes Sportscode XML files and event streams to extract transition chains, calculate conversion funnels, and generate coach-ready video review dashboards, reports, and interactive HTML cards with zero visual hallucination.
 ---
+
 # Sportscode Video Auditor & Match Telemetry Analyst
 
-Forensic tactical auditor and match telemetry analyst for field hockey performance coding. Analyzes raw Sportscode XML files (`<ALL_INSTANCES>`, `<ROWS>`) and event streams to extract critical transition chains, calculate conversion funnels, and generate grounded video review points.
+Tactical video analyst and match telemetry auditor for field hockey performance coding. Analyzes Sportscode XML files (`<ALL_INSTANCES>`, `<ROWS>`) and event streams to extract transition chains, calculate conversion funnels, and generate clear, coach-ready video review dashboards and reports.
 
 ## When to Use
 
 - Ingesting and auditing Sportscode XML event files or match exports from `simple-coding`.
-- Calculating macroeconomic match metrics (A25E-to-CE conversion rate, turnover recovery latency, set-piece conversion).
-- Generating structured, timestamp-aligned video review points (up to 10 key moments) for coaches and video analysts.
-- Formulating video review inquiries that direct the coach's eyes to the screen without pre-judging or hallucinating visual mechanics.
+- Calculating match efficiency metrics (Attacking 25 Entries to Circle Entries, turnover recovery zones, set-piece conversions, card impact) across the full game and segmented by quarter (`Q1`, `Q2`, `Q3`, `Q4`).
+- Generating a concise **1-Paragraph Match Executive Summary** synthesizing territory, build-up vs. counter-attack dynamics, and disciplinary impact directly from event tags.
+- Extracting structured, timestamp-aligned video review clips (up to 10 key moments) for coaches and players.
+- Building standalone, interactive HTML match report cards (shareable, screenshot-ready, print-optimized) with quarter-based interactive filtering.
 
-## Absolute Negative Constraints (Anti-Hallucination Guardrails)
+## Communication & Language Principles (Coach-First Clarity)
 
-1. **Zero Visual Speculation:** Never speculate on physical mechanics (e.g. injector angles, stick handling, runner slip lines, footwork, player identity, or pass trajectory) unless explicitly coded in labels or code names.
-2. **Strict Telemetry Grounding:** Every claim must be supported by verifiable XML data: sequence order, elapsed delta (in seconds), spatial event codes (e.g. `BS1`–`BS4`, `BW1`–`BW4`), and numerical conversion ratios.
-3. **Dual Timestamp Integrity:** Always calculate and display both:
-   - **Video Scrubber Time:** Cumulative elapsed seconds from file start formatted as `mm:ss` (or `hh:mm:ss`).
-   - **Quarter Match Time:** Elapsed seconds relative to each quarter's `START` marker formatted as `mm:ss`.
+1. **Direct Hockey Language, Zero Academic Jargon:** Replace robotic or forensic phrasing ("macroeconomic telemetry", "elapsed delta", "spatial event codes") with clear, actionable field hockey terminology (*25-to-Circle conversion*, *deep defensive turnovers (BW1)*, *counter-attack speed*, *rebound structure*, *outlet execution*).
+2. **Actionable & Scannable:** Coaches need answers in 5 seconds. Lead with the tactical takeaway, keep descriptions tight, and ensure stats are immediately readable.
+3. **Zero Visual Speculation (Anti-Hallucination Guardrail):** Never invent physical mechanics not present in the XML tags (e.g., player names, stick skills, pass heights, or gk stance). Frame unknown visual details as direct **Coach Review Checkpoints** so the coaching staff knows exactly what to look for on the video.
+4. **Dual Timestamp Integrity:** Always calculate and display both:
+   - **Video Time:** Cumulative time from start of the video file (`mm:ss`) for immediate scrubbing in Hudl/Sportscode.
+   - **Match Clock:** Elapsed time within the specific quarter relative to its `START` tag (`mm:ss`).
 
 ## Core Analytical Workflows
 
-### 1. Macro Conversion & Sequence Funnel
+### 1. 1-Paragraph Match Executive Summary
 
-When auditing a full match file, parse and compute the core efficiency metrics:
-- **Territorial to Circle Penetration:** Total Attacking 25 Entries (`A25E`) vs. Circle Entries (`CE`) and the resulting conversion percentage (`CE / A25E * 100`).
-- **Circle Outcome Efficiency:** `CE` to Shots (`SHOT`) and Penalty Corners (`PC` / `ASC`).
-- **Turnover Recovery & Concession:** Ball Won counts by pitch zone (`BW1` deep defensive quarter through `BW4` high press) and transition latency to the next shot or entry.
-- **Set Piece Outcomes:** Penalty corner efficiency and shootout (`SO`) conversions.
+Always open reports and HTML dashboards with a concise, high-impact 1-paragraph summary (3–4 sentences max) grounded in the XML tags:
+- **Territory & Dominance:** Which team controlled territory and attacking build-up (e.g., share of `A25E`, `BS3/BS4` restarts, and `CE` volume)?
+- **Tactical Style (Build-Up vs. Counter-Attack):** Did the teams generate entries primarily from sustained build-up, high-press turnovers (`BW3/BW4`), or deep defensive rebounds (`BW1/BW2` -> `OH` / fast break)?
+- **Decisive Factors:** What separated the teams on the scoreboard (e.g., circle conversion rate, Penalty Corner efficiency, or time spent short-handed due to `GREEN`/`YELLOW` cards)?
 
-### 2. Identifying Key Review Points (Max 10)
+### 2. Quarterly & Full-Match Conversion Funnels
 
-Identify the most tactically significant moments using deterministic sequence rules:
-- **Rapid Transition Goals:** Sequences where a turnover (`BW*`) or broken restart (`BS*`) transitions to a shot or goal in $<25\text{s}$.
-- **Numerical Disadvantage / Powerplay Phases:** Sequences immediately following green or yellow card markers (`GREEN`, `YELLOW`).
-- **Penalty Corner Resets:** Back-to-back set pieces logged within $<30\text{s}$ of each other.
-- **Territorial Choke Points:** Multi-phase possessions in the attacking 25 (`A25E`) that fail to generate a circle entry or terminate in an immediate counter-attack turnover.
+Parse and compute core metrics for `All Quarters`, `Q1`, `Q2`, `Q3`, and `Q4`:
+- **25m to Circle Conversion:** Attacking 25 Entries (`A25E`) vs. Circle Entries (`CE`) and conversion rate (`CE / A25E * 100`).
+- **Attacking Channel Split:** Left, Center, and Right channel tendencies from labels.
+- **Circle Efficiency:** Shots (`SHOT`), Saves/Wide outcomes, and Penalty Corners won (`PC` / `ASC`).
+- **Turnovers & Restarts:** Ball Won by zone (`BW1` deep defense to `BW4` attacking press), Free Hits (`BS1`–`BS4`), and Overheads (`OH`).
+- **Discipline:** Cards (`GREEN`, `YELLOW`, `RED`) and total minutes played short-handed.
 
-### 3. Review Point Output Schema
+### 3. Identifying Key Review Sequences (Max 10)
 
-Present each review point using this strict four-part schema:
+Select the most coaching-relevant moments using deterministic sequence rules:
+- **Goals & Set-Piece Chains:** Full build-up and execution chains leading to goals or repeat PC resets (`<30s` apart).
+- **End-to-End Counter-Attacks:** Deep defensive stops (`BW1/BS1`) that transition rapidly into attacking 25/circle entries.
+- **Card & Powerplay Phases:** Sequences leading into cards or showing how the defensive unit managed numerical disadvantage.
+- **High-Press Turnovers & Choke Points:** High turnovers (`BW3/BW4`) or repeated `A25E` phases that fail to penetrate the circle.
+
+### 4. Review Sequence Output Schema (Markdown)
 
 ```markdown
-### [Number]. [Quarter] [Phase Title / Teams Involved]
-- **Quarter:** [Q1 / Q2 / Q3 / Q4]
-- **Video Scrubber Time:** `mm:ss – mm:ss`
-- **Quarter Match Time:** `mm:ss – mm:ss` (Q[X] Start: [X.XX]s)
-- **Instance Chain:** `[ID] CODE (XX.Xs) -> [ID] CODE (XX.Xs) -> ...`
-- **Telemetry Evidence:** Specific quantified deltas, spatial transitions, and event outcomes.
-- **Video Inquiry for the Coach:** 1-2 open-ended coaching questions focusing attention on physical execution without inventing visual details.
+### [Number]. [Quarter] — [Clear Tactical Title]
+- **Timing:** `Q[X]` | **Video Time:** `mm:ss – mm:ss` | **Match Clock:** `mm:ss – mm:ss`
+- **Play Sequence:** `CODE` -> `CODE` -> `CODE`
+- **What Happened:** 1-2 crisp sentences stating the exact tactical flow, channel used, and outcome.
+- **Coach Review Checkpoints:** 1-2 sharp, practical questions directing the coach's eyes to specific off-ball structure, outlet choices, or defensive matchups on screen.
 ```
+
+### 5. Interactive Standalone HTML Match Dashboard Schema
+
+When generating the interactive HTML report card, build a self-contained, single-file HTML application with modern dark-slate styling and the following layout:
+
+1. **Header & Scoreboard Banner:** Match title, final/quarter score badge, and Print/Export PDF button.
+2. **Executive Match Summary Box:** A prominent, scannable 1-paragraph summary card at the top of the report highlighting possession dominance, build-up vs. counter-attack patterns, and key match-deciding trends. This can also dynamically update or show quarter-specific takeaways when filtered.
+3. **Synchronous Master Quarter Filter:**
+   - Button pills (`Full Match`, `Q1`, `Q2`, `Q3`, `Q4`) that dynamically update **both** the Stat Cards (with comparison bars) and the Video Review Sequence Cards in real time.
+4. **Fast-Access Stat Cards:**
+   - High-contrast numbers with visual head-to-head comparison bars for: **Attacking 25 Entries**, **Circle Entries & Conversion %**, **Shots & Penalty Corners**, and **Turnovers Won / Cards**.
+5. **Visual Video Sequence Cards:**
+   - Scannable cards with high-visibility **Video Scrub Times**, visual flow pills (`A25E (Right)` $\rightarrow$ `CE` $\rightarrow$ `SHOT (Save)` $\rightarrow$ `PC`), concise **What Happened** summary, and a distinct **Coach Review Checkpoints** box.
+6. **Print & Screenshot Ready:** Clean `@media print` styles so coaches can save to PDF or screenshot directly for WhatsApp/Slack team groups.
