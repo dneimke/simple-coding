@@ -1439,29 +1439,26 @@ function registerEventListeners() {
         xmlFileInput.click();
     });
 
+    async function parseSingleXmlFile(file) {
+        const xmlContent = await file.text();
+        validateXmlStructure(xmlContent);
+        const events = parseXmlToEvents(xmlContent);
+        if (!events.teamsAttribute) {
+            events.teamsAttribute = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim() || null;
+        }
+        return events;
+    }
+
     async function parseXmlFiles(files) {
         if (files.length === 1) {
-            const file = files[0];
-            const xmlContent = await file.text();
-            validateXmlStructure(xmlContent);
-            const events = parseXmlToEvents(xmlContent);
-            if (!events.teamsAttribute) {
-                events.teamsAttribute = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim() || null;
-            }
-            return events;
+            return parseSingleXmlFile(files[0]);
         }
 
         let combinedEvents = [];
         let detectedTeams = null;
         for (const file of files) {
-            const xmlContent = await file.text();
-            validateXmlStructure(xmlContent);
-            const parsed = parseXmlToEvents(xmlContent);
-            if (!detectedTeams && parsed.teamsAttribute) {
-                detectedTeams = parsed.teamsAttribute;
-            } else if (!detectedTeams) {
-                detectedTeams = file.name.replace(/\.xml$/i, '').replace(/[-_]+/g, ' ').trim();
-            }
+            const parsed = await parseSingleXmlFile(file);
+            detectedTeams = detectedTeams || parsed.teamsAttribute;
             combinedEvents = mergeXmlEventStreams(combinedEvents, parsed);
         }
         combinedEvents.teamsAttribute = detectedTeams;
@@ -1488,32 +1485,35 @@ function registerEventListeners() {
         }
     });
 
+    async function handleAppendFileSelected(file, game) {
+        try {
+            const xmlContent = await file.text();
+            validateXmlStructure(xmlContent);
+            const events = parseXmlToEvents(xmlContent);
+            if (events.length === 0) {
+                throw new Error('No events found in the XML file.');
+            }
+
+            showAppendPreview(previewContainer, game, events, (res) => {
+                if (res && res.appended) {
+                    renderSavedGames();
+                }
+            });
+
+            previewModal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error appending XML:', error);
+            notificationService.notify(`Failed to append XML: ${error.message}`, 'error');
+        }
+    }
+
     if (appendXmlFileInput) {
         appendXmlFileInput.addEventListener('change', async (event) => {
             const file = event.target.files?.[0];
             if (file && pendingAppendGame) {
-                try {
-                    const xmlContent = await file.text();
-                    validateXmlStructure(xmlContent);
-                    const events = parseXmlToEvents(xmlContent);
-                    if (events.length === 0) {
-                        throw new Error('No events found in the XML file.');
-                    }
-
-                    showAppendPreview(previewContainer, pendingAppendGame, events, (res) => {
-                        if (res && res.appended) {
-                            renderSavedGames();
-                        }
-                    });
-
-                    previewModal.classList.remove('hidden');
-                } catch (error) {
-                    console.error('Error appending XML:', error);
-                    notificationService.notify(`Failed to append XML: ${error.message}`, 'error');
-                } finally {
-                    appendXmlFileInput.value = '';
-                }
+                await handleAppendFileSelected(file, pendingAppendGame);
             }
+            appendXmlFileInput.value = '';
         });
     }
 }
