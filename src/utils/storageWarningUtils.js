@@ -30,7 +30,7 @@ export function checkStorageQuota(warningThreshold = 80) {
  * Displays a storage warning in the UI
  * @param {Object} usage - Storage usage information
  */
-export function showStorageWarning(usage) {
+function showStorageWarning(usage) {
     try {
         // Remove any existing warning
         const existingWarning = document.getElementById('storage-warning');

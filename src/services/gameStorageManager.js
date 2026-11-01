@@ -106,15 +106,6 @@ export class GameStorageManager {
         return games;
     }
 
-    /**
-     * Gets a specific game by index
-     * @param {number} index - Index of the game to retrieve
-     * @returns {Object|null} Game object if found, null otherwise
-     */
-    getGameByIndex(index) {
-        const games = this.getAllGames();
-        return (index >= 0 && index < games.length) ? games[index] : null;
-    }
 
     /**
      * Gets a specific game by its id
@@ -232,56 +223,6 @@ export class GameStorageManager {
         }
     }
 
-    /**
-     * Import games from a JSON file
-     * @param {Array} games - Array of game objects to import
-     * @param {boolean} replace - Whether to replace existing games (true) or append (false)
-     * @returns {Object} Result with success status and count of imported games
-     */
-    importGames(games, replace = false) {
-        try {
-            if (!Array.isArray(games) || games.length === 0) {
-                throw new Error('Invalid games data for import');
-            }
-
-            let currentGames = replace ? [] : this.getAllGames();
-            let importCount = 0;
-
-            // Add each valid game to the beginning of the array (most recent first)
-            games.forEach(game => {
-                if (game && game.events && Array.isArray(game.events)) {
-                    currentGames.unshift(game);
-                    importCount++;
-                }
-            });
-
-            // Trim to max size
-            if (currentGames.length > this.MAX_GAMES) {
-                currentGames = currentGames.slice(0, this.MAX_GAMES);
-            }
-
-            // Save back to storage
-            const result = storageService.setItem(this.STORAGE_KEY, currentGames);
-
-            if (result === true) {
-                logger.log(`Successfully imported ${importCount} games`);
-                return {
-                    success: true,
-                    count: importCount
-                };
-            } else {
-                throw new Error(result.message || 'Unknown storage error');
-            }
-
-        } catch (error) {
-            logger.error('Error importing games:', error);
-            return {
-                success: false,
-                count: 0,
-                error: error.message
-            };
-        }
-    }
 
     /**
      * Helper method to determine if error is related to storage quota
@@ -299,4 +240,3 @@ export class GameStorageManager {
 // Export a singleton instance for easy access
 export const gameStorageManager = new GameStorageManager();
 
-export default gameStorageManager;
