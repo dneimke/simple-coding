@@ -415,7 +415,10 @@
                     </header>
                     <div id="savedGamesList" class="saved-games-list"></div>
                     <label for="xmlFileInput" class="sr-only">Upload XML File</label>
-                    <input id="xmlFileInput" type="file" accept=".xml" class="hidden"
+                    <input id="xmlFileInput" type="file" accept=".xml" multiple class="hidden"
+                        title="Choose one or more XML files to upload">
+                    <label for="appendXmlFileInput" class="sr-only">Upload XML to Append</label>
+                    <input id="appendXmlFileInput" type="file" accept=".xml" class="hidden"
                         title="Choose an XML file to upload">
                 </div>
 

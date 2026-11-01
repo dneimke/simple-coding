@@ -11,8 +11,10 @@
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage",
     "test:visual": "node scripts/visual-snapshot.js",
-    "audit": "fallow",
+    "audit": "fallow audit --base origin/main",
+    "audit:all": "fallow",
     "audit:dead-code": "fallow dead-code",
+    "guardrails": "npm run typecheck && npm run audit",
     "typecheck": "tsc -p jsconfig.json"
   },
   "devDependencies": {

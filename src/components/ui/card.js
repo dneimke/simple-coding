@@ -177,6 +177,7 @@ export const createCard = ({
  * @param {Function} [options.onSelect] - Opens the game in Match Review, from the Review button, icon, or details
  * @param {Function} [options.onContinueCoding] - Opens the game directly in video coding mode from the More menu
  * @param {Function} [options.onViewLog] - Called when View log is chosen from the More menu
+ * @param {Function} [options.onAppendXml] - Called when Append XML is chosen from the More menu
  * @returns {HTMLDivElement} The created game card element
  */
 export const createGameCard = ({
@@ -186,7 +187,8 @@ export const createGameCard = ({
     onRename,
     onSelect,
     onContinueCoding,
-    onViewLog
+    onViewLog,
+    onAppendXml
 }) => {
     const gameCard = document.createElement('div');
     gameCard.className = 'saved-game-card';
@@ -313,6 +315,7 @@ export const createGameCard = ({
     const menu = createGameMenu(title, [
         onContinueCoding && { text: 'Continue coding', onClick: onContinueCoding },
         onViewLog && { text: 'View log', onClick: onViewLog },
+        onAppendXml && { text: 'Append XML…', onClick: onAppendXml },
         { text: 'Export XML', onClick: exportGame },
         { text: 'Rename', onClick: onRename },
         { text: 'Delete', onClick: onDelete, danger: true }
