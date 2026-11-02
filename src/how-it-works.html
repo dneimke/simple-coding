@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1220">
+    <title>How simple-coding Works — Match Day Tour</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css?v=20261020e">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png">
+    <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/site-icon.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/site-icon-large.png">
+</head>
+
+<body class="bg-slate-50 text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
+    <div class="app-shell min-h-screen flex flex-col justify-between">
+        
+        <!-- Navigation Header -->
+        <header class="app-nav sticky top-0 z-40">
+            <div class="app-nav-inner max-w-5xl mx-auto px-4 sm:px-6">
+                <div class="flex items-center justify-between h-14">
+                    <a href="index.html#saved-games" class="app-brand flex items-center gap-2.5 text-white font-bold tracking-tight" title="simple-coding Matches">
+                        <span class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-sm shadow-sm">
+                            <i class="fas fa-hockey-puck" aria-hidden="true"></i>
+                        </span>
+                        <span class="text-base sm:text-lg">simple-coding</span>
+                    </a>
+                    <div class="flex items-center gap-3">
+                        <a href="index.html#help" class="text-xs text-slate-300 hover:text-white transition hidden sm:inline-flex items-center gap-1.5">
+                            <i class="fas fa-book-open text-slate-400" aria-hidden="true"></i>
+                            <span>In-App Guide</span>
+                        </a>
+                        <a href="index.html#saved-games" class="btn btn-primary btn-compact text-xs inline-flex items-center gap-1.5 shadow-sm">
+                            <span>Open App</span>
+                            <i class="fas fa-arrow-right text-[10px]" aria-hidden="true"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 space-y-12 sm:space-y-16">
+
+            <!-- Hero Section -->
+            <section class="text-center space-y-4">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold">
+                    <i class="fas fa-bolt text-blue-600" aria-hidden="true"></i>
+                    <span>Field Hockey Match Tracker &amp; Video Review</span>
+                </div>
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 max-w-2xl mx-auto">
+                    From Sideline Tap to Team Video Review in Minutes
+                </h1>
+                <p class="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                    Track events live on the pitch or tag directly on match video. Clips size themselves automatically so you can run your post-game review straight from your browser—with zero video editing.
+                </p>
+                <div class="pt-2 flex flex-wrap items-center justify-center gap-3">
+                    <a href="index.html#saved-games" class="btn btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold shadow-sm">
+                        <i class="fas fa-play text-xs" aria-hidden="true"></i>
+                        <span>Start With Sample Match</span>
+                    </a>
+                    <a href="#how-it-flows" class="btn btn-secondary inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium">
+                        <span>See How It Works</span>
+                        <i class="fas fa-arrow-down text-xs text-slate-400" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </section>
+
+            <!-- Section 1: The 3 Headaches We Remove -->
+            <section class="space-y-5" aria-labelledby="headaches-heading">
+                <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-blue-600">The Problems We Solve</span>
+                        <h2 id="headaches-heading" class="text-xl sm:text-2xl font-bold text-slate-900">Three Match-Day Headaches, Gone</h2>
+                    </div>
+                    <!-- Old Way vs Our Way Interactive Switch -->
+                    <div class="inline-flex rounded-lg border border-slate-200 bg-white p-1 self-start shadow-sm" role="group" aria-label="Toggle solution perspective">
+                        <button id="btn-mode-new" onclick="setComparisonMode('new')" type="button" class="px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white transition">
+                            How We Solve It
+                        </button>
+                        <button id="btn-mode-old" onclick="setComparisonMode('old')" type="button" class="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+                            The Old Frustration
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Headache 1 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">1. Setup</span>
+                                <span id="badge-1" class="px-2 py-0.5 text-xs rounded-md font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">30 Seconds</span>
+                            </div>
+                            <h3 id="title-1" class="text-base font-bold text-slate-900">One Setup for Live or Video</h3>
+                            <p id="desc-1" class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                Save your teams and jersey colors once. Start a live sideline stopwatch or drop in a match video file from the exact same menu.
+                            </p>
+                        </div>
+                        <div id="foot-1" class="pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
+                            ✓ Remembers teams &amp; colors across games
+                        </div>
+                    </div>
+
+                    <!-- Headache 2 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">2. Tagging</span>
+                                <span id="badge-2" class="px-2 py-0.5 text-xs rounded-md font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Single Pass</span>
+                            </div>
+                            <h3 id="title-2" class="text-base font-bold text-slate-900">Tag Context on the First Tap</h3>
+                            <p id="desc-2" class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                Tap a pitch zone once and buttons remember where the ball is. Quick pop-up pills let you tag Left, Center, or Right without taking your eyes off the pitch.
+                            </p>
+                        </div>
+                        <div id="foot-2" class="pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
+                            ✓ Auto-detects counter-attacks vs. build-up
+                        </div>
+                    </div>
+
+                    <!-- Headache 3 -->
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">3. Video Review</span>
+                                <span id="badge-3" class="px-2 py-0.5 text-xs rounded-md font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Zero Editing</span>
+                            </div>
+                            <h3 id="title-3" class="text-base font-bold text-slate-900">Clips Cut Themselves</h3>
+                            <p id="desc-3" class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                Every button has built-in pre-roll and post-roll time (e.g. 15s before a shot). Star your best moments and play them straight in the browser.
+                            </p>
+                        </div>
+                        <div id="foot-3" class="pt-3 border-t border-slate-100 text-xs text-slate-500 font-medium">
+                            ✓ Saves ~45 mins of cutting &amp; exporting video
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Interactive 4-Step Match Day Tour -->
+            <section id="how-it-flows" class="space-y-5" aria-labelledby="flow-heading">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-blue-600">The 4-Step Flow</span>
+                    <h2 id="flow-heading" class="text-xl sm:text-2xl font-bold text-slate-900">How a Match Flows from Tap to Review</h2>
+                    <p class="text-xs sm:text-sm text-slate-600">Click any step to see how simple-coding keeps match day moving.</p>
+                </div>
+
+                <!-- Stepper Tabs -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" role="tablist" aria-label="Workflow steps">
+                    <button onclick="selectStep(0)" id="step-tab-0" type="button" class="text-left p-3 rounded-xl border-2 border-blue-600 bg-blue-50/70 shadow-sm transition">
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-blue-600">Step 1</div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">Pre-Match Setup</div>
+                    </button>
+                    <button onclick="selectStep(1)" id="step-tab-1" type="button" class="text-left p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-sm transition">
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Step 2</div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">Sideline Tagging</div>
+                    </button>
+                    <button onclick="selectStep(2)" id="step-tab-2" type="button" class="text-left p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-sm transition">
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Step 3</div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">Instant Telemetry</div>
+                    </button>
+                    <button onclick="selectStep(3)" id="step-tab-3" type="button" class="text-left p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-sm transition">
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Step 4</div>
+                        <div class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">Team Review</div>
+                    </button>
+                </div>
+
+                <!-- Step Detail Card -->
+                <div class="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-sm">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                        <div class="md:col-span-3 space-y-3">
+                            <div id="step-pill" class="inline-block px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                Step 1 · Pre-Match Setup
+                            </div>
+                            <h3 id="step-heading" class="text-lg sm:text-xl font-bold text-slate-900">
+                                Pick Your Teams &amp; Match Your Coder
+                            </h3>
+                            <p id="step-body" class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                Click <strong>+ Create Match</strong> to start a live sideline game, code from a match MP4 video, or import an existing Sportscode file. Our custom boards adapt to whoever has the phone—from a simple 6-button board for a volunteer helper to a full zoned board for an analyst.
+                            </p>
+                            <ul id="step-bullets" class="space-y-1.5 pt-1 text-xs sm:text-sm text-slate-800">
+                                <li class="flex items-center gap-2"><span class="text-emerald-500 font-bold">●</span> Team names and jersey colors stay saved for next week</li>
+                                <li class="flex items-center gap-2"><span class="text-emerald-500 font-bold">●</span> Tailored boards for Helpers, Coaches, or Analysts</li>
+                                <li class="flex items-center gap-2"><span class="text-emerald-500 font-bold">●</span> Clip lead &amp; lag times pre-configured on every button</li>
+                            </ul>
+                        </div>
+
+                        <!-- Visual Mock Preview Box -->
+                        <div id="step-visual" class="md:col-span-2 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: Designed for Every Role on the Pitch -->
+            <section class="space-y-5" aria-labelledby="roles-heading">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Built for Real Conditions</span>
+                    <h2 id="roles-heading" class="text-xl sm:text-2xl font-bold text-slate-900">Tailored for Every Role on the Sideline</h2>
+                    <p class="text-xs sm:text-sm text-slate-600">Simple enough for a volunteer handed a phone 5 minutes before game time, precise enough for national-league video analysts.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span>🙌</span>
+                                <span>The Sideline Volunteer</span>
+                            </h3>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">5 min setup</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            Uses a clean, plain-English board (<em>Circle Entry, Shot, Penalty Corner, Goal</em>). No shorthand codes or complex toggles to memorize.
+                        </p>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span>📋</span>
+                                <span>The Bench Coach</span>
+                            </h3>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">Split attention</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            High-contrast buttons never move on the screen. A top bar confirms your last tap in half a second, with 1-tap <strong>Undo</strong> if you mis-tap.
+                        </p>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span>🎯</span>
+                                <span>The Head Coach</span>
+                            </h3>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">Halftime &amp; review</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            Checks team stats at halftime, then turns match video into 6–10 starred teaching moments in under 15 minutes using browser Presentation Mode.
+                        </p>
+                    </div>
+
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span>💻</span>
+                                <span>The Dedicated Analyst</span>
+                            </h3>
+                            <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">Tech bench &amp; tower</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            Codes at 2x video speed with keyboard shortcuts, sticky pitch zones, conversion funnels, and full Sportscode / MyVA XML export.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Bottom CTA Banner -->
+            <section class="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div class="space-y-1.5 max-w-xl">
+                    <h2 class="text-lg sm:text-xl font-bold tracking-tight">100% Client-Side · Private &amp; Offline</h2>
+                    <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        Matches and video files never leave your device. No cloud accounts, subscriptions, or upload wait times. Works offline on any pitch.
+                    </p>
+                </div>
+                <div class="shrink-0 flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <a href="index.html#saved-games" class="btn btn-primary justify-center px-5 py-2.5 text-sm font-semibold shadow-sm w-full sm:w-auto">
+                        <span>Launch simple-coding</span>
+                        <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-slate-200 bg-white py-6 mt-12">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-700">simple-coding</span>
+                    <span>·</span>
+                    <span>Open-source field hockey coding &amp; video analysis</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="index.html#saved-games" class="hover:text-blue-600 transition">Matches</a>
+                    <a href="index.html#help" class="hover:text-blue-600 transition">User Guide</a>
+                    <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener" class="hover:text-blue-600 transition">GitHub</a>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        const comparisonData = {
+            new: [
+                {
+                    badge: "30 Seconds",
+                    badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                    title: "One Setup for Live or Video",
+                    desc: "Save your teams and jersey colors once. Start a live sideline stopwatch or drop in a match video file from the exact same menu.",
+                    foot: "✓ Remembers teams & colors across games"
+                },
+                {
+                    badge: "Single Pass",
+                    badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                    title: "Tag Context on the First Tap",
+                    desc: "Tap a pitch zone once and buttons remember where the ball is. Quick pop-up pills let you tag Left, Center, or Right without taking your eyes off the pitch.",
+                    foot: "✓ Auto-detects counter-attacks vs. build-up"
+                },
+                {
+                    badge: "Zero Editing",
+                    badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                    title: "Clips Cut Themselves",
+                    desc: "Every button has built-in pre-roll and post-roll time (e.g. 15s before a shot). Star your best moments and play them straight in the browser.",
+                    foot: "✓ Saves ~45 mins of cutting & exporting video"
+                }
+            ],
+            old: [
+                {
+                    badge: "Slow & Disconnected",
+                    badgeClass: "bg-rose-50 text-rose-700 border border-rose-200",
+                    title: "Re-entering Teams Every Week",
+                    desc: "Typing team names and setting up buttons from scratch before pushback, with completely different tools for live sideline notes vs. video coding.",
+                    foot: "✕ Wastes valuable pre-match warmup time"
+                },
+                {
+                    badge: "Two-Pass Slog",
+                    badgeClass: "bg-rose-50 text-rose-700 border border-rose-200",
+                    title: "Re-watching Video to Add Details",
+                    desc: "Tagging basic events first, then spending an extra 20+ minutes re-watching every clip just to label which channel or zone the ball came from.",
+                    foot: "✕ Stalls post-match review momentum"
+                },
+                {
+                    badge: "45+ Min Bottleneck",
+                    badgeClass: "bg-rose-50 text-rose-700 border border-rose-200",
+                    title: "Manual Trimming & Video Rendering",
+                    desc: "Scrubbing back and forth to find when a play started, setting in/out points by hand, and waiting for video files to export before meeting the team.",
+                    foot: "✕ Requires heavy video editing software"
+                }
+            ]
+        };
+
+        function setComparisonMode(mode) {
+            const btnNew = document.getElementById('btn-mode-new');
+            const btnOld = document.getElementById('btn-mode-old');
+            if (mode === 'new') {
+                btnNew.className = "px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white transition";
+                btnOld.className = "px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition";
+            } else {
+                btnOld.className = "px-3 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white transition";
+                btnNew.className = "px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition";
+            }
+
+            comparisonData[mode].forEach((item, idx) => {
+                const i = idx + 1;
+                const badge = document.getElementById('badge-' + i);
+                badge.textContent = item.badge;
+                badge.className = "px-2 py-0.5 text-xs rounded-md font-semibold " + item.badgeClass;
+                document.getElementById('title-' + i).textContent = item.title;
+                document.getElementById('desc-' + i).textContent = item.desc;
+                document.getElementById('foot-' + i).textContent = item.foot;
+            });
+        }
+
+        const steps = [
+            {
+                pill: "Step 1 · Pre-Match Setup",
+                heading: "Pick Your Teams & Match Your Coder",
+                body: "Click <strong>+ Create Match</strong> to start a live sideline game, code from a match MP4 video, or import an existing Sportscode file. Our custom boards adapt to whoever has the phone—from a simple 6-button board for a volunteer helper to a full zoned board for an analyst.",
+                bullets: [
+                    "Team names and jersey colors stay saved for next week",
+                    "Tailored boards for Helpers, Coaches, or Analysts",
+                    "Clip lead & lag times pre-configured on every button"
+                ],
+                visual: `
+                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Create Match Menu</div>
+                    <div class="space-y-1.5">
+                        <div class="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between shadow-xs">
+                            <span class="text-xs font-semibold text-slate-800">⏱️ Live Sideline Match</span>
+                            <span class="text-[11px] text-emerald-600 font-bold">Stopwatch</span>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between shadow-xs">
+                            <span class="text-xs font-semibold text-slate-800">🎬 Code From Video (MP4)</span>
+                            <span class="text-[11px] text-blue-600 font-bold">1x / 1.5x / 2x</span>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between shadow-xs">
+                            <span class="text-xs font-semibold text-slate-800">📄 Import Sportscode XML</span>
+                            <span class="text-[11px] text-slate-500 font-medium">Instant Load</span>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                pill: "Step 2 · Sideline Tagging",
+                heading: "Capture the Action in One Pass",
+                body: "On the sideline, tap a pitch zone (1–4) once and every event button automatically attaches that area of the pitch. When you tap <strong>Circle Entry</strong> or <strong>Shot</strong>, a quick 3-second thumb bar lets you tag <em>Left / Center / Right</em> or <em>Goal / Save / Wide</em> without slowing down.",
+                bullets: [
+                    "Top bar shows 'Last: Circle Entry · 14:20' so you know it logged",
+                    "1-tap Undo fixes any accidental press immediately",
+                    "Sweep mode lets you label 20 unlabelled clips in under a minute"
+                ],
+                visual: `
+                    <div class="flex items-center justify-between text-xs border-b border-slate-200 pb-2">
+                        <span class="font-mono font-bold text-slate-800">Q2 · 14:20</span>
+                        <span class="text-emerald-600 font-bold">Last: FIRE CE (Right)</span>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1 pt-1">
+                        <div class="p-1.5 text-center rounded bg-slate-100 text-slate-600 text-xs font-semibold">Zone 1</div>
+                        <div class="p-1.5 text-center rounded bg-slate-100 text-slate-600 text-xs font-semibold">Zone 2</div>
+                        <div class="p-1.5 text-center rounded bg-blue-600 text-white text-xs font-bold shadow-xs">Zone 3 ✓</div>
+                        <div class="p-1.5 text-center rounded bg-slate-100 text-slate-600 text-xs font-semibold">Zone 4</div>
+                    </div>
+                    <div class="p-2 rounded-lg border border-slate-200 bg-white text-center space-y-1">
+                        <div class="text-[11px] text-slate-500 font-medium">Quick Pill Overlay (3.5s)</div>
+                        <div class="flex justify-center gap-1.5">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs font-medium">1 · Left</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs font-medium">2 · Center</span>
+                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">3 · Right</span>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                pill: "Step 3 · Instant Telemetry",
+                heading: "Automatic Stats, Funnels & Top 10 Moments",
+                body: "Right after the final whistle, our telemetry auditor reads your match tags to build an executive summary and quarter-by-quarter conversion stats (like how often 25m entries turn into Circle Entries and Shots). It also isolates the <strong>Top 10 key tactical sequences</strong> with exact video timestamps.",
+                bullets: [
+                    "Plain-English 1-paragraph match summary for coaches",
+                    "Quarter filters (Full Match, Q1, Q2, Q3, Q4)",
+                    "Highlights counter-attacks, penalty corner chains, and card phases"
+                ],
+                visual: `
+                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Conversion Funnel (Q1–Q4)</div>
+                    <div class="space-y-1.5 text-xs">
+                        <div class="flex justify-between items-center p-2 rounded bg-white border border-slate-200">
+                            <span class="text-slate-600">Attacking 25 Entries</span>
+                            <span class="font-bold text-slate-900">28 vs 19</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2 rounded bg-white border border-slate-200">
+                            <span class="text-slate-600">Circle Entries (Conversion)</span>
+                            <span class="font-bold text-emerald-600">18 (64%) vs 9 (47%)</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2 rounded bg-white border border-slate-200">
+                            <span class="text-slate-600">Top Review Clips</span>
+                            <span class="font-bold text-amber-600">★ 8 Key Moments</span>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                pill: "Step 4 · Team Review",
+                heading: "Press Play in the Browser—No Video Exporting",
+                body: "Open <strong>Match Review</strong>, filter by event or click <strong>★ Favorites</strong>, and turn on <strong>Presentation Mode</strong>. The video player automatically jumps to the build-up of Clip 1, plays through the outcome, and skips straight to Clip 2. Need to share with Hudl or MyVA? Click <strong>Export XML</strong>.",
+                bullets: [
+                    "Jumps to the start of the play (e.g. 15s before the shot)",
+                    "Auto-advances through starred teaching clips on the projector",
+                    "One-click Sportscode XML export when external tools are needed"
+                ],
+                visual: `
+                    <div class="p-3 rounded-lg bg-white border border-slate-200 space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-bold text-amber-600">★ Favorites Playlist (6 Clips)</span>
+                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[11px]">Auto-Seek ON</span>
+                        </div>
+                        <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div class="h-full w-2/3 bg-blue-600 rounded-full"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-500 font-medium">
+                            <span>▶ Clip 3: Q2 Counter → Goal</span>
+                            <span class="font-mono font-semibold text-slate-700">24:10 – 24:30</span>
+                        </div>
+                    </div>
+                `
+            }
+        ];
+
+        function selectStep(index) {
+            steps.forEach((_, i) => {
+                const tab = document.getElementById('step-tab-' + i);
+                if (i === index) {
+                    tab.className = "text-left p-3 rounded-xl border-2 border-blue-600 bg-blue-50/70 shadow-sm transition";
+                    tab.querySelector('div:first-child').className = "text-[11px] font-bold uppercase tracking-wider text-blue-600";
+                } else {
+                    tab.className = "text-left p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-sm transition";
+                    tab.querySelector('div:first-child').className = "text-[11px] font-bold uppercase tracking-wider text-slate-400";
+                }
+            });
+
+            const s = steps[index];
+            document.getElementById('step-pill').textContent = s.pill;
+            document.getElementById('step-heading').textContent = s.heading;
+            document.getElementById('step-body').innerHTML = s.body;
+            document.getElementById('step-bullets').innerHTML = s.bullets
+                .map(b => `<li class="flex items-center gap-2"><span class="text-emerald-500 font-bold">●</span> ${b}</li>`)
+                .join('');
+            document.getElementById('step-visual').innerHTML = s.visual;
+        }
+
+        // Initialize Step 1
+        selectStep(0);
+    </script>
+</body>
+
+</html>

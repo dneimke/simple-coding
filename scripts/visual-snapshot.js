@@ -90,6 +90,11 @@ const DEFAULT_SCREENS = [
         name: 'help-coding-modes',
         path: '/#help',
         waitForSelector: '#help-view:not(.hidden)'
+    },
+    {
+        name: 'how-it-works',
+        path: '/how-it-works.html',
+        waitForSelector: '#step-visual'
     }
 ];
 
