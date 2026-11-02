@@ -3197,6 +3197,37 @@ function initVideoUrlInput() {
     }
 }
 
+function loadVideoFileToPlayer(file) {
+    const player = document.getElementById('video-player');
+    if (!player || !file) return;
+    while (player.firstChild) player.removeChild(player.firstChild);
+    const source = document.createElement('source');
+    source.src = URL.createObjectURL(file);
+    source.type = file.type;
+    player.appendChild(source);
+    player.load();
+    const playPromise = player.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(err => console.warn("Couldn't auto-play video:", err));
+    }
+}
+
+function handleVideoFileSelection(file) {
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('video/')) {
+        showNotification('Please select a valid video file', 'error');
+        return;
+    }
+    if (!currentGameId) {
+        const baseName = file.name.replace(/\.[^/.]+$/, '');
+        createNewVideoGame(baseName);
+    } else {
+        autoRenameFromVideo(file.name);
+    }
+    commitDraftGame();
+    loadVideoFileToPlayer(file);
+}
+
 function initVideoFileInputs() {
     const bindFileInput = (id, onLoaded) => {
         const input = document.getElementById(id);
@@ -3423,6 +3454,8 @@ export {
     shiftGameTimings,
     revertGameTimings,
     initAlignVideoModal,
+    loadVideoFileToPlayer,
+    handleVideoFileSelection,
     getDefaultClipTimings,
     jumpToEventTime,
     jumpToVideoTime

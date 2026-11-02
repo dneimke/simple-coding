@@ -1296,4 +1296,30 @@ describe('video coding workflow', () => {
             expect(deleteBtn.textContent).toContain('Delete Event');
         });
     });
+    describe('handleVideoFileSelection', () => {
+        it('loads video file and updates player source', () => {
+            const player = document.getElementById('video-player');
+            player.load = jest.fn();
+            player.play = jest.fn().mockResolvedValue(undefined);
+
+            global.URL.createObjectURL = jest.fn(() => 'blob:http://localhost/test-video');
+
+            const file = { name: 'test-match.mp4', type: 'video/mp4' };
+            mod.handleVideoFileSelection(file);
+
+            const source = player.querySelector('source');
+            expect(source).not.toBeNull();
+            expect(source.src).toBe('blob:http://localhost/test-video');
+            expect(source.type).toBe('video/mp4');
+            expect(player.load).toHaveBeenCalled();
+            
+        });
+
+        it('shows error notification if file is not a video', () => {
+            const file = { name: 'document.pdf', type: 'application/pdf' };
+            expect(() => {
+                mod.handleVideoFileSelection(file);
+            }).not.toThrow();
+        });
+    });
 });
