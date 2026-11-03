@@ -49,7 +49,7 @@ const CLIP_KEYWORDS = [
     [['YELLOW'], { lead: 20, lag: 360 }],
     [['START', 'END'], { lead: 1, lag: 1 }],
     [['UMP'], { lead: 7, lag: 7 }],
-    [['BS', 'A25E', 'OH', 'ASC', 'APS'], { lead: 10, lag: 10 }]
+    [['A25E', 'OH'], { lead: 5, lag: 10 }], [['ASC', 'APS'], { lead: 10, lag: 1 }], [['PS'], { lead: 3, lag: 2 }], [['BS'], { lead: 10, lag: 10 }]
 ];
 
 function getDefaultClipTimings(label) {
@@ -2006,7 +2006,7 @@ function loadGame(gameId) {
                     needsResave = true;
                 }
                 if (evt.isFavorite === undefined) {
-                    evt.isFavorite = Boolean(evt.favorite);
+                    evt.isFavorite = Boolean(evt.favorite ?? evt.favourite);
                 }
             });
             // If any ids were added, persist the update

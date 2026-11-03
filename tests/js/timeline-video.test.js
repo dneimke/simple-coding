@@ -504,6 +504,11 @@ describe('video coding workflow', () => {
         expect(mod.getDefaultClipTimings('PC')).toEqual({ lead: 2, lag: 10 });
         expect(mod.getDefaultClipTimings('Penalty Corner')).toEqual({ lead: 2, lag: 10 });
         expect(mod.getDefaultClipTimings('Circle Entry')).toEqual({ lead: 10, lag: 10 });
+        expect(mod.getDefaultClipTimings('A25E')).toEqual({ lead: 5, lag: 10 });
+        expect(mod.getDefaultClipTimings('OH')).toEqual({ lead: 5, lag: 10 });
+        expect(mod.getDefaultClipTimings('ASC')).toEqual({ lead: 10, lag: 1 });
+        expect(mod.getDefaultClipTimings('APS')).toEqual({ lead: 10, lag: 1 });
+        expect(mod.getDefaultClipTimings('PS')).toEqual({ lead: 3, lag: 2 });
         expect(mod.getDefaultClipTimings('GREEN')).toEqual({ lead: 20, lag: 130 });
         expect(mod.getDefaultClipTimings('YELLOW')).toEqual({ lead: 20, lag: 360 });
         expect(mod.getDefaultClipTimings('UNKNOWN_TAG')).toEqual({ lead: 5, lag: 5 });
@@ -1313,6 +1318,20 @@ describe('video coding workflow', () => {
             expect(source.type).toBe('video/mp4');
             expect(player.load).toHaveBeenCalled();
             
+        });
+
+        it('normalizes legacy XML favourite spelling into isFavorite', () => {
+            const legacyGameId = 'legacy-game-fav';
+            const stored = JSON.parse(localStorage.getItem('fieldHockeyGames_v1') || '[]');
+            stored.push({
+                id: legacyGameId,
+                teams: 'Legacy Game',
+                events: [{ id: 'leg-1', event: 'Goal', timeMs: 60000, favourite: true }]
+            });
+            localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(stored));
+            mod.loadGame(legacyGameId);
+            const visible = mod.getVisibleEvents();
+            expect(visible.some(e => e.id === 'leg-1' && e.isFavorite === true)).toBe(true);
         });
 
         it('shows error notification if file is not a video', () => {
