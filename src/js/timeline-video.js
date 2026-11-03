@@ -3015,12 +3015,16 @@ function initMatchTitleEditor() {
     const titleInput = document.getElementById('inline-title-input');
     const cancelTitleBtn = document.getElementById('cancel-title-btn');
 
+    function resolveInitialTitleValue(current, el) {
+        if (current && current.teams) return current.teams;
+        return el ? el.textContent : '';
+    }
+
     function openTitleEditor() {
         if (!titleForm || !titleInput) return;
-        const current = getCurrentGame();
-        titleInput.value = (current && current.teams) ? current.teams : (gameTitleEl ? gameTitleEl.textContent : '');
-        if (gameTitleEl) gameTitleEl.classList.add('hidden');
-        if (editTitleBtn) editTitleBtn.classList.add('hidden');
+        titleInput.value = resolveInitialTitleValue(getCurrentGame(), gameTitleEl);
+        gameTitleEl?.classList.add('hidden');
+        editTitleBtn?.classList.add('hidden');
         titleForm.classList.remove('hidden');
         titleInput.focus();
         titleInput.select();
@@ -3029,8 +3033,8 @@ function initMatchTitleEditor() {
     function closeTitleEditor() {
         if (!titleForm) return;
         titleForm.classList.add('hidden');
-        if (gameTitleEl) gameTitleEl.classList.remove('hidden');
-        if (editTitleBtn) editTitleBtn.classList.remove('hidden');
+        gameTitleEl?.classList.remove('hidden');
+        editTitleBtn?.classList.remove('hidden');
     }
 
     if (gameTitleEl) gameTitleEl.addEventListener('click', openTitleEditor);

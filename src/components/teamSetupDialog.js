@@ -1,3 +1,4 @@
+import { openModalWithPromise } from '../utils/domUtils.js';
 import { storageService } from '../services/storageService.js';
 import { DEFAULT_TEAMS, TEAM_PALETTE, getTeamColor } from './teamPalette.js';
 
@@ -99,31 +100,13 @@ export function openTeamSetupDialog(initialTeams) {
     codeInputs[0].focus();
     codeInputs[0].select();
 
-    return new Promise(resolve => {
-        const close = (result) => {
-            modal.classList.add('hidden');
-            form.removeEventListener('submit', onSubmit);
-            cancelButton.removeEventListener('click', onCancel);
-            modal.removeEventListener('keydown', onKeydown);
-            resolve(result);
-        };
-        const onSubmit = (event) => {
-            event.preventDefault();
-            const teams = normalizeTeams(codeInputs.map((input, index) => ({ code: input.value, color: colors[index] })));
-            const problem = validateTeams(teams);
-            if (problem) {
-                showError(problem);
-                return;
-            }
-            close(teams);
-        };
-        const onCancel = () => close(null);
-        const onKeydown = (event) => {
-            if (event.key === 'Escape') close(null);
-        };
-
-        form.addEventListener('submit', onSubmit);
-        cancelButton.addEventListener('click', onCancel);
-        modal.addEventListener('keydown', onKeydown);
+    return openModalWithPromise({ modal, form, cancelButton }, (close) => {
+        const teams = normalizeTeams(codeInputs.map((input, index) => ({ code: input.value, color: colors[index] })));
+        const problem = validateTeams(teams);
+        if (problem) {
+            showError(problem);
+            return;
+        }
+        close(teams);
     });
 }
