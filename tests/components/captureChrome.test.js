@@ -137,4 +137,19 @@ describe('bindFinishMenu', () => {
         document.getElementById('discardGameButton').click();
         expect(hidden('finishGameList')).toBe(true);
     });
+
+    test('ArrowDown and ArrowUp navigate between menu items', () => {
+        const toggle = document.getElementById('finishGameButton');
+        toggle.click();
+        const completeBtn = document.getElementById('completeGameButton');
+        const discardBtn = document.getElementById('discardGameButton');
+
+        completeBtn.focus();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        expect(document.activeElement).toBe(discardBtn);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        expect(document.activeElement).toBe(completeBtn);
+    });
+
 });

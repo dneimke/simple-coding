@@ -26,6 +26,44 @@ const buttonVariantClass = (type) =>
  * @param {string} [options.icon=null] - Optional icon HTML
  * @returns {HTMLButtonElement} The created button element
  */
+const LEGACY_COLOR_VARIANT_MAP = [
+    ['btn-blue', 'primary'],
+    ['btn-red', 'danger'],
+    ['btn-yellow', 'warning'],
+    ['btn-green', 'success']
+];
+
+function resolveButtonType(className, type) {
+    for (const [cls, variant] of LEGACY_COLOR_VARIANT_MAP) {
+        if (className.includes(cls)) return variant;
+    }
+    return type;
+}
+
+function applyButtonContent(button, text, icon) {
+    if (!icon) {
+        button.textContent = text;
+        return;
+    }
+    button.innerHTML = '';
+    const iconSpan = document.createElement('span');
+    iconSpan.innerHTML = icon;
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+    button.append(iconSpan, textSpan);
+}
+
+function attachButtonClickHandler(button, id, onClick) {
+    if (!onClick) return button;
+    let target = button;
+    if (typeof button.replaceWith === 'function' && typeof button.cloneNode === 'function') {
+        button.replaceWith(button.cloneNode(true));
+        target = id ? document.getElementById(id) : button;
+    }
+    target.addEventListener('click', onClick);
+    return target;
+}
+
 export const createButton = ({
     text,
     className = '',
@@ -35,63 +73,18 @@ export const createButton = ({
     disabled = false,
     icon = null
 }) => {
-    // Create button element or get existing one by ID
     let button = id ? document.getElementById(id) : null;
     if (!button) {
         button = document.createElement('button');
         if (id) button.id = id;
     }
 
-    // Legacy board colour classes map onto the matching variant
-    let buttonType = type;
-    if (className.includes('btn-blue')) buttonType = 'primary';
-    if (className.includes('btn-red')) buttonType = 'danger';
-    if (className.includes('btn-yellow')) buttonType = 'warning';
-    if (className.includes('btn-green')) buttonType = 'success';
+    const buttonType = resolveButtonType(className, type);
+    button.className = [buttonVariantClass(buttonType), className].filter(Boolean).join(' ');
+    button.disabled = Boolean(disabled);
 
-    const buttonClasses = [buttonVariantClass(buttonType), className].filter(Boolean).join(' ');
-
-    button.className = buttonClasses;
-    button.textContent = text;
-
-    // Add disabled state
-    if (disabled) {
-        button.disabled = true;
-    } else {
-        button.disabled = false;
-    }
-
-    // Add icon if provided
-    if (icon) {
-        // Clear the button content first
-        button.innerHTML = '';
-
-        // Create icon span
-        const iconSpan = document.createElement('span');
-        iconSpan.innerHTML = icon;
-
-        // Create text span
-        const textSpan = document.createElement('span');
-        textSpan.textContent = text;
-
-        // Add icon and text to button
-        button.appendChild(iconSpan);
-        button.appendChild(textSpan);
-    }
-    // Add click handler
-    if (onClick) {
-        // In the browser, we would use cloneNode to clear event listeners
-        // but for Jest we need to handle this differently
-        if (typeof button.replaceWith === 'function' && typeof button.cloneNode === 'function') {
-            // In browser environment
-            button.replaceWith(button.cloneNode(true));
-            button = id ? document.getElementById(id) : button;
-        }
-        // Add the click event listener
-        button.addEventListener('click', onClick);
-    }
-
-    return button;
+    applyButtonContent(button, text, icon);
+    return attachButtonClickHandler(button, id, onClick);
 };
 
 /**

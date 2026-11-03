@@ -1,4 +1,4 @@
-import { updateNavbarVisibility, setupMobileMenu } from '../../src/utils/domUtils.js';
+import { updateNavbarVisibility, setupMobileMenu, calculateNextMenuIndex } from '../../src/utils/domUtils.js';
 
 describe('updateNavbarVisibility', () => {
     beforeEach(() => {
@@ -58,5 +58,30 @@ describe('setupMobileMenu', () => {
 
     test('gracefully handles missing elements', () => {
         expect(() => setupMobileMenu(null, null)).not.toThrow();
+    });
+});
+
+
+describe('calculateNextMenuIndex', () => {
+    test('returns -1 for empty list', () => {
+        expect(calculateNextMenuIndex(0, 1, 0)).toBe(-1);
+    });
+
+    test('focuses first item when moving down from unselected state', () => {
+        expect(calculateNextMenuIndex(-1, 1, 4)).toBe(0);
+    });
+
+    test('focuses last item when moving up from unselected state', () => {
+        expect(calculateNextMenuIndex(-1, -1, 4)).toBe(3);
+    });
+
+    test('steps forward with wrap-around', () => {
+        expect(calculateNextMenuIndex(0, 1, 3)).toBe(1);
+        expect(calculateNextMenuIndex(2, 1, 3)).toBe(0);
+    });
+
+    test('steps backward with wrap-around', () => {
+        expect(calculateNextMenuIndex(1, -1, 3)).toBe(0);
+        expect(calculateNextMenuIndex(0, -1, 3)).toBe(2);
     });
 });

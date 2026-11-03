@@ -1,3 +1,5 @@
+import { calculateNextMenuIndex } from '../utils/domUtils.js';
+
 /**
  * Shows the capture bar for the current game.
  * Before a game: board selector and Set Up Match.
@@ -89,10 +91,8 @@ export function bindFinishMenu() {
             event.preventDefault();
             const step = event.key === 'ArrowDown' ? 1 : -1;
             const current = items.indexOf(document.activeElement);
-            const next = current === -1
-                ? (step > 0 ? 0 : items.length - 1)
-                : (current + step + items.length) % items.length;
-            items[next].focus();
+            const next = calculateNextMenuIndex(current, step, items.length);
+            if (next >= 0) items[next].focus();
         };
 
         openFinishMenu = { menu, toggle, onDocClick, onKeydown };
