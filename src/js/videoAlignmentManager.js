@@ -130,6 +130,18 @@ export function revertGameTimings(gameId, deps = {}) {
 }
 
 /**
+ * Checks whether a video element is present and has loaded metadata/source.
+ *
+ * @param {HTMLVideoElement|null} video
+ * @returns {boolean}
+ */
+function isVideoElementLoaded(video) {
+    if (!video) return false;
+    const hasSource = Boolean(video.currentSrc || video.src || video.querySelector('source'));
+    return hasSource && Number(video.readyState) > 0;
+}
+
+/**
  * Calculates alignment offset from video element and game events.
  *
  * @param {HTMLVideoElement} video
@@ -137,15 +149,17 @@ export function revertGameTimings(gameId, deps = {}) {
  * @returns {{ offset: Object, game: Object } | null}
  */
 export function calculateAlignmentState(video, game) {
-    const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
-    if (!videoLoaded) {
+    if (!isVideoElementLoaded(video)) {
         notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
         return null;
     }
-    if (!game || !game.events?.length) return null;
+    if (!game || !Array.isArray(game.events) || game.events.length === 0) {
+        return null;
+    }
+
     const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
-    const videoSec = video ? (video.currentTime || 0) : 0;
-    const firstSec = (sortedEvents[0].timeMs || 0) / 1000;
+    const videoSec = Number(video.currentTime) || 0;
+    const firstSec = (Number(sortedEvents[0].timeMs) || 0) / 1000;
     const offset = calculateVideoOffset(videoSec, firstSec);
     return { offset, game };
 }
