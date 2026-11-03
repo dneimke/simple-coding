@@ -164,30 +164,42 @@ function validateZones(zones) {
     }
 }
 
+function validateClipField(name, button, field) {
+    const val = button?.[field];
+    if (val !== undefined && !isValidClipSeconds(val)) {
+        throw new Error(`${name}: ${field} must be a number of 0 or more.`);
+    }
+}
+
+function validateButton(button, hasZones) {
+    const name = button?.event || button?.text || 'Button';
+    validateClipField(name, button, 'lead');
+    validateClipField(name, button, 'lag');
+    if (button?.zoned && !hasZones) {
+        throw new Error(`${name}: zoned buttons need a zones block in the configuration.`);
+    }
+}
+
+function validateRow(row, hasZones) {
+    if (row?.team !== undefined && !ROW_TEAMS.includes(row.team)) {
+        throw new Error('Row team must be 1, 2 or "selected".');
+    }
+    for (const grid of rowGrids(row)) {
+        for (const button of grid?.buttons ?? []) {
+            validateButton(button, hasZones);
+        }
+    }
+}
+
 // Throws if the configuration structure, zones, team slots or any button's lead/lag (seconds) is invalid
 export function validateConfig(config) {
     if (!isValidConfig(config)) {
         throw new Error('Invalid configuration structure.');
     }
     validateZones(config.zones);
-
+    const hasZones = Boolean(config.zones);
     for (const row of config.rowDefs) {
-        if (row?.team !== undefined && !ROW_TEAMS.includes(row.team)) {
-            throw new Error('Row team must be 1, 2 or "selected".');
-        }
-        for (const grid of rowGrids(row)) {
-            for (const button of grid?.buttons ?? []) {
-                const name = button?.event || button?.text || 'Button';
-                for (const field of ['lead', 'lag']) {
-                    if (button?.[field] !== undefined && !isValidClipSeconds(button[field])) {
-                        throw new Error(`${name}: ${field} must be a number of 0 or more.`);
-                    }
-                }
-                if (button?.zoned && !config.zones) {
-                    throw new Error(`${name}: zoned buttons need a zones block in the configuration.`);
-                }
-            }
-        }
+        validateRow(row, hasZones);
     }
 }
 
@@ -234,8 +246,7 @@ function resetConfiguration() {
     }
 }
 
-function readNamedConfigs() {
-    let stored = {};
+function parseStoredNamedConfigs() {
     try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEY_NAMED_CONFIGS);
         if (!raw) {
@@ -243,12 +254,15 @@ function readNamedConfigs() {
         }
         const parsed = raw ? JSON.parse(raw) : {};
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-            stored = parsed;
+            return parsed;
         }
     } catch (error) {
         console.error('Error loading named configurations:', error);
     }
+    return {};
+}
 
+function purgeRetiredConfigs(stored) {
     let changed = false;
     for (const [name, retired] of Object.entries(RETIRED_BUILT_IN_CONFIGS)) {
         if (stored[name] && JSON.stringify(stored[name]) === JSON.stringify(retired)) {
@@ -256,7 +270,10 @@ function readNamedConfigs() {
             changed = true;
         }
     }
+    return changed;
+}
 
+function seedBuiltInConfigs(stored) {
     let seeded = false;
     for (const [name, config] of Object.entries(BUILT_IN_NAMED_CONFIGS)) {
         if (!isValidConfig(stored[name])) {
@@ -264,6 +281,13 @@ function readNamedConfigs() {
             seeded = true;
         }
     }
+    return seeded;
+}
+
+function readNamedConfigs() {
+    const stored = parseStoredNamedConfigs();
+    const changed = purgeRetiredConfigs(stored);
+    const seeded = seedBuiltInConfigs(stored);
 
     if (seeded || changed) {
         writeNamedConfigs(stored);
@@ -470,6 +494,28 @@ export function getBoardExportFilename(boardName) {
  * @param {string} [filenameFallback='']
  * @returns {{ name: string, config: Object }}
  */
+function extractBoardConfigAndName(data) {
+    const raw = data.config && isValidConfig(data.config) ? data.config : data;
+    if (!isValidConfig(raw)) {
+        throw new Error('This file does not contain a valid button board layout.');
+    }
+    const boardConfig = {
+        rowDefs: cloneConfig(raw.rowDefs),
+        ...(raw.zones ? { zones: cloneConfig(raw.zones) } : {})
+    };
+    const name = data.name || (data.config && data.config.name) || '';
+    return { boardConfig, name };
+}
+
+function resolveBoardProposedName(name, filenameFallback) {
+    if (name) return name.trim();
+    if (filenameFallback) {
+        const cleaned = filenameFallback.replace(/\.json$/i, '').replace(/[-_]+/g, ' ').trim();
+        if (cleaned) return cleaned;
+    }
+    return 'Custom Board';
+}
+
 export function parseBoardImport(rawContent, filenameFallback = '') {
     if (typeof rawContent !== 'string') {
         throw new Error('Invalid file format: content must be text.');
@@ -484,39 +530,11 @@ export function parseBoardImport(rawContent, filenameFallback = '') {
         throw new Error('This file does not contain a valid button board layout.');
     }
 
-    let boardConfig = null;
-    let proposedName = '';
-
-    if (data.config && isValidConfig(data.config)) {
-        boardConfig = {
-            rowDefs: cloneConfig(data.config.rowDefs),
-            ...(data.config.zones ? { zones: cloneConfig(data.config.zones) } : {})
-        };
-        proposedName = data.name || data.config.name || '';
-    } else if (isValidConfig(data)) {
-        boardConfig = {
-            rowDefs: cloneConfig(data.rowDefs),
-            ...(data.zones ? { zones: cloneConfig(data.zones) } : {})
-        };
-        proposedName = data.name || '';
-    } else {
-        throw new Error('This file does not contain a valid button board layout.');
-    }
-
+    const { boardConfig, name } = extractBoardConfigAndName(data);
     validateConfig(boardConfig);
 
-    if (!proposedName && filenameFallback) {
-        proposedName = filenameFallback
-            .replace(/\.json$/i, '')
-            .replace(/[-_]+/g, ' ')
-            .trim();
-    }
-    if (!proposedName) {
-        proposedName = 'Custom Board';
-    }
-
     return {
-        name: proposedName.trim(),
+        name: resolveBoardProposedName(name, filenameFallback),
         config: boardConfig
     };
 }

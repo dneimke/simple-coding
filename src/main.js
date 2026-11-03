@@ -7,6 +7,7 @@ import { Router } from './components/router.js';
 import { notificationService } from './services/notificationService.js';
 import { stateService } from './services/stateService.js';
 import { updateNavbarVisibility, setupMobileMenu } from './utils/domUtils.js';
+import { resolveInitialView, parseHelpJumpTargetId } from './utils/navigationUtils.js';
 import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard, mergeXmlEventStreams } from './utils/xmlUtils.js';
 import { showPreview, showAppendPreview, appendEventsToGame } from './utils/importUtils.js';
@@ -167,32 +168,34 @@ const statsView = document.getElementById('stats-view');
 const savedGamesView = document.getElementById('saved-games-view');
 const helpView = document.getElementById('help-view');
 
+function setElementText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
+function formatActiveMatchTeams(teams) {
+    return (Array.isArray(teams) && teams.length >= 2) ? `${teams[0].code} vs ${teams[1].code}` : 'Live Match';
+}
+
+function formatActiveMatchMeta(clock, count) {
+    return `${clock} · ${count} event${count === 1 ? '' : 's'} logged`;
+}
+
 function renderActiveMatchBanner() {
     const banner = document.getElementById('activeMatchBanner');
     if (!banner) return;
 
-    const hasGame = Boolean(stateService.getState('game.hasCurrentGame'));
-    if (!hasGame) {
+    if (!stateService.getState('game.hasCurrentGame')) {
         banner.classList.add('hidden');
         return;
     }
 
     const teams = stateService.getState('game.teams');
-    const events = stateService.getState('game.loggedEvents') || [];
-    const count = events.length;
-    const elapsedTime = gameState ? gameState.getLiveElapsedTime() : 0;
-    const clock = formatTime(elapsedTime);
+    const count = (stateService.getState('game.loggedEvents') || []).length;
+    const elapsedTime = gameState?.getLiveElapsedTime() || 0;
 
-    const teamsEl = document.getElementById('activeMatchTeams');
-    const metaEl = document.getElementById('activeMatchMeta');
-
-    if (teamsEl) {
-        teamsEl.textContent = teams ? `${teams[0].code} vs ${teams[1].code}` : 'Live Match';
-    }
-    if (metaEl) {
-        metaEl.textContent = `${clock} · ${count} event${count === 1 ? '' : 's'} logged`;
-    }
-
+    setElementText('activeMatchTeams', formatActiveMatchTeams(teams));
+    setElementText('activeMatchMeta', formatActiveMatchMeta(formatTime(elapsedTime), count));
     banner.classList.remove('hidden');
 }
 
@@ -293,10 +296,27 @@ const helpView = document.getElementById('help-view');
  * Renders the Log view for either a saved game (when ui.logGameId is set) or the live game.
  * Viewing a saved game never touches the live game state.
  */
+function renderSavedGameLog(game) {
+    savedGameLogTitle.textContent = game.teams || 'Game';
+    savedGameLogBanner.classList.remove('hidden');
+    backToCaptureButton.classList.add('hidden');
+    tabButtonRecent.classList.add('hidden');
+    recentViewPanel.innerHTML = '';
+    if (stateService.getState('ui.currentTab') === 'recentView') {
+        router.switchTab('timelineView');
+    }
+}
+
+function renderLiveGameLog(events) {
+    savedGameLogBanner.classList.add('hidden');
+    backToCaptureButton.classList.remove('hidden');
+    tabButtonRecent.classList.remove('hidden');
+    renderRecentEvents(recentViewPanel, events);
+    router.switchTab('recentView');
+}
+
 function renderLogView() {
     const savedGameId = stateService.getState('ui.logGameId');
-    let events;
-
     if (savedGameId) {
         const game = gameStorageManager.getGameById(savedGameId);
         if (!game) {
@@ -304,25 +324,15 @@ function renderLogView() {
             router.showView('SavedGames', renderSavedGames);
             return;
         }
-        events = game.events || [];
-        savedGameLogTitle.textContent = game.teams || 'Game';
-        savedGameLogBanner.classList.remove('hidden');
-        backToCaptureButton.classList.add('hidden');
-        // Saved logs are read-only, so they have no Recent tab with Delete buttons
-        tabButtonRecent.classList.add('hidden');
-        recentViewPanel.innerHTML = '';
-        if (stateService.getState('ui.currentTab') === 'recentView') {
-            router.switchTab('timelineView');
-        }
-    } else {
-        events = stateService.getState('game.loggedEvents') || [];
-        savedGameLogBanner.classList.add('hidden');
-        backToCaptureButton.classList.remove('hidden');
-        tabButtonRecent.classList.remove('hidden');
-        renderRecentEvents(recentViewPanel, events);
-        router.switchTab('recentView');
+        renderSavedGameLog(game);
+        const events = game.events || [];
+        eventLog.render(events);
+        copyXmlButton.disabled = events.length === 0;
+        return;
     }
 
+    const events = stateService.getState('game.loggedEvents') || [];
+    renderLiveGameLog(events);
     eventLog.render(events);
     copyXmlButton.disabled = events.length === 0;
 }
@@ -365,6 +375,12 @@ function getPreviewEventButtons() {
     return previewEventButtons;
 }
 
+function getDefaultPreviewZone(zones) {
+    if (zones?.default) return zones.default;
+    if (Array.isArray(zones?.values) && zones.values.length > 0) return zones.values[0];
+    return '1';
+}
+
 function renderConfigVisualPreview(config) {
     if (!configBoardPreview) return;
     if (!config || !Array.isArray(config.rowDefs)) {
@@ -376,7 +392,7 @@ function renderConfigVisualPreview(config) {
         if (previewer) {
             previewer.initialize(config, {
                 teams: loadLastTeams(),
-                zone: config.zones?.default ?? (config.zones?.values?.[0] ?? '1'),
+                zone: getDefaultPreviewZone(config.zones),
                 selectedTeam: 1
             });
             configBoardPreview.querySelectorAll('.event-button').forEach(button => {
@@ -474,6 +490,13 @@ function selectTeam(slot) {
     }
 }
 
+function determineNewGameDefaults(config, teams) {
+    const zones = config.zones;
+    const activeZone = zones ? (eventButtons.zone || zones.default || zones.values[0]) : null;
+    const selectedTeam = teams ? eventButtons.selectedTeam : null;
+    return { activeZone, selectedTeam };
+}
+
 async function startNewGame() {
     const config = loadConfiguration();
     let teams = null;
@@ -482,10 +505,7 @@ async function startNewGame() {
         if (!teams) return;
         saveLastTeams(teams);
     }
-    const zones = config.zones;
-    const activeZone = zones ? (eventButtons.zone ?? zones.default ?? zones.values[0]) : null;
-
-    const selectedTeam = teams ? eventButtons.selectedTeam : null;
+    const { activeZone, selectedTeam } = determineNewGameDefaults(config, teams);
 
     gameState.newGame({ teams, activeZone, selectedTeam, autoStart: false });
     renderBoard(config);
@@ -500,36 +520,15 @@ function parseEditorConfig() {
 }
 
 function initializeApplication() {
-    // Check for seeded mock state (?mock=sample, ?mock=active, ?seed=sample)
     checkAndApplyMockSeed();
-
-    // Load configuration
     const currentConfig = loadConfiguration();
-
-    // Initialize event buttons from the active configuration
     if (currentConfig) {
         eventButtons.setConfig(currentConfig);
     }
 
-    // Check URL parameters and hash for view navigation
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewParam = urlParams.get('view');
-    const mockParam = urlParams.get('mock');
-    const isDevPreview = window.location.pathname.includes('/dev/preview');
-    const hash = window.location.hash.substring(1).split('?')[0].split('/')[0];
-
-    // Handle navigation based on URL parameters or hash
-    if (viewParam === 'config' || hash === 'configure') {
-        stateService.setState('ui.currentView', 'Config');
-    } else if (viewParam === 'help' || hash === 'help') {
-        stateService.setState('ui.currentView', 'Help');
-    } else if (isDevPreview || viewParam === 'event-capture' || hash === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter' || mockParam === 'armed') {
-        stateService.setState('ui.currentView', 'EventCapture');
-    } else if (viewParam === 'log' || hash === 'log') {
-        stateService.setState('ui.currentView', 'Log');
-    } else {
-        // Default to saved-games (Matches Hub) view
-        stateService.setState('ui.currentView', 'SavedGames');
+    const initialView = resolveInitialView(window.location.search, window.location.hash, window.location.pathname);
+    stateService.setState('ui.currentView', initialView);
+    if (initialView === 'SavedGames') {
         renderSavedGames();
     }
 
@@ -539,8 +538,7 @@ function initializeApplication() {
     showConfigView();
     restoreCaptureDraft();
 
-    const hasCurrentGame = stateService.getState('game.hasCurrentGame');
-    updateNavbarVisibility(hasCurrentGame);
+    updateNavbarVisibility(stateService.getState('game.hasCurrentGame'));
 }
 
 function saveCaptureDraft() {
@@ -594,25 +592,31 @@ function captureDialogOpen() {
     return [teamSetupModal, completeGameModal].some(modal => modal && !modal.classList.contains('hidden'));
 }
 
-async function completeCapture() {
-    const elapsedTime = gameState.getLiveElapsedTime();
-    const events = stateService.getState('game.loggedEvents') || [];
-    const count = events.length;
-    const teams = stateService.getState('game.teams');
-    const suggestedName = teams ? `${teams[0].code} vs ${teams[1].code}` : '';
-    const choice = await openCompleteGameDialog({
-        summary: `Save ${count} event${count === 1 ? '' : 's'}, clock at ${formatTime(elapsedTime)}, to Saved Games. The capture will reset.`,
-        suggestedName
-    });
-    if (!choice) return;
-
-    const result = finishCapture({
+function buildFinishCapturePayload(choice, events, elapsedTime, teams) {
+    const payload = {
         events,
         elapsedTime,
         timestamp: new Date().toISOString(),
-        teams: choice.name ? choice.name : null,
-        ...(teams && { teamCodes: teams.map(team => team.code) })
-    }, gameStorageManager);
+        teams: choice.name || null
+    };
+    if (teams) {
+        payload.teamCodes = teams.map(t => t.code);
+    }
+    return payload;
+}
+
+async function completeCapture() {
+    const elapsedTime = gameState.getLiveElapsedTime();
+    const events = stateService.getState('game.loggedEvents') || [];
+    const teams = stateService.getState('game.teams');
+    const suggestedName = formatActiveMatchTeams(teams);
+    const summary = `Save ${events.length} event${events.length === 1 ? '' : 's'}, clock at ${formatTime(elapsedTime)}, to Saved Games. The capture will reset.`;
+
+    const choice = await openCompleteGameDialog({ summary, suggestedName });
+    if (!choice) return;
+
+    const payload = buildFinishCapturePayload(choice, events, elapsedTime, teams);
+    const result = finishCapture(payload, gameStorageManager);
 
     if (!result.success) {
         notificationService.notify(
@@ -679,36 +683,36 @@ function initNavEventListeners() {
     });
 }
 
-function initCodingButtonListeners() {
-    codingButtonsContainer.addEventListener('click', (event) => {
-        const zoneButton = event.target.closest('.zone-button[data-zone]');
-        if (zoneButton) {
-            selectZone(zoneButton.dataset.zone);
-            return;
-        }
+function handleCodingButtonClick(event) {
+    const zoneButton = event.target.closest('.zone-button[data-zone]');
+    if (zoneButton) {
+        selectZone(zoneButton.dataset.zone);
+        return;
+    }
 
-        const teamToggle = event.target.closest('.team-toggle[data-team-select]');
-        if (teamToggle) {
-            selectTeam(Number(teamToggle.dataset.teamSelect));
-            return;
-        }
+    const teamToggle = event.target.closest('.team-toggle[data-team-select]');
+    if (teamToggle) {
+        selectTeam(Number(teamToggle.dataset.teamSelect));
+        return;
+    }
 
-        const button = event.target.closest('.event-button[data-event]');
-        if (!button) return;
+    const button = event.target.closest('.event-button[data-event]');
+    if (!button) return;
 
-        const eventPayload = createCaptureEventPayload(button, {
-            zone: eventButtons.zone,
-            zones: eventButtons.config?.zones,
-            teams: eventButtons.teams,
-            elapsedTime: gameState.getLiveElapsedTime()
-        });
-        if (gameState.addEvent(eventPayload)) {
-            saveCaptureDraft();
-            if (liveChordEngine) {
-                liveChordEngine.startChord(eventPayload);
-            }
-        }
+    const eventPayload = createCaptureEventPayload(button, {
+        zone: eventButtons.zone,
+        zones: eventButtons.config?.zones,
+        teams: eventButtons.teams,
+        elapsedTime: gameState.getLiveElapsedTime()
     });
+    if (gameState.addEvent(eventPayload)) {
+        saveCaptureDraft();
+        liveChordEngine?.startChord(eventPayload);
+    }
+}
+
+function initCodingButtonListeners() {
+    codingButtonsContainer.addEventListener('click', handleCodingButtonClick);
 }
 
 function initTrackerControlListeners() {
@@ -744,48 +748,86 @@ function initTrackerControlListeners() {
     });
 }
 
+function handleSpaceShortcut(event) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return false;
+    if (event.code !== 'Space' && event.key !== ' ') return false;
+    if (shouldIgnoreCaptureKeydown(event) || !stateService.getState('game.hasCurrentGame')) return false;
+
+    event.preventDefault();
+    gameState.pauseResume();
+    saveCaptureDraft();
+    syncChrome();
+    return true;
+}
+
+function handleUndoShortcut(event) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return false;
+    if (shouldIgnoreCaptureKeydown(event)) return false;
+
+    event.preventDefault();
+    undoLastEvent();
+    return true;
+}
+
+function handleTeamToggleShortcut(event) {
+    if (event.key !== 't' && event.key !== 'T') return false;
+    if (!codingButtonsContainer.querySelector('.team-toggle')) return false;
+
+    event.preventDefault();
+    selectTeam(eventButtons.selectedTeam === 1 ? 2 : 1);
+    return true;
+}
+
+function handleZoneShortcut(event) {
+    const zones = eventButtons.config?.zones;
+    const index = Number(event.key) - 1;
+    if (!zones || !Number.isInteger(index) || index < 0 || index >= zones.values.length) return false;
+
+    event.preventDefault();
+    selectZone(zones.values[index]);
+    return true;
+}
+
 function initCaptureKeyboardShortcuts() {
-    // Space starts the clock when armed, or pauses/resumes while a game is active
     document.addEventListener('keydown', (event) => {
-        if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (event.code !== 'Space' && event.key !== ' ') return;
-        if (shouldIgnoreCaptureKeydown(event)) return;
-        if (!stateService.getState('game.hasCurrentGame')) return;
+        if (handleSpaceShortcut(event)) return;
+        if (handleUndoShortcut(event)) return;
 
-        event.preventDefault();
-        gameState.pauseResume();
-        saveCaptureDraft();
-        syncChrome();
-    });
-
-    // Ctrl+Z / Cmd+Z removes the last event while capturing
-    document.addEventListener('keydown', (event) => {
-        if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return;
-        if (shouldIgnoreCaptureKeydown(event)) return;
-
-        event.preventDefault();
-        undoLastEvent();
-    });
-
-    // Number keys pick the sticky zone (from Team 1's perspective); T switches the team for shared team buttons
-    document.addEventListener('keydown', (event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (shouldIgnoreCaptureKeydown(event)) return;
 
-        if (event.key === 't' || event.key === 'T') {
-            if (!codingButtonsContainer.querySelector('.team-toggle')) return;
-            event.preventDefault();
-            selectTeam(eventButtons.selectedTeam === 1 ? 2 : 1);
-            return;
-        }
-
-        const zones = eventButtons.config?.zones;
-        const index = Number(event.key) - 1;
-        if (!zones || !Number.isInteger(index) || index < 0 || index >= zones.values.length) return;
-
-        event.preventDefault();
-        selectZone(zones.values[index]);
+        if (handleTeamToggleShortcut(event)) return;
+        handleZoneShortcut(event);
     });
+}
+
+function handleBoardExport() {
+    try {
+        const currentName = savedConfigSelect?.value || selectedConfigName || 'Custom Board';
+        const config = getNamedConfig(currentName) || loadConfiguration();
+        const payload = createBoardExportPayload(currentName, config);
+        const filename = getBoardExportFilename(currentName);
+        const displayName = getConfigDisplayName(currentName) || currentName;
+        triggerFileDownload(filename, payload);
+        notificationService.notify(`Exported "${displayName}" board file.`, 'success');
+    } catch (error) {
+        logger.error('Failed to export board:', error);
+        notificationService.notify(`Failed to export board: ${error.message}`, 'error');
+    }
+}
+
+function handleBoardDelete() {
+    const name = savedConfigSelect?.value;
+    if (!name || isBuiltInConfig(name) || name === UNSAVED_CONFIG_VALUE) return;
+    const displayName = getConfigDisplayName(name);
+    if (!notificationService.confirm(`Are you sure you want to delete "${displayName}"?`)) {
+        return;
+    }
+    deleteNamedConfig(name);
+    notificationService.notify(`Deleted board "${displayName}".`, 'success');
+    activateNamedConfig('simple-starter');
+    showConfigView();
+    renderBoardOptions();
 }
 
 function initConfigViewEventListeners() {
@@ -821,20 +863,7 @@ function initConfigViewEventListeners() {
     }
 
     if (exportConfigButton) {
-        exportConfigButton.addEventListener('click', () => {
-            try {
-                const currentName = savedConfigSelect?.value || selectedConfigName || 'Custom Board';
-                const config = getNamedConfig(currentName) || loadConfiguration();
-                const payload = createBoardExportPayload(currentName, config);
-                const filename = getBoardExportFilename(currentName);
-                const displayName = getConfigDisplayName(currentName) || currentName;
-                triggerFileDownload(filename, payload);
-                notificationService.notify(`Exported "${displayName}" board file.`, 'success');
-            } catch (error) {
-                logger.error('Failed to export board:', error);
-                notificationService.notify(`Failed to export board: ${error.message}`, 'error');
-            }
-        });
+        exportConfigButton.addEventListener('click', handleBoardExport);
     }
 
     if (importConfigButton) {
@@ -853,19 +882,7 @@ function initConfigViewEventListeners() {
     }
 
     if (deleteConfigButton) {
-        deleteConfigButton.addEventListener('click', () => {
-            const name = savedConfigSelect?.value;
-            if (!name || isBuiltInConfig(name) || name === UNSAVED_CONFIG_VALUE) return;
-            const displayName = getConfigDisplayName(name);
-            if (!notificationService.confirm(`Are you sure you want to delete "${displayName}"?`)) {
-                return;
-            }
-            deleteNamedConfig(name);
-            notificationService.notify(`Deleted board "${displayName}".`, 'success');
-            activateNamedConfig('simple-starter');
-            showConfigView();
-            renderBoardOptions();
-        });
+        deleteConfigButton.addEventListener('click', handleBoardDelete);
     }
 
     if (configBoardPreview) {
@@ -1057,22 +1074,13 @@ function initHelpJumpLinks() {
 
     jumpBar.addEventListener('click', (e) => {
         const link = e.target.closest('a[href*="#"]');
-        if (!link) return;
-        const href = link.getAttribute('href');
-        const hashIndex = href.indexOf('#');
-        if (hashIndex === -1) return;
-        const targetPart = href.substring(hashIndex + 1).split('?')[0];
-        const targetId = targetPart.includes('/') ? targetPart.split('/')[1] : targetPart;
-        const target = document.getElementById(targetId);
-        if (target) {
-            e.preventDefault();
-            if (typeof target.scrollIntoView === 'function') {
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            if (typeof history !== 'undefined' && typeof history.replaceState === 'function') {
-                history.replaceState(null, '', `#help/${targetId}`);
-            }
-        }
+        const targetId = link ? parseHelpJumpTargetId(link.getAttribute('href')) : null;
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (!target) return;
+
+        e.preventDefault();
+        target.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        history?.replaceState?.(null, '', `#help/${targetId}`);
     });
 }
 
