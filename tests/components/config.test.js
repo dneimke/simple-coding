@@ -20,7 +20,8 @@ import {
     getBoardExportFilename,
     parseBoardImport,
     importNamedConfig,
-    populateBoardSelect
+    populateBoardSelect,
+    triggerFileDownload
 } from '../../src/components/config.js';
 
 const ACTIVE_KEY = 'fieldHockeyConfig_v1';
@@ -503,4 +504,31 @@ describe('populateBoardSelect', () => {
                 expect(getNamedConfig('hockey-one-zoned')).not.toEqual(sampleBoard);
             });
         });
+    
+        describe('triggerFileDownload', () => {
+            test('creates anchor element, triggers click and cleans up URL', () => {
+                const originalCreateObjectURL = window.URL?.createObjectURL;
+                const originalRevokeObjectURL = window.URL?.revokeObjectURL;
+
+                const createObjectURLMock = jest.fn(() => 'blob:mock-url');
+                const revokeObjectURLMock = jest.fn();
+                window.URL.createObjectURL = createObjectURLMock;
+                window.URL.revokeObjectURL = revokeObjectURLMock;
+
+                const appendSpy = jest.spyOn(document.body, 'appendChild');
+                const removeSpy = jest.spyOn(document.body, 'removeChild');
+
+                const res = triggerFileDownload('export.json', '{"test":true}');
+                expect(res).toBe(true);
+                expect(createObjectURLMock).toHaveBeenCalled();
+                expect(appendSpy).toHaveBeenCalled();
+                expect(removeSpy).toHaveBeenCalled();
+
+                window.URL.createObjectURL = originalCreateObjectURL;
+                window.URL.revokeObjectURL = originalRevokeObjectURL;
+                appendSpy.mockRestore();
+                removeSpy.mockRestore();
+            });
+        });
+
     });
