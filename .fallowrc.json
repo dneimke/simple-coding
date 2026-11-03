@@ -15,8 +15,5 @@
   "audit": {
     "gate": "new-only",
     "worsened": "error"
-  },
-  "health": {
-    "coverage": "coverage/coverage-final.json"
   }
 }

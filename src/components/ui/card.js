@@ -89,7 +89,7 @@ const createGameMenu = (title, items) => {
     });
 
     menu.onkeydown = (e) => {
-        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        if (!['ArrowDown', 'ArrowUp'].includes(e.key)) return;
         e.preventDefault();
         const step = e.key === 'ArrowDown' ? 1 : -1;
         const current = menuItems.indexOf(document.activeElement);
@@ -201,15 +201,18 @@ function ensureInvalidEventsModal() {
     };
 }
 
+function formatInvalidEventItem({ event, idx }) {
+    const safeEvent = event || {};
+    const name = typeof safeEvent.event === 'string' ? safeEvent.event : '<strong>(missing name)</strong>';
+    const time = Number.isFinite(safeEvent.timeMs) ? safeEvent.timeMs : '<strong>(invalid time)</strong>';
+    return `<div class="banner banner-error mb-2"><span><strong>Event #${idx + 1}:</strong> Name: ${name}, Time: ${time}</span></div>`;
+}
+
 function showInvalidEventsModal(game, invalidEvents) {
     const modal = document.getElementById('invalid-events-modal');
     const list = document.getElementById('invalid-events-list');
     if (!modal || !list) return;
-    list.innerHTML = invalidEvents.map(({ event, idx }) => {
-        const eventName = event && typeof event.event === 'string' ? event.event : '<strong>(missing name)</strong>';
-        const time = (event && typeof event.timeMs === 'number' && isFinite(event.timeMs)) ? event.timeMs : '<strong>(invalid time)</strong>';
-        return `<div class="banner banner-error mb-2"><span><strong>Event #${idx + 1}:</strong> Name: ${eventName}, Time: ${time}</span></div>`;
-    }).join('');
+    list.innerHTML = invalidEvents.map(formatInvalidEventItem).join('');
     modal.classList.remove('hidden');
 }
 

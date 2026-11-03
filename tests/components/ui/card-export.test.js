@@ -306,4 +306,54 @@ describe('Saved game actions', () => {
         expect(stopPropagation).toHaveBeenCalled();
         expect(handlers[handlerName]).toHaveBeenCalledTimes(1);
     });
+
+    test('menu handles ArrowDown, ArrowUp, and non-arrow keys', () => {
+        const card = createGameCard({ game, index: 0, ...handlers });
+        const { menu, items } = getMenuParts(card);
+
+        const spy = jest.spyOn(document, 'activeElement', 'get').mockReturnValue(items[0]);
+        const preventDefault = jest.fn();
+        menu.onkeydown({ key: 'ArrowDown', preventDefault });
+        expect(preventDefault).toHaveBeenCalled();
+        expect(items[1].focus).toHaveBeenCalled();
+
+        menu.onkeydown({ key: 'ArrowUp', preventDefault });
+        expect(items[items.length - 1].focus).toHaveBeenCalled();
+
+        const preventDefault2 = jest.fn();
+        menu.onkeydown({ key: 'Escape', preventDefault: preventDefault2 });
+        expect(preventDefault2).not.toHaveBeenCalled();
+        spy.mockRestore();
+    });
+
+    test('renders invalid events warning and displays modal content when clicked', () => {
+        const { getInvalidEvents } = require("../../../src/utils/xmlUtils.js");
+        getInvalidEvents.mockReturnValueOnce([
+            { event: { event: "GOAL", timeMs: 12000 }, idx: 0 },
+            { event: { event: null, timeMs: "invalid" }, idx: 1 }
+        ]);
+
+        const modalDiv = { classList: { remove: jest.fn(), add: jest.fn() } };
+        const listDiv = { innerHTML: "" };
+        const origGetElementById = document.getElementById;
+        document.getElementById = jest.fn((id) => {
+            if (id === "invalid-events-modal") return modalDiv;
+            if (id === "invalid-events-list") return listDiv;
+            return { classList: { add: jest.fn(), remove: jest.fn() } };
+        });
+
+        createGameCard({ game, index: 0, ...handlers });
+        const createdButtons = document.createElement.mock.results
+            .map(r => r.value)
+            .filter(el => el && el.className === "link-button saved-game-issues");
+        expect(createdButtons.length).toBeGreaterThan(0);
+        createdButtons[0].onclick({ stopPropagation: jest.fn() });
+
+        expect(modalDiv.classList.remove).toHaveBeenCalledWith("hidden");
+        expect(listDiv.innerHTML).toContain("Event #1");
+        expect(listDiv.innerHTML).toContain("Event #2");
+        expect(listDiv.innerHTML).toContain("(missing name)");
+        expect(listDiv.innerHTML).toContain("(invalid time)");
+        document.getElementById = origGetElementById;
+    });
 });
