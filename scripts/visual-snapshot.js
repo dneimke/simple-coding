@@ -64,43 +64,40 @@ const DEFAULT_SCREENS = [
     }
 ];
 
+async function captureSingleScreen(browser, baseUrl, screen, vp, results) {
+    const context = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+        deviceScaleFactor: 2
+    });
+    const page = await context.newPage();
+    await page.goto(`${baseUrl}${screen.path}`, { waitUntil: 'domcontentloaded' });
+
+    if (screen.waitForSelector) {
+        try {
+            await page.waitForSelector(screen.waitForSelector, { timeout: 3000 });
+        } catch {}
+    }
+
+    await page.waitForTimeout(400);
+    const fileName = `${screen.name}-${vp.name}.png`;
+    const filePath = path.join(OUTPUT_DIR, fileName);
+    await page.screenshot({ path: filePath, fullPage: true });
+
+    results.push({
+        name: screen.name,
+        viewport: vp.name,
+        size: `${vp.width}x${vp.height}`,
+        file: fileName,
+        bytes: fs.statSync(filePath).size
+    });
+
+    await context.close();
+}
+
 async function captureStandardScreens(browser, baseUrl, results) {
     for (const screen of DEFAULT_SCREENS) {
         for (const vp of VIEWPORTS) {
-            const context = await browser.newContext({
-                viewport: { width: vp.width, height: vp.height },
-                deviceScaleFactor: 2
-            });
-            const page = await context.newPage();
-
-            const targetUrl = `${baseUrl}${screen.path}`;
-            await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
-
-            if (screen.waitForSelector) {
-                try {
-                    await page.waitForSelector(screen.waitForSelector, { timeout: 3000 });
-                } catch {
-                    // Continue if timeout happens
-                }
-            }
-
-            await page.waitForTimeout(400);
-
-            const fileName = `${screen.name}-${vp.name}.png`;
-            const filePath = path.join(OUTPUT_DIR, fileName);
-
-            await page.screenshot({ path: filePath, fullPage: true });
-
-            const stats = fs.statSync(filePath);
-            results.push({
-                name: screen.name,
-                viewport: vp.name,
-                size: `${vp.width}x${vp.height}`,
-                file: fileName,
-                bytes: stats.size
-            });
-
-            await context.close();
+            await captureSingleScreen(browser, baseUrl, screen, vp, results);
         }
     }
 }
@@ -384,10 +381,8 @@ async function captureZoneSuffixSnapshots(browser, baseUrl, results) {
 
         await zonePage.click('.zone-button[data-zone="3"]');
         await zonePage.waitForFunction(() => {
-            const fire = document.querySelector('[data-tag-id="fire-bs"] .tag-label');
-            const tigers = document.querySelector('[data-tag-id="tigers-bs"] .tag-label');
-            const circle = document.querySelector('[data-tag-id="fire-cd"] .tag-label');
-            return fire && tigers && circle && fire.textContent === 'BS3' && tigers.textContent === 'BS2' && circle.textContent === 'CD';
+            const getLabel = id => document.querySelector(`[data-tag-id="${id}"] .tag-label`)?.textContent;
+            return getLabel('fire-bs') === 'BS3' && getLabel('tigers-bs') === 'BS2' && getLabel('fire-cd') === 'CD';
         });
 
         const zone3Path = path.join(OUTPUT_DIR, `video-zone-step2-zone3-${vp.name}.png`);
@@ -478,7 +473,7 @@ async function runSweepScopeAndDock(sweepPage, vp) {
     await sweepPage.screenshot({ path: sweepScopePath, fullPage: true });
 
     const firstScopeOption = await sweepPage.$('#sweep-scope-options button');
-    if (firstScopeOption) await firstScopeOption.click();
+    await firstScopeOption?.click();
     await sweepPage.waitForSelector('#sweep-dock:not(.hidden)');
     await sweepPage.waitForSelector('.sweep-action-card');
     await sweepPage.waitForTimeout(300);
@@ -487,7 +482,7 @@ async function runSweepScopeAndDock(sweepPage, vp) {
     await sweepPage.screenshot({ path: sweepModePath, fullPage: true });
 
     const firstCard = await sweepPage.$('.sweep-action-card');
-    if (firstCard) await firstCard.click();
+    await firstCard?.click();
     await sweepPage.waitForTimeout(300);
 
     const exitBtn = await sweepPage.$('#dock-exit-sweep-btn');
@@ -536,7 +531,7 @@ async function captureHelpJumpSnapshots(browser, baseUrl, results) {
         await helpPage.waitForTimeout(300);
 
         const boardConfigJump = await helpPage.$('#help-jump-bar a[href*="help-configuration-title"]');
-        if (boardConfigJump) await boardConfigJump.click();
+        await boardConfigJump?.click();
         await helpPage.waitForTimeout(1200);
 
         const isHelpStillVisible = await helpPage.$eval('#help-view', el => !el.classList.contains('hidden'));
@@ -546,14 +541,14 @@ async function captureHelpJumpSnapshots(browser, baseUrl, results) {
         await helpPage.screenshot({ path: jumpConfigPath, fullPage: false });
 
         const sweepJump = await helpPage.$('#help-jump-bar a[href*="help-sweep-metadata-title"]');
-        if (sweepJump) await sweepJump.click();
+        await sweepJump?.click();
         await helpPage.waitForTimeout(1200);
 
         const jumpSweepPath = path.join(OUTPUT_DIR, `help-jump-sweep-${vp.name}.png`);
         await helpPage.screenshot({ path: jumpSweepPath, fullPage: false });
 
         const modesJump = await helpPage.$('#help-jump-bar a[href*="help-overview-heading"]');
-        if (modesJump) await modesJump.click();
+        await modesJump?.click();
         await helpPage.waitForTimeout(1200);
 
         const jumpModesPath = path.join(OUTPUT_DIR, `help-jump-coding-modes-${vp.name}.png`);

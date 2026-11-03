@@ -16,6 +16,8 @@ const MIME_TYPES = {
     '.woff2': 'font/woff2'
 };
 
+const ROOT_PATHS = new Set(['', '/', '/dev/preview', '/dev/preview/']);
+
 /**
  * Resolves request pathname to a secure relative file path.
  *
@@ -23,14 +25,9 @@ const MIME_TYPES = {
  * @returns {string}
  */
 function normalizePathname(rawPathname) {
-    let pathname = decodeURIComponent(rawPathname);
-    if (pathname === '/' || pathname === '' || pathname === '/dev/preview' || pathname === '/dev/preview/') {
-        return '/index.html';
-    }
-    if (pathname.startsWith('/dev/')) {
-        return pathname.replace(/^\/dev/, '');
-    }
-    return pathname;
+    const pathname = decodeURIComponent(rawPathname);
+    if (ROOT_PATHS.has(pathname)) return '/index.html';
+    return pathname.startsWith('/dev/') ? pathname.slice(4) : pathname;
 }
 
 /**

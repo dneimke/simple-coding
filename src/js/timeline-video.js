@@ -516,14 +516,14 @@ function parseTeamsFromString(teamsStr) {
 // Get current match teams (team1, team2) with code and color
 // Extract match teams from game metadata if present
 function getTeamsFromMetadata(meta) {
-    if (Array.isArray(meta?.teamsData) && meta.teamsData.length === 2) {
-        return meta.teamsData;
-    }
-    if (Array.isArray(meta?.teamCodes) && meta.teamCodes.length >= 2) {
+    const teams = meta?.teamsData;
+    if (Array.isArray(teams) && teams.length === 2) return teams;
+    const codes = meta?.teamCodes;
+    if (Array.isArray(codes) && codes.length >= 2) {
         const colors = meta.teamColors || ['red', 'yellow'];
         return [
-            { code: meta.teamCodes[0], color: colors[0] || 'red' },
-            { code: meta.teamCodes[1], color: colors[1] || 'yellow' }
+            { code: codes[0], color: colors[0] || 'red' },
+            { code: codes[1], color: colors[1] || 'yellow' }
         ];
     }
     return null;
@@ -1537,32 +1537,27 @@ function handleSweepOptionKey(e, key) {
     }
 }
 
+const SWEEP_KEY_ACTIONS = {
+    Escape: exitLabelSweep,
+    Space: () => navigateSweep('next'),
+    ' ': () => navigateSweep('next'),
+    ArrowLeft: () => navigateSweep('previous'),
+    p: () => navigateSweep('previous'),
+    P: () => navigateSweep('previous'),
+    r: replayCurrentSweepClip,
+    R: replayCurrentSweepClip
+};
+
 function handleSweepDockKeyDown(e) {
     if (!sweepModeActive || ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-
-    const key = e.key;
-    if (key === 'Escape') {
+    const action = SWEEP_KEY_ACTIONS[e.key] || (e.code === 'Space' ? SWEEP_KEY_ACTIONS.Space : null);
+    if (action) {
         e.preventDefault();
-        exitLabelSweep();
+        action();
         return;
     }
-    if (e.code === 'Space' || key === ' ') {
-        e.preventDefault();
-        navigateSweep('next');
-        return;
-    }
-    if (key === 'p' || key === 'P' || key === 'ArrowLeft') {
-        e.preventDefault();
-        navigateSweep('previous');
-        return;
-    }
-    if (key === 'r' || key === 'R') {
-        e.preventDefault();
-        replayCurrentSweepClip();
-        return;
-    }
-    if (['1', '2', '3'].includes(key)) {
-        handleSweepOptionKey(e, key);
+    if (['1', '2', '3'].includes(e.key)) {
+        handleSweepOptionKey(e, e.key);
     }
 }
 
@@ -1765,6 +1760,11 @@ function navigateSweep(direction) {
     }
 }
 
+function setElementText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
 function updateSweepDockHeader(event, index, total) {
     const team = extractTeamFromEvent(event) || 'Match';
     const dockTeamBadge = document.getElementById('dock-sweep-team-badge');
@@ -1773,35 +1773,21 @@ function updateSweepDockHeader(event, index, total) {
         dockTeamBadge.className = `badge font-bold uppercase tracking-wider text-xs px-2.5 py-0.5 rounded ${getTeamColorBadgeClass(team)}`;
     }
 
-    const dockEventName = document.getElementById('dock-sweep-event-name');
-    if (dockEventName) {
-        const friendly = getFriendlyEventName(event.event);
-        dockEventName.textContent = friendly ? `${friendly} (${event.event})` : event.event;
-    }
+    const friendly = getFriendlyEventName(event.event);
+    setElementText('dock-sweep-event-name', friendly ? `${friendly} (${event.event})` : event.event);
 
-    const dockTimestamp = document.getElementById('dock-sweep-timestamp');
-    if (dockTimestamp) {
-        const sec = Math.floor(event.timeMs / 1000);
-        const mins = Math.floor(sec / 60);
-        const remSec = sec % 60;
-        dockTimestamp.textContent = `${String(mins).padStart(2, '0')}:${String(remSec).padStart(2, '0')}`;
-    }
-
-    const dockCounter = document.getElementById('dock-sweep-counter');
-    if (dockCounter) {
-        dockCounter.textContent = `Clip ${index + 1} of ${total}`;
-    }
-    const sweepCounter = document.getElementById('sweep-counter');
-    if (sweepCounter) {
-        sweepCounter.textContent = `${index + 1}/${total}`;
-    }
+    const sec = Math.floor((event.timeMs || 0) / 1000);
+    const mins = Math.floor(sec / 60);
+    const remSec = sec % 60;
+    setElementText('dock-sweep-timestamp', `${String(mins).padStart(2, '0')}:${String(remSec).padStart(2, '0')}`);
+    setElementText('dock-sweep-counter', `Clip ${index + 1} of ${total}`);
+    setElementText('sweep-counter', `${index + 1}/${total}`);
 
     const dockProgress = document.getElementById('dock-sweep-progress');
     if (dockProgress) {
         const pct = Math.round(((index + 1) / total) * 100);
         dockProgress.style.width = `${pct}%`;
-        const container = document.getElementById('dock-sweep-progressbar-container');
-        if (container) container.setAttribute('aria-valuenow', String(pct));
+        document.getElementById('dock-sweep-progressbar-container')?.setAttribute('aria-valuenow', String(pct));
     }
 }
 
@@ -3000,13 +2986,12 @@ function initQuickTagsEditor() {
 
     const team1CodeInput = document.getElementById('match-team1-code');
     const team2CodeInput = document.getElementById('match-team2-code');
+    const getInputValue = (el, fallback) => el?.value?.trim() || fallback;
     const handleTeamCodeChange = () => {
         const teams = getMatchTeams();
-        const code1 = (team1CodeInput ? team1CodeInput.value.trim() : '') || teams[0].code;
-        const code2 = (team2CodeInput ? team2CodeInput.value.trim() : '') || teams[1].code;
         setMatchTeams([
-            { code: code1, color: teams[0].color },
-            { code: code2, color: teams[1].color }
+            { code: getInputValue(team1CodeInput, teams[0].code), color: teams[0].color },
+            { code: getInputValue(team2CodeInput, teams[1].code), color: teams[1].color }
         ]);
     };
     if (team1CodeInput) {
