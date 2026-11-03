@@ -5,7 +5,9 @@
 import {
     calculateAlignmentState,
     shiftGameTimings,
-    revertGameTimings
+    revertGameTimings,
+    canOpenAlignmentModal,
+    buildAlignmentPreviewState, updateAlignmentModalPreview
 } from '../../src/js/videoAlignmentManager.js';
 import { storageService } from '../../src/services/storageService.js';
 import { notificationService } from '../../src/services/notificationService.js';
@@ -126,6 +128,66 @@ describe('videoAlignmentManager', () => {
             expect(res.game.events[0].timeMs).toBe(60000);
             expect(res.game.metadata.backupEvents).toBeUndefined();
             expect(res.game.metadata.videoOffsetMs).toBeUndefined();
+        });
+    });
+
+    describe('canOpenAlignmentModal', () => {
+        test('warns and returns false when video is not loaded', () => {
+            const unloaded = document.createElement('video');
+            expect(canOpenAlignmentModal(unloaded, mockGame)).toBe(false);
+            expect(mockNotify).toHaveBeenCalledWith('Please attach or load a video before aligning timings.', 'warn');
+        });
+
+        test('notifies and returns false when match has no events', () => {
+            expect(canOpenAlignmentModal(mockVideo, { id: 'g1', events: [] })).toBe(false);
+            expect(mockNotify).toHaveBeenCalledWith('No recorded events in this match to align.', 'info');
+        });
+
+        test('returns true when video is loaded and match has events', () => {
+            expect(canOpenAlignmentModal(mockVideo, mockGame)).toBe(true);
+        });
+    });
+
+    describe('buildAlignmentPreviewState', () => {
+        test('returns null if game or events are missing', () => {
+            expect(buildAlignmentPreviewState(null, mockVideo)).toBeNull();
+            expect(buildAlignmentPreviewState({ events: [] }, mockVideo)).toBeNull();
+        });
+
+        test('builds preview text map and offset preview', () => {
+            const preview = buildAlignmentPreviewState(mockGame, mockVideo, {
+                formatEventTypeName: (n) => 'Circle Entry'
+            });
+            expect(preview).not.toBeNull();
+            expect(preview.offset.offsetSec).toBe(60);
+            expect(preview.textMap['align-video-playhead-display']).toBe('02:00');
+            expect(preview.textMap['align-first-event-name']).toBe('Circle Entry');
+            expect(preview.textMap['align-event-count']).toBe('2');
+            expect(preview.textMap['align-preview-first']).toBe('01:00');
+            expect(preview.textMap['align-preview-first-new']).toBe('02:00');
+            expect(preview.hasBackup).toBe(false);
+        });
+    });
+
+    describe('updateAlignmentModalPreview', () => {
+        test('populates DOM elements and offset display with preview data', () => {
+            const playheadEl = document.createElement('span');
+            playheadEl.id = 'align-video-playhead-display';
+            const offsetDisp = document.createElement('span');
+            offsetDisp.id = 'align-offset-display';
+            const revertContainer = document.createElement('div');
+            revertContainer.id = 'align-revert-container';
+            document.body.append(playheadEl, offsetDisp, revertContainer);
+
+            const res = updateAlignmentModalPreview(mockGame, mockVideo);
+            expect(res).not.toBeNull();
+            expect(playheadEl.textContent).toBe('02:00');
+            expect(offsetDisp.textContent).toContain('+01:00 (+60s)');
+            expect(revertContainer.classList.contains('hidden')).toBe(true);
+        });
+
+        test('returns null if game has no events', () => {
+            expect(updateAlignmentModalPreview({ events: [] }, mockVideo)).toBeNull();
         });
     });
 });

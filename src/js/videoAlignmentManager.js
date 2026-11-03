@@ -163,3 +163,118 @@ export function calculateAlignmentState(video, game) {
     const offset = calculateVideoOffset(videoSec, firstSec);
     return { offset, game };
 }
+
+/**
+ * Verifies whether alignment modal can be opened.
+ *
+ * @param {HTMLVideoElement|null} video
+ * @param {Object|null} game
+ * @returns {boolean}
+ */
+export function canOpenAlignmentModal(video, game) {
+    if (!isVideoElementLoaded(video)) {
+        notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
+        return false;
+    }
+    if (!game || !Array.isArray(game.events) || game.events.length === 0) {
+        notificationService.notify('No recorded events in this match to align.', 'info');
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Format milliseconds or seconds to MM:SS
+ *
+ * @param {number} input
+ * @returns {string}
+ */
+function formatTimeSecondsOrMs(input) {
+    let seconds = Number(input) || 0;
+    if (seconds > 10000) seconds = Math.floor(seconds / 1000);
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function getEventTimestamp(event, fallbackMs) {
+    if (event && event.timestamp) return event.timestamp;
+    return formatTimeSecondsOrMs(fallbackMs);
+}
+
+/**
+ * Builds alignment preview state and text map for modal display.
+ *
+ * @param {Object} game
+ * @param {HTMLVideoElement|null} video
+ * @param {Object} [deps]
+ * @returns {{ textMap: Object, offset: Object, hasBackup: boolean } | null}
+ */
+export function buildAlignmentPreviewState(game, video, deps = {}) {
+    if (!game || !Array.isArray(game.events) || game.events.length === 0) return null;
+    const formatName = deps.formatEventTypeName || String;
+    const videoSec = video ? (video.currentTime || 0) : 0;
+    const sortedEvents = [...game.events].sort((a, b) => a.timeMs - b.timeMs);
+    const firstEvent = sortedEvents[0];
+    const lastEvent = sortedEvents[sortedEvents.length - 1];
+    const firstMs = firstEvent.timeMs || 0;
+    const lastMs = lastEvent.timeMs || 0;
+    const offset = calculateVideoOffset(videoSec, firstMs / 1000);
+
+    const firstDisplay = getEventTimestamp(firstEvent, firstMs);
+    const lastDisplay = getEventTimestamp(lastEvent, lastMs);
+    const newFirstMs = Math.max(0, firstMs + offset.offsetMs);
+    const newLastMs = Math.max(0, lastMs + offset.offsetMs);
+
+    const textMap = {
+        'align-video-playhead-display': formatTimeSecondsOrMs(videoSec),
+        'align-first-event-name': formatName(firstEvent.event),
+        'align-first-event-time': firstDisplay,
+        'align-event-count': String(game.events.length),
+        'align-shift-amount': offset.formatted,
+        'align-preview-first': firstDisplay,
+        'align-preview-first-new': formatTimeSecondsOrMs(newFirstMs),
+        'align-preview-last': lastDisplay,
+        'align-preview-last-new': formatTimeSecondsOrMs(newLastMs)
+    };
+
+    return { textMap, offset, hasBackup: Boolean(game.metadata && game.metadata.backupEvents) };
+}
+
+function populatePreviewTextElements(textMap) {
+    for (const [id, text] of Object.entries(textMap)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+}
+
+function updateOffsetDisplayBadge(offset) {
+    const offsetDisp = document.getElementById('align-offset-display');
+    if (!offsetDisp) return;
+    const sign = offset.offsetSec >= 0 ? '+' : '';
+    const colorClass = offset.offsetSec >= 0 ? 'text-blue-600' : 'text-amber-600';
+    offsetDisp.textContent = `${offset.formatted} (${sign}${offset.offsetSec}s)`;
+    offsetDisp.className = `font-mono text-sm font-bold ${colorClass}`;
+}
+
+/**
+ * Updates alignment modal DOM elements with preview data.
+ *
+ * @param {Object} game
+ * @param {HTMLVideoElement|null} video
+ * @param {Object} [deps]
+ * @returns {Object|null}
+ */
+export function updateAlignmentModalPreview(game, video, deps = {}) {
+    const previewState = buildAlignmentPreviewState(game, video, deps);
+    if (!previewState) return null;
+
+    populatePreviewTextElements(previewState.textMap);
+    updateOffsetDisplayBadge(previewState.offset);
+
+    const revertContainer = document.getElementById('align-revert-container');
+    if (revertContainer) {
+        revertContainer.classList.toggle('hidden', !previewState.hasBackup);
+    }
+    return previewState;
+}
