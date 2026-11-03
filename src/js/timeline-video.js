@@ -25,8 +25,20 @@ import {
 import {
     shiftGameTimings as execShiftGameTimings,
     revertGameTimings as execRevertGameTimings,
-    calculateAlignmentState
+    calculateAlignmentState,
+    canOpenAlignmentModal,
+    updateAlignmentModalPreview,
+    buildAlignmentPreviewState
 } from './videoAlignmentManager.js';
+import {
+    resolveSelectedTeamRadio,
+    toggleTeamColorNotice,
+    populateTagEditFormFields,
+    applyTagFormTeamSelection,
+    resetTagFormFields,
+    createQuickTagElement,
+    commitSaveQuickTag
+} from './quickTagEditorHelper.js';
 
 
 const DEFAULT_QUICK_TAGS = [
@@ -71,6 +83,30 @@ const QUICK_TAG_COLORS = [
 const LOCAL_STORAGE_KEY_GAMES = 'fieldHockeyGames_v1';
 let videoChordEngine = null;
 
+function attachEventLabel(event, label) {
+    if (!Array.isArray(event.labels)) event.labels = [];
+    event.labels.push(label);
+}
+
+function updateGameEventLabels(game, eventId, labels) {
+    if (!game || !Array.isArray(game.events)) return;
+    const ev = game.events.find(e => e.id === eventId);
+    if (!ev) return;
+    ev.labels = labels;
+    saveGame(game.id, game.events, game.metadata);
+    timelineEvents = game.events;
+    renderTimelineEvents();
+    updateQuickTagTicker();
+}
+
+function handleChordResolved({ event, label }) {
+    if (!label || !currentGameId) return;
+    attachEventLabel(event, label);
+    const savedGames = getSavedGames();
+    const { game } = findGameById(savedGames, currentGameId);
+    updateGameEventLabels(game, event.id, event.labels);
+}
+
 function initVideoChordEngine() {
     if (videoChordEngine) return;
     videoChordEngine = bindChordDock({
@@ -83,22 +119,7 @@ function initVideoChordEngine() {
         decayDuration: 1500,
         pillClass: 'chord-action-pill px-3 py-1.5 rounded bg-slate-800 hover:bg-blue-600 text-white font-bold text-xs border border-slate-700 flex items-center gap-1.5 transition active:scale-95',
         keyClass: 'text-[10px] opacity-75 font-mono',
-        onResolved: ({ event, label }) => {
-            if (label && currentGameId) {
-                if (!Array.isArray(event.labels)) event.labels = [];
-                event.labels.push(label);
-                const savedGames = getSavedGames();
-                const { game } = findGameById(savedGames, currentGameId);
-                if (game && Array.isArray(game.events)) {
-                    const ev = game.events.find(e => e.id === event.id);
-                    if (ev) ev.labels = event.labels;
-                    saveGame(game.id, game.events, game.metadata);
-                    timelineEvents = game.events;
-                    renderTimelineEvents();
-                    updateQuickTagTicker();
-                }
-            }
-        }
+        onResolved: handleChordResolved
     });
 }
 
@@ -191,15 +212,27 @@ function formatTime(input) {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+function parseColonTime(parts) {
+    if (parts.length !== 2) return null;
+    const [m, s] = parts;
+    if (Number.isNaN(m) || Number.isNaN(s)) return null;
+    return m * 60 + s;
+}
+
+function parseSingleNumber(str) {
+    const num = Number(str);
+    return Number.isNaN(num) ? 0 : num;
+}
+
+function isValidTimeString(str) {
+    return Boolean(str && typeof str === 'string');
+}
+
 // Utility: Parse mm:ss to seconds
 function parseTime(str) {
-    if (!str || typeof str !== 'string') return 0;
-    const parts = str.split(':').map(Number);
-    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-        return parts[0] * 60 + parts[1];
-    }
-    const num = Number(str);
-    return isNaN(num) ? 0 : num;
+    if (!isValidTimeString(str)) return 0;
+    const colonResult = parseColonTime(str.split(':').map(Number));
+    return colonResult !== null ? colonResult : parseSingleNumber(str);
 }
 
 // Update Match Title in UI and edit forms
@@ -308,12 +341,28 @@ function autoRenameFromVideo(filename) {
     }
 }
 
+function draftHasVideo(metadata) {
+    return Boolean(metadata && metadata.hasVideo);
+}
+
+function draftHasEvents(events) {
+    return Array.isArray(events) && events.length > 0;
+}
+
+function draftHasContent(draft) {
+    if (!draft) return false;
+    return draftHasEvents(draft.events) || draftHasVideo(draft.metadata);
+}
+
+function shouldCommitDraftOnExit(draft, activeGameId) {
+    if (!draft || draft.id !== activeGameId) return false;
+    return draftHasContent(draft);
+}
+
 // Save & Exit to Saved Games
 function saveAndExit() {
-    if (currentDraftGame && currentDraftGame.id === currentGameId) {
-        if (currentDraftGame.events.length > 0 || (currentDraftGame.metadata && currentDraftGame.metadata.hasVideo)) {
-            commitDraftGame();
-        }
+    if (shouldCommitDraftOnExit(currentDraftGame, currentGameId)) {
+        commitDraftGame();
     }
     if (typeof window !== 'undefined') {
         window.location.href = 'index.html#saved-games';
@@ -858,22 +907,8 @@ function updateTagTeamChoiceUI() {
     const radioTeam2 = document.getElementById('tag-team-2-radio');
     const teams = getMatchTeams();
 
-    let team = 'none';
-    if (radioTeam1 && radioTeam1.checked) team = 'team1';
-    else if (radioTeam2 && radioTeam2.checked) team = 'team2';
-    selectedNewTagTeam = team;
-
-    if (team === 'none') {
-        if (colorSelector) colorSelector.classList.remove('hidden');
-        if (inheritedNotice) inheritedNotice.classList.add('hidden');
-    } else {
-        if (colorSelector) colorSelector.classList.add('hidden');
-        if (inheritedNotice) {
-            const teamName = team === 'team1' ? teams[0].code : teams[1].code;
-            inheritedNotice.textContent = `Inherits ${teamName} color`;
-            inheritedNotice.classList.remove('hidden');
-        }
-    }
+    selectedNewTagTeam = resolveSelectedTeamRadio(radioTeam1, radioTeam2);
+    toggleTeamColorNotice(selectedNewTagTeam, teams, colorSelector, inheritedNotice);
 }
 
 function getTagEditFormElements() {
@@ -893,22 +928,9 @@ function getTagEditFormElements() {
 // Start in-place editing of an existing quick tag
 function startEditingTag(tag) {
     activeEditingTagId = tag.id;
-    const { formTitle, labelInput, btnLabel, btnIcon, cancelBtn, radio1, radio2, radioNone, zoneCheckbox } = getTagEditFormElements();
-
-    if (formTitle) formTitle.textContent = `Edit Tag: ${tag.label}`;
-    if (labelInput) {
-        labelInput.value = tag.label;
-        labelInput.focus();
-        labelInput.select();
-    }
-    if (btnLabel) btnLabel.textContent = 'Save';
-    if (btnIcon) btnIcon.className = 'fas fa-check text-xs';
-    if (cancelBtn) cancelBtn.classList.remove('hidden');
-    if (zoneCheckbox) zoneCheckbox.checked = Boolean(tag.zoned);
-
-    if (tag.team === 'team1' && radio1) radio1.checked = true;
-    else if (tag.team === 'team2' && radio2) radio2.checked = true;
-    else if (radioNone) radioNone.checked = true;
+    const elements = getTagEditFormElements();
+    populateTagEditFormFields(tag, elements);
+    applyTagFormTeamSelection(tag.team, elements);
 
     selectedNewTagColor = tag.colorClass || 'btn-blue';
     updateTagTeamChoiceUI();
@@ -919,15 +941,7 @@ function startEditingTag(tag) {
 // Reset tag edit form to default Add New Tag state
 function resetEditFormState() {
     activeEditingTagId = null;
-    const { formTitle, labelInput, btnLabel, btnIcon, cancelBtn, radioNone, zoneCheckbox } = getTagEditFormElements();
-
-    if (formTitle) formTitle.textContent = 'Add New Tag';
-    if (labelInput) labelInput.value = '';
-    if (btnLabel) btnLabel.textContent = 'Add';
-    if (btnIcon) btnIcon.className = 'fas fa-plus text-xs';
-    if (cancelBtn) cancelBtn.classList.add('hidden');
-    if (radioNone) radioNone.checked = true;
-    if (zoneCheckbox) zoneCheckbox.checked = false;
+    resetTagFormFields(getTagEditFormElements());
 
     updateTagTeamChoiceUI();
     renderQuickTagColorSelector();
@@ -987,97 +1001,24 @@ function renderQuickTagButtons() {
     }
 
     tags.forEach((tag, index) => {
-        const resolved = resolveTagDisplay(tag, teams);
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `quick-tag-btn ${resolved.colorClass} ${isEditingQuickTags ? 'is-editing' : ''} ${activeEditingTagId === tag.id ? 'is-active-edit' : ''}`;
-        btn.setAttribute('data-quick-tag', resolved.displayLabel);
-        btn.setAttribute('data-tag-id', tag.id);
-        btn.setAttribute('aria-label', `Tag ${resolved.displayLabel} (Press ${tag.key || ''})`);
-
-        if (tag.team === 'team1' || tag.team === 'team2') {
-            const teamBadge = document.createElement('span');
-            teamBadge.className = 'quick-tag-team-badge';
-            teamBadge.textContent = tag.team === 'team1' ? teams[0].code : teams[1].code;
-            btn.appendChild(teamBadge);
-        }
-
-        const labelSpan = document.createElement('span');
-        labelSpan.className = 'tag-label';
-        labelSpan.textContent = resolved.codeLabel;
-
-        const keySpan = document.createElement('span');
-        keySpan.className = 'tag-shortcut';
-        keySpan.textContent = tag.key ? `[${tag.key}]` : '';
-
-        btn.append(labelSpan, keySpan);
-
-        if (isEditingQuickTags) {
-            // Delete badge
-            const delBadge = document.createElement('button');
-            delBadge.type = 'button';
-            delBadge.className = 'quick-tag-delete-badge';
-            delBadge.setAttribute('aria-label', `Remove tag ${resolved.displayLabel}`);
-            delBadge.title = `Remove ${resolved.displayLabel}`;
-            delBadge.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
-            delBadge.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                if (activeEditingTagId === tag.id) {
-                    resetEditFormState();
+        const btn = createQuickTagElement(tag, index, tags.length, {
+            isEditing: isEditingQuickTags,
+            activeEditingId: activeEditingTagId,
+            teams,
+            resolveTagDisplay,
+            onTagClick: (t) => {
+                if (isEditingQuickTags) {
+                    startEditingTag(t);
+                } else {
+                    quickTagEvent(t);
                 }
-                removeQuickTag(tag.id);
-            });
-            btn.appendChild(delBadge);
-
-            // Move Left button
-            const moveLeftBtn = document.createElement('button');
-            moveLeftBtn.type = 'button';
-            moveLeftBtn.className = 'quick-tag-move-btn move-left';
-            moveLeftBtn.setAttribute('aria-label', `Move ${resolved.displayLabel} left`);
-            moveLeftBtn.title = 'Move left';
-            moveLeftBtn.innerHTML = '<i class="fas fa-chevron-left" aria-hidden="true"></i>';
-            if (index === 0) {
-                moveLeftBtn.disabled = true;
-            } else {
-                moveLeftBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    moveQuickTag(tag.id, 'left');
-                });
-            }
-            btn.appendChild(moveLeftBtn);
-
-            // Move Right button
-            const moveRightBtn = document.createElement('button');
-            moveRightBtn.type = 'button';
-            moveRightBtn.className = 'quick-tag-move-btn move-right';
-            moveRightBtn.setAttribute('aria-label', `Move ${resolved.displayLabel} right`);
-            moveRightBtn.title = 'Move right';
-            moveRightBtn.innerHTML = '<i class="fas fa-chevron-right" aria-hidden="true"></i>';
-            if (index === tags.length - 1) {
-                moveRightBtn.disabled = true;
-            } else {
-                moveRightBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    moveQuickTag(tag.id, 'right');
-                });
-            }
-            btn.appendChild(moveRightBtn);
-
-            // Tap button body to edit
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                startEditingTag(tag);
-            });
-        } else {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                quickTagEvent(tag);
-            });
-        }
-
+            },
+            onDelete: (id) => {
+                if (activeEditingTagId === id) resetEditFormState();
+                removeQuickTag(id);
+            },
+            onMove: (id, direction) => moveQuickTag(id, direction)
+        });
         container.appendChild(btn);
     });
 
@@ -1235,75 +1176,91 @@ function initKeyboardShortcuts() {
     document.addEventListener('keydown', handleVideoCodingKey);
 }
 
-// --- FAB and Add Event Modal Logic ---
-document.addEventListener('DOMContentLoaded', () => {
-    initVideoChordEngine();
-    const fab = document.getElementById('add-event-fab');
+function pauseVideoIfPlaying(video) {
+    if (video && !video.paused) {
+        video.pause();
+    }
+}
+
+function syncVideoTimestampToInput(video, timestampInput) {
+    if (timestampInput && video) {
+        timestampInput.value = formatTime(video.currentTime);
+    }
+}
+
+function focusModalInitialInput(form) {
+    const firstInput = form?.querySelector('input:not([readonly])');
+    if (firstInput) firstInput.focus();
+}
+
+function openAddEventModal(modal, form, video, timestampInput) {
+    pauseVideoIfPlaying(video);
+    syncVideoTimestampToInput(video, timestampInput);
+    modal?.classList.remove('hidden');
+    setTimeout(() => focusModalInitialInput(form), 100);
+}
+
+function extractEventFormData(form, timestampInput) {
+    return {
+        event: form['event-type'].value.trim(),
+        note: form['event-note'].value.trim(),
+        timestamp: timestampInput ? timestampInput.value : '00:00',
+        id: generateEventId()
+    };
+}
+
+function handleAddEventSubmit(e, form, timestampInput, closeModal) {
+    e.preventDefault();
+    const eventData = extractEventFormData(form, timestampInput);
+    eventData.timeMs = parseTime(eventData.timestamp) * 1000;
+
+    const game = getCurrentGame() || createNewVideoGame();
+    if (!Array.isArray(game.events)) {
+        game.events = [];
+    }
+    game.events.push(eventData);
+
+    persistGameEventsAndRefresh(game);
+    closeModal();
+}
+
+function setupAddEventModal() {
     const modal = document.getElementById('add-event-modal');
+    const form = document.getElementById('add-event-form');
+    if (!modal || !form) return;
+
+    const fab = document.getElementById('add-event-fab');
     const closeBtn = document.getElementById('close-add-event-modal');
     const cancelBtn = document.getElementById('cancel-add-event');
-    const form = document.getElementById('add-event-form');
     const timestampInput = document.getElementById('event-timestamp');
     const video = document.getElementById('video-player');
 
-    // Show modal and fill timestamp
-    function openModal() {
-        if (video && !video.paused) video.pause();
-        if (timestampInput && video) {
-            timestampInput.value = formatTime(video.currentTime);
-        }
-        modal.classList.remove('hidden');
-        setTimeout(() => {
-            const firstInput = form.querySelector('input:not([readonly])');
-            if (firstInput) firstInput.focus();
-        }, 100);
-    }
-
-    // Hide modal
-    function closeModal() {
+    const closeModal = () => {
         modal.classList.add('hidden');
         form.reset();
-    }
+    };
 
-    if (fab) {
-        fab.addEventListener('click', (e) => {
-            e.preventDefault();
-            openModal();
-        });
-    }
-    if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+    fab?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openAddEventModal(modal, form, video, timestampInput);
     });
 
-    // Handle add event form submit
-    if (form) {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const type = form['event-type'].value.trim();
-            const note = form['event-note'].value.trim();
-            const ts = timestampInput.value;
-            let game = getCurrentGame();
-            if (!game) {
-                game = createNewVideoGame();
-            }
+    [closeBtn, cancelBtn].forEach(btn => btn?.addEventListener('click', closeModal));
 
-            if (!Array.isArray(game.events)) game.events = [];
-            game.events.push({
-                event: type,
-                note,
-                timestamp: ts,
-                timeMs: parseTime(ts) * 1000,
-                id: generateEventId()
-            });
-
-            persistGameEventsAndRefresh(game);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
             closeModal();
-        });
-    }
+        }
+    });
 
+    form.addEventListener('submit', (e) => handleAddEventSubmit(e, form, timestampInput, closeModal));
     updateFavoritesToggleUI();
+}
+
+// --- FAB and Add Event Modal Logic ---
+document.addEventListener('DOMContentLoaded', () => {
+    initVideoChordEngine();
+    setupAddEventModal();
 });
 
 // Helper: normalize whatever is stored into an array of game objects
@@ -1476,56 +1433,17 @@ function highlightTimelineEvent(eventId) {
 
 let activeSweepFilterFn = null;
 
-function initLabelSweep() {
-    const sweepBtn = document.getElementById('label-sweep-btn');
-    const scopeDialog = document.getElementById('sweep-scope-dialog');
-    const closeScopeDialogBtn = document.getElementById('close-sweep-scope-dialog');
-
-    // Dock buttons
+function attachSweepDockButtonListeners() {
     const dockPrevBtn = document.getElementById('dock-prev-sweep-btn');
     const dockSkipBtn = document.getElementById('dock-skip-sweep-btn');
     const dockExitBtn = document.getElementById('dock-exit-sweep-btn');
     const dockReplayBtn = document.getElementById('dock-replay-clip-btn');
 
-    if (sweepBtn) {
-        sweepBtn.addEventListener('click', () => {
-            if (sweepModeActive) {
-                exitLabelSweep();
-            } else {
-                openSweepScopeDialog();
-            }
-        });
-    }
-
-    if (closeScopeDialogBtn) {
-        closeScopeDialogBtn.addEventListener('click', () => {
-            closeSweepScopeDialog();
-        });
-    }
-
-    if (scopeDialog) {
-        scopeDialog.addEventListener('click', (e) => {
-            if (e.target === scopeDialog) {
-                closeSweepScopeDialog();
-            }
-        });
-    }
-
-    if (dockPrevBtn) {
-        dockPrevBtn.addEventListener('click', () => navigateSweep('previous'));
-    }
-
-    if (dockSkipBtn) {
-        dockSkipBtn.addEventListener('click', () => navigateSweep('next'));
-    }
-
-    if (dockExitBtn) {
-        dockExitBtn.addEventListener('click', () => exitLabelSweep());
-    }
-
-    if (dockReplayBtn) {
-        dockReplayBtn.addEventListener('click', () => replayCurrentSweepClip());
-    }
+    dockPrevBtn?.addEventListener('click', () => navigateSweep('previous'));
+    dockSkipBtn?.addEventListener('click', () => navigateSweep('next'));
+    dockExitBtn?.addEventListener('click', () => exitLabelSweep());
+    dockReplayBtn?.addEventListener('click', () => replayCurrentSweepClip());
+}
 
 function handleSweepOptionKey(e, key) {
     const currentEvent = sweepEvents[currentSweepIndex];
@@ -1548,20 +1466,107 @@ const SWEEP_KEY_ACTIONS = {
     R: replayCurrentSweepClip
 };
 
+function resolveSweepAction(e) {
+    if (e.code === 'Space') return SWEEP_KEY_ACTIONS.Space;
+    return SWEEP_KEY_ACTIONS[e.key] || null;
+}
+
+function isSweepInputTarget(target) {
+    return Boolean(target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'));
+}
+
+function canHandleSweepKey(target) {
+    return Boolean(sweepModeActive && !isSweepInputTarget(target));
+}
+
 function handleSweepDockKeyDown(e) {
-    if (!sweepModeActive || ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-    const action = SWEEP_KEY_ACTIONS[e.key] || (e.code === 'Space' ? SWEEP_KEY_ACTIONS.Space : null);
+    if (!canHandleSweepKey(e.target)) return;
+    const action = resolveSweepAction(e);
     if (action) {
         e.preventDefault();
         action();
         return;
     }
-    if (['1', '2', '3'].includes(e.key)) {
-        handleSweepOptionKey(e, e.key);
-    }
+    handleSweepOptionKey(e, e.key);
 }
 
+function initLabelSweep() {
+    const sweepBtn = document.getElementById('label-sweep-btn');
+    const scopeDialog = document.getElementById('sweep-scope-dialog');
+    const closeScopeDialogBtn = document.getElementById('close-sweep-scope-dialog');
+
+    sweepBtn?.addEventListener('click', () => {
+        if (sweepModeActive) {
+            exitLabelSweep();
+        } else {
+            openSweepScopeDialog();
+        }
+    });
+
+    closeScopeDialogBtn?.addEventListener('click', () => closeSweepScopeDialog());
+
+    scopeDialog?.addEventListener('click', (e) => {
+        if (e.target === scopeDialog) closeSweepScopeDialog();
+    });
+
+    attachSweepDockButtonListeners();
     window.addEventListener('keydown', handleSweepDockKeyDown);
+}
+
+function getSweepOptionTeamBadge(team) {
+    if (!team || team === 'Unassigned') return '';
+    return `<span class="badge ${getTeamColorBadgeClass(team)} text-[10px] font-bold uppercase tracking-wider mr-1.5 px-2 py-0.5">${team}</span>`;
+}
+
+function getSweepOptionBadgeClass(optId = '') {
+    return optId.includes('CE')
+        ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/60'
+        : 'bg-slate-900 text-slate-300 border border-slate-700';
+}
+
+function createSweepOptionButton(opt, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'w-full text-left p-3 rounded-lg bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 transition flex items-center justify-between group focus:outline-none focus:ring-2 focus:ring-primary-500';
+    
+    const teamBadgeHtml = getSweepOptionTeamBadge(opt.team);
+    const badgeClass = getSweepOptionBadgeClass(opt.id);
+    const descriptionText = opt.description || '';
+
+    btn.innerHTML = `
+        <div class="min-w-0 pr-2">
+            <div class="font-semibold text-sm text-white group-hover:text-primary-400 flex items-center truncate">
+                ${teamBadgeHtml}
+                <span class="truncate">${opt.label}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-0.5 truncate">${descriptionText}</p>
+        </div>
+        <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${badgeClass} flex-shrink-0">
+            ${opt.estTime}
+        </span>
+    `;
+
+    btn.addEventListener('click', onClick);
+    return btn;
+}
+
+function renderSweepScopeButtons(container, options) {
+    container.innerHTML = '';
+    options.forEach(opt => {
+        const btn = createSweepOptionButton(opt, () => {
+            closeSweepScopeDialog();
+            startLabelSweep(opt.filter);
+        });
+        container.appendChild(btn);
+    });
+}
+
+function showSweepDialog(dialog) {
+    if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+    } else {
+        dialog.classList.remove('hidden');
+    }
 }
 
 function openSweepScopeDialog() {
@@ -1578,42 +1583,8 @@ function openSweepScopeDialog() {
         return;
     }
 
-    optionsContainer.innerHTML = '';
-    options.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'w-full text-left p-3 rounded-lg bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 transition flex items-center justify-between group focus:outline-none focus:ring-2 focus:ring-primary-500';
-        
-        const teamBadgeHtml = opt.team && opt.team !== 'Unassigned'
-            ? `<span class="badge ${getTeamColorBadgeClass(opt.team)} text-[10px] font-bold uppercase tracking-wider mr-1.5 px-2 py-0.5">${opt.team}</span>`
-            : '';
-
-        btn.innerHTML = `
-            <div class="min-w-0 pr-2">
-                <div class="font-semibold text-sm text-white group-hover:text-primary-400 flex items-center truncate">
-                    ${teamBadgeHtml}
-                    <span class="truncate">${opt.label}</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 truncate">${opt.description || ''}</p>
-            </div>
-            <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${opt.id.includes('CE') ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/60' : 'bg-slate-900 text-slate-300 border border-slate-700'} flex-shrink-0">
-                ${opt.estTime}
-            </span>
-        `;
-
-        btn.addEventListener('click', () => {
-            closeSweepScopeDialog();
-            startLabelSweep(opt.filter);
-        });
-
-        optionsContainer.appendChild(btn);
-    });
-
-    if (typeof dialog.showModal === 'function') {
-        dialog.showModal();
-    } else {
-        dialog.classList.remove('hidden');
-    }
+    renderSweepScopeButtons(optionsContainer, options);
+    showSweepDialog(dialog);
 }
 
 function closeSweepScopeDialog() {
@@ -1626,14 +1597,18 @@ function closeSweepScopeDialog() {
     }
 }
 
+const TEAM_BADGE_CLASS_MAP = [
+    { key: 'PRIDE', className: 'bg-amber-500 text-black' },
+    { key: 'THUNDER', className: 'bg-cyan-800 text-white' },
+    { key: 'FIRE', className: 'bg-red-600 text-white' },
+    { key: 'TIGERS', className: 'bg-amber-600 text-white' }
+];
+
 function getTeamColorBadgeClass(teamName) {
     if (!teamName) return 'bg-slate-700 text-white';
     const upper = String(teamName).toUpperCase();
-    if (upper.includes('PRIDE')) return 'bg-amber-500 text-black';
-    if (upper.includes('THUNDER')) return 'bg-cyan-800 text-white';
-    if (upper.includes('FIRE')) return 'bg-red-600 text-white';
-    if (upper.includes('TIGERS')) return 'bg-amber-600 text-white';
-    return 'bg-blue-600 text-white';
+    const match = TEAM_BADGE_CLASS_MAP.find(entry => upper.includes(entry.key));
+    return match ? match.className : 'bg-blue-600 text-white';
 }
 
 function seekAndPlaySweepVideo(event) {
@@ -1655,51 +1630,30 @@ function replayCurrentSweepClip() {
     seekAndPlaySweepVideo(event);
 }
 
-function startLabelSweep(filterFn = null) {
-    activeSweepFilterFn = filterFn;
-    let candidates = timelineEvents.filter(e => {
-        const matchesFilter = filterFn
-            ? filterFn(e)
-            : (activeTypeFilters.size === 0 || activeTypeFilters.has(e.event));
-        const hasSchema = Boolean(getLabelSchemaForEvent(e));
-        return matchesFilter && hasSchema;
-    });
+function matchesSweepCandidate(e, filterFn) {
+    const matchesFilter = filterFn
+        ? filterFn(e)
+        : (activeTypeFilters.size === 0 || activeTypeFilters.has(e.event));
+    return Boolean(matchesFilter && getLabelSchemaForEvent(e));
+}
 
+function resolveSweepCandidateEvents(events, filterFn) {
+    let candidates = events.filter(e => matchesSweepCandidate(e, filterFn));
     if (candidates.length === 0) {
-        candidates = timelineEvents.filter(e => {
+        candidates = events.filter(e => {
             const matchesFilter = filterFn ? filterFn(e) : true;
             return matchesFilter && Boolean(getLabelSchemaForEvent(e));
         });
     }
-
-    if (candidates.length === 0) {
-        showNotification('No events matching label schemas found to sweep', 'warning');
-        return;
-    }
-
     candidates.sort((a, b) => a.timeMs - b.timeMs);
     const unlabelled = candidates.filter(e => !Array.isArray(e.labels) || e.labels.length === 0);
-    sweepEvents = unlabelled.length > 0 ? unlabelled : candidates;
-    currentSweepIndex = 0;
-    sweepModeActive = true;
+    return unlabelled.length > 0 ? unlabelled : candidates;
+}
 
-    if (presentationModeActive) {
-        togglePresentationMode();
-    }
-
-    // Toggle panels: show #sweep-dock, hide #video-coding-panel
-    const sweepDock = document.getElementById('sweep-dock');
-    const codingPanel = document.getElementById('video-coding-panel');
-    if (sweepDock) {
-        sweepDock.classList.remove('hidden');
-    }
-    if (codingPanel) {
-        codingPanel.classList.add('hidden');
-    }
-    const sweepControls = document.getElementById('sweep-controls');
-    if (sweepControls) {
-        sweepControls.classList.replace('hidden', 'flex');
-    }
+function updateSweepDockVisibility(sweepCount) {
+    document.getElementById('sweep-dock')?.classList.remove('hidden');
+    document.getElementById('video-coding-panel')?.classList.add('hidden');
+    document.getElementById('sweep-controls')?.classList.replace('hidden', 'flex');
 
     const sweepBtn = document.getElementById('label-sweep-btn');
     const sweepText = document.getElementById('label-sweep-text');
@@ -1708,9 +1662,27 @@ function startLabelSweep(filterFn = null) {
         sweepBtn.setAttribute('aria-pressed', 'true');
     }
     if (sweepText) {
-        sweepText.textContent = `Exit Sweep (${sweepEvents.length})`;
+        sweepText.textContent = `Exit Sweep (${sweepCount})`;
+    }
+}
+
+function startLabelSweep(filterFn = null) {
+    activeSweepFilterFn = filterFn;
+    const candidates = resolveSweepCandidateEvents(timelineEvents, filterFn);
+    if (candidates.length === 0) {
+        showNotification('No events matching label schemas found to sweep', 'warning');
+        return;
     }
 
+    sweepEvents = candidates;
+    currentSweepIndex = 0;
+    sweepModeActive = true;
+
+    if (presentationModeActive) {
+        togglePresentationMode();
+    }
+
+    updateSweepDockVisibility(sweepEvents.length);
     loadSweepEvent(currentSweepIndex);
 }
 
@@ -2189,145 +2161,62 @@ function revertGameTimings(gameId) {
         updateCurrentDraftEvents: (evts) => { timelineEvents = evts; }
     });
 }
-// Calculate alignment preview text and offsets for modal display
-function buildAlignmentPreviewState(game, video) {
-    if (!game || !Array.isArray(game.events) || game.events.length === 0) return null;
-    const videoSec = video ? (video.currentTime || 0) : 0;
-    const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
-    const firstEvent = sortedEvents[0];
-    const lastEvent = sortedEvents[sortedEvents.length - 1];
-    const firstSec = (firstEvent.timeMs || 0) / 1000;
-    const offset = calculateVideoOffset(videoSec, firstSec);
-
-    const firstMs = firstEvent.timeMs || 0;
-    const lastMs = lastEvent.timeMs || 0;
-
-    const textMap = {
-        'align-video-playhead-display': formatTime(videoSec),
-        'align-first-event-name': formatEventTypeName(firstEvent.event),
-        'align-first-event-time': firstEvent.timestamp || formatTime(firstEvent.timeMs),
-        'align-event-count': String(game.events.length),
-        'align-shift-amount': offset.formatted,
-        'align-preview-first': firstEvent.timestamp || formatTime(firstMs),
-        'align-preview-first-new': formatTime(Math.max(0, firstMs + offset.offsetMs)),
-        'align-preview-last': lastEvent.timestamp || formatTime(lastMs),
-        'align-preview-last-new': formatTime(Math.max(0, lastMs + offset.offsetMs))
-    };
-
-    return { textMap, offset, hasBackup: Boolean(game.metadata?.backupEvents) };
-}
-
-function canOpenAlignmentModal() {
-    const video = document.getElementById('video-player');
-    const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
-    if (!videoLoaded) {
-        notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
-        return false;
-    }
-
-    const game = getCurrentGame();
-    if (!game || !Array.isArray(game.events) || game.events.length === 0) {
-        notificationService.notify('No recorded events in this match to align.', 'info');
-        return false;
-    }
-    return true;
-}
-
 function updateModalPreview() {
     const game = getCurrentGame();
     const video = document.getElementById('video-player');
-    const previewState = buildAlignmentPreviewState(game, video);
-    if (!previewState) return;
-
-    for (const [id, text] of Object.entries(previewState.textMap)) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-    }
-
-    const offsetDisp = document.getElementById('align-offset-display');
-    if (offsetDisp) {
-        const { offset } = previewState;
-        offsetDisp.textContent = `${offset.formatted} (${offset.offsetSec >= 0 ? '+' : ''}${offset.offsetSec}s)`;
-        offsetDisp.className = `font-mono text-sm font-bold ${offset.offsetSec >= 0 ? 'text-blue-600' : 'text-amber-600'}`;
-    }
-
-    const revertContainer = document.getElementById('align-revert-container');
-    if (revertContainer) {
-        revertContainer.classList.toggle('hidden', !previewState.hasBackup);
-    }
+    updateAlignmentModalPreview(game, video, { formatEventTypeName });
 }
 
-// Initialize the Align Video modal and event wiring
-function initAlignVideoModal() {
-    const alignBtn = document.getElementById('align-video-btn');
-    const modalAlignBtn = document.getElementById('modal-align-video-btn');
-    const modal = document.getElementById('align-video-modal');
-    const closeBtn = document.getElementById('close-align-video-modal');
-    const cancelBtn = document.getElementById('cancel-align-modal-btn');
-    const usePlayheadBtn = document.getElementById('align-use-playhead-btn');
-    const shiftCopyBtn = document.getElementById('align-shift-copy-btn');
-    const shiftInplaceBtn = document.getElementById('align-shift-inplace-btn');
-    const revertBtn = document.getElementById('align-revert-btn');
+function applyAlignedCopySuccess(game, formattedOffset) {
+    notificationService.notify(`Created shifted copy "${game.title}" (${formattedOffset})`, 'success');
+    loadGame(game.id);
+    const url = new URL(window.location.href);
+    url.searchParams.set('game', game.id);
+    window.history.pushState({}, '', url.toString());
+}
 
-    if (!modal) return;
+function applyInplaceShiftSuccess(formattedOffset) {
+    renderTimelineEvents();
+    updateQuickTagTicker();
+    updateEventFilters();
+    const game = getCurrentGame();
+    const count = game && game.events ? game.events.length : 0;
+    notificationService.notify(`Shifted ${count} events by ${formattedOffset}`, 'success');
+}
 
-    function openModal() {
-        if (!canOpenAlignmentModal()) return;
-
-        const attachModal = document.getElementById('attach-video-modal');
-        if (attachModal) attachModal.classList.add('hidden');
-
-        updateModalPreview();
-        modal.classList.remove('hidden');
+function applyShiftSuccess(result, offset, createCopy) {
+    if (createCopy && result.game) {
+        applyAlignedCopySuccess(result.game, offset.formatted);
+        return;
     }
+    applyInplaceShiftSuccess(offset.formatted);
+}
 
-    function closeModal() {
-        modal.classList.add('hidden');
-    }
-
-    if (alignBtn) alignBtn.addEventListener('click', openModal);
-    if (modalAlignBtn) modalAlignBtn.addEventListener('click', openModal);
+function attachModalCloseHandlers(modal, closeBtn, cancelBtn) {
+    const closeModal = () => modal.classList.add('hidden');
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    return closeModal;
+}
 
-    if (usePlayheadBtn) {
-        usePlayheadBtn.addEventListener('click', () => {
-            updateModalPreview();
-        });
-    }
+function attachShiftActionHandlers(closeModal) {
+    const shiftInplaceBtn = document.getElementById('align-shift-inplace-btn');
+    const shiftCopyBtn = document.getElementById('align-shift-copy-btn');
+    const revertBtn = document.getElementById('align-revert-btn');
 
-    function handleShiftExecution(createCopy) {
+    function executeShift(createCopy) {
         const video = document.getElementById('video-player');
         const state = calculateAlignmentState(video, getCurrentGame());
         if (!state) return;
-        const { offset, game } = state;
-
-        const result = shiftGameTimings(game.id, offset.offsetMs, createCopy);
+        const result = shiftGameTimings(state.game.id, state.offset.offsetMs, createCopy);
         if (result && result.success) {
             closeModal();
-            if (createCopy && result.game) {
-                notificationService.notify(`Created shifted copy "${result.game.title}" (${offset.formatted})`, 'success');
-                loadGame(result.game.id);
-                const url = new URL(window.location.href);
-                url.searchParams.set('game', result.game.id);
-                window.history.pushState({}, '', url.toString());
-            } else {
-                renderTimelineEvents();
-                updateQuickTagTicker();
-                updateEventFilters();
-                notificationService.notify(`Shifted ${game.events.length} events by ${offset.formatted}`, 'success');
-            }
+            applyShiftSuccess(result, state.offset, createCopy);
         }
     }
 
-    if (shiftInplaceBtn) {
-        shiftInplaceBtn.addEventListener('click', () => handleShiftExecution(false));
-    }
-
-    if (shiftCopyBtn) {
-        shiftCopyBtn.addEventListener('click', () => handleShiftExecution(true));
-    }
-
+    if (shiftInplaceBtn) shiftInplaceBtn.addEventListener('click', () => executeShift(false));
+    if (shiftCopyBtn) shiftCopyBtn.addEventListener('click', () => executeShift(true));
     if (revertBtn) {
         revertBtn.addEventListener('click', () => {
             const game = getCurrentGame();
@@ -2342,6 +2231,36 @@ function initAlignVideoModal() {
             }
         });
     }
+}
+
+// Initialize the Align Video modal and event wiring
+function initAlignVideoModal() {
+    const modal = document.getElementById('align-video-modal');
+    if (!modal) return;
+
+    function openModal() {
+        const video = document.getElementById('video-player');
+        if (!canOpenAlignmentModal(video, getCurrentGame())) return;
+        const attachModal = document.getElementById('attach-video-modal');
+        if (attachModal) attachModal.classList.add('hidden');
+        updateModalPreview();
+        modal.classList.remove('hidden');
+    }
+
+    const alignBtn = document.getElementById('align-video-btn');
+    const modalAlignBtn = document.getElementById('modal-align-video-btn');
+    const usePlayheadBtn = document.getElementById('align-use-playhead-btn');
+
+    if (alignBtn) alignBtn.addEventListener('click', openModal);
+    if (modalAlignBtn) modalAlignBtn.addEventListener('click', openModal);
+    if (usePlayheadBtn) usePlayheadBtn.addEventListener('click', updateModalPreview);
+
+    const closeModal = attachModalCloseHandlers(
+        modal,
+        document.getElementById('close-align-video-modal'),
+        document.getElementById('cancel-align-modal-btn')
+    );
+    attachShiftActionHandlers(closeModal);
 }
 
 function createTimelineEventSeekButton(event, eventName, timeFormatted) {
@@ -2847,20 +2766,21 @@ function showNoGameSelectedState() {
 }
 
 // Show the add-event and align-video buttons only when both a video and a game are loaded
+function isVideoSourceLoaded(video) {
+    if (!video || video.readyState === 0) return false;
+    return Boolean(video.currentSrc || video.src || video.querySelector('source'));
+}
+
 function updateFabVisibility() {
     const fab = document.getElementById('add-event-fab');
     const alignBtn = document.getElementById('align-video-btn');
     const video = document.getElementById('video-player');
-    if (!fab && !alignBtn) return;
+    const hasActiveGame = Boolean(currentGameId);
+    const videoReady = isVideoSourceLoaded(video);
+    const canAlign = videoReady && hasActiveGame;
 
-    const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
-    // In tagging mode, custom tags are placed directly in the quick-tag panel with the coding buttons
-    if (fab) {
-        fab.classList.toggle('hidden', !(videoLoaded && currentGameId && !isTaggingMode));
-    }
-    if (alignBtn) {
-        alignBtn.classList.toggle('hidden', !(videoLoaded && currentGameId));
-    }
+    fab?.classList.toggle('hidden', !(canAlign && !isTaggingMode));
+    alignBtn?.classList.toggle('hidden', !canAlign);
 }
 
 // Toggle favorite status for an event
@@ -2934,165 +2854,158 @@ function initPlaybackSpeedAndSeek() {
     if (customTagBtn && modal) {
         customTagBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (video && !video.paused) video.pause();
-            if (timestampInput && video) {
-                timestampInput.value = formatTime(video.currentTime);
-            }
-            modal.classList.remove('hidden');
+            openAddEventModal(modal, null, video, timestampInput);
         });
     }
 }
 
-function initQuickTagsEditor() {
+function updateQuickTagsEditingBar(editBar, isEditing) {
+    if (!editBar) return;
+    editBar.classList.toggle('hidden', !isEditing);
+    if (isEditing) {
+        renderMatchTeamsEditor();
+        renderQuickTagColorSelector();
+        updateTagTeamChoiceUI();
+        const input = document.getElementById('new-tag-label-input');
+        if (input) input.focus();
+    } else {
+        resetEditFormState();
+    }
+}
+
+function handleToggleQuickTagsEditing(editTagsLabel, editBar) {
+    isEditingQuickTags = !isEditingQuickTags;
+    if (editTagsLabel) {
+        editTagsLabel.textContent = isEditingQuickTags ? 'Done' : 'Edit Tags';
+    }
+    updateQuickTagsEditingBar(editBar, isEditingQuickTags);
+    renderQuickTagButtons();
+}
+
+function initQuickTagsToggle() {
     const editTagsBtn = document.getElementById('edit-quick-tags-btn');
     const editTagsLabel = document.getElementById('edit-quick-tags-label');
     const editBar = document.getElementById('quick-tags-edit-bar');
-    if (editTagsBtn) {
-        editTagsBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            isEditingQuickTags = !isEditingQuickTags;
-            if (editTagsLabel) {
-                editTagsLabel.textContent = isEditingQuickTags ? 'Done' : 'Edit Tags';
-            }
-            if (editBar) {
-                editBar.classList.toggle('hidden', !isEditingQuickTags);
-                if (isEditingQuickTags) {
-                    renderMatchTeamsEditor();
-                    renderQuickTagColorSelector();
-                    updateTagTeamChoiceUI();
-                    const input = document.getElementById('new-tag-label-input');
-                    if (input) input.focus();
-                } else {
-                    resetEditFormState();
-                }
-            }
-            renderQuickTagButtons();
-        });
-    }
-
-    document.querySelectorAll('input[name="tag-team-choice"]').forEach(radio => {
-        radio.addEventListener('change', () => {
-            updateTagTeamChoiceUI();
-        });
+    editTagsBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleToggleQuickTagsEditing(editTagsLabel, editBar);
     });
 
+    document.querySelectorAll('input[name="tag-team-choice"]').forEach(radio => {
+        radio.addEventListener('change', () => updateTagTeamChoiceUI());
+    });
+}
+
+function getInputValueOrDefault(el, fallback) {
+    const val = el?.value?.trim();
+    return val || fallback;
+}
+
+function updateTeamsFromInputs(team1Input, team2Input) {
+    const teams = getMatchTeams();
+    setMatchTeams([
+        { code: getInputValueOrDefault(team1Input, teams[0].code), color: teams[0].color },
+        { code: getInputValueOrDefault(team2Input, teams[1].code), color: teams[1].color }
+    ]);
+}
+
+function initMatchTeamInputs() {
     const swapTeamsBtn = document.getElementById('swap-match-teams-btn');
-    if (swapTeamsBtn) {
-        swapTeamsBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            swapMatchTeams();
-        });
-    }
+    swapTeamsBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        swapMatchTeams();
+    });
 
-    const team1CodeInput = document.getElementById('match-team1-code');
-    const team2CodeInput = document.getElementById('match-team2-code');
-    const getInputValue = (el, fallback) => el?.value?.trim() || fallback;
-    const handleTeamCodeChange = () => {
-        const teams = getMatchTeams();
-        setMatchTeams([
-            { code: getInputValue(team1CodeInput, teams[0].code), color: teams[0].color },
-            { code: getInputValue(team2CodeInput, teams[1].code), color: teams[1].color }
-        ]);
-    };
-    if (team1CodeInput) {
-        team1CodeInput.addEventListener('change', handleTeamCodeChange);
-        team1CodeInput.addEventListener('blur', handleTeamCodeChange);
-    }
-    if (team2CodeInput) {
-        team2CodeInput.addEventListener('change', handleTeamCodeChange);
-        team2CodeInput.addEventListener('blur', handleTeamCodeChange);
-    }
+    const team1Input = document.getElementById('match-team1-code');
+    const team2Input = document.getElementById('match-team2-code');
+    const onTeamChange = () => updateTeamsFromInputs(team1Input, team2Input);
 
+    [team1Input, team2Input].forEach(input => {
+        input?.addEventListener('change', onTeamChange);
+        input?.addEventListener('blur', onTeamChange);
+    });
+}
+
+function handleSaveQuickTagForm(newTagInput, zoneCheckbox) {
+    const addZone = Boolean(zoneCheckbox?.checked);
+    const label = prepareZoneAwareLabel(newTagInput.value, addZone);
+    if (!label) return;
+
+    const radio1 = document.getElementById('tag-team-1-radio');
+    const radio2 = document.getElementById('tag-team-2-radio');
+    const chosenTeam = resolveSelectedTeamRadio(radio1, radio2);
+    const payload = { label, team: chosenTeam, colorClass: selectedNewTagColor, zoned: addZone };
+
+    commitSaveQuickTag(payload, activeEditingTagId, newTagInput, zoneCheckbox, {
+        onUpdate: updateQuickTag,
+        onAdd: (p) => addQuickTag(p.label, p.colorClass, p.team, p.zoned),
+        onReset: resetEditFormState
+    });
+}
+
+function initTagFormInputs() {
     const cancelEditTagBtn = document.getElementById('cancel-edit-tag-btn');
-    if (cancelEditTagBtn) {
-        cancelEditTagBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            resetEditFormState();
-        });
-    }
+    cancelEditTagBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetEditFormState();
+    });
 
     const saveNewTagBtn = document.getElementById('save-new-tag-btn');
     const newTagInput = document.getElementById('new-tag-label-input');
+    const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
+
     if (saveNewTagBtn && newTagInput) {
-        const handleSaveTag = () => {
-            const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
-            const addZone = Boolean(zoneCheckbox && zoneCheckbox.checked);
-            const label = prepareZoneAwareLabel(newTagInput.value, addZone);
-            if (!label) return;
-
-            let chosenTeam = 'none';
-            const radio1 = document.getElementById('tag-team-1-radio');
-            const radio2 = document.getElementById('tag-team-2-radio');
-            if (radio1 && radio1.checked) chosenTeam = 'team1';
-            else if (radio2 && radio2.checked) chosenTeam = 'team2';
-
-            if (activeEditingTagId) {
-                updateQuickTag(activeEditingTagId, {
-                    label,
-                    team: chosenTeam,
-                    colorClass: selectedNewTagColor,
-                    zoned: addZone
-                });
-                resetEditFormState();
-            } else {
-                addQuickTag(label, selectedNewTagColor, chosenTeam, addZone);
-                newTagInput.value = '';
-                if (zoneCheckbox) zoneCheckbox.checked = false;
-                newTagInput.focus();
-            }
-        };
         saveNewTagBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            handleSaveTag();
+            handleSaveQuickTagForm(newTagInput, zoneCheckbox);
         });
         newTagInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                handleSaveTag();
+                handleSaveQuickTagForm(newTagInput, zoneCheckbox);
             }
         });
-        const zoneCheckbox = document.getElementById('tag-add-zone-checkbox');
-        if (zoneCheckbox) {
-            zoneCheckbox.addEventListener('change', () => {
-                if (!zoneCheckbox.checked) return;
-                const stem = prepareZoneAwareLabel(newTagInput.value, true);
-                if (stem && stem !== newTagInput.value.trim()) newTagInput.value = stem;
-            });
-        }
     }
+
+    zoneCheckbox?.addEventListener('change', () => {
+        if (!zoneCheckbox.checked || !newTagInput) return;
+        const stem = prepareZoneAwareLabel(newTagInput.value, true);
+        if (stem && stem !== newTagInput.value.trim()) newTagInput.value = stem;
+    });
 
     const resetTagsBtn = document.getElementById('reset-quick-tags-btn');
-    if (resetTagsBtn) {
-        resetTagsBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            resetQuickTags();
-            resetEditFormState();
-        });
-    }
+    resetTagsBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetQuickTags();
+        resetEditFormState();
+    });
+}
 
+function initTagReviewAndHistoryButtons() {
     const undoQuickTagBtn = document.getElementById('quick-tag-undo-btn');
-    if (undoQuickTagBtn) {
-        undoQuickTagBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            undoLastQuickTag();
-        });
-    }
+    undoQuickTagBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        undoLastQuickTag();
+    });
 
     const reviewModeBtn = document.getElementById('quick-tag-review-btn');
-    if (reviewModeBtn) {
-        reviewModeBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            setTimelineCollapsed(!isTimelineCollapsed);
-        });
-    }
+    reviewModeBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        setTimelineCollapsed(!isTimelineCollapsed);
+    });
 
     const collapseTimelineBtn = document.getElementById('collapse-timeline-btn');
-    if (collapseTimelineBtn) {
-        collapseTimelineBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            setTimelineCollapsed(true);
-        });
-    }
+    collapseTimelineBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        setTimelineCollapsed(true);
+    });
+}
+
+function initQuickTagsEditor() {
+    initQuickTagsToggle();
+    initMatchTeamInputs();
+    initTagFormInputs();
+    initTagReviewAndHistoryButtons();
 }
 
 function initMatchTitleEditor() {
@@ -3189,14 +3102,16 @@ function initVideoUrlInput() {
     const videoUrlWarningText = document.getElementById('video-url-warning-text');
     if (!videoUrlInput) return;
 
+    function updateUrlWarning(warning) {
+        if (!videoUrlWarning) return;
+        const hasWarning = Boolean(warning && videoUrlWarningText);
+        if (hasWarning) videoUrlWarningText.textContent = warning;
+        videoUrlWarning.classList.toggle('hidden', !hasWarning);
+    }
+
     videoUrlInput.addEventListener('input', () => {
         const check = validateVideoUrl(videoUrlInput.value);
-        if (check.warning && videoUrlWarning && videoUrlWarningText) {
-            videoUrlWarningText.textContent = check.warning;
-            videoUrlWarning.classList.remove('hidden');
-        } else if (videoUrlWarning) {
-            videoUrlWarning.classList.add('hidden');
-        }
+        updateUrlWarning(check.warning);
     });
 
     videoUrlInput.addEventListener('keydown', (e) => {
@@ -3235,19 +3150,26 @@ function loadVideoFileToPlayer(file) {
     }
 }
 
-function handleVideoFileSelection(file) {
-    if (!file) return;
-    if (!file.type || !file.type.startsWith('video/')) {
-        showNotification('Please select a valid video file', 'error');
-        return;
-    }
+function isValidVideoFile(file) {
+    return Boolean(file && file.type && file.type.startsWith('video/'));
+}
+
+function syncGameWithSelectedVideo(fileName) {
     if (!currentGameId) {
-        const baseName = file.name.replace(/\.[^/.]+$/, '');
+        const baseName = fileName.replace(/\.[^/.]+$/, '');
         createNewVideoGame(baseName);
     } else {
-        autoRenameFromVideo(file.name);
+        autoRenameFromVideo(fileName);
     }
     commitDraftGame();
+}
+
+function handleVideoFileSelection(file) {
+    if (!isValidVideoFile(file)) {
+        if (file) showNotification('Please select a valid video file', 'error');
+        return;
+    }
+    syncGameWithSelectedVideo(file.name);
     loadVideoFileToPlayer(file);
 }
 
