@@ -300,6 +300,13 @@
                                     </button>
                                 </div>
                             </div>
+                            <!-- Presentation HUD Overlay (Lower-Third, non-blocking) -->
+                            <div id="presentation-overlay"
+                                class="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 bg-slate-900/85 backdrop-blur-sm text-white px-5 py-2.5 rounded-lg border border-slate-700/60 shadow-xl text-center max-w-md w-[90%] pointer-events-none hidden transition-all duration-200"
+                                role="status" aria-live="polite">
+                                <h3 id="presentation-tag" class="text-sm font-bold tracking-wide uppercase text-white mb-0.5"></h3>
+                                <p id="presentation-description" class="text-xs text-slate-300 leading-relaxed"></p>
+                            </div>
                         </div>
 
                         <!-- Quick Tagging Panel for Fast Video Pass (Hidden by default in Review mode) -->
@@ -477,13 +484,7 @@
                             </div>
                         </div>
 
-                        <!-- Presentation overlay for tag/description (hidden by default) -->
-                        <div id="presentation-overlay"
-                            class="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-black bg-opacity-70 text-white px-6 py-3 rounded-lg shadow-lg text-center max-w-lg w-[90%] pointer-events-none hidden"
-                            role="status" aria-live="polite">
-                            <h3 id="presentation-tag" class="text-lg font-bold mb-1"></h3>
-                            <p id="presentation-description" class="text-sm text-gray-200"></p>
-                        </div>
+
 
                     </section>
                 </div>

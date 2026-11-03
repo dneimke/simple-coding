@@ -30,15 +30,34 @@ import {
 
 
 const DEFAULT_QUICK_TAGS = [
-    { id: 'goal', label: 'Goal', team: 'none', colorClass: 'btn-green', key: '1' },
-    { id: 'shot', label: 'Shot', team: 'none', colorClass: 'btn-blue', key: '2' },
-    { id: 'circle-entry', label: 'Circle Entry', team: 'none', colorClass: 'btn-accent-purple', key: '3' },
-    { id: 'penalty-corner', label: 'Penalty Corner', team: 'none', colorClass: 'btn-yellow', key: '4' },
-    { id: 'turnover', label: 'Turnover', team: 'none', colorClass: 'btn-orange', key: '5' },
-    { id: 'card-foul', label: 'Card / Foul', team: 'none', colorClass: 'btn-red', key: '6' }
+    { id: 'goal', label: 'Goal', team: 'none', colorClass: 'btn-green', key: '1', lead: 15, lag: 5 },
+    { id: 'shot', label: 'Shot', team: 'none', colorClass: 'btn-blue', key: '2', lead: 15, lag: 5 },
+    { id: 'circle-entry', label: 'Circle Entry', team: 'none', colorClass: 'btn-accent-purple', key: '3', lead: 10, lag: 10 },
+    { id: 'penalty-corner', label: 'Penalty Corner', team: 'none', colorClass: 'btn-yellow', key: '4', lead: 2, lag: 10 },
+    { id: 'turnover', label: 'Turnover', team: 'none', colorClass: 'btn-orange', key: '5', lead: 5, lag: 5 },
+    { id: 'card-foul', label: 'Card / Foul', team: 'none', colorClass: 'btn-red', key: '6', lead: 10, lag: 5 }
 ];
 
 const CORE_QUICK_TAGS = DEFAULT_QUICK_TAGS;
+
+// Sport-standard lead/lag pre-roll and post-roll clip timings (seconds) from MyVA scheme
+const CLIP_KEYWORDS = [
+    [['GOAL', 'SHOT'], { lead: 15, lag: 5 }],
+    [['CIRCLE ENTRY', 'ENTRY', 'CE'], { lead: 10, lag: 10 }],
+    [['PENALTY CORNER', 'CORNER', 'PC', 'PCA', 'SO'], { lead: 2, lag: 10 }],
+    [['GREEN'], { lead: 20, lag: 130 }],
+    [['YELLOW'], { lead: 20, lag: 360 }],
+    [['START', 'END'], { lead: 1, lag: 1 }],
+    [['UMP'], { lead: 7, lag: 7 }],
+    [['A25E', 'OH'], { lead: 5, lag: 10 }], [['ASC', 'APS'], { lead: 10, lag: 1 }], [['PS'], { lead: 3, lag: 2 }], [['BS'], { lead: 10, lag: 10 }]
+];
+
+function getDefaultClipTimings(label) {
+    if (!label || typeof label !== 'string') return { lead: 5, lag: 5 };
+    const upper = label.trim().toUpperCase();
+    const match = CLIP_KEYWORDS.find(([keys]) => keys.some(k => upper === k || upper.includes(k)));
+    return match ? match[1] : { lead: 5, lag: 5 };
+}
 
 const QUICK_TAG_COLORS = [
     { label: 'Green', colorClass: 'btn-green', hex: '#16a34a' },
@@ -348,26 +367,12 @@ function createNewVideoGame(customName) {
     return newGame;
 }
 
-// Quick-tag an event at the current video playhead (1-tap, non-blocking)
-function quickTagEvent(eventType, note = '') {
-    const video = document.getElementById('video-player');
-    const sec = video ? (video.currentTime || 0) : 0;
-    const timeMs = Math.round(sec * 1000);
-    const ts = formatTime(sec);
-
-    let game = getCurrentGame();
-    if (!game) {
-        game = createNewVideoGame();
-    }
-
-    // Auto-commit draft game if this is the first event logged
-    if (currentDraftGame && currentDraftGame.id === game.id) {
-        commitDraftGame();
-        game = getCurrentGame();
-    }
-
+// fallow-ignore-next-line complexity
+function resolveQuickTagInfo(eventType) {
     let eventLabel = typeof eventType === 'string' ? eventType : (eventType && eventType.label);
     let isTeam1 = null;
+    let lead = (typeof eventType === 'object' && eventType) ? eventType.lead : undefined;
+    let lag = (typeof eventType === 'object' && eventType) ? eventType.lag : undefined;
 
     if (typeof eventType === 'object' && eventType !== null) {
         const resolved = resolveTagDisplay(eventType);
@@ -380,8 +385,34 @@ function quickTagEvent(eventType, note = '') {
             const resolved = resolveTagDisplay(match);
             eventLabel = resolved.displayLabel;
             isTeam1 = resolved.isTeam1;
+            if (lead === undefined) lead = match.lead;
+            if (lag === undefined) lag = match.lag;
         }
     }
+
+    const defaultTimings = getDefaultClipTimings(eventLabel);
+    return {
+        eventLabel,
+        isTeam1,
+        lead: (lead !== undefined && Number.isFinite(Number(lead))) ? Number(lead) : defaultTimings.lead,
+        lag: (lag !== undefined && Number.isFinite(Number(lag))) ? Number(lag) : defaultTimings.lag
+    };
+}
+
+// Quick-tag an event at the current video playhead (1-tap, non-blocking)
+function quickTagEvent(eventType, note = '') {
+    const video = document.getElementById('video-player');
+    const sec = video ? (video.currentTime || 0) : 0;
+    const timeMs = Math.round(sec * 1000);
+    const ts = formatTime(sec);
+
+    let game = getCurrentGame() || createNewVideoGame();
+    if (currentDraftGame && currentDraftGame.id === game.id) {
+        commitDraftGame();
+        game = getCurrentGame();
+    }
+
+    const { eventLabel, isTeam1, lead, lag } = resolveQuickTagInfo(eventType);
 
     if (!Array.isArray(game.events)) game.events = [];
     const newEvent = {
@@ -390,6 +421,8 @@ function quickTagEvent(eventType, note = '') {
         note,
         timestamp: ts,
         timeMs,
+        lead,
+        lag,
         ...(isTeam1 !== null && { isTeam1 }),
         isFavorite: false
     };
@@ -397,13 +430,9 @@ function quickTagEvent(eventType, note = '') {
 
     persistGameEventsAndRefresh(game);
     updateQuickTagTicker();
-
     showQuickTagFeedback(eventType, ts);
     highlightTimelineEvent(newEvent.id);
-
-    if (videoChordEngine) {
-        videoChordEngine.startChord(newEvent);
-    }
+    if (videoChordEngine) videoChordEngine.startChord(newEvent);
 
     return newEvent;
 }
@@ -582,13 +611,17 @@ function resolveTagDisplay(tag, teams = null) {
 }
 
 function sanitizeQuickTag(t, i) {
+    const rawLead = t.lead !== undefined ? Number(t.lead) : undefined;
+    const rawLag = t.lag !== undefined ? Number(t.lag) : undefined;
     return {
         id: t.id || `tag-${i}`,
         label: String(t.label || 'Tag').trim(),
         team: (t.team === 'team1' || t.team === 'team2') ? t.team : 'none',
         colorClass: t.colorClass || 'btn-blue',
         zoned: Boolean(t.zoned),
-        key: String(i + 1 <= 9 ? i + 1 : '')
+        key: String(i + 1 <= 9 ? i + 1 : ''),
+        ...(rawLead !== undefined && Number.isFinite(rawLead) && { lead: rawLead }),
+        ...(rawLag !== undefined && Number.isFinite(rawLag) && { lag: rawLag })
     };
 }
 
@@ -1374,6 +1407,11 @@ function initFavoritesUI() {
 }
 
 function initPresentationMode() {
+    presentationController.deps = {
+        ...presentationController.deps,
+        getTimelineEvents: () => timelineEvents,
+        highlightTimelineEvent: (id) => highlightTimelineEvent(id)
+    };
     presentationController.init({
         onToggle: () => togglePresentationMode(),
         onNavigate: (dir) => navigatePlaylist(dir)
@@ -1968,7 +2006,7 @@ function loadGame(gameId) {
                     needsResave = true;
                 }
                 if (evt.isFavorite === undefined) {
-                    evt.isFavorite = false;
+                    evt.isFavorite = Boolean(evt.favorite ?? evt.favourite);
                 }
             });
             // If any ids were added, persist the update
@@ -2509,7 +2547,7 @@ function createTimelineEventCard(event, index) {
 
     eventElement.addEventListener('click', (e) => {
         if (!e.target.closest('.timeline-event-action') && !e.target.closest('.timeline-event-editor')) {
-            jumpToVideoTime(event.timeMs);
+            jumpToEventTime(event);
             highlightTimelineEvent(eventElement.dataset.eventId);
         }
     });
@@ -3159,6 +3197,37 @@ function initVideoUrlInput() {
     }
 }
 
+function loadVideoFileToPlayer(file) {
+    const player = document.getElementById('video-player');
+    if (!player || !file) return;
+    while (player.firstChild) player.removeChild(player.firstChild);
+    const source = document.createElement('source');
+    source.src = URL.createObjectURL(file);
+    source.type = file.type;
+    player.appendChild(source);
+    player.load();
+    const playPromise = player.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(err => console.warn("Couldn't auto-play video:", err));
+    }
+}
+
+function handleVideoFileSelection(file) {
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('video/')) {
+        showNotification('Please select a valid video file', 'error');
+        return;
+    }
+    if (!currentGameId) {
+        const baseName = file.name.replace(/\.[^/.]+$/, '');
+        createNewVideoGame(baseName);
+    } else {
+        autoRenameFromVideo(file.name);
+    }
+    commitDraftGame();
+    loadVideoFileToPlayer(file);
+}
+
 function initVideoFileInputs() {
     const bindFileInput = (id, onLoaded) => {
         const input = document.getElementById(id);
@@ -3300,14 +3369,20 @@ function loadGameFromQuery() {
     }
 }
 
-// Jump to a specific time in the video
-function jumpToVideoTime(timeMs) {
+// Jump to a specific time or event in the video
+function jumpToVideoTime(timeOrEvent, leadSeconds = 0) {
     const videoPlayer = document.getElementById('video-player');
-    if (videoPlayer) {
-        const timeSeconds = timeMs / 1000;
-        videoPlayer.currentTime = timeSeconds;
-        videoPlayer.play().catch(e => console.error("Error playing video:", e));
+    if (!videoPlayer) return;
+
+    if (timeOrEvent && typeof timeOrEvent === 'object' && timeOrEvent.timeMs !== undefined) {
+        jumpToEventTime(timeOrEvent);
+        return;
     }
+
+    const timeMs = Number(timeOrEvent) || 0;
+    const timeSeconds = Math.max(0, (timeMs / 1000) - (Number(leadSeconds) || 0));
+    videoPlayer.currentTime = timeSeconds;
+    videoPlayer.play().catch(e => console.error("Error playing video:", e));
 }
 
 export {
@@ -3378,5 +3453,10 @@ export {
     replayCurrentSweepClip,
     shiftGameTimings,
     revertGameTimings,
-    initAlignVideoModal
+    initAlignVideoModal,
+    loadVideoFileToPlayer,
+    handleVideoFileSelection,
+    getDefaultClipTimings,
+    jumpToEventTime,
+    jumpToVideoTime
 };

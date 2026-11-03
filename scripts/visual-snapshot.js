@@ -132,6 +132,35 @@ function createStaticServer() {
     });
 }
 
+async function capturePresentationSnapshots(browser, baseUrl, results) {
+    for (const vp of VIEWPORTS) {
+        const presCtx = await browser.newContext({
+            viewport: { width: vp.width, height: vp.height },
+            deviceScaleFactor: 2
+        });
+        const presPage = await presCtx.newPage();
+        await presPage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample`, { waitUntil: 'domcontentloaded' });
+        await presPage.waitForSelector('#presentation-mode');
+        await presPage.waitForSelector('#timeline-events');
+
+        await presPage.click('#presentation-mode');
+        await presPage.waitForSelector('#playlist-controls:not(.hidden)');
+        await presPage.waitForTimeout(300);
+
+        const presPath = path.join(OUTPUT_DIR, `presentation-mode-active-${vp.name}.png`);
+        await presPage.screenshot({ path: presPath, fullPage: false });
+        results.push({
+            name: 'presentation-mode-active',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `presentation-mode-active-${vp.name}.png`,
+            bytes: fs.statSync(presPath).size
+        });
+
+        await presCtx.close();
+    }
+}
+
 async function runSnapshots() {
     const server = createStaticServer();
 
@@ -860,6 +889,9 @@ async function runSnapshots() {
 
             await alignCtx.close();
         }
+
+        // Capture Presentation Mode & Continuous Auto-Advance Playlist (Desktop & Mobile)
+        await capturePresentationSnapshots(browser, baseUrl, results);
 
         // Capture diff.png: Button grid seeded with /dev/preview?state=adelaide-fire&mock=pc-counter
         const diffContext = await browser.newContext({

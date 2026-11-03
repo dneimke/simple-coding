@@ -472,7 +472,7 @@ describe('video coding workflow', () => {
         expect(labels).toContain('Turnover');
     });
 
-    test('quickTagEvent creates an event at video current time and persists it', () => {
+    test('quickTagEvent creates an event at video current time with standard MyVA lead and lag timings', () => {
         const video = document.getElementById('video-player');
         video.currentTime = 45.5; // 45500 ms
 
@@ -481,14 +481,54 @@ describe('video coding workflow', () => {
         expect(created.event).toBe('Goal');
         expect(created.timeMs).toBe(45500);
         expect(created.timestamp).toBe('00:45');
+        // Goal gets MyVA sport-standard 15s lead, 5s lag
+        expect(created.lead).toBe(15);
+        expect(created.lag).toBe(5);
 
         const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
         expect(saved.events).toHaveLength(1);
         expect(saved.events[0].event).toBe('Goal');
         expect(saved.events[0].timeMs).toBe(45500);
+        expect(saved.events[0].lead).toBe(15);
+        expect(saved.events[0].lag).toBe(5);
 
         const rendered = document.querySelectorAll('#timeline-events .timeline-event');
         expect(rendered.length).toBe(1);
+    });
+
+    test('getDefaultClipTimings resolves standard MyVA timings for codes and common labels', () => {
+        expect(mod.getDefaultClipTimings('GOAL')).toEqual({ lead: 15, lag: 5 });
+        expect(mod.getDefaultClipTimings('FIRE GOAL')).toEqual({ lead: 15, lag: 5 });
+        expect(mod.getDefaultClipTimings('SHOT')).toEqual({ lead: 15, lag: 5 });
+        expect(mod.getDefaultClipTimings('CE')).toEqual({ lead: 10, lag: 10 });
+        expect(mod.getDefaultClipTimings('PC')).toEqual({ lead: 2, lag: 10 });
+        expect(mod.getDefaultClipTimings('Penalty Corner')).toEqual({ lead: 2, lag: 10 });
+        expect(mod.getDefaultClipTimings('Circle Entry')).toEqual({ lead: 10, lag: 10 });
+        expect(mod.getDefaultClipTimings('A25E')).toEqual({ lead: 5, lag: 10 });
+        expect(mod.getDefaultClipTimings('OH')).toEqual({ lead: 5, lag: 10 });
+        expect(mod.getDefaultClipTimings('ASC')).toEqual({ lead: 10, lag: 1 });
+        expect(mod.getDefaultClipTimings('APS')).toEqual({ lead: 10, lag: 1 });
+        expect(mod.getDefaultClipTimings('PS')).toEqual({ lead: 3, lag: 2 });
+        expect(mod.getDefaultClipTimings('GREEN')).toEqual({ lead: 20, lag: 130 });
+        expect(mod.getDefaultClipTimings('YELLOW')).toEqual({ lead: 20, lag: 360 });
+        expect(mod.getDefaultClipTimings('UNKNOWN_TAG')).toEqual({ lead: 5, lag: 5 });
+    });
+
+    test('jumpToVideoTime accepts event object and seeks to time - lead', () => {
+        const video = document.getElementById('video-player');
+        video.play = jest.fn().mockResolvedValue(undefined);
+
+        // Seek with event object: 615s with 15s lead seeks to 600s
+        mod.jumpToVideoTime({ timeMs: 615000, lead: 15 });
+        expect(video.currentTime).toBe(600);
+
+        // Seek with timeMs and explicit lead: 30s with 5s lead seeks to 25s
+        mod.jumpToVideoTime(30000, 5);
+        expect(video.currentTime).toBe(25);
+
+        // Early event clamps to 0
+        mod.jumpToVideoTime({ timeMs: 2000, lead: 10 });
+        expect(video.currentTime).toBe(0);
     });
 
     test('createNewVideoGame initializes draft session without polluting saved games until event is logged', () => {
@@ -1259,6 +1299,46 @@ describe('video coding workflow', () => {
             expect(editBtn.textContent).toContain('Edit Note & Labels');
             const deleteBtn = card.querySelector('.delete-event-btn');
             expect(deleteBtn.textContent).toContain('Delete Event');
+        });
+    });
+    describe('handleVideoFileSelection', () => {
+        it('loads video file and updates player source', () => {
+            const player = document.getElementById('video-player');
+            player.load = jest.fn();
+            player.play = jest.fn().mockResolvedValue(undefined);
+
+            global.URL.createObjectURL = jest.fn(() => 'blob:http://localhost/test-video');
+
+            const file = { name: 'test-match.mp4', type: 'video/mp4' };
+            mod.handleVideoFileSelection(file);
+
+            const source = player.querySelector('source');
+            expect(source).not.toBeNull();
+            expect(source.src).toBe('blob:http://localhost/test-video');
+            expect(source.type).toBe('video/mp4');
+            expect(player.load).toHaveBeenCalled();
+            
+        });
+
+        it('normalizes legacy XML favourite spelling into isFavorite', () => {
+            const legacyGameId = 'legacy-game-fav';
+            const stored = JSON.parse(localStorage.getItem('fieldHockeyGames_v1') || '[]');
+            stored.push({
+                id: legacyGameId,
+                teams: 'Legacy Game',
+                events: [{ id: 'leg-1', event: 'Goal', timeMs: 60000, favourite: true }]
+            });
+            localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(stored));
+            mod.loadGame(legacyGameId);
+            const visible = mod.getVisibleEvents();
+            expect(visible.some(e => e.id === 'leg-1' && e.isFavorite === true)).toBe(true);
+        });
+
+        it('shows error notification if file is not a video', () => {
+            const file = { name: 'document.pdf', type: 'application/pdf' };
+            expect(() => {
+                mod.handleVideoFileSelection(file);
+            }).not.toThrow();
         });
     });
 });
