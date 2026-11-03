@@ -514,19 +514,27 @@ function parseTeamsFromString(teamsStr) {
 }
 
 // Get current match teams (team1, team2) with code and color
-function getMatchTeams() {
-    const game = getCurrentGame();
-    const meta = game?.metadata;
-    if (Array.isArray(meta?.teamsData) && meta.teamsData.length === 2) {
-        return meta.teamsData;
-    }
-    if (Array.isArray(meta?.teamCodes) && meta.teamCodes.length >= 2) {
+// Extract match teams from game metadata if present
+function getTeamsFromMetadata(meta) {
+    const teams = meta?.teamsData;
+    if (Array.isArray(teams) && teams.length === 2) return teams;
+    const codes = meta?.teamCodes;
+    if (Array.isArray(codes) && codes.length >= 2) {
         const colors = meta.teamColors || ['red', 'yellow'];
         return [
-            { code: meta.teamCodes[0], color: colors[0] || 'red' },
-            { code: meta.teamCodes[1], color: colors[1] || 'yellow' }
+            { code: codes[0], color: colors[0] || 'red' },
+            { code: codes[1], color: colors[1] || 'yellow' }
         ];
     }
+    return null;
+}
+
+// Get current match teams (team1, team2) with code and color
+function getMatchTeams() {
+    const game = getCurrentGame();
+    const fromMeta = getTeamsFromMetadata(game?.metadata);
+    if (fromMeta) return fromMeta;
+
     const fromString = parseTeamsFromString(game?.teams);
     if (fromString) return fromString;
 
@@ -536,7 +544,6 @@ function getMatchTeams() {
     } catch (_) {}
     return DEFAULT_TEAMS.map(t => ({ ...t }));
 }
-
 // Persist match teams on game metadata and last teams
 function setMatchTeams(teams) {
     if (!Array.isArray(teams) || teams.length !== 2) return null;
@@ -1520,34 +1527,41 @@ function initLabelSweep() {
         dockReplayBtn.addEventListener('click', () => replayCurrentSweepClip());
     }
 
-    window.addEventListener('keydown', (e) => {
-        if (!sweepModeActive) return;
-        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+function handleSweepOptionKey(e, key) {
+    const currentEvent = sweepEvents[currentSweepIndex];
+    const schema = currentEvent ? getLabelSchemaForEvent(currentEvent) : null;
+    const opt = schema?.options.find(o => o.key === key);
+    if (opt) {
+        e.preventDefault();
+        applySweepLabel(schema.group, opt.text);
+    }
+}
 
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            exitLabelSweep();
-        } else if (e.code === 'Space' || e.key === ' ') {
-            e.preventDefault();
-            navigateSweep('next');
-        } else if (e.key === 'p' || e.key === 'P' || e.key === 'ArrowLeft') {
-            e.preventDefault();
-            navigateSweep('previous');
-        } else if (e.key === 'r' || e.key === 'R') {
-            e.preventDefault();
-            replayCurrentSweepClip();
-        } else if (['1', '2', '3'].includes(e.key)) {
-            const currentEvent = sweepEvents[currentSweepIndex];
-            if (!currentEvent) return;
-            const schema = getLabelSchemaForEvent(currentEvent);
-            if (!schema) return;
-            const opt = schema.options.find(o => o.key === e.key);
-            if (opt) {
-                e.preventDefault();
-                applySweepLabel(schema.group, opt.text);
-            }
-        }
-    });
+const SWEEP_KEY_ACTIONS = {
+    Escape: exitLabelSweep,
+    Space: () => navigateSweep('next'),
+    ' ': () => navigateSweep('next'),
+    ArrowLeft: () => navigateSweep('previous'),
+    p: () => navigateSweep('previous'),
+    P: () => navigateSweep('previous'),
+    r: replayCurrentSweepClip,
+    R: replayCurrentSweepClip
+};
+
+function handleSweepDockKeyDown(e) {
+    if (!sweepModeActive || ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    const action = SWEEP_KEY_ACTIONS[e.key] || (e.code === 'Space' ? SWEEP_KEY_ACTIONS.Space : null);
+    if (action) {
+        e.preventDefault();
+        action();
+        return;
+    }
+    if (['1', '2', '3'].includes(e.key)) {
+        handleSweepOptionKey(e, e.key);
+    }
+}
+
+    window.addEventListener('keydown', handleSweepDockKeyDown);
 }
 
 function openSweepScopeDialog() {
@@ -1746,82 +1760,73 @@ function navigateSweep(direction) {
     }
 }
 
-function loadSweepEvent(index) {
-    if (index < 0 || index >= sweepEvents.length) return;
-    const event = sweepEvents[index];
+function setElementText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
 
-    // Dock elements
-    const dockTeamBadge = document.getElementById('dock-sweep-team-badge');
-    const dockEventName = document.getElementById('dock-sweep-event-name');
-    const dockTimestamp = document.getElementById('dock-sweep-timestamp');
-    const dockCounter = document.getElementById('dock-sweep-counter');
-    const dockProgress = document.getElementById('dock-sweep-progress');
-    const dockPrompt = document.getElementById('dock-sweep-prompt');
-    const dockChips = document.getElementById('dock-sweep-chips');
-
+function updateSweepDockHeader(event, index, total) {
     const team = extractTeamFromEvent(event) || 'Match';
+    const dockTeamBadge = document.getElementById('dock-sweep-team-badge');
     if (dockTeamBadge) {
         dockTeamBadge.textContent = team;
         dockTeamBadge.className = `badge font-bold uppercase tracking-wider text-xs px-2.5 py-0.5 rounded ${getTeamColorBadgeClass(team)}`;
     }
 
-    if (dockEventName) {
-        const friendly = getFriendlyEventName(event.event);
-        dockEventName.textContent = friendly ? `${friendly} (${event.event})` : event.event;
-    }
+    const friendly = getFriendlyEventName(event.event);
+    setElementText('dock-sweep-event-name', friendly ? `${friendly} (${event.event})` : event.event);
 
-    if (dockTimestamp) {
-        const sec = Math.floor(event.timeMs / 1000);
-        const mins = Math.floor(sec / 60);
-        const remSec = sec % 60;
-        dockTimestamp.textContent = `${String(mins).padStart(2, '0')}:${String(remSec).padStart(2, '0')}`;
-    }
+    const sec = Math.floor((event.timeMs || 0) / 1000);
+    const mins = Math.floor(sec / 60);
+    const remSec = sec % 60;
+    setElementText('dock-sweep-timestamp', `${String(mins).padStart(2, '0')}:${String(remSec).padStart(2, '0')}`);
+    setElementText('dock-sweep-counter', `Clip ${index + 1} of ${total}`);
+    setElementText('sweep-counter', `${index + 1}/${total}`);
 
-    if (dockCounter) {
-        dockCounter.textContent = `Clip ${index + 1} of ${sweepEvents.length}`;
-    }
-    const sweepCounter = document.getElementById('sweep-counter');
-    if (sweepCounter) {
-        sweepCounter.textContent = `${index + 1}/${sweepEvents.length}`;
-    }
-
+    const dockProgress = document.getElementById('dock-sweep-progress');
     if (dockProgress) {
-        const pct = Math.round(((index + 1) / sweepEvents.length) * 100);
+        const pct = Math.round(((index + 1) / total) * 100);
         dockProgress.style.width = `${pct}%`;
-        const container = document.getElementById('dock-sweep-progressbar-container');
-        if (container) container.setAttribute('aria-valuenow', String(pct));
+        document.getElementById('dock-sweep-progressbar-container')?.setAttribute('aria-valuenow', String(pct));
     }
+}
 
-    // Seek video to 3s before event
+function renderSweepSchemaButtons(dockChips, schema, event) {
+    if (!dockChips || !schema) return;
+    dockChips.innerHTML = '';
+    const currentLabel = event.labels?.find(l => l.group === schema.group)?.text;
+    schema.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const isActive = currentLabel === opt.text;
+        btn.className = `sweep-action-card${isActive ? ' is-active' : ''}`;
+        btn.setAttribute('aria-pressed', String(isActive));
+        btn.innerHTML = `<span class="sweep-action-key">${opt.key}</span> <span>${opt.text}</span>`;
+        btn.title = `${opt.text} (Press ${opt.key})`;
+        btn.addEventListener('click', () => {
+            applySweepLabel(schema.group, opt.text);
+        });
+        dockChips.appendChild(btn);
+    });
+}
+
+function loadSweepEvent(index) {
+    if (index < 0 || index >= sweepEvents.length) return;
+    const event = sweepEvents[index];
+
+    updateSweepDockHeader(event, index, sweepEvents.length);
     seekAndPlaySweepVideo(event);
-
     highlightTimelineEvent(event.id);
 
-    // Schema options & Prompt
     const schema = getLabelSchemaForEvent(event);
+    const dockPrompt = document.getElementById('dock-sweep-prompt');
     if (dockPrompt) {
         dockPrompt.textContent = schema?.prompt || 'Classify this clip:';
     }
 
-    if (dockChips && schema) {
-        dockChips.innerHTML = '';
-        const currentLabel = event.labels?.find(l => l.group === schema.group)?.text;
-        schema.options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            const isActive = currentLabel === opt.text;
-            btn.className = `sweep-action-card${isActive ? ' is-active' : ''}`;
-            btn.setAttribute('aria-pressed', String(isActive));
-            btn.innerHTML = `<span class="sweep-action-key">${opt.key}</span> <span>${opt.text}</span>`;
-            btn.title = `${opt.text} (Press ${opt.key})`;
-            btn.addEventListener('click', () => {
-                applySweepLabel(schema.group, opt.text);
-            });
-            dockChips.appendChild(btn);
-        });
-    }
+    const dockChips = document.getElementById('dock-sweep-chips');
+    renderSweepSchemaButtons(dockChips, schema, event);
 }
-
 function applySweepLabel(group, text) {
     if (!sweepModeActive || currentSweepIndex >= sweepEvents.length) return;
     const event = sweepEvents[currentSweepIndex];
@@ -1902,16 +1907,7 @@ function saveGame(gameId, events, metadata = {}) {
 
 // Video URL & source modal functions imported from ./videoSourceManager.js
 
-function attachVideoUrl(url, options = { saveToStorage: true }) {
-    const validation = validateVideoUrl(url);
-    if (!validation.valid) {
-        showNotification(validation.error || 'Invalid video link', 'error');
-        return { success: false, error: validation.error };
-    }
-    const cleanUrl = url.trim();
-    const video = document.getElementById('video-player');
-    if (!video) return { success: false, error: 'Video element not found' };
-
+function setVideoElementSource(video, cleanUrl) {
     while (video.firstChild) {
         video.removeChild(video.firstChild);
     }
@@ -1924,30 +1920,45 @@ function attachVideoUrl(url, options = { saveToStorage: true }) {
             playPromise.catch(err => console.warn("Couldn't auto-play attached video:", err));
         }
     } catch (_) {}
+}
 
-    let game = getCurrentGame();
-    if (!game) {
-        game = createNewVideoGame();
+function persistAttachedVideoUrl(game, cleanUrl) {
+    game.videoUrl = cleanUrl;
+    if (!game.metadata) game.metadata = {};
+    game.metadata.videoUrl = cleanUrl;
+
+    if (currentDraftGame && currentDraftGame.id === game.id) {
+        commitDraftGame();
+        return;
     }
 
-    if (options && options.saveToStorage) {
-        game.videoUrl = cleanUrl;
-        if (!game.metadata) game.metadata = {};
-        game.metadata.videoUrl = cleanUrl;
+    const savedGames = getSavedGames();
+    const { game: existing, index } = findGameById(savedGames, game.id);
+    if (existing) {
+        existing.videoUrl = cleanUrl;
+        if (!existing.metadata) existing.metadata = {};
+        existing.metadata.videoUrl = cleanUrl;
+        savedGames[index] = existing;
+        storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+    }
+}
 
-        if (currentDraftGame && currentDraftGame.id === game.id) {
-            commitDraftGame();
-        } else {
-            const savedGames = getSavedGames();
-            const { game: existing, index } = findGameById(savedGames, game.id);
-            if (existing) {
-                existing.videoUrl = cleanUrl;
-                if (!existing.metadata) existing.metadata = {};
-                existing.metadata.videoUrl = cleanUrl;
-                savedGames[index] = existing;
-                storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
-            }
-        }
+function attachVideoUrl(url, options = { saveToStorage: true }) {
+    const validation = validateVideoUrl(url);
+    if (!validation.valid) {
+        showNotification(validation.error || 'Invalid video link', 'error');
+        return { success: false, error: validation.error };
+    }
+    const cleanUrl = url.trim();
+    const video = document.getElementById('video-player');
+    if (!video) return { success: false, error: 'Video element not found' };
+
+    setVideoElementSource(video, cleanUrl);
+
+    let game = getCurrentGame() || createNewVideoGame();
+
+    if (options && options.saveToStorage) {
+        persistAttachedVideoUrl(game, cleanUrl);
     }
 
     updateVideoStageOverlays();
@@ -2178,6 +2189,74 @@ function revertGameTimings(gameId) {
         updateCurrentDraftEvents: (evts) => { timelineEvents = evts; }
     });
 }
+// Calculate alignment preview text and offsets for modal display
+function buildAlignmentPreviewState(game, video) {
+    if (!game || !Array.isArray(game.events) || game.events.length === 0) return null;
+    const videoSec = video ? (video.currentTime || 0) : 0;
+    const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
+    const firstEvent = sortedEvents[0];
+    const lastEvent = sortedEvents[sortedEvents.length - 1];
+    const firstSec = (firstEvent.timeMs || 0) / 1000;
+    const offset = calculateVideoOffset(videoSec, firstSec);
+
+    const firstMs = firstEvent.timeMs || 0;
+    const lastMs = lastEvent.timeMs || 0;
+
+    const textMap = {
+        'align-video-playhead-display': formatTime(videoSec),
+        'align-first-event-name': formatEventTypeName(firstEvent.event),
+        'align-first-event-time': firstEvent.timestamp || formatTime(firstEvent.timeMs),
+        'align-event-count': String(game.events.length),
+        'align-shift-amount': offset.formatted,
+        'align-preview-first': firstEvent.timestamp || formatTime(firstMs),
+        'align-preview-first-new': formatTime(Math.max(0, firstMs + offset.offsetMs)),
+        'align-preview-last': lastEvent.timestamp || formatTime(lastMs),
+        'align-preview-last-new': formatTime(Math.max(0, lastMs + offset.offsetMs))
+    };
+
+    return { textMap, offset, hasBackup: Boolean(game.metadata?.backupEvents) };
+}
+
+function canOpenAlignmentModal() {
+    const video = document.getElementById('video-player');
+    const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
+    if (!videoLoaded) {
+        notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
+        return false;
+    }
+
+    const game = getCurrentGame();
+    if (!game || !Array.isArray(game.events) || game.events.length === 0) {
+        notificationService.notify('No recorded events in this match to align.', 'info');
+        return false;
+    }
+    return true;
+}
+
+function updateModalPreview() {
+    const game = getCurrentGame();
+    const video = document.getElementById('video-player');
+    const previewState = buildAlignmentPreviewState(game, video);
+    if (!previewState) return;
+
+    for (const [id, text] of Object.entries(previewState.textMap)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+
+    const offsetDisp = document.getElementById('align-offset-display');
+    if (offsetDisp) {
+        const { offset } = previewState;
+        offsetDisp.textContent = `${offset.formatted} (${offset.offsetSec >= 0 ? '+' : ''}${offset.offsetSec}s)`;
+        offsetDisp.className = `font-mono text-sm font-bold ${offset.offsetSec >= 0 ? 'text-blue-600' : 'text-amber-600'}`;
+    }
+
+    const revertContainer = document.getElementById('align-revert-container');
+    if (revertContainer) {
+        revertContainer.classList.toggle('hidden', !previewState.hasBackup);
+    }
+}
+
 // Initialize the Align Video modal and event wiring
 function initAlignVideoModal() {
     const alignBtn = document.getElementById('align-video-btn');
@@ -2193,18 +2272,7 @@ function initAlignVideoModal() {
     if (!modal) return;
 
     function openModal() {
-        const video = document.getElementById('video-player');
-        const videoLoaded = video && (video.currentSrc || video.src || video.querySelector('source')) && video.readyState > 0;
-        if (!videoLoaded) {
-            notificationService.notify('Please attach or load a video before aligning timings.', 'warn');
-            return;
-        }
-
-        const game = getCurrentGame();
-        if (!game || !Array.isArray(game.events) || game.events.length === 0) {
-            notificationService.notify('No recorded events in this match to align.', 'info');
-            return;
-        }
+        if (!canOpenAlignmentModal()) return;
 
         const attachModal = document.getElementById('attach-video-modal');
         if (attachModal) attachModal.classList.add('hidden');
@@ -2215,50 +2283,6 @@ function initAlignVideoModal() {
 
     function closeModal() {
         modal.classList.add('hidden');
-    }
-
-    function updateModalPreview() {
-        const game = getCurrentGame();
-        if (!game || !Array.isArray(game.events) || game.events.length === 0) return;
-
-        const video = document.getElementById('video-player');
-        const videoSec = video ? (video.currentTime || 0) : 0;
-        const sortedEvents = [...game.events].sort((a, b) => (Number(a.timeMs) || 0) - (Number(b.timeMs) || 0));
-        const firstEvent = sortedEvents[0];
-        const lastEvent = sortedEvents[sortedEvents.length - 1];
-        const firstSec = (firstEvent.timeMs || 0) / 1000;
-        const offset = calculateVideoOffset(videoSec, firstSec);
-
-        const firstMs = firstEvent.timeMs || 0;
-        const lastMs = lastEvent.timeMs || 0;
-
-        const textMap = {
-            'align-video-playhead-display': formatTime(videoSec),
-            'align-first-event-name': formatEventTypeName(firstEvent.event),
-            'align-first-event-time': firstEvent.timestamp || formatTime(firstEvent.timeMs),
-            'align-event-count': String(game.events.length),
-            'align-shift-amount': offset.formatted,
-            'align-preview-first': firstEvent.timestamp || formatTime(firstMs),
-            'align-preview-first-new': formatTime(Math.max(0, firstMs + offset.offsetMs)),
-            'align-preview-last': lastEvent.timestamp || formatTime(lastMs),
-            'align-preview-last-new': formatTime(Math.max(0, lastMs + offset.offsetMs))
-        };
-
-        for (const [id, text] of Object.entries(textMap)) {
-            const el = document.getElementById(id);
-            if (el) el.textContent = text;
-        }
-
-        const offsetDisp = document.getElementById('align-offset-display');
-        if (offsetDisp) {
-            offsetDisp.textContent = `${offset.formatted} (${offset.offsetSec >= 0 ? '+' : ''}${offset.offsetSec}s)`;
-            offsetDisp.className = `font-mono text-sm font-bold ${offset.offsetSec >= 0 ? 'text-blue-600' : 'text-amber-600'}`;
-        }
-
-        const revertContainer = document.getElementById('align-revert-container');
-        if (revertContainer) {
-            revertContainer.classList.toggle('hidden', !game.metadata?.backupEvents);
-        }
     }
 
     if (alignBtn) alignBtn.addEventListener('click', openModal);
@@ -2962,13 +2986,12 @@ function initQuickTagsEditor() {
 
     const team1CodeInput = document.getElementById('match-team1-code');
     const team2CodeInput = document.getElementById('match-team2-code');
+    const getInputValue = (el, fallback) => el?.value?.trim() || fallback;
     const handleTeamCodeChange = () => {
         const teams = getMatchTeams();
-        const code1 = (team1CodeInput ? team1CodeInput.value.trim() : '') || teams[0].code;
-        const code2 = (team2CodeInput ? team2CodeInput.value.trim() : '') || teams[1].code;
         setMatchTeams([
-            { code: code1, color: teams[0].color },
-            { code: code2, color: teams[1].color }
+            { code: getInputValue(team1CodeInput, teams[0].code), color: teams[0].color },
+            { code: getInputValue(team2CodeInput, teams[1].code), color: teams[1].color }
         ]);
     };
     if (team1CodeInput) {
@@ -3458,5 +3481,6 @@ export {
     handleVideoFileSelection,
     getDefaultClipTimings,
     jumpToEventTime,
-    jumpToVideoTime
+    jumpToVideoTime,
+    buildAlignmentPreviewState
 };
