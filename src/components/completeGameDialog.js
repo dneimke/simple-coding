@@ -1,3 +1,5 @@
+import { openModalWithPromise } from '../utils/domUtils.js';
+
 /**
  * Ask for the saved-game name before a capture is completed.
  * Cancel and Escape resolve to null so the capture stays in progress.
@@ -17,27 +19,7 @@ export function openCompleteGameDialog({ summary, suggestedName = '' }) {
     nameInput.focus();
     nameInput.select();
 
-    return new Promise(resolve => {
-        const close = (result) => {
-            modal.classList.add('hidden');
-            form.removeEventListener('submit', onSubmit);
-            cancelButton.removeEventListener('click', onCancel);
-            modal.removeEventListener('keydown', onKeydown);
-            resolve(result);
-        };
-        const onSubmit = (event) => {
-            event.preventDefault();
-            close({ name: nameInput.value.trim() });
-        };
-        const onCancel = () => close(null);
-        const onKeydown = (event) => {
-            if (event.key !== 'Escape') return;
-            event.preventDefault();
-            close(null);
-        };
-
-        form.addEventListener('submit', onSubmit);
-        cancelButton.addEventListener('click', onCancel);
-        modal.addEventListener('keydown', onKeydown);
+    return openModalWithPromise({ modal, form, cancelButton }, (close) => {
+        close({ name: nameInput.value.trim() });
     });
 }

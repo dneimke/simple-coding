@@ -699,28 +699,7 @@ code {
     }
 }
 
-.group-container {
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    padding: var(--space-2);
-    margin-bottom: var(--space-2);
-}
-
-@media (min-width: 768px) {
-    .group-container {
-        padding: var(--space-3);
-        margin-bottom: var(--space-3);
-    }
-}
-
-/* Room to scroll the nav off screen while capturing */
-#tracker-view {
-    padding-bottom: 60vh;
-}
-
-/* --- Sticky zone board --- */
+.group-container,
 .zone-bar {
     background-color: var(--color-surface);
     border: 1px solid var(--color-line);
@@ -731,10 +710,16 @@ code {
 }
 
 @media (min-width: 768px) {
+    .group-container,
     .zone-bar {
         padding: var(--space-3);
         margin-bottom: var(--space-3);
     }
+}
+
+/* Room to scroll the nav off screen while capturing */
+#tracker-view {
+    padding-bottom: 60vh;
 }
 
 .zone-banner {

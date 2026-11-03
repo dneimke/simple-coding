@@ -1,3 +1,11 @@
+import {
+    hasModifierKey,
+    isEditableElement,
+    isSpaceShortcut,
+    isUndoShortcut,
+    isTeamToggleShortcut,
+    resolveZoneIndex
+} from './utils/captureKeyboardRouter.js';
 import { ChordEngine } from './utils/chordEngine.js';
 import { bindChordDock } from './utils/chordDockController.js';
 import { EventButtons } from './components/eventButtons.js';
@@ -199,6 +207,29 @@ function renderActiveMatchBanner() {
     banner.classList.remove('hidden');
 }
 
+function promptNewGameName(game, index) {
+    const currentName = game.teams || `Game ${index + 1}`;
+    const raw = notificationService.prompt('Enter a new name for this game:', currentName);
+    return raw ? raw.trim() : '';
+}
+
+function notifyRenameResult(result, trimmed) {
+    if (result === true) {
+        renderSavedGames();
+        logger.log(`Game renamed to "${trimmed}" successfully.`);
+        return;
+    }
+    const msg = (result && result.message) ? result.message : 'Unknown error';
+    notificationService.notify(`Failed to rename the game: ${msg}`, 'error');
+}
+
+function handleRenameSavedGame(game, index) {
+    const trimmed = promptNewGameName(game, index);
+    if (!trimmed) return;
+    const result = gameStorageManager.updateGame(index, { teams: trimmed });
+    notifyRenameResult(result, trimmed);
+}
+
 function renderSavedGames() {
     renderActiveMatchBanner();
     const savedGamesList = document.getElementById('savedGamesList');
@@ -235,27 +266,7 @@ function renderSavedGames() {
                             appendXmlFileInput.click();
                         }
                     },
-                    onRename: () => {
-                        // Get the current name or use a placeholder
-                        const currentName = game.teams || `Game ${index + 1}`;
-                        // Prompt the user for a new name
-                        const newName = notificationService.prompt('Enter a new name for this game:', currentName);
-
-                        // If the user didn't cancel and provided a non-empty name
-                        if (newName !== null && newName.trim() !== '') {
-                            // Update the game with the new name using gameStorageManager
-                            const result = gameStorageManager.updateGame(index, { teams: newName.trim() });
-
-                            if (result === true) {
-                                // Refresh the saved games list
-                                renderSavedGames();
-                                logger.log(`Game renamed to "${newName}" successfully.`);
-                            } else {
-                                const errorMessage = result.message || 'Unknown error';
-                                notificationService.notify(`Failed to rename the game: ${errorMessage}`, 'error');
-                            }
-                        }
-                    },
+                    onRename: () => handleRenameSavedGame(game, index),
                     onDelete: () => {
                         if (notificationService.confirm('Are you sure you want to delete this saved game?')) {
                             // Use gameStorageManager to remove game
@@ -375,33 +386,46 @@ function getPreviewEventButtons() {
     return previewEventButtons;
 }
 
+function firstZoneValue(values) {
+    return Array.isArray(values) && values.length > 0 ? values[0] : '1';
+}
+
 function getDefaultPreviewZone(zones) {
-    if (zones?.default) return zones.default;
-    if (Array.isArray(zones?.values) && zones.values.length > 0) return zones.values[0];
-    return '1';
+    if (!zones) return '1';
+    return zones.default || firstZoneValue(zones.values);
+}
+
+function hasValidBoardRows(config) {
+    return Boolean(config && Array.isArray(config.rowDefs));
+}
+
+function populateConfigPreview(previewer, config) {
+    previewer.initialize(config, {
+        teams: loadLastTeams(),
+        zone: getDefaultPreviewZone(config.zones),
+        selectedTeam: 1
+    });
+    configBoardPreview?.querySelectorAll('.event-button').forEach(button => {
+        button.disabled = false;
+    });
+}
+
+function tryPopulateConfigPreview(config) {
+    try {
+        const previewer = getPreviewEventButtons();
+        if (previewer) populateConfigPreview(previewer, config);
+    } catch (err) {
+        configBoardPreview.innerHTML = `<p class="empty-state text-sm py-6 text-red-500">Preview error: ${err.message}</p>`;
+    }
 }
 
 function renderConfigVisualPreview(config) {
     if (!configBoardPreview) return;
-    if (!config || !Array.isArray(config.rowDefs)) {
+    if (!hasValidBoardRows(config)) {
         configBoardPreview.innerHTML = '<p class="empty-state text-sm py-6">Invalid board configuration.</p>';
         return;
     }
-    try {
-        const previewer = getPreviewEventButtons();
-        if (previewer) {
-            previewer.initialize(config, {
-                teams: loadLastTeams(),
-                zone: getDefaultPreviewZone(config.zones),
-                selectedTeam: 1
-            });
-            configBoardPreview.querySelectorAll('.event-button').forEach(button => {
-                button.disabled = false;
-            });
-        }
-    } catch (err) {
-        configBoardPreview.innerHTML = `<p class="empty-state text-sm py-6 text-red-500">Preview error: ${err.message}</p>`;
-    }
+    tryPopulateConfigPreview(config);
     updateDeleteButtonState();
 }
 
@@ -646,11 +670,14 @@ function discardCapture() {
 }
 
 
+function isCaptureBlockedByDialog() {
+    return captureDialogOpen() || !finishGameList.classList.contains('hidden');
+}
+
 function shouldIgnoreCaptureKeydown(event) {
     if (stateService.getState('ui.currentView') !== 'EventCapture') return true;
-    if (captureDialogOpen() || !finishGameList.classList.contains('hidden')) return true;
-    if (event.target instanceof Element && event.target.closest('input, select, textarea, [contenteditable="true"]')) return true;
-    return false;
+    if (isCaptureBlockedByDialog()) return true;
+    return isEditableElement(event.target);
 }
 
 function initNavEventListeners() {
@@ -683,32 +710,44 @@ function initNavEventListeners() {
     });
 }
 
-function handleCodingButtonClick(event) {
-    const zoneButton = event.target.closest('.zone-button[data-zone]');
+function handleDirectCodingClick(target) {
+    const zoneButton = target.closest('.zone-button[data-zone]');
     if (zoneButton) {
         selectZone(zoneButton.dataset.zone);
-        return;
+        return true;
     }
-
-    const teamToggle = event.target.closest('.team-toggle[data-team-select]');
+    const teamToggle = target.closest('.team-toggle[data-team-select]');
     if (teamToggle) {
         selectTeam(Number(teamToggle.dataset.teamSelect));
-        return;
+        return true;
     }
+    return false;
+}
 
-    const button = event.target.closest('.event-button[data-event]');
-    if (!button) return;
+function recordAndChordEvent(eventPayload) {
+    if (!gameState.addEvent(eventPayload)) return;
+    saveCaptureDraft();
+    if (liveChordEngine) {
+        liveChordEngine.startChord(eventPayload);
+    }
+}
 
-    const eventPayload = createCaptureEventPayload(button, {
+function buildCaptureEventContext() {
+    const cfg = eventButtons.config;
+    return {
         zone: eventButtons.zone,
-        zones: eventButtons.config?.zones,
+        zones: cfg ? cfg.zones : null,
         teams: eventButtons.teams,
         elapsedTime: gameState.getLiveElapsedTime()
-    });
-    if (gameState.addEvent(eventPayload)) {
-        saveCaptureDraft();
-        liveChordEngine?.startChord(eventPayload);
-    }
+    };
+}
+
+function handleCodingButtonClick(event) {
+    if (handleDirectCodingClick(event.target)) return;
+    const button = event.target.closest('.event-button[data-event]');
+    if (!button) return;
+    const eventPayload = createCaptureEventPayload(button, buildCaptureEventContext());
+    recordAndChordEvent(eventPayload);
 }
 
 function initCodingButtonListeners() {
@@ -749,8 +788,7 @@ function initTrackerControlListeners() {
 }
 
 function handleSpaceShortcut(event) {
-    if (event.ctrlKey || event.metaKey || event.altKey) return false;
-    if (event.code !== 'Space' && event.key !== ' ') return false;
+    if (!isSpaceShortcut(event)) return false;
     if (shouldIgnoreCaptureKeydown(event) || !stateService.getState('game.hasCurrentGame')) return false;
 
     event.preventDefault();
@@ -761,7 +799,7 @@ function handleSpaceShortcut(event) {
 }
 
 function handleUndoShortcut(event) {
-    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return false;
+    if (!isUndoShortcut(event)) return false;
     if (shouldIgnoreCaptureKeydown(event)) return false;
 
     event.preventDefault();
@@ -770,7 +808,7 @@ function handleUndoShortcut(event) {
 }
 
 function handleTeamToggleShortcut(event) {
-    if (event.key !== 't' && event.key !== 'T') return false;
+    if (!isTeamToggleShortcut(event)) return false;
     if (!codingButtonsContainer.querySelector('.team-toggle')) return false;
 
     event.preventDefault();
@@ -778,32 +816,49 @@ function handleTeamToggleShortcut(event) {
     return true;
 }
 
+function getActiveZoneValues() {
+    const config = eventButtons.config;
+    return config && config.zones ? config.zones.values : null;
+}
+
 function handleZoneShortcut(event) {
-    const zones = eventButtons.config?.zones;
-    const index = Number(event.key) - 1;
-    if (!zones || !Number.isInteger(index) || index < 0 || index >= zones.values.length) return false;
+    const values = getActiveZoneValues();
+    if (!Array.isArray(values)) return false;
+    const index = resolveZoneIndex(event.key, values.length);
+    if (index === -1) return false;
 
     event.preventDefault();
-    selectZone(zones.values[index]);
+    selectZone(values[index]);
     return true;
 }
 
-function initCaptureKeyboardShortcuts() {
-    document.addEventListener('keydown', (event) => {
-        if (handleSpaceShortcut(event)) return;
-        if (handleUndoShortcut(event)) return;
+function shouldIgnoreActiveKeydown(event) {
+    return hasModifierKey(event) || shouldIgnoreCaptureKeydown(event);
+}
 
-        if (event.ctrlKey || event.metaKey || event.altKey) return;
-        if (shouldIgnoreCaptureKeydown(event)) return;
+function handleShortcutsBeforeFilter(event) {
+    return handleSpaceShortcut(event) || handleUndoShortcut(event);
+}
 
-        if (handleTeamToggleShortcut(event)) return;
+function handleCaptureKeydown(event) {
+    if (handleShortcutsBeforeFilter(event)) return;
+    if (shouldIgnoreActiveKeydown(event)) return;
+    if (!handleTeamToggleShortcut(event)) {
         handleZoneShortcut(event);
-    });
+    }
+}
+
+function initCaptureKeyboardShortcuts() {
+    document.addEventListener('keydown', handleCaptureKeydown);
+}
+
+function resolveExportConfigName() {
+    return savedConfigSelect?.value || selectedConfigName || 'Custom Board';
 }
 
 function handleBoardExport() {
     try {
-        const currentName = savedConfigSelect?.value || selectedConfigName || 'Custom Board';
+        const currentName = resolveExportConfigName();
         const config = getNamedConfig(currentName) || loadConfiguration();
         const payload = createBoardExportPayload(currentName, config);
         const filename = getBoardExportFilename(currentName);
@@ -816,9 +871,13 @@ function handleBoardExport() {
     }
 }
 
+function isConfigDeletable(name) {
+    return Boolean(name && !isBuiltInConfig(name) && name !== UNSAVED_CONFIG_VALUE);
+}
+
 function handleBoardDelete() {
     const name = savedConfigSelect?.value;
-    if (!name || isBuiltInConfig(name) || name === UNSAVED_CONFIG_VALUE) return;
+    if (!isConfigDeletable(name)) return;
     const displayName = getConfigDisplayName(name);
     if (!notificationService.confirm(`Are you sure you want to delete "${displayName}"?`)) {
         return;
@@ -830,7 +889,7 @@ function handleBoardDelete() {
     renderBoardOptions();
 }
 
-function initConfigViewEventListeners() {
+function initBoardSelectorListeners() {
     boardSelect.addEventListener('change', () => {
         if (stateService.getState('game.hasCurrentGame') || boardSelect.value === CUSTOM_BOARD_VALUE) {
             renderBoardOptions();
@@ -847,58 +906,48 @@ function initConfigViewEventListeners() {
         renderBoardOptions();
     });
 
-    if (savedConfigSelect) {
-        savedConfigSelect.addEventListener('change', () => {
-            const name = savedConfigSelect.value;
-            const config = getNamedConfig(name);
-            if (config) {
-                activateNamedConfig(name);
-                selectedConfigName = name;
-                renderConfigVisualPreview(config);
-                renderBoard(config);
-                renderBoardOptions();
-                notificationService.notify(`Switched active board to ${getConfigDisplayName(name)}`, 'success');
-            }
-        });
-    }
+    savedConfigSelect?.addEventListener('change', () => {
+        const name = savedConfigSelect.value;
+        const config = getNamedConfig(name);
+        if (config) {
+            activateNamedConfig(name);
+            selectedConfigName = name;
+            renderConfigVisualPreview(config);
+            renderBoard(config);
+            renderBoardOptions();
+            notificationService.notify(`Switched active board to ${getConfigDisplayName(name)}`, 'success');
+        }
+    });
+}
 
-    if (exportConfigButton) {
-        exportConfigButton.addEventListener('click', handleBoardExport);
-    }
+function initBoardFileActionListeners() {
+    exportConfigButton?.addEventListener('click', handleBoardExport);
+    importConfigButton?.addEventListener('click', () => boardFileInput?.click());
+    boardFileInput?.addEventListener('change', (e) => {
+        const file = e.target?.files?.[0];
+        if (file) handleBoardFile(file);
+    });
+    deleteConfigButton?.addEventListener('click', handleBoardDelete);
+}
 
-    if (importConfigButton) {
-        importConfigButton.addEventListener('click', () => {
-            boardFileInput?.click();
-        });
-    }
+function initConfigPreviewClickListeners() {
+    configBoardPreview?.addEventListener('click', (event) => {
+        const zoneBtn = event.target.closest('.zone-button[data-zone]');
+        if (zoneBtn) {
+            getPreviewEventButtons()?.setZone(zoneBtn.dataset.zone);
+            return;
+        }
+        const teamToggleBtn = event.target.closest('.team-toggle-button[data-team-slot]');
+        if (teamToggleBtn) {
+            getPreviewEventButtons()?.setSelectedTeam(Number(teamToggleBtn.dataset.teamSlot));
+        }
+    });
+}
 
-    if (boardFileInput) {
-        boardFileInput.addEventListener('change', (e) => {
-            const file = e.target?.files?.[0];
-            if (file) {
-                handleBoardFile(file);
-            }
-        });
-    }
-
-    if (deleteConfigButton) {
-        deleteConfigButton.addEventListener('click', handleBoardDelete);
-    }
-
-    if (configBoardPreview) {
-        configBoardPreview.addEventListener('click', (event) => {
-            const zoneBtn = event.target.closest('.zone-button[data-zone]');
-            if (zoneBtn) {
-                getPreviewEventButtons()?.setZone(zoneBtn.dataset.zone);
-                return;
-            }
-            const teamToggleBtn = event.target.closest('.team-toggle-button[data-team-slot]');
-            if (teamToggleBtn) {
-                getPreviewEventButtons()?.setSelectedTeam(Number(teamToggleBtn.dataset.teamSlot));
-                return;
-            }
-        });
-    }
+function initConfigViewEventListeners() {
+    initBoardSelectorListeners();
+    initBoardFileActionListeners();
+    initConfigPreviewClickListeners();
 }
 
 async function parseSingleXmlFile(file) {
@@ -1025,20 +1074,34 @@ const eventLog = new EventLog(timelineViewPanel, xmlOutputContainer, statisticsV
 const eventButtons = new EventButtons(codingButtonsContainer);
 const gameState = new GameState(timerDisplay, eventLog, eventButtons);
 
-stateService.subscribe('ui.currentView', (viewName) => {
+function highlightSavedGamesNav(navSavedGames) {
+    if (!navSavedGames) return;
+    navSavedGames.classList.add('nav-link-active');
+    navSavedGames.setAttribute('aria-current', 'page');
+}
+
+function handleLogViewActivation(navSavedGames) {
+    renderLogView();
+    if (stateService.getState('ui.currentView') === 'Log') {
+        highlightSavedGamesNav(navSavedGames);
+    }
+}
+
+function handleViewChange(viewName) {
     if (viewName === 'Log') {
-        renderLogView();
-        if (stateService.getState('ui.currentView') !== 'Log') return;
-        if (navSavedGames) {
-            navSavedGames.classList.add('nav-link-active');
-            navSavedGames.setAttribute('aria-current', 'page');
-        }
-    } else if (viewName === 'SavedGames') {
+        handleLogViewActivation(navSavedGames);
+        return;
+    }
+    if (viewName === 'SavedGames') {
         renderSavedGames();
-    } else if (viewName === 'Config') {
+        return;
+    }
+    if (viewName === 'Config') {
         showConfigView();
     }
-});
+}
+
+stateService.subscribe('ui.currentView', handleViewChange);
 
 // Child-path changes (game.loggedEvents) and whole-game replacements (newGame, restore, complete) both notify 'game'
 stateService.subscribe('game', syncChrome);

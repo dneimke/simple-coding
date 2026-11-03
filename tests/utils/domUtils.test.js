@@ -1,4 +1,4 @@
-import { updateNavbarVisibility, setupMobileMenu, calculateNextMenuIndex } from '../../src/utils/domUtils.js';
+import { updateNavbarVisibility, setupMobileMenu, calculateNextMenuIndex, openModalWithPromise } from '../../src/utils/domUtils.js';
 
 describe('updateNavbarVisibility', () => {
     beforeEach(() => {
@@ -83,5 +83,60 @@ describe('calculateNextMenuIndex', () => {
     test('steps backward with wrap-around', () => {
         expect(calculateNextMenuIndex(1, -1, 3)).toBe(0);
         expect(calculateNextMenuIndex(0, -1, 3)).toBe(2);
+    });
+});
+
+describe('openModalWithPromise', () => {
+    let modal, form, cancelButton;
+
+    beforeEach(() => {
+        document.body.innerHTML = `
+            <div id="testModal">
+                <form id="testForm">
+                    <input id="testInput" value="initial" />
+                    <button type="submit">Submit</button>
+                    <button type="button" id="testCancel">Cancel</button>
+                </form>
+            </div>
+        `;
+        modal = document.getElementById('testModal');
+        form = document.getElementById('testForm');
+        cancelButton = document.getElementById('testCancel');
+    });
+
+    test('resolves with result and hides modal on form submit', async () => {
+        const promise = openModalWithPromise({ modal, form, cancelButton }, (close) => {
+            close('saved-value');
+        });
+
+        form.dispatchEvent(new Event('submit'));
+        const result = await promise;
+
+        expect(result).toBe('saved-value');
+        expect(modal.classList.contains('hidden')).toBe(true);
+    });
+
+    test('resolves with null and hides modal on cancel click', async () => {
+        const promise = openModalWithPromise({ modal, form, cancelButton }, (close) => {
+            close('should-not-reach');
+        });
+
+        cancelButton.dispatchEvent(new Event('click'));
+        const result = await promise;
+
+        expect(result).toBeNull();
+        expect(modal.classList.contains('hidden')).toBe(true);
+    });
+
+    test('resolves with null on Escape keydown', async () => {
+        const promise = openModalWithPromise({ modal, form, cancelButton }, (close) => {
+            close('should-not-reach');
+        });
+
+        modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        const result = await promise;
+
+        expect(result).toBeNull();
+        expect(modal.classList.contains('hidden')).toBe(true);
     });
 });

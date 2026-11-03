@@ -97,3 +97,39 @@ export function calculateNextMenuIndex(currentIndex, step, totalLength) {
     if (currentIndex === -1) return step > 0 ? 0 : totalLength - 1;
     return (currentIndex + step + totalLength) % totalLength;
 }
+
+/**
+ * Manages modal event listeners (submit, cancel, escape keydown) and resolves a Promise.
+ *
+ * @param {Object} options
+ * @param {HTMLElement} options.modal
+ * @param {HTMLFormElement} options.form
+ * @param {HTMLElement} options.cancelButton
+ * @param {Function} onSubmitAction - Called on form submit with (closeFn, event)
+ * @returns {Promise<any>}
+ */
+export function openModalWithPromise({ modal, form, cancelButton }, onSubmitAction) {
+    return new Promise(resolve => {
+        const close = (result) => {
+            modal.classList.add('hidden');
+            form.removeEventListener('submit', onSubmit);
+            cancelButton.removeEventListener('click', onCancel);
+            modal.removeEventListener('keydown', onKeydown);
+            resolve(result);
+        };
+        const onSubmit = (event) => {
+            event.preventDefault();
+            onSubmitAction(close, event);
+        };
+        const onCancel = () => close(null);
+        const onKeydown = (event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            close(null);
+        };
+
+        form.addEventListener('submit', onSubmit);
+        cancelButton.addEventListener('click', onCancel);
+        modal.addEventListener('keydown', onKeydown);
+    });
+}
