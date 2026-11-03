@@ -150,4 +150,57 @@ describe('GameStorageManager', () => {
             expect(manager.removeGame(0)).toBe(false);
         });
     });
+
+    describe('saveGame', () => {
+        test('saves new game with generated id at the beginning', () => {
+            storageService.getItem.mockReturnValue([{ id: 'existing-1', timestamp: '2026-01-01' }]);
+            const newGame = { timestamp: '2026-01-02', teams: 'Fire vs Tigers', events: [] };
+
+            const result = manager.saveGame(newGame);
+            expect(result).toBe(true);
+            expect(storageService.setItem).toHaveBeenCalledWith(
+                'fieldHockeyGames_v1',
+                expect.arrayContaining([
+                    expect.objectContaining({ teams: 'Fire vs Tigers' }),
+                    expect.objectContaining({ id: 'existing-1' })
+                ])
+            );
+        });
+
+        test('prunes games list when exceeding MAX_GAMES limit', () => {
+            const manyGames = Array.from({ length: 55 }, (_, i) => ({ id: `game-${i}`, timestamp: '2026-01-01' }));
+            storageService.getItem.mockReturnValue(manyGames);
+
+            const result = manager.saveGame({ timestamp: '2026-01-02', events: [] });
+            expect(result).toBe(true);
+            const savedList = storageService.setItem.mock.calls[0][1];
+            expect(savedList.length).toBeLessThanOrEqual(50);
+        });
+
+        test('throws error for invalid game payload without timestamp', () => {
+            expect(() => manager.saveGame(null)).toThrow('Invalid game data');
+            expect(() => manager.saveGame({ events: [] })).toThrow('Invalid game data');
+        });
+
+        test('returns storage error message on storage set failure', () => {
+            storageService.getItem.mockReturnValue([]);
+            storageService.setItem.mockReturnValue({ success: false, message: 'Storage error' });
+
+            const result = manager.saveGame({ timestamp: '2026-01-02', events: [] });
+            expect(result).toEqual({ success: false, message: 'Storage error' });
+        });
+
+        test('detects quota error and throws quota message', () => {
+            storageService.getItem.mockReturnValue([]);
+            storageService.setItem.mockImplementation(() => {
+                const err = new Error('QuotaExceededError');
+                err.name = 'QuotaExceededError';
+                throw err;
+            });
+
+            expect(() => manager.saveGame({ timestamp: '2026-01-02', events: [] }))
+                .toThrow('Storage quota exceeded');
+        });
+    });
+
 });

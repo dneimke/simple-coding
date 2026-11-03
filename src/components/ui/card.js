@@ -4,6 +4,7 @@
  */
 import { createButton, createIconButton } from './button.js';
 import { generateGameXml, getInvalidEvents } from '../../utils/xmlUtils.js';
+import { calculateNextMenuIndex } from '../../utils/domUtils.js';
 
 let openGameMenu = null;
 
@@ -92,10 +93,8 @@ const createGameMenu = (title, items) => {
         e.preventDefault();
         const step = e.key === 'ArrowDown' ? 1 : -1;
         const current = menuItems.indexOf(document.activeElement);
-        const next = current === -1
-            ? (step > 0 ? 0 : menuItems.length - 1)
-            : (current + step + menuItems.length) % menuItems.length;
-        menuItems[next].focus();
+        const next = calculateNextMenuIndex(current, step, menuItems.length);
+        if (next >= 0) menuItems[next].focus();
     };
 
     menu.append(...menuItems);
@@ -180,42 +179,53 @@ export const createCard = ({
  * @param {Function} [options.onAppendXml] - Called when Append XML is chosen from the More menu
  * @returns {HTMLDivElement} The created game card element
  */
-export const createGameCard = ({
-    game,
-    index,
-    onDelete,
-    onRename,
-    onSelect,
-    onContinueCoding,
-    onViewLog,
-    onAppendXml
-}) => {
-    const gameCard = document.createElement('div');
-    gameCard.className = 'saved-game-card';
+function ensureInvalidEventsModal() {
+    if (document.getElementById('invalid-events-modal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'invalid-events-modal';
+    modal.className = 'modal hidden';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = `
+        <div class="modal-panel">
+            <h2 class="modal-title mb-4">Invalid Events</h2>
+            <div id="invalid-events-list" class="max-h-60 overflow-y-auto"></div>
+            <div class="modal-actions">
+                <button id="closeInvalidEventsModal" type="button" class="btn btn-primary">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('closeInvalidEventsModal').onclick = () => {
+        modal.classList.add('hidden');
+    };
+}
 
-    // Create icon section
-    const icon = document.createElement('div');
-    icon.className = 'saved-game-icon';
-    icon.innerHTML = `<i class="fas fa-hockey-puck" aria-hidden="true"></i>`;
+function showInvalidEventsModal(game, invalidEvents) {
+    const modal = document.getElementById('invalid-events-modal');
+    const list = document.getElementById('invalid-events-list');
+    if (!modal || !list) return;
+    list.innerHTML = invalidEvents.map(({ event, idx }) => {
+        const eventName = event && typeof event.event === 'string' ? event.event : '<strong>(missing name)</strong>';
+        const time = (event && typeof event.timeMs === 'number' && isFinite(event.timeMs)) ? event.timeMs : '<strong>(invalid time)</strong>';
+        return `<div class="banner banner-error mb-2"><span><strong>Event #${idx + 1}:</strong> Name: ${eventName}, Time: ${time}</span></div>`;
+    }).join('');
+    modal.classList.remove('hidden');
+}
 
-    // Create game details section
+function createGameCardDetails(game, title, onSelect) {
     const gameDetails = document.createElement('div');
     gameDetails.className = 'saved-game-details';
 
-
-    // Game title row (with warning if invalid events)
     const gameTitleRow = document.createElement('div');
     gameTitleRow.className = 'flex flex-wrap items-center gap-x-2';
 
-    const title = game.teams ? game.teams : `Game ${index + 1}`;
     const gameTitle = document.createElement('h3');
     gameTitle.textContent = title;
     gameTitleRow.appendChild(gameTitle);
 
-    // Check for invalid events
     const invalidEvents = getInvalidEvents(game);
     if (invalidEvents.length > 0) {
-        // Warning icon
         const warningIcon = document.createElement('span');
         warningIcon.className = 'saved-game-warning';
         warningIcon.title = 'This game has invalid events';
@@ -224,7 +234,6 @@ export const createGameCard = ({
         warningIcon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
         gameTitleRow.appendChild(warningIcon);
 
-        // View Issues button
         const viewIssuesBtn = document.createElement('button');
         viewIssuesBtn.className = 'link-button saved-game-issues';
         viewIssuesBtn.textContent = 'View Issues';
@@ -236,11 +245,9 @@ export const createGameCard = ({
         gameTitleRow.appendChild(viewIssuesBtn);
     }
 
-    // Timestamp
     const gameTimestamp = document.createElement('p');
     gameTimestamp.textContent = `Saved on: ${new Date(game.timestamp).toLocaleString()}`;
 
-    // Event count
     const eventCount = document.createElement('p');
     eventCount.textContent = `Events: ${game.events.length}`;
 
@@ -259,48 +266,41 @@ export const createGameCard = ({
                 onSelect(e);
             }
         });
-
-        icon.classList.add('cursor-pointer');
-        icon.addEventListener('click', onSelect);
     }
 
-    const exportGame = () => {
-        // Check for invalid events before exporting
-        const invalidEvents = getInvalidEvents(game);
-        if (invalidEvents.length > 0) {
-            // Show a confirmation dialog
-            const proceed = window.confirm(
-                `Warning: This game has ${invalidEvents.length} invalid event(s).\n` +
-                `Invalid events may be missing required fields or have invalid data.\n` +
-                `Do you want to proceed with the export?`
-            );
-            if (!proceed) {
-                // Explicitly abort export and do not trigger download or toast
-                return;
-            }
-        }
+    return gameDetails;
+}
 
-        // Generate XML content using the utility function
-        const xmlContent = generateGameXml(game, index + 1);
+function exportGameXmlWithPrompt(game, index) {
+    const invalidEvents = getInvalidEvents(game);
+    if (invalidEvents.length > 0) {
+        const proceed = window.confirm(
+            `Warning: This game has ${invalidEvents.length} invalid event(s).\n` +
+            `Invalid events may be missing required fields or have invalid data.\n` +
+            `Do you want to proceed with the export?`
+        );
+        if (!proceed) return;
+    }
 
-        // Create and trigger download
-        const blob = new Blob([xmlContent], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const fileName = (game.teams || `game-${index + 1}`).toLowerCase().replace(/\s+/g, '-');
+    const xmlContent = generateGameXml(game, index + 1);
+    const blob = new Blob([xmlContent], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const fileName = (game.teams || `game-${index + 1}`).toLowerCase().replace(/\s+/g, '-');
 
-        a.href = url;
-        a.download = `${fileName}.xml`;
-        document.body.appendChild(a);
-        a.click();
+    a.href = url;
+    a.download = `${fileName}.xml`;
+    document.body.appendChild(a);
+    a.click();
 
-        // Clean up
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 0);
-    };
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 0);
+}
 
+function createGameCardActions(game, title, index, handlers) {
+    const { onSelect, onContinueCoding, onViewLog, onAppendXml, onRename, onDelete } = handlers;
     const reviewButton = onSelect ? createButton({
         text: 'Review',
         type: 'secondary',
@@ -316,7 +316,7 @@ export const createGameCard = ({
         onContinueCoding && { text: 'Continue coding', onClick: onContinueCoding },
         onViewLog && { text: 'View log', onClick: onViewLog },
         onAppendXml && { text: 'Append XML…', onClick: onAppendXml },
-        { text: 'Export XML', onClick: exportGame },
+        { text: 'Export XML', onClick: () => exportGameXmlWithPrompt(game, index) },
         { text: 'Rename', onClick: onRename },
         { text: 'Delete', onClick: onDelete, danger: true }
     ].filter(Boolean));
@@ -324,43 +324,37 @@ export const createGameCard = ({
     const actions = document.createElement('div');
     actions.className = 'saved-game-actions';
     actions.append(...[reviewButton, menu].filter(Boolean));
+    return actions;
+}
+
+export const createGameCard = ({
+    game,
+    index,
+    onDelete,
+    onRename,
+    onSelect,
+    onContinueCoding,
+    onViewLog,
+    onAppendXml
+}) => {
+    const gameCard = document.createElement('div');
+    gameCard.className = 'saved-game-card';
+
+    const icon = document.createElement('div');
+    icon.className = 'saved-game-icon';
+    icon.innerHTML = `<i class="fas fa-hockey-puck" aria-hidden="true"></i>`;
+    if (onSelect) {
+        icon.classList.add('cursor-pointer');
+        icon.addEventListener('click', onSelect);
+    }
+
+    const title = game.teams ? game.teams : `Game ${index + 1}`;
+    const gameDetails = createGameCardDetails(game, title, onSelect);
+    const actions = createGameCardActions(game, title, index, {
+        onSelect, onContinueCoding, onViewLog, onAppendXml, onRename, onDelete
+    });
 
     gameCard.append(icon, gameDetails, actions);
-
-    // Modal for invalid events (one per page, reused)
-    if (!document.getElementById('invalid-events-modal')) {
-        const modal = document.createElement('div');
-        modal.id = 'invalid-events-modal';
-        modal.className = 'modal hidden';
-        modal.setAttribute('role', 'dialog');
-        modal.setAttribute('aria-modal', 'true');
-        modal.innerHTML = `
-            <div class="modal-panel">
-                <h2 class="modal-title mb-4">Invalid Events</h2>
-                <div id="invalid-events-list" class="max-h-60 overflow-y-auto"></div>
-                <div class="modal-actions">
-                    <button id="closeInvalidEventsModal" type="button" class="btn btn-primary">Close</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        document.getElementById('closeInvalidEventsModal').onclick = () => {
-            modal.classList.add('hidden');
-        };
-    }
-
-    // Helper to show the modal with details
-    function showInvalidEventsModal(game, invalidEvents) {
-        const modal = document.getElementById('invalid-events-modal');
-        const list = document.getElementById('invalid-events-list');
-        if (!modal || !list) return;
-        list.innerHTML = invalidEvents.map(({ event, idx }) => {
-            const eventName = event && typeof event.event === 'string' ? event.event : '<strong>(missing name)</strong>';
-            const time = (event && typeof event.timeMs === 'number' && isFinite(event.timeMs)) ? event.timeMs : '<strong>(invalid time)</strong>';
-            return `<div class="banner banner-error mb-2"><span><strong>Event #${idx + 1}:</strong> Name: ${eventName}, Time: ${time}</span></div>`;
-        }).join('');
-        modal.classList.remove('hidden');
-    }
-
+    ensureInvalidEventsModal();
     return gameCard;
 };

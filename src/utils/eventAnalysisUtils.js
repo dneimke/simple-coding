@@ -107,10 +107,38 @@ export const getLabelSchemaForEvent = (eventOrCode) => {
  * @param {number} windowSeconds 
  * @returns {boolean}
  */
+const BALL_WON_REGEX = /\b(BW|BALL\s*WON)\b/;
+
+function isSameTeamEvent(targetTeam, evTeam) {
+    if (targetTeam && evTeam) return targetTeam === evTeam;
+    return !targetTeam && !evTeam;
+}
+
+function isPrecedingBallWon(ev, targetTeam) {
+    const upper = String(ev.event || '').toUpperCase();
+    if (!BALL_WON_REGEX.test(upper)) return false;
+    const evTeam = extractTeamFromEvent(ev);
+    return isSameTeamEvent(targetTeam, evTeam);
+}
+
+function isValidTargetEvent(targetEvent, allEvents) {
+    if (!targetEvent || typeof targetEvent.timeMs !== 'number') return false;
+    return Array.isArray(allEvents);
+}
+
+function shouldSkipEvent(ev, targetId) {
+    return !ev || ev.id === targetId;
+}
+
+function isEventWithinWindow(targetTimeMs, evTimeMs, windowMs) {
+    const diffMs = targetTimeMs - evTimeMs;
+    if (diffMs < 0) return 'skip';
+    if (diffMs > windowMs) return 'break';
+    return 'in-window';
+}
+
 export const isCounterAttack = (targetEvent, allEvents = [], windowSeconds = 10) => {
-    if (!targetEvent || typeof targetEvent.timeMs !== 'number' || !Array.isArray(allEvents)) {
-        return false;
-    }
+    if (!isValidTargetEvent(targetEvent, allEvents)) return false;
 
     const targetTeam = extractTeamFromEvent(targetEvent);
     const targetTimeMs = targetEvent.timeMs;
@@ -118,23 +146,13 @@ export const isCounterAttack = (targetEvent, allEvents = [], windowSeconds = 10)
 
     for (let i = allEvents.length - 1; i >= 0; i--) {
         const ev = allEvents[i];
-        if (!ev || ev.id === targetEvent.id) continue;
-        const diffMs = targetTimeMs - ev.timeMs;
-        if (diffMs < 0) continue; // Event is after target
-        if (diffMs > windowMs) break; // Exceeded lookback window
+        if (shouldSkipEvent(ev, targetEvent.id)) continue;
+        const status = isEventWithinWindow(targetTimeMs, ev.timeMs, windowMs);
+        if (status === 'skip') continue;
+        if (status === 'break') break;
 
-        const upper = String(ev.event || '').toUpperCase();
-        const evTeam = extractTeamFromEvent(ev);
-
-        // Check if preceding event was Ball Won (BW) for the SAME team
-        const isBallWon = /\b(BW|BALL\s*WON)\b/.test(upper);
-        if (isBallWon) {
-            if (targetTeam && evTeam && targetTeam === evTeam) {
-                return true;
-            }
-            if (!targetTeam && !evTeam) {
-                return true;
-            }
+        if (isPrecedingBallWon(ev, targetTeam)) {
+            return true;
         }
     }
 
@@ -184,19 +202,24 @@ export const getFriendlyEventName = (eventOrCode) => {
     let raw = typeof eventOrCode === 'object' ? (eventOrCode.event || '') : String(eventOrCode);
     raw = raw.trim();
 
+    const FRIENDLY_EVENT_PATTERNS = [
+        [/^CE\b|CIRCLE\s*ENTRY/i, 'Circle Entry'],
+        [/^A25E\b|25M\s*ENTRY/i, 'Attacking 25m Entry'],
+        [/^BW\b|BALL\s*WON/i, 'Ball Won'],
+        [/^BL\b|BALL\s*LOST/i, 'Ball Lost'],
+        [/^(PC|APC)\b|PENALTY\s*CORNER/i, 'Penalty Corner'],
+        [/^SHOT\b/i, 'Shot'],
+        [/^GOAL\b/i, 'Goal'],
+        [/^BS1\b/i, 'Build-Up Zone 1'],
+        [/^BS2\b/i, 'Build-Up Zone 2'],
+        [/^BS3\b/i, 'Build-Up Zone 3'],
+        [/^BS4\b/i, 'Build-Up Zone 4']
+    ];
     const mapCode = (str) => {
         const upper = str.trim().toUpperCase();
-        if (/^CE\b|CIRCLE\s*ENTRY/i.test(upper)) return 'Circle Entry';
-        if (/^A25E\b|25M\s*ENTRY/i.test(upper)) return 'Attacking 25m Entry';
-        if (/^BW\b|BALL\s*WON/i.test(upper)) return 'Ball Won';
-        if (/^BL\b|BALL\s*LOST/i.test(upper)) return 'Ball Lost';
-        if (/^(PC|APC)\b|PENALTY\s*CORNER/i.test(upper)) return 'Penalty Corner';
-        if (/^SHOT\b/i.test(upper)) return 'Shot';
-        if (/^GOAL\b/i.test(upper)) return 'Goal';
-        if (/^BS1\b/i.test(upper)) return 'Build-Up Zone 1';
-        if (/^BS2\b/i.test(upper)) return 'Build-Up Zone 2';
-        if (/^BS3\b/i.test(upper)) return 'Build-Up Zone 3';
-        if (/^BS4\b/i.test(upper)) return 'Build-Up Zone 4';
+        for (const [regex, label] of FRIENDLY_EVENT_PATTERNS) {
+            if (regex.test(upper)) return label;
+        }
         return null;
     };
 
