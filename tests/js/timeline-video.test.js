@@ -399,7 +399,7 @@ describe('video coding workflow', () => {
                     </div>
                 </div>
                 <div id="video-coding-panel" class="hidden">
-                    <button id="edit-quick-tags-btn">Edit Tags</button>
+                    <button id="edit-match-teams-btn" class="hidden">Teams</button>
                     <div id="video-zone-bar" class="zone-bar hidden">
                         <div id="video-zone-buttons"></div>
                     </div>
@@ -461,15 +461,22 @@ describe('video coding workflow', () => {
         jest.restoreAllMocks();
     });
 
-    test('CORE_QUICK_TAGS contains 6 core hockey events', () => {
-        expect(mod.CORE_QUICK_TAGS).toBeDefined();
-        expect(mod.CORE_QUICK_TAGS.length).toBe(6);
-        const labels = mod.CORE_QUICK_TAGS.map(t => t.label);
-        expect(labels).toContain('Goal');
-        expect(labels).toContain('Shot');
-        expect(labels).toContain('Circle Entry');
-        expect(labels).toContain('Penalty Corner');
-        expect(labels).toContain('Turnover');
+    test('the video strip is the fixed team rows plus PC and SPECIAL', () => {
+        const tags = mod.loadQuickTags();
+        expect(tags.map(tag => tag.label)).toEqual([
+            'BS', 'BW', 'A25E', 'CE', 'SHOT', 'GOAL',
+            'BS', 'BW', 'A25E', 'CE', 'SHOT', 'GOAL',
+            'PC', 'SPECIAL'
+        ]);
+        expect(tags.filter(tag => tag.team === 'team1').map(tag => tag.label)).toEqual(['BS', 'BW', 'A25E', 'CE', 'SHOT', 'GOAL']);
+        expect(tags.filter(tag => tag.zoned).map(tag => tag.label)).toEqual(['BS', 'BW', 'BS', 'BW']);
+        expect(tags.find(tag => tag.label === 'SHOT').lead).toBe(15);
+        expect(tags.find(tag => tag.label === 'SHOT').lag).toBe(5);
+        expect(tags[0].key).toBe('1');
+        expect(tags[8].key).toBe('9');
+        expect(tags[9].key).toBe('');
+        localStorage.setItem('fieldHockeyVideoQuickTags_v1', JSON.stringify([{ id: 'custom', label: 'Outlet' }]));
+        expect(mod.loadQuickTags().some(tag => tag.label === 'Outlet')).toBe(false);
     });
 
     test('quickTagEvent creates an event at video current time with standard MyVA lead and lag timings', () => {
@@ -609,184 +616,153 @@ describe('video coding workflow', () => {
         expect(event.timestamp).toBe('00:58');
     });
 
-    test('loadQuickTags returns DEFAULT_QUICK_TAGS when storage is empty', () => {
-        const tags = mod.loadQuickTags();
-        expect(tags).toHaveLength(6);
-        expect(tags[0].label).toBe('Goal');
-    });
+    test('a confirmed video match stores the teams and can change them until the first tag', () => {
+        const game = mod.createNewVideoGame(null, [
+            { code: 'fire', color: 'red' },
+            { code: 'tigers', color: 'yellow' }
+        ]);
+        expect(game.teams).toBe('FIRE vs TIGERS');
+        expect(document.getElementById('review-game-title').textContent).toBe('FIRE vs TIGERS');
+        expect(game.metadata.teamsData).toEqual([
+            { code: 'FIRE', color: 'red' },
+            { code: 'TIGERS', color: 'yellow' }
+        ]);
+        expect(JSON.parse(localStorage.getItem('fieldHockeyGames_v1')).some(item => item.id === game.id)).toBe(false);
+        expect(document.getElementById('edit-match-teams-btn').classList.contains('hidden')).toBe(false);
 
-    test('addQuickTag appends a custom tag, saves to storage, and re-renders', () => {
-        const initialCount = mod.loadQuickTags().length;
-        const updated = mod.addQuickTag('Outlet 1', 'btn-blue');
-        expect(updated.length).toBe(initialCount + 1);
-        expect(updated[updated.length - 1].label).toBe('Outlet 1');
+        expect(mod.applyConfirmedTeams([
+            { code: 'FIRE', color: 'red' },
+            { code: 'PRIDE', color: 'navy' }
+        ])).toBe(true);
+        expect(mod.getCurrentGame().teams).toBe('FIRE vs PRIDE');
+        expect(mod.getMatchTeams()[1]).toEqual({ code: 'PRIDE', color: 'navy' });
 
-        const reloaded = mod.loadQuickTags();
-        expect(reloaded.some(t => t.label === 'Outlet 1')).toBe(true);
-    });
+        expect(mod.renameMatch('Grand Final')).toBe(true);
+        expect(mod.getCurrentGame().teams).toBe('Grand Final');
+        expect(mod.getMatchTeams().map(team => team.code)).toEqual(['FIRE', 'PRIDE']);
 
-    test('removeQuickTag removes tag by id and re-indexes keys', () => {
-        const tags = mod.loadQuickTags();
-        const goalId = tags[0].id;
-        const updated = mod.removeQuickTag(goalId);
-        expect(updated.some(t => t.id === goalId)).toBe(false);
-        expect(updated[0].key).toBe('1'); // re-indexed
-
-        const reloaded = mod.loadQuickTags();
-        expect(reloaded.some(t => t.id === goalId)).toBe(false);
-    });
-
-    test('resetQuickTags clears customization and restores 6 defaults', () => {
-        mod.removeQuickTag('goal');
-        expect(mod.loadQuickTags().length).toBe(5);
-
-        const restored = mod.resetQuickTags();
-        expect(restored.length).toBe(6);
-        expect(restored.some(t => t.label === 'Goal')).toBe(true);
-    });
-
-    test('moveQuickTag reorders tags left and right and updates shortcut keys', () => {
-        mod.resetQuickTags();
-        const initial = mod.loadQuickTags();
-        expect(initial[0].id).toBe('goal');
-        expect(initial[1].id).toBe('shot');
-
-        // Move 'shot' left to index 0
-        const movedLeft = mod.moveQuickTag('shot', 'left');
-        expect(movedLeft[0].id).toBe('shot');
-        expect(movedLeft[0].key).toBe('1');
-        expect(movedLeft[1].id).toBe('goal');
-        expect(movedLeft[1].key).toBe('2');
-
-        // Verify boundary: cannot move index 0 left
-        const cantMove = mod.moveQuickTag('shot', 'left');
-        expect(cantMove[0].id).toBe('shot');
-
-        // Move 'shot' right back to index 1
-        const movedRight = mod.moveQuickTag('shot', 'right');
-        expect(movedRight[0].id).toBe('goal');
-        expect(movedRight[1].id).toBe('shot');
-    });
-
-    test('updateQuickTag modifies tag label, team binding, and color in-place', () => {
-        mod.resetQuickTags();
-        const updated = mod.updateQuickTag('goal', {
-            label: 'Field Goal',
-            team: 'team1',
-            colorClass: 'btn-green'
-        });
-        const goalTag = updated.find(t => t.id === 'goal');
-        expect(goalTag.label).toBe('Field Goal');
-        expect(goalTag.team).toBe('team1');
-        expect(updated[0].id).toBe('goal'); // Order preserved
-        expect(updated[0].key).toBe('1');   // Key preserved
-    });
-
-    test('resolveTagDisplay formats team prefix and color dynamically', () => {
-        const teams = [
+        document.getElementById('video-player').currentTime = 4;
+        const shot = mod.quickTagEvent(mod.loadQuickTags().find(tag => tag.id === 't1-shot'));
+        expect(shot.event).toBe('FIRE SHOT');
+        expect(shot.lead).toBe(15);
+        expect(shot.lag).toBe(5);
+        expect(mod.canEditMatchTeams()).toBe(false);
+        expect(document.getElementById('edit-match-teams-btn').classList.contains('hidden')).toBe(true);
+        expect(mod.applyConfirmedTeams([
             { code: 'THUNDER', color: 'green' },
-            { code: 'PRIDE', color: 'red' }
-        ];
+            { code: 'STORM', color: 'sky' }
+        ])).toBe(false);
+        expect(mod.getMatchTeams().map(team => team.code)).toEqual(['FIRE', 'PRIDE']);
 
-        // Team 1 bound tag
-        const tag1 = { id: 't1', label: 'BS1', team: 'team1', colorClass: 'btn-blue' };
-        const resolved1 = mod.resolveTagDisplay(tag1, teams);
-        expect(resolved1.displayLabel).toBe('THUNDER BS1');
-        expect(resolved1.colorClass).toBe('team-color-green');
-        expect(resolved1.isTeam1).toBe(true);
-
-        // Team 2 bound tag
-        const tag2 = { id: 't2', label: 'GOAL', team: 'team2', colorClass: 'btn-orange' };
-        const resolved2 = mod.resolveTagDisplay(tag2, teams);
-        expect(resolved2.displayLabel).toBe('PRIDE GOAL');
-        expect(resolved2.colorClass).toBe('team-color-red');
-        expect(resolved2.isTeam1).toBe(false);
-
-        // Neutral / unbound tag
-        const tagNeutral = { id: 't3', label: 'SPECIAL', team: 'none', colorClass: 'btn-blue' };
-        const resolvedNeutral = mod.resolveTagDisplay(tagNeutral, teams);
-        expect(resolvedNeutral.displayLabel).toBe('SPECIAL');
-        expect(resolvedNeutral.colorClass).toBe('btn-blue');
+        mod.undoLastQuickTag();
+        expect(mod.canEditMatchTeams()).toBe(true);
+        expect(document.getElementById('edit-match-teams-btn').classList.contains('hidden')).toBe(false);
     });
 
-    test('zone-aware tags log the selected zone for Team 1 and the mirrored zone for Team 2', () => {
+    test('a saved match keeps a readable title when teams are stored as records', () => {
+        localStorage.setItem('fieldHockeyGames_v1', JSON.stringify([
+            {
+                id: 'named-sides',
+                name: 'FIRE vs TIGERS',
+                teams: [{ code: 'FIRE', color: 'red' }, { code: 'TIGERS', color: 'yellow' }],
+                events: [],
+                metadata: {}
+            }
+        ]));
+        expect(mod.loadGame('named-sides')).toBe(true);
+        expect(document.getElementById('review-game-title').textContent).toBe('FIRE vs TIGERS');
+    });
+
+    test('confirming teams from video starts a draft named for those teams', async () => {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="teamSetupModal" class="modal hidden">
+                <form id="teamSetupForm">
+                    <input id="teamCode1" />
+                    <input id="teamCode2" />
+                    <div id="teamSwatches1"></div>
+                    <div id="teamSwatches2"></div>
+                    <p id="teamSetupError"></p>
+                    <button type="button" id="teamSetupCancel">Cancel</button>
+                    <button type="submit" id="teamSetupSubmit">Ready Match</button>
+                </form>
+            </div>
+        `);
+        const pending = mod.startNewVideoMatch();
+        document.getElementById('teamSetupForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        const game = await pending;
+        expect(game.teams).toBe('FIRE vs TIGERS');
+        expect(document.getElementById('review-game-title').textContent).toBe('FIRE vs TIGERS');
+        expect(document.getElementById('edit-match-teams-btn').classList.contains('hidden')).toBe(false);
+        expect(JSON.parse(localStorage.getItem('fieldHockeyGames_v1')).some(item => item.id === game.id)).toBe(false);
+    });
+
+    test('cancelling team confirmation leaves the open match in place', async () => {
+        const before = mod.getCurrentGame().id;
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="teamSetupModal" class="modal hidden">
+                <form id="teamSetupForm">
+                    <input id="teamCode1" />
+                    <input id="teamCode2" />
+                    <div id="teamSwatches1"></div>
+                    <div id="teamSwatches2"></div>
+                    <p id="teamSetupError"></p>
+                    <button type="button" id="teamSetupCancel">Cancel</button>
+                    <button type="submit">Ready Match</button>
+                </form>
+            </div>
+        `);
+        const pending = mod.startNewVideoMatch();
+        document.getElementById('teamSetupCancel').click();
+        await expect(pending).resolves.toBeNull();
+        expect(mod.getCurrentGame().id).toBe(before);
+    });
+
+    test('zone buttons show Team 1 and the mirrored Team 2 zone', () => {
         mod.setMatchTeams([
             { code: 'PRIDE', color: 'red' },
             { code: 'BLAZE', color: 'orange' }
         ]);
-        mod.saveQuickTags([
-            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true },
-            { id: 'blaze-bs', label: 'BS', team: 'team2', colorClass: 'btn-orange', zoned: true },
-            { id: 'pride-cd', label: 'CD', team: 'team1', colorClass: 'btn-red', zoned: false }
-        ]);
-        const stored = mod.loadQuickTags();
-        expect(stored.find(tag => tag.id === 'pride-bs').zoned).toBe(true);
-        expect(stored.find(tag => tag.id === 'pride-cd').zoned).toBe(false);
-
         mod.setTaggingMode(true);
         expect(document.getElementById('video-zone-bar').classList.contains('hidden')).toBe(false);
         expect(mod.selectVideoZone('2')).toBe(true);
 
-        const labels = [...document.querySelectorAll('.tag-label')].map(el => el.textContent);
-        expect(labels).toEqual(['BS2', 'BS3', 'CD']);
+        const label = (id) => document.querySelector(`[data-tag-id="${id}"] .tag-label`).textContent;
+        expect(label('t1-bs')).toBe('BS2');
+        expect(label('t2-bs')).toBe('BS3');
+        expect(label('t1-shot')).toBe('SHOT');
         expect(document.querySelector('.zone-button[data-zone="1"] .zone-button-mirror').textContent).toBe('BLAZE 4');
 
         const video = document.getElementById('video-player');
         video.currentTime = 12;
         const pride = mod.quickTagEvent(mod.loadQuickTags()[0]);
-        const blaze = mod.quickTagEvent(mod.loadQuickTags()[1]);
-        const circle = mod.quickTagEvent(mod.loadQuickTags()[2]);
+        const blaze = mod.quickTagEvent(mod.loadQuickTags()[6]);
         expect(pride.event).toBe('PRIDE BS2');
         expect(blaze.event).toBe('BLAZE BS3');
-        expect(circle.event).toBe('PRIDE CD');
-
-        expect(mod.selectVideoZone('1')).toBe(true);
-        const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
-        expect(saved.events.map(event => event.event)).toEqual(['PRIDE BS2', 'BLAZE BS3', 'PRIDE CD']);
-        expect(saved.metadata.activeZone).toBe('1');
-        expect(document.querySelector('[data-tag-id="pride-bs"] .tag-label').textContent).toBe('BS1');
-        expect(document.querySelector('[data-tag-id="blaze-bs"] .tag-label').textContent).toBe('BS4');
-        expect(document.querySelector('[data-tag-id="pride-cd"] .tag-label').textContent).toBe('CD');
+        expect(mod.selectVideoZone('9')).toBe(false);
+        expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
     });
 
-    test('the zone bar stays hidden when no tag adds the zone number', () => {
-        mod.resetQuickTags();
-        mod.setTaggingMode(true);
-        expect(document.getElementById('video-zone-bar').classList.contains('hidden')).toBe(true);
-        expect(document.querySelector('.zone-button')).toBeNull();
-    });
-
-    test('number keys tag the matching button and leave the zone alone', () => {
+    test('number keys tag the matching strip button and leave the zone alone', () => {
         mod.setMatchTeams([
             { code: 'PRIDE', color: 'red' },
             { code: 'BLAZE', color: 'orange' }
         ]);
-        mod.saveQuickTags([
-            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true },
-            { id: 'blaze-bs', label: 'BS', team: 'team2', colorClass: 'btn-orange', zoned: true }
-        ]);
         mod.selectVideoZone('2');
         document.getElementById('video-player').currentTime = 8;
-        mod.handleVideoCodingKey(new KeyboardEvent('keydown', { key: '2' }));
+        mod.handleVideoCodingKey(new KeyboardEvent('keydown', { key: '1' }));
 
         const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
-        expect(saved.events.map(event => event.event)).toEqual(['BLAZE BS3']);
+        expect(saved.events.map(event => event.event)).toEqual(['PRIDE BS2']);
         expect(saved.metadata.activeZone).toBe('2');
         expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
     });
 
-    test('an unknown zone is ignored and a plain BS1 tag is not rewritten', () => {
+    test('a plain BS1 tag is not rewritten and an unknown zone is ignored', () => {
         mod.setMatchTeams([
             { code: 'PRIDE', color: 'red' },
             { code: 'BLAZE', color: 'orange' }
         ]);
-        mod.saveQuickTags([
-            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true }
-        ]);
         mod.selectVideoZone('2');
-        expect(mod.selectVideoZone('9')).toBe(false);
-        expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
-
         const created = mod.quickTagEvent({ id: 'old', label: 'BS1', team: 'team1', colorClass: 'btn-red', zoned: false });
         expect(created.event).toBe('PRIDE BS1');
     });
@@ -796,59 +772,33 @@ describe('video coding workflow', () => {
         games[0].metadata.activeZone = '4';
         games[0].events = [{ id: 'e1', event: 'FIRE BS1', timeMs: 1000, timestamp: '00:01', isFavorite: false }];
         localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(games));
-        mod.saveQuickTags([
-            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true }
-        ]);
 
         mod.loadGame(GAME_ID);
         mod.setTaggingMode(true);
 
         expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('4');
-        expect(document.querySelector('.tag-label').textContent).toBe('BS4');
+        expect(document.querySelector('[data-tag-id="t1-bs"] .tag-label').textContent).toBe('BS4');
         const [saved] = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
         expect(saved.events[0].event).toBe('FIRE BS1');
+        expect(document.getElementById('edit-match-teams-btn').classList.contains('hidden')).toBe(true);
     });
 
-    test('a pitch-fixed board gives both teams the selected zone', () => {
+    test('the video strip keeps mirrored zones when the live board uses a different zone setup', () => {
         localStorage.setItem('fieldHockeyConfig_v1', JSON.stringify({
-            zones: { values: ['1', '2', '3', '4'], default: '1', perspective: 'pitch' },
+            zones: { values: ['1', '2', '3'], default: '2', perspective: 'pitch' },
             rowDefs: []
         }));
-        mod.saveQuickTags([
-            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true },
-            { id: 'blaze-bs', label: 'BS', team: 'team2', colorClass: 'btn-orange', zoned: true }
-        ]);
+        mod.loadGame(GAME_ID);
         mod.setTaggingMode(true);
         mod.selectVideoZone('2');
 
-        const labels = [...document.querySelectorAll('.tag-label')].map(el => el.textContent);
-        expect(labels).toEqual(['BS2', 'BS2']);
-        expect(document.querySelector('.zone-button-mirror')).toBeNull();
-    });
-
-    test('a match without a saved zone opens on the board default zone', () => {
-        localStorage.setItem('fieldHockeyConfig_v1', JSON.stringify({
-            zones: { values: ['1', '2', '3'], default: '2' },
-            rowDefs: []
-        }));
-        mod.saveQuickTags([
-            { id: 'pride-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true }
-        ]);
-
-        mod.loadGame(GAME_ID);
-        mod.setTaggingMode(true);
-
         expect(document.querySelector('.zone-button.is-active').dataset.zone).toBe('2');
-        expect(document.querySelector('.tag-label').textContent).toBe('BS2');
+        expect(document.querySelector('[data-tag-id="t1-bs"] .tag-label').textContent).toBe('BS2');
+        expect(document.querySelector('[data-tag-id="t2-bs"] .tag-label').textContent).toBe('BS3');
+        expect(document.querySelectorAll('.zone-button')).toHaveLength(4);
     });
 
-    test('Add zone number turns a baked-in zone digit into the stem', () => {
-        const input = document.getElementById('new-tag-label-input');
-        const box = document.getElementById('tag-add-zone-checkbox');
-        input.value = 'BS1';
-        box.checked = true;
-        box.dispatchEvent(new Event('change'));
-        expect(input.value).toBe('BS');
+    test('prepareZoneAwareLabel keeps a code that is not a zone stem', () => {
         expect(mod.prepareZoneAwareLabel('A25E', true)).toBe('A25E');
         expect(mod.prepareZoneAwareLabel('BS1', false)).toBe('BS1');
     });
