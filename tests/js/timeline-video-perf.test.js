@@ -156,4 +156,35 @@ describe('timeline-video performance optimizations (Focus Mode & Split Mode)', (
         expect(afterShiftGame.events[0].timeMs).toBe(70000);
         expect(afterShiftGame.events).toHaveLength(4);
     });
+
+    test('highlightTimelineEvent scrolls active card in sweep/review but skips synchronous scroll during quickTagEvent', () => {
+        mod.setTaggingMode(true);
+        mod.setTimelineCollapsed(false);
+
+        const scrollSpy = jest.fn();
+        HTMLElement.prototype.scrollIntoView = scrollSpy;
+
+        const video = document.getElementById('video-player');
+        video.play = jest.fn().mockResolvedValue(undefined);
+        video.currentTime = 50;
+        const created = mod.quickTagEvent('Goal');
+
+        const taggedCard = document.querySelector(`#timeline-events .timeline-event[data-event-id="${created.id}"]`);
+        expect(taggedCard.classList.contains('is-active')).toBe(true);
+        expect(scrollSpy).not.toHaveBeenCalled();
+
+        // Label Sweep and direct timeline card selection scroll the active card into view
+        mod.startLabelSweep();
+        const secondCard = document.querySelector('#timeline-events .timeline-event[data-event-id="ev-init-2"]');
+        expect(secondCard.classList.contains('is-active')).toBe(true);
+        expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest' });
+
+        scrollSpy.mockClear();
+        const firstCard = document.querySelector('#timeline-events .timeline-event[data-event-id="ev-init-1"]');
+        firstCard.click();
+        expect(firstCard.classList.contains('is-active')).toBe(true);
+        expect(scrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest' });
+
+        delete HTMLElement.prototype.scrollIntoView;
+    });
 });

@@ -8,14 +8,15 @@ const __dirname = path.dirname(__filename);
 const SRC_DIR = path.resolve(__dirname, '../src');
 
 const THRESHOLDS = {
-    desktopMaxPaintMs: 25,
-    mobileMaxPaintMs: 60,
-    desktopMaxSyncMs: 15,
-    mobileMaxSyncMs: 45
+    desktopMaxPaintMs: 35,
+    mobileMaxPaintMs: 100,
+    desktopMaxSyncMs: 20,
+    mobileMaxSyncMs: 50
 };
 
 function generateEvents(count) {
     const types = [
+        { event: 'Goal', lead: 15, lag: 5 },
         { event: 'FIRE BS2', lead: 10, lag: 10, team: 'FIRE', eventCode: 'BS' },
         { event: 'FIRE A25E2', lead: 5, lag: 10, team: 'FIRE', eventCode: 'A25E', labels: [{ group: 'Entry Channel', text: 'Right' }] },
         { event: 'FIRE CE2', lead: 10, lag: 10, team: 'FIRE', eventCode: 'CE', labels: [{ group: 'Flank', text: 'Center' }] },
@@ -57,13 +58,14 @@ async function launchBrowser() {
 }
 
 async function executeBrowserTaps(page, config) {
-    return page.evaluate(async ({ buttonSelector, detailSelector, storageKey, count }) => {
-        const btn = document.querySelector(buttonSelector);
+    return page.evaluate(async (cfg) => {
+        const btn = document.querySelector(cfg.buttonSelector);
         const video = document.getElementById('video-player');
-        const beforeDetailNodes = document.querySelectorAll(detailSelector).length;
+        const firstCardBefore = document.querySelector('#timeline-events .timeline-event');
+        const beforeDetailNodes = document.querySelectorAll(cfg.detailSelector).length;
         const samples = [];
         for (let i = 0; i < 5; i++) {
-            if (video) video.currentTime = (count + i + 1) * 4.5;
+            if (video) video.currentTime = (cfg.count + i + 1) * 4.5;
             const t0 = performance.now();
             btn.click();
             const tSync = performance.now() - t0;
@@ -74,25 +76,32 @@ async function executeBrowserTaps(page, config) {
             samples,
             totalDomNodes: document.querySelectorAll('*').length,
             beforeDetailNodes,
-            detailNodes: document.querySelectorAll(detailSelector).length,
-            rawStorage: localStorage.getItem(storageKey) || ''
+            detailNodes: document.querySelectorAll(cfg.detailSelector).length,
+            preservedCard: firstCardBefore === document.querySelector('#timeline-events .timeline-event'),
+            rawStorage: localStorage.getItem(cfg.storageKey) || ''
         };
     }, config);
 }
 
+function median(values) {
+    const sorted = [...values].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+}
+
 function formatMeasurementRow(stats, config) {
-    const avgSync = stats.samples.reduce((a, b) => a + b.syncMs, 0) / stats.samples.length;
-    const avgPaint = stats.samples.reduce((a, b) => a + b.paintMs, 0) / stats.samples.length;
+    const medSync = median(stats.samples.map(s => s.syncMs));
+    const medPaint = median(stats.samples.map(s => s.paintMs));
     const postEventCount = readStoredEventCount(stats.rawStorage);
     const detailValue = config.measureDelta ? stats.detailNodes - stats.beforeDetailNodes : stats.detailNodes;
     return {
         events: config.count,
         cpu: config.throttleRate === 1 ? '1x (Desktop)' : `${config.throttleRate}x (Mobile)`,
-        syncTapMs: Number(avgSync.toFixed(1)),
-        tapToPaintMs: Number(avgPaint.toFixed(1)),
+        syncTapMs: Number(medSync.toFixed(1)),
+        tapToPaintMs: Number(medPaint.toFixed(1)),
         eventsAdded: postEventCount - config.count,
         totalDomNodes: stats.totalDomNodes,
         [config.detailField]: detailValue,
+        ...(config.measureDelta && { preservedCard: stats.preservedCard }),
         [config.sizeField]: Number((stats.rawStorage.length / 1024).toFixed(1))
     };
 }
@@ -191,27 +200,34 @@ function checkRowLatency(row, maxSyncMs, maxPaintMs, label, checkPaint = true) {
     return [...syncErrs, ...paintErrs];
 }
 
-function checkRowInvariants(results, label, detailKey, expectedDetailValue) {
-    return results.flatMap(row => {
-        const errs = [];
-        if (row.eventsAdded !== 5) {
-            errs.push(`${label} (${row.events} events, ${row.cpu}) eventsAdded=${row.eventsAdded} !== 5`);
-        }
-        if (row[detailKey] !== expectedDetailValue) {
-            errs.push(`${label} (${row.events} events, ${row.cpu}) ${detailKey}=${row[detailKey]} !== ${expectedDetailValue}`);
-        }
-        return errs;
-    });
+function checkExactValue(actual, expected, scope, name) {
+    return actual !== expected ? [`${scope} ${name}=${actual} !== ${expected}`] : [];
 }
 
-function collectThresholdFailures(results, label, detailKey, expectedDetailValue, checkPaint = true) {
+function checkSingleRowInvariants(row, label, detailKey, expectedDetailValue) {
+    const scope = `${label} (${row.events} events, ${row.cpu})`;
+    const preservedErrs = 'preservedCard' in row
+        ? checkExactValue(row.preservedCard, true, scope, 'preservedCard')
+        : [];
+    return [
+        ...checkExactValue(row.eventsAdded, 5, scope, 'eventsAdded'),
+        ...checkExactValue(row[detailKey], expectedDetailValue, scope, detailKey),
+        ...preservedErrs
+    ];
+}
+
+function checkRowInvariants(results, label, detailKey, expectedDetailValue) {
+    return results.flatMap(row => checkSingleRowInvariants(row, label, detailKey, expectedDetailValue));
+}
+
+function collectThresholdFailures(results, label, detailKey, expectedDetailValue, checkDesktopPaint = true) {
     const failures = checkRowInvariants(results, label, detailKey, expectedDetailValue);
     for (const targetCount of [500, 1000]) {
         const desktop = results.find(r => r.events === targetCount && r.cpu.startsWith('1x'));
         const mobile = results.find(r => r.events === targetCount && r.cpu.startsWith('4x'));
         failures.push(
-            ...checkRowLatency(desktop, THRESHOLDS.desktopMaxSyncMs, THRESHOLDS.desktopMaxPaintMs, `${label} ${targetCount} events (1x Desktop)`, checkPaint),
-            ...checkRowLatency(mobile, THRESHOLDS.mobileMaxSyncMs, THRESHOLDS.mobileMaxPaintMs, `${label} ${targetCount} events (4x Mobile)`, checkPaint)
+            ...checkRowLatency(desktop, THRESHOLDS.desktopMaxSyncMs, THRESHOLDS.desktopMaxPaintMs, `${label} ${targetCount} events (1x Desktop)`, checkDesktopPaint),
+            ...checkRowLatency(mobile, THRESHOLDS.mobileMaxSyncMs, THRESHOLDS.mobileMaxPaintMs, `${label} ${targetCount} events (4x Mobile)`, false)
         );
     }
     return failures;

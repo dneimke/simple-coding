@@ -105,10 +105,11 @@ function updateGameEventLabels(game, eventId, labels) {
     const ev = game?.events?.find(e => e.id === eventId);
     if (!ev) return;
     ev.labels = labels;
+    invalidateUnlabelledCountCache();
     saveGame(game.id, game.events, { ...game.metadata, ...(game.teams && { teams: game.teams }) });
     timelineEvents = game.events;
     refreshTimelineForUpdatedEvent(ev);
-    updateQuickTagTicker();
+    updateQuickTagTicker(game);
 }
 
 function handleChordResolved({ event, label }) {
@@ -431,21 +432,22 @@ function createNewVideoGame(customName) {
 }
 
 // fallow-ignore-next-line complexity
-function resolveQuickTagInfo(eventType) {
+function resolveQuickTagInfo(eventType, game = null) {
     let eventLabel = typeof eventType === 'string' ? eventType : (eventType && eventType.label);
     let isTeam1 = null;
     let lead = (typeof eventType === 'object' && eventType) ? eventType.lead : undefined;
     let lag = (typeof eventType === 'object' && eventType) ? eventType.lag : undefined;
+    const teams = getMatchTeams(game);
 
     if (typeof eventType === 'object' && eventType !== null) {
-        const resolved = resolveTagDisplay(eventType);
+        const resolved = resolveTagDisplay(eventType, teams);
         eventLabel = resolved.displayLabel;
         isTeam1 = resolved.isTeam1;
     } else if (typeof eventType === 'string') {
         const tags = loadQuickTags();
-        const match = tags.find(t => t.label === eventType || resolveTagDisplay(t).displayLabel === eventType);
+        const match = tags.find(t => t.label === eventType || resolveTagDisplay(t, teams).displayLabel === eventType);
         if (match) {
-            const resolved = resolveTagDisplay(match);
+            const resolved = resolveTagDisplay(match, teams);
             eventLabel = resolved.displayLabel;
             isTeam1 = resolved.isTeam1;
             if (lead === undefined) lead = match.lead;
@@ -475,7 +477,7 @@ function quickTagEvent(eventType, note = '') {
         game = getCurrentGame();
     }
 
-    const { eventLabel, isTeam1, lead, lag } = resolveQuickTagInfo(eventType);
+    const { eventLabel, isTeam1, lead, lag } = resolveQuickTagInfo(eventType, game);
 
     if (!Array.isArray(game.events)) game.events = [];
     const newEvent = {
@@ -492,10 +494,10 @@ function quickTagEvent(eventType, note = '') {
     game.events.push(newEvent);
 
     persistGameEventsAndRefresh(game, {}, { insertedEvent: newEvent });
-    updateQuickTagTicker();
+    updateQuickTagTicker(game);
     showQuickTagFeedback(eventType, ts);
     if (!isTimelineCollapsed) {
-        highlightTimelineEvent(newEvent.id);
+        highlightTimelineEvent(newEvent.id, { scroll: false });
     }
     if (videoChordEngine) videoChordEngine.startChord(newEvent);
 
@@ -595,8 +597,8 @@ function getTeamsFromMetadata(meta) {
 }
 
 // Get current match teams (team1, team2) with code and color
-function getMatchTeams() {
-    const game = getCurrentGame();
+function getMatchTeams(providedGame = null) {
+    const game = providedGame || getCurrentGame();
     const fromMeta = getTeamsFromMetadata(game?.metadata);
     if (fromMeta) return fromMeta;
 
@@ -828,10 +830,10 @@ function setUndoButtonDisabled(undoBtn, disabled) {
 }
 
 // Update Focus Tagging Ticker (Last event + Undo status + Event count)
-function updateQuickTagTicker() {
+function updateQuickTagTicker(providedGame = null) {
     const tickerLast = document.getElementById('ticker-last-event');
     const undoBtn = document.getElementById('quick-tag-undo-btn');
-    const game = getCurrentGame();
+    const game = providedGame || getCurrentGame();
     const events = Array.isArray(game?.events) ? game.events : [];
 
     syncTimelineCounters(events.length);
@@ -1411,6 +1413,7 @@ function persistGameEventsAndRefresh(game, metadata = {}, options = {}) {
     }
     saveGame(game.id, game.events, meta);
 
+    syncUnlabelledCacheForMutation(game.events, options);
     timelineEvents = game.events;
     if (isTimelineCollapsed) {
         timelineNeedsRender = true;
@@ -1516,8 +1519,14 @@ function resolveTimelineCardById(container, eventId) {
     return container.querySelector(`.timeline-event[data-event-id="${eventId}"]`);
 }
 
+function scrollCardIntoViewIfNeeded(card, shouldScroll) {
+    if (shouldScroll && typeof card.scrollIntoView === 'function') {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
 // Highlight the current event in the timeline
-function highlightTimelineEvent(eventId) {
+function highlightTimelineEvent(eventId, { scroll = true } = {}) {
     const container = document.getElementById('timeline-events') || document;
     const activeEls = container.getElementsByClassName
         ? Array.from(container.getElementsByClassName('is-active'))
@@ -1527,6 +1536,7 @@ function highlightTimelineEvent(eventId) {
     const currentEvent = resolveTimelineCardById(container, eventId);
     if (currentEvent) {
         currentEvent.classList.add('is-active');
+        scrollCardIntoViewIfNeeded(currentEvent, scroll);
     }
 }
 
@@ -1926,6 +1936,7 @@ function updateEventLabel(eventId, group, text) {
     }
 
     const metadata = { ...game.metadata, teams: game.teams };
+    invalidateUnlabelledCountCache();
     saveGame(game.id, game.events, metadata);
     timelineEvents = game.events;
     renderTimelineEvents();
@@ -2195,13 +2206,39 @@ function setFavoritesOnly(value) {
     setFilterViewMode(value ? 'favorites' : 'all');
 }
 
+let cachedUnlabelledEventsRef = null;
+let cachedUnlabelledEventsLength = -1;
+let cachedUnlabelledCount = 0;
+
+function isUnlabelledSchemaEvent(event) {
+    if (!event || !getLabelSchemaForEvent(event)) return false;
+    return !Array.isArray(event.labels) || event.labels.length === 0;
+}
+
+function invalidateUnlabelledCountCache() {
+    cachedUnlabelledEventsRef = null;
+    cachedUnlabelledEventsLength = -1;
+}
+
+function syncUnlabelledCacheForMutation(events, options) {
+    if (options.insertedEvent && cachedUnlabelledEventsRef === events && cachedUnlabelledEventsLength === events.length - 1) {
+        if (isUnlabelledSchemaEvent(options.insertedEvent)) {
+            cachedUnlabelledCount += 1;
+        }
+        cachedUnlabelledEventsLength = events.length;
+        return;
+    }
+    invalidateUnlabelledCountCache();
+}
+
 function getUnlabelledEventsCount() {
-    return timelineEvents.filter(event => {
-        const schema = getLabelSchemaForEvent(event);
-        if (!schema) return false;
-        const hasLabels = Array.isArray(event.labels) && event.labels.length > 0;
-        return !hasLabels;
-    }).length;
+    if (cachedUnlabelledEventsRef === timelineEvents && cachedUnlabelledEventsLength === timelineEvents.length) {
+        return cachedUnlabelledCount;
+    }
+    cachedUnlabelledCount = timelineEvents.filter(isUnlabelledSchemaEvent).length;
+    cachedUnlabelledEventsRef = timelineEvents;
+    cachedUnlabelledEventsLength = timelineEvents.length;
+    return cachedUnlabelledCount;
 }
 
 function updateSweepButtonUI(precomputedCount = null) {

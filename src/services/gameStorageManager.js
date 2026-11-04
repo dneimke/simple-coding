@@ -30,14 +30,7 @@ export function findGameInArray(gamesArray, gameId) {
 function standardizeEvent(evt) {
     return {
         ...evt,
-        event: evt.event,
-        timeMs: evt.timeMs,
-        id: evt.id,
-        isFavorite: evt.isFavorite || false,
-        ...(evt.note !== undefined && { note: evt.note }),
-        ...(evt.timestamp !== undefined && { timestamp: evt.timestamp }),
-        ...(evt.lead !== undefined && { lead: evt.lead }),
-        ...(evt.lag !== undefined && { lag: evt.lag })
+        isFavorite: Boolean(evt.isFavorite)
     };
 }
 
