@@ -306,15 +306,24 @@ function createExportButton() {
  * Renders the Log view for either a saved game (when ui.logGameId is set) or the live game.
  * Viewing a saved game never touches the live game state.
  */
+function resolveSavedGameLogTab() {
+    const currentTab = stateService.getState('ui.currentTab');
+    if (currentTab === 'recentView') {
+        router.switchTab('timelineView');
+        return 'timelineView';
+    }
+    return currentTab || 'timelineView';
+}
+
 function renderSavedGameLog(game) {
     savedGameLogTitle.textContent = game.teams || 'Game';
     savedGameLogBanner.classList.remove('hidden');
     backToCaptureButton.classList.add('hidden');
     tabButtonRecent.classList.add('hidden');
     recentViewPanel.innerHTML = '';
-    if (stateService.getState('ui.currentTab') === 'recentView') {
-        router.switchTab('timelineView');
-    }
+    const events = game.events || [];
+    eventLog.render(events, { activeTab: resolveSavedGameLogTab() });
+    copyXmlButton.disabled = events.length === 0;
 }
 
 function renderLiveGameLog(events) {
@@ -335,9 +344,6 @@ function renderLogView() {
             return;
         }
         renderSavedGameLog(game);
-        const events = game.events || [];
-        eventLog.render(events);
-        copyXmlButton.disabled = events.length === 0;
         return;
     }
 
@@ -537,7 +543,6 @@ async function startNewGame() {
 }
 
 function initializeApplication() {
-    checkAndApplyMockSeed();
     const currentConfig = loadConfiguration();
     if (currentConfig) {
         eventButtons.setConfig(currentConfig);
@@ -551,11 +556,6 @@ function initializeApplication() {
 
     const initialView = resolveInitialView(window.location.search, window.location.hash, window.location.pathname);
     stateService.setState('ui.currentView', initialView);
-    if (initialView === 'SavedGames') {
-        renderSavedGames();
-    } else if (initialView === 'Log') {
-        handleLogViewActivation(navSavedGames);
-    }
 
     updateNavbarVisibility(stateService.getState('game.hasCurrentGame'));
 }

@@ -109,6 +109,11 @@ export class GameStorageManager {
         this._cachedGames = Array.isArray(games) ? [...games] : null;
     }
 
+    invalidateCache() {
+        this._cachedRaw = null;
+        this._cachedGames = null;
+    }
+
     /**
      * Saves a game to localStorage, pruning oldest if exceeding max limit
      * @param {Object} game - Game object to save

@@ -110,7 +110,7 @@ describe('timeline-video performance optimizations (Focus Mode & Split Mode)', (
         setItemSpy.mockRestore();
     });
 
-    test('Split Mode quickTagEvent inserts the new event card without tearing down existing unmodified cards', () => {
+    test('Split Mode quickTagEvent and undoLastQuickTag update only the affected card without tearing down existing cards', () => {
         mod.setTaggingMode(true);
         mod.setTimelineCollapsed(false); // Split Mode: timeline is visible alongside video
 
@@ -125,5 +125,35 @@ describe('timeline-video performance optimizations (Focus Mode & Split Mode)', (
         expect(allCards.map(c => c.dataset.eventId)).toEqual(['ev-init-1', created.id, 'ev-init-2']);
         // Existing card reference was preserved, not destroyed and recreated
         expect(allCards[0]).toBe(existingFirstCard);
+
+        // Undo in Split Mode removes the popped card in place while preserving existingFirstCard
+        mod.undoLastQuickTag();
+        const afterUndoCards = Array.from(document.querySelectorAll('#timeline-events .timeline-event'));
+        expect(afterUndoCards.map(c => c.dataset.eventId)).toEqual(['ev-init-1', 'ev-init-2']);
+        expect(afterUndoCards[0]).toBe(existingFirstCard);
+    });
+
+    test('cached getCurrentGame round-trip matches post-upsert localStorage game object and respects direct-write invalidation', () => {
+        const video = document.getElementById('video-player');
+        video.currentTime = 45;
+        mod.quickTagEvent('Goal');
+
+        const storedGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        const storedGame = storedGames.find(g => g.id === GAME_ID);
+        const cachedGame = mod.getCurrentGame();
+
+        expect(cachedGame).toEqual(storedGame);
+        expect(cachedGame.elapsedTime).toBe(45000);
+        expect(typeof cachedGame.metadata.lastUpdated).toBe('string');
+
+        // Direct write via shiftGameTimings invalidates both caches so subsequent quickTagEvent preserves shifted timings
+        mod.shiftGameTimings(GAME_ID, 60000, false);
+        video.currentTime = 120;
+        mod.quickTagEvent('Shot');
+
+        const afterShiftGames = JSON.parse(localStorage.getItem('fieldHockeyGames_v1'));
+        const afterShiftGame = afterShiftGames.find(g => g.id === GAME_ID);
+        expect(afterShiftGame.events[0].timeMs).toBe(70000);
+        expect(afterShiftGame.events).toHaveLength(4);
     });
 });

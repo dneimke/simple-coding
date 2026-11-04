@@ -1,6 +1,7 @@
 import { logger } from '../utils/formatUtils.js';
 import { stateService } from '../services/stateService.js';
 import { ensureSampleGameExists, SAMPLE_GAME_ID } from '../utils/seedData.js';
+import { resolveInitialView } from '../utils/navigationUtils.js';
 
 export class Router {
     constructor(views, tabs) {
@@ -124,20 +125,10 @@ export class Router {
      * @private
      * @returns {string} View name
      */
-    // fallow-ignore-next-line complexity
     _resolveDefaultView() {
         const search = typeof window !== 'undefined' && window.location?.search ? window.location.search : '';
-        const params = new URLSearchParams(search);
-        const viewParam = params.get('view');
-        const mockParam = params.get('mock');
         const pathname = typeof window !== 'undefined' && window.location?.pathname ? window.location.pathname : '';
-
-        if (viewParam === 'config') return 'Config';
-        if (viewParam === 'help') return 'Help';
-        if (pathname.includes('/dev/preview') || viewParam === 'event-capture' || mockParam === 'active' || mockParam === 'pc-counter') {
-            return 'EventCapture';
-        }
-        return 'SavedGames';
+        return resolveInitialView(search, '', pathname);
     }
 
     /**
