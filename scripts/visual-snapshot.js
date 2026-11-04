@@ -250,41 +250,58 @@ async function captureAppendXmlSnapshots(browser, baseUrl, results) {
     }
 }
 
-async function snapshotVideoCodingEditBar(videoPage, vp, results) {
-    const editTagsBtn = await videoPage.$('#edit-quick-tags-btn');
-    if (editTagsBtn) await editTagsBtn.click();
-    await videoPage.waitForSelector('.quick-tag-delete-badge');
-    await videoPage.waitForSelector('#quick-tags-edit-bar:not(.hidden)');
-    await videoPage.waitForTimeout(300);
+async function snapshotNewVideoTeamDialog(browser, baseUrl, results) {
+    for (const vp of VIEWPORTS) {
+        const ctx = await browser.newContext({
+            viewport: { width: vp.width, height: vp.height },
+            deviceScaleFactor: 2
+        });
+        const page = await ctx.newPage();
+        await page.goto(`${baseUrl}/timeline-video.html?new=video`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#teamSetupModal:not(.hidden)');
+        await page.waitForTimeout(300);
 
-    const editTagsPath = path.join(OUTPUT_DIR, `video-coding-edit-tags-${vp.name}.png`);
-    await videoPage.screenshot({ path: editTagsPath, fullPage: true });
+        const dialogPath = path.join(OUTPUT_DIR, `video-new-match-teams-${vp.name}.png`);
+        await page.screenshot({ path: dialogPath, fullPage: true });
+        results.push({
+            name: 'video-new-match-teams',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `video-new-match-teams-${vp.name}.png`,
+            bytes: fs.statSync(dialogPath).size
+        });
 
-    results.push({
-        name: 'video-coding-edit-tags',
-        viewport: vp.name,
-        size: `${vp.width}x${vp.height}`,
-        file: `video-coding-edit-tags-${vp.name}.png`,
-        bytes: fs.statSync(editTagsPath).size
-    });
+        await page.click('#teamSetupSubmit');
+        await page.waitForSelector('#video-coding-panel:not(.hidden)');
+        await page.waitForSelector('#edit-match-teams-btn:not(.hidden)');
+        await page.waitForTimeout(300);
 
-    const moveRightBtn = await videoPage.$('.quick-tag-move-btn.move-right:not([disabled])');
-    if (moveRightBtn) await moveRightBtn.click();
-    await videoPage.waitForTimeout(200);
+        const stripPath = path.join(OUTPUT_DIR, `video-new-match-strip-${vp.name}.png`);
+        await page.screenshot({ path: stripPath, fullPage: true });
+        results.push({
+            name: 'video-new-match-strip',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `video-new-match-strip-${vp.name}.png`,
+            bytes: fs.statSync(stripPath).size
+        });
 
-    const reorderPath = path.join(OUTPUT_DIR, `video-coding-reordered-${vp.name}.png`);
-    await videoPage.screenshot({ path: reorderPath, fullPage: true });
+        await page.click('#quick-tags-container .quick-tag-btn');
+        await page.waitForFunction(() => document.getElementById('edit-match-teams-btn')?.classList.contains('hidden'));
+        await page.waitForTimeout(300);
 
-    results.push({
-        name: 'video-coding-reordered',
-        viewport: vp.name,
-        size: `${vp.width}x${vp.height}`,
-        file: `video-coding-reordered-${vp.name}.png`,
-        bytes: fs.statSync(reorderPath).size
-    });
+        const taggedPath = path.join(OUTPUT_DIR, `video-new-match-tagged-${vp.name}.png`);
+        await page.screenshot({ path: taggedPath, fullPage: true });
+        results.push({
+            name: 'video-new-match-tagged',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `video-new-match-tagged-${vp.name}.png`,
+            bytes: fs.statSync(taggedPath).size
+        });
 
-    if (editTagsBtn) await editTagsBtn.click();
-    await videoPage.waitForTimeout(200);
+        await ctx.close();
+    }
 }
 
 async function snapshotVideoCodingSplitAndNote(videoPage, vp, results) {
@@ -329,14 +346,13 @@ async function captureVideoCodingInteractionSnapshots(browser, baseUrl, results)
         await videoPage.waitForSelector('#video-coding-panel:not(.hidden)');
         await videoPage.waitForSelector('.quick-tag-btn');
         
-        const goalBtn = await videoPage.$('.quick-tag-btn[data-quick-tag="Goal"]');
-        if (goalBtn) await goalBtn.click();
+        const shotBtn = await videoPage.$('.quick-tag-btn[data-tag-id="t1-shot"]');
+        if (shotBtn) await shotBtn.click();
         await videoPage.waitForTimeout(300);
 
         const taggingModePath = path.join(OUTPUT_DIR, `video-coding-tagging-mode-${vp.name}.png`);
         await videoPage.screenshot({ path: taggingModePath, fullPage: true });
 
-        await snapshotVideoCodingEditBar(videoPage, vp, results);
         await snapshotVideoCodingSplitAndNote(videoPage, vp, results);
 
         await videoCtx.close();
@@ -344,28 +360,18 @@ async function captureVideoCodingInteractionSnapshots(browser, baseUrl, results)
 }
 
 async function captureZoneSuffixSnapshots(browser, baseUrl, results) {
-    const zoneTags = [
-        { id: 'fire-bs', label: 'BS', team: 'team1', colorClass: 'btn-red', zoned: true },
-        { id: 'fire-cd', label: 'CD', team: 'team1', colorClass: 'btn-red', zoned: false },
-        { id: 'tigers-bs', label: 'BS', team: 'team2', colorClass: 'btn-yellow', zoned: true },
-        { id: 'tigers-cd', label: 'CD', team: 'team2', colorClass: 'btn-yellow', zoned: false }
-    ];
     for (const vp of VIEWPORTS) {
         const zoneCtx = await browser.newContext({
             viewport: { width: vp.width, height: vp.height },
             deviceScaleFactor: 2
         });
         const zonePage = await zoneCtx.newPage();
-        await zonePage.addInitScript((tags) => {
-            localStorage.setItem('fieldHockeyVideoQuickTags_v1', JSON.stringify(tags));
-        }, zoneTags);
         await zonePage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample&mode=tag`, { waitUntil: 'domcontentloaded' });
         await zonePage.waitForSelector('#video-zone-bar:not(.hidden)');
         await zonePage.waitForSelector('.zone-button.is-active[data-zone="1"]');
         await zonePage.waitForFunction(() => {
-            const fire = document.querySelector('[data-tag-id="fire-bs"] .tag-label');
-            const tigers = document.querySelector('[data-tag-id="tigers-bs"] .tag-label');
-            return fire && tigers && fire.textContent === 'BS1' && tigers.textContent === 'BS4';
+            const label = (id) => document.querySelector(`[data-tag-id="${id}"] .tag-label`)?.textContent || '';
+            return `${label('t1-bs')}|${label('t2-bs')}|${label('t1-shot')}` === 'BS1|BS4|SHOT';
         });
 
         const zone1Path = path.join(OUTPUT_DIR, `video-zone-step1-zone1-${vp.name}.png`);
@@ -381,8 +387,8 @@ async function captureZoneSuffixSnapshots(browser, baseUrl, results) {
 
         await zonePage.click('.zone-button[data-zone="3"]');
         await zonePage.waitForFunction(() => {
-            const getLabel = id => document.querySelector(`[data-tag-id="${id}"] .tag-label`)?.textContent;
-            return getLabel('fire-bs') === 'BS3' && getLabel('tigers-bs') === 'BS2' && getLabel('fire-cd') === 'CD';
+            const label = (id) => document.querySelector(`[data-tag-id="${id}"] .tag-label`)?.textContent || '';
+            return `${label('t1-bs')}|${label('t2-bs')}|${label('t1-shot')}` === 'BS3|BS2|SHOT';
         });
 
         const zone3Path = path.join(OUTPUT_DIR, `video-zone-step2-zone3-${vp.name}.png`);
@@ -396,24 +402,15 @@ async function captureZoneSuffixSnapshots(browser, baseUrl, results) {
             bytes: zone3Stats.size
         });
 
-        await zonePage.click('#edit-quick-tags-btn');
-        await zonePage.waitForSelector('#quick-tags-edit-bar:not(.hidden)');
-        await zonePage.click('.quick-tag-btn[data-tag-id="fire-bs"]');
-        await zonePage.waitForFunction(() => {
-            const box = document.getElementById('tag-add-zone-checkbox');
-            const input = document.getElementById('new-tag-label-input');
-            return box && box.checked && input && input.value === 'BS';
-        });
-
-        const editorPath = path.join(OUTPUT_DIR, `video-zone-step3-editor-${vp.name}.png`);
-        await zonePage.screenshot({ path: editorPath, fullPage: true });
-        const editorStats = fs.statSync(editorPath);
+        const shotPath = path.join(OUTPUT_DIR, `video-zone-step3-shot-${vp.name}.png`);
+        await zonePage.screenshot({ path: shotPath, fullPage: true });
+        const shotStats = fs.statSync(shotPath);
         results.push({
-            name: 'video-zone-step3-editor',
+            name: 'video-zone-step3-shot',
             viewport: vp.name,
             size: `${vp.width}x${vp.height}`,
-            file: `video-zone-step3-editor-${vp.name}.png`,
-            bytes: editorStats.size
+            file: `video-zone-step3-shot-${vp.name}.png`,
+            bytes: shotStats.size
         });
 
         await zoneCtx.close();
@@ -820,6 +817,7 @@ async function runSnapshots() {
         await captureContinueCodingSnapshots(browser, baseUrl, results);
         await captureAppendXmlSnapshots(browser, baseUrl, results);
         await captureVideoCodingInteractionSnapshots(browser, baseUrl, results);
+        await snapshotNewVideoTeamDialog(browser, baseUrl, results);
         await captureZoneSuffixSnapshots(browser, baseUrl, results);
         await captureVideoUrlAttachmentSnapshots(browser, baseUrl, results);
         await captureLabelSweepSnapshots(browser, baseUrl, results);
