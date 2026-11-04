@@ -10,6 +10,7 @@
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage",
+    "test:perf": "node scripts/perf-benchmark.js",
     "test:visual": "node scripts/visual-snapshot.js",
     "audit": "fallow audit --base origin/main",
     "audit:all": "fallow",

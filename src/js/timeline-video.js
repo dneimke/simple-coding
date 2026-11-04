@@ -88,14 +88,26 @@ function attachEventLabel(event, label) {
     event.labels.push(label);
 }
 
+function refreshTimelineForUpdatedEvent(ev) {
+    if (isTimelineCollapsed) {
+        timelineNeedsRender = true;
+        updateFilterToggleUI();
+        return;
+    }
+    if (!replaceTimelineEventCardInPlace(ev)) {
+        renderTimelineEvents();
+        return;
+    }
+    updateFilterToggleUI();
+}
+
 function updateGameEventLabels(game, eventId, labels) {
-    if (!game || !Array.isArray(game.events)) return;
-    const ev = game.events.find(e => e.id === eventId);
+    const ev = game?.events?.find(e => e.id === eventId);
     if (!ev) return;
     ev.labels = labels;
-    saveGame(game.id, game.events, game.metadata);
+    saveGame(game.id, game.events, { ...game.metadata, ...(game.teams && { teams: game.teams }) });
     timelineEvents = game.events;
-    renderTimelineEvents();
+    refreshTimelineForUpdatedEvent(ev);
     updateQuickTagTicker();
 }
 
@@ -289,6 +301,7 @@ function commitDraftGame() {
             savedGames.unshift(currentDraftGame);
         }
         storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        invalidateSavedGamesCache();
         const committed = currentDraftGame;
         currentDraftGame = null;
         updateSaveStatusUI();
@@ -407,6 +420,7 @@ function createNewVideoGame(customName) {
 
     updateTitleUI(teams);
     updateSaveStatusUI();
+    timelineNeedsRender = false;
     updateEventFilters();
     renderTimelineEvents();
     updateQuickTagTicker();
@@ -477,10 +491,12 @@ function quickTagEvent(eventType, note = '') {
     };
     game.events.push(newEvent);
 
-    persistGameEventsAndRefresh(game);
+    persistGameEventsAndRefresh(game, {}, { insertedEvent: newEvent });
     updateQuickTagTicker();
     showQuickTagFeedback(eventType, ts);
-    highlightTimelineEvent(newEvent.id);
+    if (!isTimelineCollapsed) {
+        highlightTimelineEvent(newEvent.id);
+    }
     if (videoChordEngine) videoChordEngine.startChord(newEvent);
 
     return newEvent;
@@ -796,45 +812,46 @@ function undoLastQuickTag() {
     return true;
 }
 
+function syncTimelineCounters(count) {
+    const text = String(count);
+    setElementText('ticker-event-count', text);
+    setElementText('timeline-events-counter', text);
+    if (isTimelineCollapsed) {
+        setElementText('quick-tag-review-label', `Events Panel (${text}) ▾`);
+    }
+}
+
+function setUndoButtonDisabled(undoBtn, disabled) {
+    if (!undoBtn) return;
+    undoBtn.disabled = disabled;
+    undoBtn.classList.toggle('opacity-40', disabled);
+}
+
 // Update Focus Tagging Ticker (Last event + Undo status + Event count)
 function updateQuickTagTicker() {
     const tickerLast = document.getElementById('ticker-last-event');
     const undoBtn = document.getElementById('quick-tag-undo-btn');
-    const countSpan = document.getElementById('ticker-event-count');
     const game = getCurrentGame();
-    const events = (game && Array.isArray(game.events)) ? game.events : [];
+    const events = Array.isArray(game?.events) ? game.events : [];
 
-    if (countSpan) {
-        countSpan.textContent = events.length.toString();
-    }
-    const timelineCounter = document.getElementById('timeline-events-counter');
-    if (timelineCounter) {
-        timelineCounter.textContent = events.length.toString();
-    }
+    syncTimelineCounters(events.length);
 
     if (!events.length) {
         if (tickerLast) tickerLast.textContent = 'No events logged yet';
-        if (undoBtn) {
-            undoBtn.disabled = true;
-            undoBtn.classList.add('opacity-40');
-        }
+        setUndoButtonDisabled(undoBtn, true);
         return;
     }
 
     const last = events[events.length - 1];
     if (tickerLast) {
-        const labelText = (Array.isArray(last.labels) && last.labels.length > 0)
-            ? ` [${last.labels.map(l => l.text).join(', ')}]`
-            : '';
+        const labelText = last.labels?.length ? ` [${last.labels.map(l => l.text).join(', ')}]` : '';
         tickerLast.textContent = `${formatEventTypeName(last.event)}${labelText} (${last.timestamp || formatTime(last.timeMs)})`;
     }
-    if (undoBtn) {
-        undoBtn.disabled = false;
-        undoBtn.classList.remove('opacity-40');
-    }
+    setUndoButtonDisabled(undoBtn, false);
 }
 
 let isTimelineCollapsed = false;
+let timelineNeedsRender = false;
 
 // Collapse or expand the events side panel
 function setTimelineCollapsed(collapsed) {
@@ -851,6 +868,11 @@ function setTimelineCollapsed(collapsed) {
         label.textContent = isTimelineCollapsed
             ? `Events Panel (${count}) ▾`
             : `Hide Events ▴`;
+    }
+    if (!isTimelineCollapsed && timelineNeedsRender) {
+        timelineNeedsRender = false;
+        updateEventFilters();
+        renderTimelineEvents();
     }
     return isTimelineCollapsed;
 }
@@ -1307,21 +1329,83 @@ function findEventInCurrentGame(eventId) {
     return { game, event };
 }
 
-function persistGameEventsAndRefresh(game, metadata = {}) {
-    const meta = (game && game.metadata) ? { ...game.metadata, ...metadata } : { ...metadata };
-    saveGame(game.id, game.events, meta);
+function isEventVisibleInCurrentFilter(event) {
+    const matchesType = activeTypeFilters.size === 0 || activeTypeFilters.has(event.event);
+    if (!matchesType) return false;
+    if (filterViewMode === 'favorites') return !!event.isFavorite;
+    if (filterViewMode === 'unlabelled') {
+        const schema = getLabelSchemaForEvent(event);
+        if (!schema) return false;
+        return !Array.isArray(event.labels) || event.labels.length === 0;
+    }
+    return true;
+}
 
-    const savedGames = getSavedGames();
-    if (game.teams) {
-        const { game: existing, index } = findGameById(savedGames, game.id);
-        if (existing) {
-            existing.teams = game.teams;
-            savedGames[index] = existing;
-            storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+function hasFilterOptionForType(eventType) {
+    if (!eventType) return true;
+    const container = document.getElementById('filter-options-container');
+    if (!container) return true;
+    return Array.from(container.querySelectorAll('.filter-checkbox')).some(
+        cb => cb.getAttribute('data-filter') === eventType
+    );
+}
+
+function insertTimelineEventCardIncremental(newEvent) {
+    const timelineContainer = document.getElementById('timeline-events');
+    if (!timelineContainer || timelineNeedsRender) return false;
+    const existingCards = timelineContainer.querySelectorAll('.timeline-event');
+    if (existingCards.length === 0) return false;
+
+    if (!hasFilterOptionForType(newEvent.event)) {
+        updateEventFilters();
+    } else {
+        syncFilterUI();
+    }
+
+    if (isEventVisibleInCurrentFilter(newEvent)) {
+        const card = createTimelineEventCard(newEvent, timelineEvents.length - 1);
+        const newTime = Number(newEvent.timeMs) || 0;
+        const nextCard = Array.from(existingCards).find(
+            el => (Number(el.dataset.timeMs) || 0) > newTime
+        );
+        if (nextCard) {
+            timelineContainer.insertBefore(card, nextCard);
+        } else {
+            timelineContainer.appendChild(card);
         }
     }
 
+    updateFilterToggleUI();
+    return true;
+}
+
+function replaceTimelineEventCardInPlace(event) {
+    if (filterViewMode !== 'all' || timelineNeedsRender) return false;
+    const existing = document.querySelector(`#timeline-events .timeline-event[data-event-id="${event.id}"]`);
+    if (!existing) return false;
+    existing.replaceWith(createTimelineEventCard(event, Math.max(0, timelineEvents.indexOf(event))));
+    return true;
+}
+
+function persistGameEventsAndRefresh(game, metadata = {}, options = {}) {
+    const meta = (game && game.metadata) ? { ...game.metadata, ...metadata } : { ...metadata };
+    if (game && game.teams) {
+        meta.teams = game.teams;
+    }
+    saveGame(game.id, game.events, meta);
+
     timelineEvents = game.events;
+    if (isTimelineCollapsed) {
+        timelineNeedsRender = true;
+        updateFilterToggleUI();
+        return;
+    }
+
+    if (options.insertedEvent && insertTimelineEventCardIncremental(options.insertedEvent)) {
+        return;
+    }
+
+    timelineNeedsRender = false;
     updateEventFilters();
     renderTimelineEvents();
 }
@@ -1411,8 +1495,8 @@ function updatePresentationOverlay(event) {
 
 // Highlight the current event in the timeline
 function highlightTimelineEvent(eventId) {
-    // Remove highlight from all events
-    const events = document.querySelectorAll('.timeline-event');
+    // Remove highlight from currently active event(s)
+    const events = document.querySelectorAll('.timeline-event.is-active');
     events.forEach(el => {
         el.classList.remove('is-active');
     });
@@ -1847,11 +1931,23 @@ function showNotification(message, type = 'success') {
     notificationService.notify(message, type);
 }
 
+let cachedSavedGamesRaw = null;
+let cachedSavedGamesList = null;
+
 // Game management functions
 function getSavedGames() {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY_GAMES) : null;
+    if (raw && raw === cachedSavedGamesRaw && Array.isArray(cachedSavedGamesList)) {
+        return cachedSavedGamesList;
+    }
+
     const storedGames = storageService.getItem(LOCAL_STORAGE_KEY_GAMES);
     const { games: normalized, changed } = normalizeSavedGamesToArray(storedGames);
-    if (!normalized || normalized.length === 0) return [];
+    if (!normalized || normalized.length === 0) {
+        cachedSavedGamesRaw = null;
+        cachedSavedGamesList = null;
+        return [];
+    }
 
     // If normalization assigned ids or transformed object shape, persist the updated array
     if (changed) {
@@ -1862,15 +1958,24 @@ function getSavedGames() {
         }
     }
 
+    cachedSavedGamesRaw = typeof localStorage !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY_GAMES) : null;
+    cachedSavedGamesList = normalized;
     return normalized;
+}
+
+function invalidateSavedGamesCache() {
+    cachedSavedGamesRaw = null;
+    cachedSavedGamesList = null;
 }
 
 function saveGame(gameId, events, metadata = {}) {
     const success = gameStorageManager.upsertGame(gameId, events, metadata);
     if (!success) {
+        invalidateSavedGamesCache();
         showNotification("Error saving game", "error");
         return false;
     }
+    cachedSavedGamesRaw = typeof localStorage !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY_GAMES) : null;
     return true;
 }
 
@@ -1912,6 +2017,7 @@ function persistAttachedVideoUrl(game, cleanUrl) {
         existing.metadata.videoUrl = cleanUrl;
         savedGames[index] = existing;
         storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+        invalidateSavedGamesCache();
     }
 }
 
@@ -1962,6 +2068,7 @@ function detachVideo() {
             if (existing.metadata) delete existing.metadata.videoUrl;
             savedGames[index] = existing;
             storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+            invalidateSavedGamesCache();
         }
     }
 
@@ -2002,9 +2109,7 @@ function loadGame(gameId) {
             activeVideoZone = normalizeVideoZone(game.metadata && game.metadata.activeZone);
 
             // Update current events and render timeline
-            timelineEvents = events;
-            updateEventFilters();
-            renderTimelineEvents();
+            syncTimelineAfterGameLoad(events);
             updateQuickTagTicker();
 
             const displayName = game.teams || gameId;
@@ -2035,20 +2140,19 @@ function loadGame(gameId) {
 
 
 
-// Events that pass both the type filter and the view mode toggle (all, favorites, unlabelled)
+function syncTimelineAfterGameLoad(events) {
+    timelineEvents = events;
+    if (isTimelineCollapsed) {
+        timelineNeedsRender = true;
+        updateFilterToggleUI();
+        return;
+    }
+    timelineNeedsRender = false;
+    updateEventFilters();
+    renderTimelineEvents();
+}
 function getVisibleEvents() {
-    return timelineEvents.filter(event => {
-        const matchesType = activeTypeFilters.size === 0 || activeTypeFilters.has(event.event);
-        if (!matchesType) return false;
-        if (filterViewMode === 'favorites') return !!event.isFavorite;
-        if (filterViewMode === 'unlabelled') {
-            const schema = getLabelSchemaForEvent(event);
-            if (!schema) return false;
-            const hasLabels = Array.isArray(event.labels) && event.labels.length > 0;
-            return !hasLabels;
-        }
-        return true;
-    });
+    return timelineEvents.filter(isEventVisibleInCurrentFilter);
 }
 
 function setTypeFilters(types) {
@@ -2145,21 +2249,25 @@ function deleteEvent(eventId) {
 
 // Shift all event timings for a game (in-place or duplicate copy)
 function shiftGameTimings(gameId, offsetMs, createCopy = false) {
-    return execShiftGameTimings(gameId, offsetMs, createCopy, {
+    const res = execShiftGameTimings(gameId, offsetMs, createCopy, {
         getSavedGames,
         findGameById,
         getCurrentDraftGame: () => currentDraftGame,
         updateCurrentDraftEvents: (evts) => { timelineEvents = evts; }
     });
+    invalidateSavedGamesCache();
+    return res;
 }
 
 function revertGameTimings(gameId) {
-    return execRevertGameTimings(gameId, {
+    const res = execRevertGameTimings(gameId, {
         getSavedGames,
         findGameById,
         getCurrentDraftGame: () => currentDraftGame,
         updateCurrentDraftEvents: (evts) => { timelineEvents = evts; }
     });
+    invalidateSavedGamesCache();
+    return res;
 }
 function updateModalPreview() {
     const game = getCurrentGame();
@@ -2470,6 +2578,7 @@ function createTimelineEventCard(event, index) {
     eventElement.className = 'timeline-event';
     const eventElementId = event.id || `event-${index}`;
     eventElement.dataset.eventId = eventElementId;
+    eventElement.dataset.timeMs = String(event.timeMs || 0);
 
     const timeFormatted = formatTime(event.timeMs);
     const eventName = formatEventTypeName(event.event);
@@ -2563,6 +2672,7 @@ function updateTimelineEmptyStateUI(timelineContainer, timelineEvents, eventsToR
 
 // Render timeline with current events (sorted with earliest events at the top)
 function renderTimelineEvents() {
+    timelineNeedsRender = false;
     const timelineContainer = document.getElementById('timeline-events');
     syncFilterUI();
     if (!timelineContainer) return;
@@ -3309,12 +3419,11 @@ function loadGameFromQuery() {
     if (gameId === SAMPLE_GAME_ID) {
         ensureSampleGameExists();
     }
-    if (!gameId || !loadGame(gameId)) {
-        showNoGameSelectedState();
-    }
-
     if (initialMode === 'tag') {
         setTaggingMode(true);
+    }
+    if (!gameId || !loadGame(gameId)) {
+        showNoGameSelectedState();
     }
 }
 

@@ -31,9 +31,14 @@ export class GameState {
      * @private
      */
     _updateUI(gameState) {
-        // Update event log if available
+        // Only render EventLog immediately if the live Log view is currently visible
         if (gameState.loggedEvents && this.eventLog) {
-            this.eventLog.render(gameState.loggedEvents);
+            const currentView = stateService.getState('ui.currentView');
+            const isViewingSavedGame = Boolean(stateService.getState('ui.logGameId'));
+            if (currentView === 'Log' && !isViewingSavedGame) {
+                const activeTab = stateService.getState('ui.currentTab') || 'recentView';
+                this.eventLog.render(gameState.loggedEvents, { activeTab });
+            }
         }
 
         if (this.eventButtons) {

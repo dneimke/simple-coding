@@ -41,11 +41,11 @@ export function resolveInitialView(search, hash = '', pathname = '') {
     if (viewParam === 'help' || cleanHash === 'help') {
         return 'Help';
     }
-    if (isEventCaptureRoute(viewParam, cleanHash, mockParam, isDevPreview)) {
-        return 'EventCapture';
-    }
     if (viewParam === 'log' || cleanHash === 'log') {
         return 'Log';
+    }
+    if (isEventCaptureRoute(viewParam, cleanHash, mockParam, isDevPreview)) {
+        return 'EventCapture';
     }
     return 'SavedGames';
 }
