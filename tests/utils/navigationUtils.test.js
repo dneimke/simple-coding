@@ -23,9 +23,11 @@ describe('navigationUtils', () => {
             expect(resolveInitialView('', '', '/dev/preview')).toBe('EventCapture');
         });
 
-        test('resolves Log view from query param or hash', () => {
+        test('resolves Log view from query param or hash, including when mock=active is present', () => {
             expect(resolveInitialView('?view=log', '', '')).toBe('Log');
             expect(resolveInitialView('', '#log', '')).toBe('Log');
+            expect(resolveInitialView('', '#log?mock=active', '')).toBe('Log');
+            expect(resolveInitialView('?mock=active', '#log', '')).toBe('Log');
             expect(resolveInitialView('', '#log/game-123', '')).toBe('Log');
         });
 

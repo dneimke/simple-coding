@@ -292,7 +292,6 @@ function renderSavedGames() {
  */
 function createExportButton() {
     const savedGamesView = document.getElementById('saved-games-view');
-const helpView = document.getElementById('help-view');
     const importButton = document.getElementById('importXmlButton');
 
     if (savedGamesView && importButton) {
@@ -307,15 +306,24 @@ const helpView = document.getElementById('help-view');
  * Renders the Log view for either a saved game (when ui.logGameId is set) or the live game.
  * Viewing a saved game never touches the live game state.
  */
+function resolveSavedGameLogTab() {
+    const currentTab = stateService.getState('ui.currentTab');
+    if (currentTab === 'recentView') {
+        router.switchTab('timelineView');
+        return 'timelineView';
+    }
+    return currentTab || 'timelineView';
+}
+
 function renderSavedGameLog(game) {
     savedGameLogTitle.textContent = game.teams || 'Game';
     savedGameLogBanner.classList.remove('hidden');
     backToCaptureButton.classList.add('hidden');
     tabButtonRecent.classList.add('hidden');
     recentViewPanel.innerHTML = '';
-    if (stateService.getState('ui.currentTab') === 'recentView') {
-        router.switchTab('timelineView');
-    }
+    const events = game.events || [];
+    eventLog.render(events, { activeTab: resolveSavedGameLogTab() });
+    copyXmlButton.disabled = events.length === 0;
 }
 
 function renderLiveGameLog(events) {
@@ -336,15 +344,12 @@ function renderLogView() {
             return;
         }
         renderSavedGameLog(game);
-        const events = game.events || [];
-        eventLog.render(events);
-        copyXmlButton.disabled = events.length === 0;
         return;
     }
 
     const events = stateService.getState('game.loggedEvents') || [];
     renderLiveGameLog(events);
-    eventLog.render(events);
+    eventLog.render(events, { activeTab: 'recentView' });
     copyXmlButton.disabled = events.length === 0;
 }
 
@@ -537,23 +542,10 @@ async function startNewGame() {
     showCaptureControls();
 }
 
-function parseEditorConfig() {
-    const parsedConfig = JSON.parse(configJsonInput.value);
-    validateConfig(parsedConfig);
-    return parsedConfig;
-}
-
 function initializeApplication() {
-    checkAndApplyMockSeed();
     const currentConfig = loadConfiguration();
     if (currentConfig) {
         eventButtons.setConfig(currentConfig);
-    }
-
-    const initialView = resolveInitialView(window.location.search, window.location.hash, window.location.pathname);
-    stateService.setState('ui.currentView', initialView);
-    if (initialView === 'SavedGames') {
-        renderSavedGames();
     }
 
     registerEventListeners();
@@ -561,6 +553,9 @@ function initializeApplication() {
     renderBoardOptions();
     showConfigView();
     restoreCaptureDraft();
+
+    const initialView = resolveInitialView(window.location.search, window.location.hash, window.location.pathname);
+    stateService.setState('ui.currentView', initialView);
 
     updateNavbarVisibility(stateService.getState('game.hasCurrentGame'));
 }
@@ -587,7 +582,6 @@ function syncChrome() {
         lastEventText: lastEvent ? `${lastEvent.event} · ${formatTime(lastEvent.timeMs)}` : '',
         elapsedTime: stateService.getState('game.elapsedTime') || 0
     });
-    eventButtons.updateBadgeCounts(events);
     renderActiveMatchBanner();
     return hasGame;
 }
@@ -1000,7 +994,7 @@ async function handleAppendFileSelected(file, game) {
 
 function initXmlImportEventListeners() {
     copyXmlButton.addEventListener('click', () => {
-        const xmlContent = xmlOutputContainer.textContent;
+        const xmlContent = eventLog.getXmlText();
         copyXmlToClipboard(xmlContent);
     });
 
@@ -1050,6 +1044,16 @@ function registerEventListeners() {
     initXmlImportEventListeners();
 }
 
+const eventLog = new EventLog(timelineViewPanel, xmlOutputContainer, statisticsViewPanel);
+const eventButtons = new EventButtons(codingButtonsContainer);
+const gameState = new GameState(timerDisplay, eventLog, eventButtons);
+
+// Ensure mock seeds and active draft state are loaded before Router evaluates #log route guards
+checkAndApplyMockSeed();
+if (draftService.loadDraft()) {
+    stateService.setState('game.hasCurrentGame', true);
+}
+
 const router = new Router(
     {
         EventCapture: { view: trackerView, button: null },
@@ -1069,10 +1073,6 @@ const router = new Router(
         statisticsView: statisticsViewPanel
     }
 );
-
-const eventLog = new EventLog(timelineViewPanel, xmlOutputContainer, statisticsViewPanel);
-const eventButtons = new EventButtons(codingButtonsContainer);
-const gameState = new GameState(timerDisplay, eventLog, eventButtons);
 
 function highlightSavedGamesNav(navSavedGames) {
     if (!navSavedGames) return;
@@ -1103,22 +1103,24 @@ function handleViewChange(viewName) {
 
 stateService.subscribe('ui.currentView', handleViewChange);
 
+stateService.subscribe('ui.currentTab', (tabName) => {
+    if (stateService.getState('ui.currentView') === 'Log') {
+        eventLog.renderTab(tabName);
+    }
+});
+
 // Child-path changes (game.loggedEvents) and whole-game replacements (newGame, restore, complete) both notify 'game'
 stateService.subscribe('game', syncChrome);
+
+const KNOWN_INITIAL_ROUTES = new Set(['help', 'event-capture', 'log']);
 
 // Initial navigation based on URL hash or defaults to SavedGames (Matches Hub)
 function handleInitialNavigation() {
     initLiveChordEngine();
-    const fullHash = window.location.hash.substring(1);
-    const routeOnly = fullHash.split('?')[0];
-    const [hash] = routeOnly.split('/');
+    const [hash] = window.location.hash.substring(1).split('?')[0].split('/');
     if (hash === 'configure') {
         showConfigView();
-    } else if (hash === 'help' || hash.startsWith('help-')) {
-        // Help view
-    } else if (hash === 'event-capture') {
-        // Event capture view
-    } else {
+    } else if (!KNOWN_INITIAL_ROUTES.has(hash) && !hash.startsWith('help-')) {
         renderSavedGames();
     }
 

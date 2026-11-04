@@ -35,12 +35,18 @@ jobs:
       if: ${{ !cancelled() }}
       run: node scripts/test-summary.js test-results.json coverage/coverage-summary.json
 
+    - name: Run Performance Benchmarks
+      run: |
+        which google-chrome || npx playwright install chromium
+        npm run test:perf
+
     - name: Codebase audit & health (Fallow)
       if: ${{ !cancelled() }}
       run: |
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Guardrails & Type Safety" >> $GITHUB_STEP_SUMMARY
         echo ":white_check_mark: **Type Check:** \`tsc -p jsconfig.json\` passed with 0 errors." >> $GITHUB_STEP_SUMMARY
+        echo ":white_check_mark: **Performance Gate:** \`npm run test:perf\` passed 500 & 1,000-event latency and DOM/storage invariants." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         AUDIT_STATUS=0
         npx fallow audit --format github-summary >> $GITHUB_STEP_SUMMARY || AUDIT_STATUS=$?

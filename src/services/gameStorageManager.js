@@ -30,14 +30,7 @@ export function findGameInArray(gamesArray, gameId) {
 function standardizeEvent(evt) {
     return {
         ...evt,
-        event: evt.event,
-        timeMs: evt.timeMs,
-        id: evt.id,
-        isFavorite: evt.isFavorite || false,
-        ...(evt.note !== undefined && { note: evt.note }),
-        ...(evt.timestamp !== undefined && { timestamp: evt.timestamp }),
-        ...(evt.lead !== undefined && { lead: evt.lead }),
-        ...(evt.lag !== undefined && { lag: evt.lag })
+        isFavorite: Boolean(evt.isFavorite)
     };
 }
 
@@ -100,6 +93,18 @@ export class GameStorageManager {
     constructor(maxGames = 20, storageKey = 'fieldHockeyGames_v1') {
         this.MAX_GAMES = maxGames;
         this.STORAGE_KEY = storageKey;
+        this._cachedRaw = null;
+        this._cachedGames = null;
+    }
+
+    _updateCache(games) {
+        this._cachedRaw = typeof localStorage !== 'undefined' ? localStorage.getItem(this.STORAGE_KEY) : null;
+        this._cachedGames = Array.isArray(games) ? [...games] : null;
+    }
+
+    invalidateCache() {
+        this._cachedRaw = null;
+        this._cachedGames = null;
     }
 
     /**
@@ -129,6 +134,7 @@ export class GameStorageManager {
             const result = storageService.setItem(this.STORAGE_KEY, games);
 
             if (result === true) {
+                this._updateCache(games);
                 logger.log('Game saved successfully.');
                 return true;
             } else {
@@ -171,6 +177,7 @@ export class GameStorageManager {
 
             const result = storageService.setItem(this.STORAGE_KEY, games);
             if (result === true) {
+                this._updateCache(games);
                 return true;
             }
             logger.error('Error saving game:', result.message);
@@ -187,8 +194,17 @@ export class GameStorageManager {
      */
     getAllGames() {
         try {
+            const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(this.STORAGE_KEY) : null;
+            if (raw && raw === this._cachedRaw && Array.isArray(this._cachedGames)) {
+                return [...this._cachedGames];
+            }
             const games = storageService.getItem(this.STORAGE_KEY);
-            return games || [];
+            if (Array.isArray(games)) {
+                this._cachedRaw = raw;
+                this._cachedGames = [...games];
+                return games;
+            }
+            return [];
         } catch (error) {
             logger.error('Error retrieving games:', error);
             return [];
@@ -211,7 +227,9 @@ export class GameStorageManager {
 
         if (changed) {
             const result = storageService.setItem(this.STORAGE_KEY, games);
-            if (result !== true) {
+            if (result === true) {
+                this._updateCache(games);
+            } else {
                 logger.error('Error persisting game ids:', result.message);
             }
         }
@@ -244,6 +262,7 @@ export class GameStorageManager {
                 const result = storageService.setItem(this.STORAGE_KEY, games);
 
                 if (result === true) {
+                    this._updateCache(games);
                     logger.log('Game updated successfully.');
                     return true;
                 } else {
@@ -273,6 +292,7 @@ export class GameStorageManager {
                 const result = storageService.setItem(this.STORAGE_KEY, games);
 
                 if (result === true) {
+                    this._updateCache(games);
                     logger.log('Game deleted successfully.');
                     return true;
                 } else {

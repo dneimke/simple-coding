@@ -210,4 +210,34 @@ describe('GameState capture clock', () => {
         gameState.newGame({ autoStart: true });
         expect(gameState.updateLastEvent({ labels: [] })).toBeNull();
     });
+
+    test('skips background eventLog.render while on EventCapture view and renders activeTab when on Log view', () => {
+        const mockEventLog = { render: jest.fn() };
+        const mockEventButtons = { setState: jest.fn() };
+        stateService.setState('ui.currentView', 'EventCapture');
+        stateService.setState('ui.currentTab', 'recentView');
+        stateService.setState('ui.logGameId', null);
+
+        const gs = new GameState(timerDisplay, mockEventLog, mockEventButtons);
+        mockEventLog.render.mockClear();
+        mockEventButtons.setState.mockClear();
+
+        gs.newGame({ autoStart: true });
+        mockEventLog.render.mockClear();
+        mockEventButtons.setState.mockClear();
+
+        gs.addEvent({ event: 'FIRE CE', timeMs: 4000 });
+        expect(mockEventLog.render).not.toHaveBeenCalled();
+        expect(mockEventButtons.setState).toHaveBeenCalledTimes(1);
+
+        // When user is on live Log view, mutations update eventLog for the active tab
+        stateService.setState('ui.currentView', 'Log');
+        stateService.setState('ui.currentTab', 'statisticsView');
+        gs.addEvent({ event: 'FIRE SHOT', timeMs: 6000 });
+        expect(mockEventLog.render).toHaveBeenCalledWith(
+            expect.any(Array),
+            { activeTab: 'statisticsView' }
+        );
+        gs.completeGame();
+    });
 });

@@ -1,0 +1,10 @@
+---
+description: Review gate. When reviewing a pull request or addressing review comments, follow REVIEW.md.
+alwaysApply: true
+---
+
+# Review gate
+
+When the user asks for a pull request review, or when you review one, follow `REVIEW.md`. File findings the way that file describes.
+
+When you address review comments, follow the reply rules in `REVIEW.md`.
