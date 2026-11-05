@@ -1,0 +1,750 @@
+{
+  "game": "Circle entry fixture",
+  "gameId": "circle-entry-fixture",
+  "timeSource": "timeMs",
+  "mutated": false,
+  "sequences": [
+    {
+      "id": "seq-FIRE-a1",
+      "team": "FIRE",
+      "quarter": "Q1",
+      "startTimeMs": 60000,
+      "endTimeMs": 72000,
+      "videoStart": "01:00",
+      "videoEnd": "01:12",
+      "matchClockStart": "01:00",
+      "matchClockEnd": "01:12",
+      "seekSeconds": 55,
+      "originType": "Counter",
+      "primaryChannel": "Right",
+      "outcome": "Shot",
+      "closedBecause": "gap",
+      "gapSeconds": 28,
+      "codes": [
+        "BW1",
+        "A25E",
+        "CE",
+        "SHOT"
+      ],
+      "eventInstanceIds": [
+        "a1",
+        "a2",
+        "a3",
+        "a4"
+      ],
+      "events": [
+        {
+          "id": "a1",
+          "index": 1,
+          "code": "BW1",
+          "timeMs": 60000,
+          "attack": null,
+          "channel": null
+        },
+        {
+          "id": "a2",
+          "index": 2,
+          "code": "A25E",
+          "timeMs": 64000,
+          "attack": "A25E",
+          "channel": "Right"
+        },
+        {
+          "id": "a3",
+          "index": 3,
+          "code": "CE",
+          "timeMs": 68000,
+          "attack": "CE",
+          "channel": "Right"
+        },
+        {
+          "id": "a4",
+          "index": 5,
+          "code": "SHOT",
+          "timeMs": 72000,
+          "attack": null,
+          "channel": null
+        }
+      ]
+    },
+    {
+      "id": "seq-FIRE-b1",
+      "team": "FIRE",
+      "quarter": "Q1",
+      "startTimeMs": 100000,
+      "endTimeMs": 100000,
+      "videoStart": "01:40",
+      "videoEnd": "01:40",
+      "matchClockStart": "01:40",
+      "matchClockEnd": "01:40",
+      "seekSeconds": 100,
+      "originType": "Build-Up",
+      "primaryChannel": null,
+      "outcome": "No circle",
+      "closedBecause": "gap",
+      "gapSeconds": 16,
+      "codes": [
+        "A25E"
+      ],
+      "eventInstanceIds": [
+        "b1"
+      ],
+      "events": [
+        {
+          "id": "b1",
+          "index": 6,
+          "code": "A25E",
+          "timeMs": 100000,
+          "attack": "A25E",
+          "channel": null
+        }
+      ]
+    },
+    {
+      "id": "seq-FIRE-b2",
+      "team": "FIRE",
+      "quarter": "Q1",
+      "startTimeMs": 116000,
+      "endTimeMs": 116000,
+      "videoStart": "01:56",
+      "videoEnd": "01:56",
+      "matchClockStart": "01:56",
+      "matchClockEnd": "01:56",
+      "seekSeconds": 116,
+      "originType": "Build-Up",
+      "primaryChannel": null,
+      "outcome": "No shot",
+      "closedBecause": "gap",
+      "gapSeconds": 84,
+      "codes": [
+        "CE"
+      ],
+      "eventInstanceIds": [
+        "b2"
+      ],
+      "events": [
+        {
+          "id": "b2",
+          "index": 7,
+          "code": "CE",
+          "timeMs": 116000,
+          "attack": "CE",
+          "channel": null
+        }
+      ]
+    },
+    {
+      "id": "seq-FIRE-c1",
+      "team": "FIRE",
+      "quarter": "Q1",
+      "startTimeMs": 200000,
+      "endTimeMs": 208000,
+      "videoStart": "03:20",
+      "videoEnd": "03:28",
+      "matchClockStart": "03:20",
+      "matchClockEnd": "03:28",
+      "seekSeconds": 200,
+      "originType": "Restart",
+      "primaryChannel": null,
+      "outcome": "No shot",
+      "closedBecause": "gap",
+      "gapSeconds": 92,
+      "codes": [
+        "BS3",
+        "CE"
+      ],
+      "eventInstanceIds": [
+        "c1",
+        "c2"
+      ],
+      "events": [
+        {
+          "id": "c1",
+          "index": 8,
+          "code": "BS3",
+          "timeMs": 200000,
+          "attack": null,
+          "channel": null
+        },
+        {
+          "id": "c2",
+          "index": 9,
+          "code": "CE",
+          "timeMs": 208000,
+          "attack": "CE",
+          "channel": null
+        }
+      ]
+    },
+    {
+      "id": "seq-FIRE-d1",
+      "team": "FIRE",
+      "quarter": "Q1",
+      "startTimeMs": 300000,
+      "endTimeMs": 312000,
+      "videoStart": "05:00",
+      "videoEnd": "05:12",
+      "matchClockStart": "05:00",
+      "matchClockEnd": "05:12",
+      "seekSeconds": 300,
+      "originType": "Build-Up",
+      "primaryChannel": null,
+      "outcome": "No shot",
+      "closedBecause": "gap",
+      "gapSeconds": 88,
+      "codes": [
+        "BW2",
+        "CE"
+      ],
+      "eventInstanceIds": [
+        "d1",
+        "d2"
+      ],
+      "events": [
+        {
+          "id": "d1",
+          "index": 10,
+          "code": "BW2",
+          "timeMs": 300000,
+          "attack": null,
+          "channel": null
+        },
+        {
+          "id": "d2",
+          "index": 11,
+          "code": "CE",
+          "timeMs": 312000,
+          "attack": "CE",
+          "channel": null
+        }
+      ]
+    },
+    {
+      "id": "seq-FIRE-e1",
+      "team": "FIRE",
+      "quarter": "Q1",
+      "startTimeMs": 400000,
+      "endTimeMs": 406000,
+      "videoStart": "06:40",
+      "videoEnd": "06:46",
+      "matchClockStart": "06:40",
+      "matchClockEnd": "06:46",
+      "seekSeconds": 400,
+      "originType": "Build-Up",
+      "primaryChannel": "Left",
+      "outcome": "Turnover",
+      "closedBecause": "opponent-bw",
+      "gapSeconds": null,
+      "codes": [
+        "A25E",
+        "CE"
+      ],
+      "eventInstanceIds": [
+        "e1",
+        "e2"
+      ],
+      "events": [
+        {
+          "id": "e1",
+          "index": 12,
+          "code": "A25E",
+          "timeMs": 400000,
+          "attack": "A25E",
+          "channel": "Left"
+        },
+        {
+          "id": "e2",
+          "index": 13,
+          "code": "CE",
+          "timeMs": 406000,
+          "attack": "CE",
+          "channel": "Left"
+        }
+      ]
+    },
+    {
+      "id": "seq-TIGERS-e3",
+      "team": "TIGERS",
+      "quarter": "Q1",
+      "startTimeMs": 410000,
+      "endTimeMs": 410000,
+      "videoStart": "06:50",
+      "videoEnd": "06:50",
+      "matchClockStart": "06:50",
+      "matchClockEnd": "06:50",
+      "seekSeconds": 410,
+      "originType": null,
+      "primaryChannel": null,
+      "outcome": "No entry",
+      "closedBecause": "gap",
+      "gapSeconds": 90,
+      "codes": [
+        "BW3"
+      ],
+      "eventInstanceIds": [
+        "e3"
+      ],
+      "events": [
+        {
+          "id": "e3",
+          "index": 14,
+          "code": "BW3",
+          "timeMs": 410000,
+          "attack": null,
+          "channel": null
+        }
+      ]
+    },
+    {
+      "id": "seq-TIGERS-f1",
+      "team": "TIGERS",
+      "quarter": "Q1",
+      "startTimeMs": 500000,
+      "endTimeMs": 514000,
+      "videoStart": "08:20",
+      "videoEnd": "08:34",
+      "matchClockStart": "08:20",
+      "matchClockEnd": "08:34",
+      "seekSeconds": 500,
+      "originType": "Restart",
+      "primaryChannel": null,
+      "outcome": "Goal",
+      "closedBecause": "goal",
+      "gapSeconds": null,
+      "codes": [
+        "OH",
+        "A25E",
+        "CE",
+        "GOAL"
+      ],
+      "eventInstanceIds": [
+        "f1",
+        "f2",
+        "f3",
+        "f4"
+      ],
+      "events": [
+        {
+          "id": "f1",
+          "index": 15,
+          "code": "OH",
+          "timeMs": 500000,
+          "attack": null,
+          "channel": null
+        },
+        {
+          "id": "f2",
+          "index": 16,
+          "code": "A25E",
+          "timeMs": 506000,
+          "attack": "A25E",
+          "channel": null
+        },
+        {
+          "id": "f3",
+          "index": 17,
+          "code": "CE",
+          "timeMs": 510000,
+          "attack": "CE",
+          "channel": null
+        },
+        {
+          "id": "f4",
+          "index": 18,
+          "code": "GOAL",
+          "timeMs": 514000,
+          "attack": null,
+          "channel": null
+        }
+      ]
+    },
+    {
+      "id": "seq-FIRE-g1",
+      "team": "FIRE",
+      "quarter": "Q1",
+      "startTimeMs": 600000,
+      "endTimeMs": 608000,
+      "videoStart": "10:00",
+      "videoEnd": "10:08",
+      "matchClockStart": "10:00",
+      "matchClockEnd": "10:08",
+      "seekSeconds": 600,
+      "originType": "Build-Up",
+      "primaryChannel": null,
+      "outcome": "PC",
+      "closedBecause": "gap",
+      "gapSeconds": 292,
+      "codes": [
+        "A25E",
+        "CE",
+        "PC"
+      ],
+      "eventInstanceIds": [
+        "g1",
+        "g2",
+        "g3"
+      ],
+      "events": [
+        {
+          "id": "g1",
+          "index": 19,
+          "code": "A25E",
+          "timeMs": 600000,
+          "attack": "A25E",
+          "channel": null
+        },
+        {
+          "id": "g2",
+          "index": 20,
+          "code": "CE",
+          "timeMs": 604000,
+          "attack": "CE",
+          "channel": null
+        },
+        {
+          "id": "g3",
+          "index": 21,
+          "code": "PC",
+          "timeMs": 608000,
+          "attack": null,
+          "channel": null
+        }
+      ]
+    },
+    {
+      "id": "seq-FIRE-h1",
+      "team": "FIRE",
+      "quarter": "Q2",
+      "startTimeMs": 960000,
+      "endTimeMs": 970000,
+      "videoStart": "16:00",
+      "videoEnd": "16:10",
+      "matchClockStart": "01:00",
+      "matchClockEnd": "01:10",
+      "seekSeconds": 960,
+      "originType": "Counter",
+      "primaryChannel": null,
+      "outcome": "Shot",
+      "closedBecause": "end",
+      "gapSeconds": null,
+      "codes": [
+        "BW1",
+        "CE",
+        "SHOT"
+      ],
+      "eventInstanceIds": [
+        "h1",
+        "h2",
+        "h3"
+      ],
+      "events": [
+        {
+          "id": "h1",
+          "index": 23,
+          "code": "BW1",
+          "timeMs": 960000,
+          "attack": null,
+          "channel": null
+        },
+        {
+          "id": "h2",
+          "index": 24,
+          "code": "CE",
+          "timeMs": 964000,
+          "attack": "CE",
+          "channel": null
+        },
+        {
+          "id": "h3",
+          "index": 25,
+          "code": "SHOT",
+          "timeMs": 970000,
+          "attack": null,
+          "channel": null
+        }
+      ]
+    }
+  ],
+  "dispositions": [
+    {
+      "id": "q1",
+      "index": 0,
+      "team": "Untagged",
+      "code": "Q1",
+      "timeMs": 0,
+      "attack": null,
+      "disposition": "ignored",
+      "reason": "quarter-marker"
+    },
+    {
+      "id": "a1",
+      "index": 1,
+      "team": "FIRE",
+      "code": "BW1",
+      "timeMs": 60000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-a1"
+    },
+    {
+      "id": "a2",
+      "index": 2,
+      "team": "FIRE",
+      "code": "A25E",
+      "timeMs": 64000,
+      "attack": "A25E",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-a1"
+    },
+    {
+      "id": "a3",
+      "index": 3,
+      "team": "FIRE",
+      "code": "CE",
+      "timeMs": 68000,
+      "attack": "CE",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-a1"
+    },
+    {
+      "id": "card",
+      "index": 4,
+      "team": "FIRE",
+      "code": "GREEN",
+      "timeMs": 70000,
+      "attack": null,
+      "disposition": "ignored",
+      "reason": "card-or-sub"
+    },
+    {
+      "id": "a4",
+      "index": 5,
+      "team": "FIRE",
+      "code": "SHOT",
+      "timeMs": 72000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-a1"
+    },
+    {
+      "id": "b1",
+      "index": 6,
+      "team": "FIRE",
+      "code": "A25E",
+      "timeMs": 100000,
+      "attack": "A25E",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-b1"
+    },
+    {
+      "id": "b2",
+      "index": 7,
+      "team": "FIRE",
+      "code": "CE",
+      "timeMs": 116000,
+      "attack": "CE",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-b2"
+    },
+    {
+      "id": "c1",
+      "index": 8,
+      "team": "FIRE",
+      "code": "BS3",
+      "timeMs": 200000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-c1"
+    },
+    {
+      "id": "c2",
+      "index": 9,
+      "team": "FIRE",
+      "code": "CE",
+      "timeMs": 208000,
+      "attack": "CE",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-c1"
+    },
+    {
+      "id": "d1",
+      "index": 10,
+      "team": "FIRE",
+      "code": "BW2",
+      "timeMs": 300000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-d1"
+    },
+    {
+      "id": "d2",
+      "index": 11,
+      "team": "FIRE",
+      "code": "CE",
+      "timeMs": 312000,
+      "attack": "CE",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-d1"
+    },
+    {
+      "id": "e1",
+      "index": 12,
+      "team": "FIRE",
+      "code": "A25E",
+      "timeMs": 400000,
+      "attack": "A25E",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-e1"
+    },
+    {
+      "id": "e2",
+      "index": 13,
+      "team": "FIRE",
+      "code": "CE",
+      "timeMs": 406000,
+      "attack": "CE",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-e1"
+    },
+    {
+      "id": "e3",
+      "index": 14,
+      "team": "TIGERS",
+      "code": "BW3",
+      "timeMs": 410000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-TIGERS-e3"
+    },
+    {
+      "id": "f1",
+      "index": 15,
+      "team": "TIGERS",
+      "code": "OH",
+      "timeMs": 500000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-TIGERS-f1"
+    },
+    {
+      "id": "f2",
+      "index": 16,
+      "team": "TIGERS",
+      "code": "A25E",
+      "timeMs": 506000,
+      "attack": "A25E",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-TIGERS-f1"
+    },
+    {
+      "id": "f3",
+      "index": 17,
+      "team": "TIGERS",
+      "code": "CE",
+      "timeMs": 510000,
+      "attack": "CE",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-TIGERS-f1"
+    },
+    {
+      "id": "f4",
+      "index": 18,
+      "team": "TIGERS",
+      "code": "GOAL",
+      "timeMs": 514000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-TIGERS-f1"
+    },
+    {
+      "id": "g1",
+      "index": 19,
+      "team": "FIRE",
+      "code": "A25E",
+      "timeMs": 600000,
+      "attack": "A25E",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-g1"
+    },
+    {
+      "id": "g2",
+      "index": 20,
+      "team": "FIRE",
+      "code": "CE",
+      "timeMs": 604000,
+      "attack": "CE",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-g1"
+    },
+    {
+      "id": "g3",
+      "index": 21,
+      "team": "FIRE",
+      "code": "PC",
+      "timeMs": 608000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-g1"
+    },
+    {
+      "id": "q2",
+      "index": 22,
+      "team": "Untagged",
+      "code": "Q2",
+      "timeMs": 900000,
+      "attack": null,
+      "disposition": "ignored",
+      "reason": "quarter-marker"
+    },
+    {
+      "id": "h1",
+      "index": 23,
+      "team": "FIRE",
+      "code": "BW1",
+      "timeMs": 960000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-h1"
+    },
+    {
+      "id": "h2",
+      "index": 24,
+      "team": "FIRE",
+      "code": "CE",
+      "timeMs": 964000,
+      "attack": "CE",
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-h1"
+    },
+    {
+      "id": "h3",
+      "index": 25,
+      "team": "FIRE",
+      "code": "SHOT",
+      "timeMs": 970000,
+      "attack": null,
+      "disposition": "in-sequence",
+      "sequenceId": "seq-FIRE-h1"
+    }
+  ],
+  "stats": {
+    "eventCount": 26,
+    "sequenceCount": 10,
+    "circleEntriesCoded": 8,
+    "circleEntriesInSequences": 8,
+    "circleEntriesByOutcome": {
+      "Goal": 1,
+      "PC": 1,
+      "Shot": 2,
+      "Turnover": 1,
+      "No shot": 3,
+      "No circle": 0,
+      "No entry": 0
+    },
+    "elapsedMs": 2.18,
+    "rules": {
+      "gapMs": 15000,
+      "counterMs": 10000
+    }
+  }
+}

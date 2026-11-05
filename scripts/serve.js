@@ -25,11 +25,13 @@ function startServer(port) {
         const matchesUrl = `${origin}/index.html#saved-games?mock=sample`;
         const liveUrl = `${origin}/index.html#event-capture?mock=active`;
         const reviewUrl = `${origin}/timeline-video.html?game=sample-game`;
+        const sequencesUrl = `${origin}/spike/sequences/`;
 
         console.log(`\nLocal server running at ${origin}`);
         console.log(`Matches (sample): ${matchesUrl}`);
         console.log(`Live capture: ${liveUrl}`);
-        console.log(`Match review: ${reviewUrl}\n`);
+        console.log(`Match review: ${reviewUrl}`);
+        console.log(`Sequence trial: ${sequencesUrl}\n`);
 
         openInBrowser(matchesUrl);
     });

@@ -6,10 +6,10 @@
   "scripts": {
     "start": "node scripts/serve.js",
     "serve": "node scripts/serve.js",
-    "test": "jest",
+    "test": "jest && node spikes/sequences/check.js",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
-    "test:ci": "jest --ci --coverage",
+    "test:ci": "jest --ci --coverage && node spikes/sequences/check.js",
     "test:perf": "node scripts/perf-benchmark.js",
     "test:visual": "node scripts/visual-snapshot.js",
     "audit": "fallow audit --base origin/main",
