@@ -53,24 +53,31 @@ function serveStaticFile(req, res, srcDir) {
             sendFile(res, filePath);
             return;
         }
-
-        const indexPath = path.join(filePath, 'index.html');
-        const directoryRequest = (!err && stats.isDirectory()) || (err && !path.extname(pathname));
-        if (!directoryRequest) {
-            res.statusCode = 404;
-            res.end(`Not Found: ${pathname}`);
+        if (!isDirectoryRequest(err, stats, pathname)) {
+            sendMissing(res, pathname);
             return;
         }
-
-        fs.stat(indexPath, (indexErr, indexStats) => {
-            if (indexErr || !indexStats.isFile()) {
-                res.statusCode = 404;
-                res.end(`Not Found: ${pathname}`);
-                return;
-            }
-            sendFile(res, indexPath);
-        });
+        sendDirectoryIndex(res, path.join(filePath, 'index.html'), pathname);
     });
+}
+
+function isDirectoryRequest(err, stats, pathname) {
+    return (!err && stats.isDirectory()) || (Boolean(err) && !path.extname(pathname));
+}
+
+function sendDirectoryIndex(res, indexPath, pathname) {
+    fs.stat(indexPath, (indexErr, indexStats) => {
+        if (indexErr || !indexStats.isFile()) {
+            sendMissing(res, pathname);
+            return;
+        }
+        sendFile(res, indexPath);
+    });
+}
+
+function sendMissing(res, pathname) {
+    res.statusCode = 404;
+    res.end(`Not Found: ${pathname}`);
 }
 
 function sendFile(res, filePath) {

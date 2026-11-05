@@ -42,35 +42,49 @@ export function mountSequenceSpike(doc, options = {}) {
         }
     }
 
+    paintSavedGames(doc, savedRoot, readSavedGames(storage), showText);
+    wireFileInput(doc, fileInput, showText, showFailure);
+    wireSample(doc, fetchSample, showText, showStatus, showFailure);
+}
+
+const root = typeof document !== 'undefined' ? document.getElementById('sequence-spike') : null;
+if (root) mountSequenceSpike(document);
+
+function paintSavedGames(doc, savedRoot, games, showText) {
     savedRoot.replaceChildren();
-    const games = readSavedGames(storage);
     if (!games.length) {
         const empty = doc.createElement('p');
         empty.className = 'help-text';
         empty.textContent = 'No matches are saved in this browser yet.';
         savedRoot.append(empty);
-    } else {
-        for (const game of games) {
-            const button = doc.createElement('button');
-            button.type = 'button';
-            button.className = 'btn btn-secondary';
-            const count = game.events.length;
-            button.textContent = `${gameLabel(game)} · ${count} ${count === 1 ? 'event' : 'events'}`;
-            button.addEventListener('click', () => showText(JSON.stringify(game), gameLabel(game)));
-            savedRoot.append(button);
-        }
+        return;
     }
+    for (const game of games) {
+        const button = doc.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-secondary';
+        const count = game.events.length;
+        button.textContent = `${gameLabel(game)} · ${count} ${count === 1 ? 'event' : 'events'}`;
+        button.addEventListener('click', () => showText(JSON.stringify(game), gameLabel(game)));
+        savedRoot.append(button);
+    }
+}
 
+function wireFileInput(doc, fileInput, showText, showFailure) {
     doc.getElementById('upload-button').addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', () => {
-        const file = fileInput.files && fileInput.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => showText(String(reader.result || ''), file.name);
-        reader.onerror = () => showFailure('That file could not be read.');
-        reader.readAsText(file);
-    });
+    fileInput.addEventListener('change', () => readChosenFile(fileInput, showText, showFailure));
+}
 
+function readChosenFile(fileInput, showText, showFailure) {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => showText(String(reader.result || ''), file.name);
+    reader.onerror = () => showFailure('That file could not be read.');
+    reader.readAsText(file);
+}
+
+function wireSample(doc, fetchSample, showText, showStatus, showFailure) {
     doc.getElementById('sample-button').addEventListener('click', () => {
         showStatus('Opening the sample…');
         fetchSample().then(text => showText(text, 'Sample match')).catch(() => {
@@ -78,6 +92,3 @@ export function mountSequenceSpike(doc, options = {}) {
         });
     });
 }
-
-const root = typeof document !== 'undefined' ? document.getElementById('sequence-spike') : null;
-if (root) mountSequenceSpike(document);

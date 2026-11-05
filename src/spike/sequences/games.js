@@ -5,12 +5,8 @@
 import { buildSequences } from './engine.js';
 import { loadGameText } from './load-game.js';
 
-export const SAVED_GAMES_KEY = 'fieldHockeyGames_v1';
+const SAVED_GAMES_KEY = 'fieldHockeyGames_v1';
 
-/**
- * @param {Storage} storage
- * @returns {Array<object>}
- */
 export function readSavedGames(storage) {
     if (!storage || typeof storage.getItem !== 'function') return [];
     try {

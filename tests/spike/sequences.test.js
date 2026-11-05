@@ -7,6 +7,7 @@ import path from 'node:path';
 import { analyseGameText, gameLabel, readSavedGames } from '../../src/spike/sequences/games.js';
 import { mountSequenceSpike } from '../../src/spike/sequences/page.js';
 import { renderReport } from '../../src/spike/sequences/render.js';
+import { formatReport } from '../../src/spike/sequences/report.js';
 
 const fixtureText = readFileSync(path.join(process.cwd(), 'src/spike/sequences/fixture.json'), 'utf8');
 
@@ -33,6 +34,7 @@ describe('sequence spike', () => {
         expect(report.textContent).toContain('BW1');
         expect(report.textContent).toContain('The coded events were left unchanged.');
         expect(report.textContent).toContain('card or substitution');
+        expect(formatReport(analysed.game, analysed.result, { mutated: false })).toContain('Circle entry fixture');
     });
 
     test('reads saved matches and ignores anything that is not a coded game', () => {

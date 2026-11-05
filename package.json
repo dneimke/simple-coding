@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage && node spikes/sequences/check.js",
     "test:perf": "node scripts/perf-benchmark.js",
+    "spike:sequences": "node spikes/sequences/run.js",
     "test:visual": "node scripts/visual-snapshot.js",
     "audit": "fallow audit --base origin/main",
     "audit:all": "fallow",

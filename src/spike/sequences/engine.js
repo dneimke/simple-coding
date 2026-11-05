@@ -1,3 +1,5 @@
+import { formatClock } from './copy.js';
+
 /**
  * Sequence spike. Used by the /spike/sequences page and the command-line check.
  * Match capture and review do not import it.
@@ -6,8 +8,8 @@
  * team's tags stay out of it. The same events always produce the same chains.
  */
 
-export const DEFAULT_GAP_MS = 15000;
-export const DEFAULT_COUNTER_MS = 10000;
+const DEFAULT_GAP_MS = 15000;
+const DEFAULT_COUNTER_MS = 10000;
 
 const OUTCOME_RANK = { Shot: 1, PC: 2, Goal: 3 };
 
@@ -18,7 +20,7 @@ const CODE_START = /^(?:BW\d?|BS\d?|OH|PC|APC|A25E|CE|SHOT|GOAL|GREEN|YELLOW|RED
  * @param {string[]} [teams]
  * @returns {{ team: string, code: string }}
  */
-export function splitTeamAndCode(event, teams = []) {
+function splitTeamAndCode(event, teams = []) {
     const raw = String(event?.event || event?.code || '').trim();
     const explicitTeam = explicitTeamOf(event, teams);
     if (explicitTeam) {
@@ -31,27 +33,25 @@ export function splitTeamAndCode(event, teams = []) {
     return { team: 'Untagged', code: raw.toUpperCase() };
 }
 
-/**
- * @param {string} code
- * @returns {{ role: string, quarter?: string, attack?: string, reason?: string }}
- */
-export function classifyCode(code) {
+const ROLE_RULES = [
+    [/\b(GREEN|YELLOW|RED|CARD|SUBSTITUTION|SUB)\b/, { role: 'ignore', reason: 'card-or-sub' }],
+    [/\bGOAL\b/, { role: 'goal' }],
+    [/\b(PC|PENALTY\s*CORNER)\b/, { role: 'pc' }],
+    [/\bSHOT\b/, { role: 'shot' }],
+    [/\b(BW\d?|BALL\s*WON)\b/, { role: 'bw' }],
+    [/\b(BS\d?|OH|KICKOFF)\b/, { role: 'restart' }],
+    [/\b(A25E|25M\s*ENTRY)\b/, { role: 'attack', attack: 'A25E' }],
+    [/\b(CE|CIRCLE\s*ENTRY)\b/, { role: 'attack', attack: 'CE' }]
+];
+
+function classifyCode(code) {
     const c = String(code || '').toUpperCase();
     const quarter = /^(?:Q([1-4])|QUARTER\s*([1-4])|START\s*Q([1-4]))$/.exec(c);
     if (quarter) {
         return { role: 'quarter', quarter: `Q${quarter[1] || quarter[2] || quarter[3]}` };
     }
-    if (/\b(GREEN|YELLOW|RED|CARD|SUBSTITUTION|SUB)\b/.test(c)) {
-        return { role: 'ignore', reason: 'card-or-sub' };
-    }
-    if (/\bGOAL\b/.test(c)) return { role: 'goal' };
-    if (/\b(PC|PENALTY\s*CORNER)\b/.test(c)) return { role: 'pc' };
-    if (/\bSHOT\b/.test(c)) return { role: 'shot' };
-    if (/\b(BW\d?|BALL\s*WON)\b/.test(c)) return { role: 'bw' };
-    if (/\b(BS\d?|OH|KICKOFF)\b/.test(c)) return { role: 'restart' };
-    if (/\b(A25E|25M\s*ENTRY)\b/.test(c)) return { role: 'attack', attack: 'A25E' };
-    if (/\b(CE|CIRCLE\s*ENTRY)\b/.test(c)) return { role: 'attack', attack: 'CE' };
-    return { role: 'ignore', reason: 'unrecognized-code' };
+    const match = ROLE_RULES.find(([pattern]) => pattern.test(c));
+    return match ? { ...match[1] } : { role: 'ignore', reason: 'unrecognized-code' };
 }
 
 /**
@@ -72,46 +72,16 @@ export function buildSequences(events, options = {}) {
     const open = new Map();
     const sequences = [];
     const dispositions = [];
-    let currentQuarter = null;
-    let quarterStartMs = 0;
-
-    for (const item of ordered) {
-        expireStale(open, sequences, item.timeMs, gapMs, counterMs);
-
-        if (item.role === 'quarter') {
-            currentQuarter = item.quarter;
-            quarterStartMs = item.timeMs;
-            dispositions.push(disposition(item, 'ignored', { reason: 'quarter-marker' }));
-            continue;
-        }
-        if (item.role === 'ignore') {
-            dispositions.push(disposition(item, 'ignored', { reason: item.reason }));
-            continue;
-        }
-
-        if (item.role === 'bw') {
-            for (const [other, chain] of [...open.entries()]) {
-                if (other !== item.team) {
-                    closeChain(chain, 'opponent-bw', item.timeMs, counterMs);
-                    open.delete(other);
-                    sequences.push(chain);
-                }
-            }
-        }
-
-        let chain = open.get(item.team);
-        if (!chain) {
-            chain = startChain(item, item.quarterField || currentQuarter, quarterStartMs);
-            open.set(item.team, chain);
-        }
-        appendItem(chain, item);
-        dispositions.push(disposition(item, 'in-sequence', { sequenceId: chain.id }));
-        if (chain.outcome === 'Goal') {
-            closeChain(chain, 'goal', item.timeMs, counterMs);
-            open.delete(item.team);
-            sequences.push(chain);
-        }
-    }
+    const state = {
+        open,
+        sequences,
+        dispositions,
+        currentQuarter: null,
+        quarterStartMs: 0,
+        gapMs,
+        counterMs
+    };
+    ordered.forEach(item => placeItem(state, item));
 
     for (const chain of open.values()) {
         closeChain(chain, 'end', null, counterMs);
@@ -148,6 +118,51 @@ export function buildSequences(events, options = {}) {
     };
 }
 
+function placeItem(state, item) {
+    expireStale(state.open, state.sequences, item.timeMs, state.gapMs, state.counterMs);
+    if (recordMarker(state, item)) return;
+    if (item.role === 'bw') closeOtherTeams(state, item);
+    const chain = ensureChain(state, item);
+    appendItem(chain, item);
+    state.dispositions.push(disposition(item, 'in-sequence', { sequenceId: chain.id }));
+    if (chain.outcome === 'Goal') finishChain(state, chain, item.team, 'goal', item.timeMs);
+}
+
+function recordMarker(state, item) {
+    if (item.role === 'quarter') {
+        state.currentQuarter = item.quarter;
+        state.quarterStartMs = item.timeMs;
+        state.dispositions.push(disposition(item, 'ignored', { reason: 'quarter-marker' }));
+        return true;
+    }
+    if (item.role === 'ignore') {
+        state.dispositions.push(disposition(item, 'ignored', { reason: item.reason }));
+        return true;
+    }
+    return false;
+}
+
+function closeOtherTeams(state, item) {
+    for (const [other, chain] of [...state.open.entries()]) {
+        if (other !== item.team) finishChain(state, chain, other, 'opponent-bw', item.timeMs);
+    }
+}
+
+function ensureChain(state, item) {
+    let chain = state.open.get(item.team);
+    if (!chain) {
+        chain = startChain(item, item.quarterField || state.currentQuarter, state.quarterStartMs);
+        state.open.set(item.team, chain);
+    }
+    return chain;
+}
+
+function finishChain(state, chain, team, reason, atTimeMs) {
+    closeChain(chain, reason, atTimeMs, state.counterMs);
+    state.open.delete(team);
+    state.sequences.push(chain);
+}
+
 function explicitTeamOf(event, teams) {
     if (event?.team) return String(event.team);
     if (event?.isTeam1 === true) return teamAt(teams, 0);
@@ -168,21 +183,34 @@ function stripTeam(raw, team) {
 }
 
 function prepareItem(event, index, teams) {
-    const { team, code } = splitTeamAndCode(event, teams);
-    const classification = classifyCode(code);
-    const timeMs = Number(event?.timeMs);
+    const source = event || {};
+    const named = splitTeamAndCode(source, teams);
     return {
-        id: event?.id != null ? String(event.id) : `i${index}`,
-        index,
-        team,
-        code,
-        timeMs: Number.isFinite(timeMs) ? timeMs : 0,
-        lead: numberOrNull(event?.lead ?? event?.leadTime),
-        labels: Array.isArray(event?.labels) ? event.labels.map(label => ({ ...label })) : [],
-        quarterField: event?.quarter || null,
-        channel: channelFromLabels(event?.labels),
-        ...classification
+        ...itemIdentity(source, index, named),
+        ...itemTiming(source),
+        labels: copyLabels(source.labels),
+        quarterField: source.quarter || null,
+        channel: channelFromLabels(source.labels),
+        ...classifyCode(named.code)
     };
+}
+
+function itemIdentity(source, index, named) {
+    const id = source.id == null ? `i${index}` : String(source.id);
+    return { id, index, team: named.team, code: named.code };
+}
+
+function itemTiming(source) {
+    const timeMs = Number(source.timeMs);
+    return {
+        timeMs: Number.isFinite(timeMs) ? timeMs : 0,
+        lead: numberOrNull(source.lead == null ? source.leadTime : source.lead)
+    };
+}
+
+function copyLabels(labels) {
+    if (!Array.isArray(labels)) return [];
+    return labels.map(label => ({ ...label }));
 }
 
 function numberOrNull(value) {
@@ -325,9 +353,3 @@ function publishSequence(chain) {
     };
 }
 
-export function formatClock(ms) {
-    const total = Math.max(0, Math.round(Number(ms) / 1000));
-    const minutes = Math.floor(total / 60);
-    const seconds = total % 60;
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
