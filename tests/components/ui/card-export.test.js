@@ -265,6 +265,16 @@ describe('Saved game actions', () => {
         expect(findMenuItem(card, 'Delete').className).toContain('saved-game-menu-item-danger');
     });
 
+    test('Sequence trial shows a green lab flask before the label', () => {
+        const card = createGameCard({ game, index: 0, ...handlers });
+        const item = findMenuItem(card, 'Sequence trial');
+        const icon = item.append.mock.calls.flat().find(node => node?.className?.includes('fa-flask'));
+
+        expect(icon.className).toBe('fas fa-flask saved-game-menu-icon');
+        expect(icon.setAttribute).toHaveBeenCalledWith('aria-hidden', 'true');
+        expect(item.textContent).toBe('Sequence trial');
+    });
+
     test('the toggle opens and closes the menu', () => {
         const card = createGameCard({ game, index: 0, ...handlers });
         const { toggle, menu } = getMenuParts(card);

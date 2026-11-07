@@ -46,7 +46,7 @@ const openMenu = (wrapper, toggle, menu) => {
 /**
  * Builds the overflow menu for a saved game's secondary actions
  * @param {string} title - Game name, used in the toggle's accessible label
- * @param {Array<{text: string, onClick: Function, danger?: boolean}>} items - Menu items in display order
+ * @param {Array<{text: string, onClick: Function, danger?: boolean, icon?: string}>} items - Menu items in display order
  * @returns {HTMLDivElement} Wrapper holding the toggle and the menu
  */
 const createGameMenu = (title, items) => {
@@ -74,12 +74,19 @@ const createGameMenu = (title, items) => {
         }
     };
 
-    const menuItems = items.map(({ text, onClick, danger }) => {
+    const menuItems = items.map(({ text, onClick, danger, icon }) => {
         const item = document.createElement('button');
         item.type = 'button';
         item.className = danger ? 'saved-game-menu-item saved-game-menu-item-danger' : 'saved-game-menu-item';
         item.setAttribute('role', 'menuitem');
         item.textContent = text;
+        if (icon) {
+            const mark = document.createElement('i');
+            mark.className = `fas ${icon} saved-game-menu-icon`;
+            mark.setAttribute('aria-hidden', 'true');
+            if (item.insertBefore) item.insertBefore(mark, item.firstChild);
+            else item.append(mark);
+        }
         item.onclick = (e) => {
             e.stopPropagation();
             closeGameMenu();
@@ -317,7 +324,7 @@ function createGameCardActions(game, title, index, handlers) {
 
     const menu = createGameMenu(title, [
         onContinueCoding && { text: 'Continue coding', onClick: onContinueCoding },
-        onSequenceTrial && { text: 'Sequence trial', onClick: onSequenceTrial },
+        onSequenceTrial && { text: 'Sequence trial', icon: 'fa-flask', onClick: onSequenceTrial },
         onViewLog && { text: 'View log', onClick: onViewLog },
         onAppendXml && { text: 'Append XML…', onClick: onAppendXml },
         { text: 'Export XML', onClick: () => exportGameXmlWithPrompt(game, index) },

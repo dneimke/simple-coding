@@ -87,7 +87,7 @@ Sequence trial (`body.sequence-page`) uses the same dark nav as the rest of the 
 
 - `createButton({ type })` maps `type` to `btn btn-<type>` (`primary`, `secondary`, `success`, `warning`, `danger`, `ghost`; anything else is `secondary`).
 - `createCard()` returns a `surface`.
-- `createGameCard()` returns a `saved-game-card` whose `saved-game-actions` row holds a primary Review button and a `saved-game-more` overflow menu (`saved-game-menu`, `saved-game-menu-item`, `saved-game-menu-item-danger`) for the secondary actions.
+- `createGameCard()` returns a `saved-game-card` whose `saved-game-actions` row holds a primary Review button and a `saved-game-more` overflow menu (`saved-game-menu`, `saved-game-menu-item`, `saved-game-menu-item-danger`) for the secondary actions. Sequence trial carries a green flask (`saved-game-menu-icon`, `var(--color-success)`).
 
 ## Recipes
 
