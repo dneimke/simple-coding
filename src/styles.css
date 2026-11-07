@@ -1584,13 +1584,22 @@ code {
     min-height: 2.75rem;
 }
 
-.review-page .app-nav-bar,
-.review-page #mainMenu {
+.review-page .app-nav-bar {
     height: 2.75rem;
+}
+
+@media (min-width: 768px) {
+    .review-page #mainMenu {
+        height: 2.75rem;
+    }
 }
 
 .review-page .app-nav-inner,
 .review-page .page {
+    max-width: none;
+}
+
+.sequence-page .app-nav-inner {
     max-width: none;
 }
 
