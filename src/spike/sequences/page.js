@@ -15,17 +15,22 @@ export function mountSequenceSpike(doc, options = {}) {
     const status = doc.getElementById('status');
     const report = doc.getElementById('report');
     const fileInput = doc.getElementById('file-input');
+    const matchDetails = doc.getElementById('match-selector-details');
+    const matchTitle = doc.getElementById('match-selector-title');
+
     const fetchSample = options.fetchSample || (() => fetch('fixture.json').then(response => {
         if (!response.ok) throw new Error('Sample match is unavailable.');
         return response.text();
     }));
 
     function showStatus(message) {
-        status.textContent = message;
+        if (status) status.textContent = message;
     }
 
     function showAnalysis(analysed, label) {
         showStatus(label);
+        if (matchTitle) matchTitle.textContent = `Match: ${label}`;
+        if (matchDetails) matchDetails.open = false; // Collapse to let video & analysis take focus
         renderReport(report, analysed.game, analysed.result, { mutated: analysed.mutated });
     }
 
@@ -51,6 +56,7 @@ const root = typeof document !== 'undefined' ? document.getElementById('sequence
 if (root) mountSequenceSpike(document);
 
 function paintSavedGames(doc, savedRoot, games, showText) {
+    if (!savedRoot) return;
     savedRoot.replaceChildren();
     if (!games.length) {
         const empty = doc.createElement('p');
@@ -62,17 +68,20 @@ function paintSavedGames(doc, savedRoot, games, showText) {
     for (const game of games) {
         const button = doc.createElement('button');
         button.type = 'button';
-        button.className = 'btn btn-secondary';
+        button.className = 'btn btn-secondary text-left flex justify-between items-center';
         const count = game.events.length;
-        button.textContent = `${gameLabel(game)} · ${count} ${count === 1 ? 'event' : 'events'}`;
+        button.innerHTML = `<span>${gameLabel(game)}</span><span class="text-xs text-muted tabular-nums">${count} ${count === 1 ? 'event' : 'events'}</span>`;
         button.addEventListener('click', () => showText(JSON.stringify(game), gameLabel(game)));
         savedRoot.append(button);
     }
 }
 
 function wireFileInput(doc, fileInput, showText, showFailure) {
-    doc.getElementById('upload-button').addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', () => readChosenFile(fileInput, showText, showFailure));
+    const uploadBtn = doc.getElementById('upload-button');
+    if (uploadBtn && fileInput) {
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => readChosenFile(fileInput, showText, showFailure));
+    }
 }
 
 function readChosenFile(fileInput, showText, showFailure) {
@@ -85,10 +94,13 @@ function readChosenFile(fileInput, showText, showFailure) {
 }
 
 function wireSample(doc, fetchSample, showText, showStatus, showFailure) {
-    doc.getElementById('sample-button').addEventListener('click', () => {
-        showStatus('Opening the sample…');
-        fetchSample().then(text => showText(text, 'Sample match')).catch(() => {
-            showFailure('The sample match could not be opened.');
+    const sampleBtn = doc.getElementById('sample-button');
+    if (sampleBtn) {
+        sampleBtn.addEventListener('click', () => {
+            showStatus('Opening the sample…');
+            fetchSample().then(text => showText(text, 'Sample match')).catch(() => {
+                showFailure('The sample match could not be opened.');
+            });
         });
-    });
+    }
 }

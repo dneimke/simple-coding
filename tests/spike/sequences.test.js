@@ -30,11 +30,12 @@ describe('sequence spike', () => {
 
         const report = document.createElement('div');
         renderReport(report, analysed.game, analysed.result, { mutated: false });
-        expect(report.textContent).toContain('Circle entries (CE): 8 total — 2 Counter, 6 Build-Up.');
-        expect(report.textContent).toContain('25m entries (A25E): 5 total — 1 Counter, 4 Build-Up.');
+        expect(report.textContent).toContain('Circle Entries (CE)');
+        expect(report.textContent).toContain('2 Counter (25%) · 6 Build-Up');
+        expect(report.textContent).toContain('25m Entries (A25E)');
+        expect(report.textContent).toContain('1 Counter (20%) · 4 Build-Up');
         expect(report.textContent).toContain('8s after BW1');
         expect(report.textContent).toContain('12s after BW2 (over 10s counter window)');
-        expect(report.textContent).toContain('The coded events were left unchanged.');
         expect(report.textContent).not.toContain('GREEN');
         expect(report.textContent).not.toContain('BW3');
 
@@ -78,14 +79,17 @@ describe('sequence spike', () => {
         expect(readSavedGames({ getItem: () => 'not-json' })).toEqual([]);
     });
 
-    test('runs a saved match and the sample from the page', async () => {
+    test('runs a saved match and the sample from the page and filters rows', async () => {
         document.body.innerHTML = `
-            <div id="saved-games"></div>
-            <p id="status"></p>
+            <details id="match-selector-details" open>
+                <summary><span id="match-selector-title"></span></summary>
+                <div id="saved-games"></div>
+                <p id="status"></p>
+                <button type="button" id="upload-button"></button>
+                <button type="button" id="sample-button"></button>
+                <input id="file-input">
+            </details>
             <div id="report"></div>
-            <button type="button" id="upload-button"></button>
-            <button type="button" id="sample-button"></button>
-            <input id="file-input">
         `;
         const storage = {
             getItem: () => JSON.stringify([
@@ -102,11 +106,23 @@ describe('sequence spike', () => {
         expect(savedButton.textContent).toContain('Saved final');
         savedButton.click();
         expect(document.getElementById('status').textContent).toBe('Saved final');
-        expect(document.getElementById('report').textContent).toContain('Circle entries (CE): 1 total — 0 Counter, 1 Build-Up.');
+        expect(document.getElementById('report').textContent).toContain('0 Counter (0%) · 1 Build-Up');
 
         document.getElementById('sample-button').click();
         await Promise.resolve();
         expect(document.getElementById('status').textContent).toBe('Sample match');
-        expect(document.getElementById('report').textContent).toContain('Circle entries (CE): 8 total — 2 Counter, 6 Build-Up.');
+        expect(document.getElementById('report').textContent).toContain('2 Counter (25%) · 6 Build-Up');
+
+        // Test filter interaction
+        const counterPill = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('⚡ Counter'));
+        expect(counterPill).toBeDefined();
+        counterPill.click();
+        expect(document.getElementById('report').textContent).toContain('Showing 3 of 13 entries');
+
+        // Test row click seeks video
+        const firstRow = document.querySelector('#report .entry-row');
+        expect(firstRow).toBeDefined();
+        firstRow.click();
+        expect(document.getElementById('active-entry-info').textContent).toContain('Counter');
     });
 });
