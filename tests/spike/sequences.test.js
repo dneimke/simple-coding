@@ -31,9 +31,9 @@ describe('sequence spike', () => {
         const report = document.createElement('div');
         renderReport(report, analysed.game, analysed.result, { mutated: false });
         expect(report.textContent).toContain('Circle Entries (CE)');
-        expect(report.textContent).toContain('2 Counter (25%) · 6 Build-Up');
+        expect(report.textContent).toContain('8 Total CE');
         expect(report.textContent).toContain('25m Entries (A25E)');
-        expect(report.textContent).toContain('1 Counter (20%) · 4 Build-Up');
+        expect(report.textContent).toContain('5 Total 25m');
         expect(report.textContent).toContain('8s after BW1');
         expect(report.textContent).toContain('12s after BW2 (over 10s counter window)');
         expect(report.textContent).not.toContain('GREEN');
@@ -106,12 +106,12 @@ describe('sequence spike', () => {
         expect(savedButton.textContent).toContain('Saved final');
         savedButton.click();
         expect(document.getElementById('status').textContent).toBe('Saved final');
-        expect(document.getElementById('report').textContent).toContain('0 Counter (0%) · 1 Build-Up');
+        expect(document.getElementById('report').textContent).toContain('1 Total CE');
 
         document.getElementById('sample-button').click();
         await Promise.resolve();
         expect(document.getElementById('status').textContent).toBe('Sample match');
-        expect(document.getElementById('report').textContent).toContain('2 Counter (25%) · 6 Build-Up');
+        expect(document.getElementById('report').textContent).toContain('8 Total CE');
 
         // Test filter interaction
         const counterPill = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('⚡ Counter'));

@@ -1,9 +1,9 @@
 /**
  * Renders attacking entry (A25E and CE) Counter vs Build-Up results
- * with KPI metric tiles, interactive filter pills, and compact seekable rows.
+ * with a Coach Match Scoreboard, integrated 1-click filter lenses, and compact seekable rows.
  */
 
-import { entryCodes, entryDetail, formatClock } from './copy.js';
+import { entryCodes, formatClock } from './copy.js';
 
 /**
  * @typedef {Object} FilterState
@@ -21,7 +21,7 @@ import { entryCodes, entryDetail, formatClock } from './copy.js';
  */
 export function renderReport(container, game, result, meta = {}) {
     const allEntries = result.entries || result.sequences || [];
-    const { stats } = result;
+    const teams = [...new Set(allEntries.map(e => e.team))].filter(Boolean);
 
     const state = {
         team: 'all',
@@ -30,27 +30,28 @@ export function renderReport(container, game, result, meta = {}) {
         activeEntryId: allEntries[0]?.id || null
     };
 
-    const teams = [...new Set(allEntries.map(e => e.team))].filter(Boolean);
-
     container.replaceChildren();
 
-    // Top: KPI Cards
-    const kpiSection = renderKpis(stats);
-    container.append(kpiSection);
+    // Top: Coach Match Scoreboard
+    const scoreboard = document.createElement('div');
+    scoreboard.className = 'mb-4';
+    container.append(scoreboard);
 
-    // Two-column workspace: Filters & Entry Rows (left, 5 cols) + Large Sticky Video Player (right, 7 cols)
+    // Two-column workspace: Entries List (left, 5 cols) + Large Sticky Video Player (right, 7 cols)
     const workspace = document.createElement('div');
     workspace.className = 'grid grid-cols-1 lg:grid-cols-12 gap-5 items-start';
 
-    // Left Column: Filters + Entry Rows (5 cols)
+    // Left Column: Filter Lens Header + Entry Rows (5 cols)
     const listCol = document.createElement('div');
     listCol.className = 'lg:col-span-5 flex flex-col gap-3 min-w-0 order-2 lg:order-1';
 
-    const filterCard = document.createElement('div');
-    filterCard.className = 'surface surface-padded';
+    const filterLensCard = document.createElement('div');
+    filterLensCard.className = 'surface surface-padded border rounded-lg';
 
     const listContainer = document.createElement('div');
     listContainer.className = 'flex flex-col gap-2';
+
+    listCol.append(filterLensCard, listContainer);
 
     // Right Column: Large Sticky Video player (7 cols)
     const videoCol = document.createElement('div');
@@ -60,10 +61,12 @@ export function renderReport(container, game, result, meta = {}) {
     });
     videoCol.append(videoCard);
 
+    workspace.append(listCol, videoCol);
+    container.append(workspace);
+
     function update() {
-        renderFilterControls(filterCard, teams, allEntries, state, () => {
-            update();
-        });
+        renderCoachScoreboard(scoreboard, teams, allEntries, state, update);
+        renderFilterLens(filterLensCard, teams, allEntries, state, update);
         renderEntryList(listContainer, allEntries, state, (entry) => {
             state.activeEntryId = entry.id;
             update();
@@ -72,47 +75,252 @@ export function renderReport(container, game, result, meta = {}) {
         });
     }
 
-    listCol.append(filterCard, listContainer);
-    workspace.append(listCol, videoCol);
-    container.append(workspace);
-
     update();
 }
 
-function renderKpis(stats) {
-    const kpiWrap = document.createElement('div');
-    kpiWrap.className = 'grid grid-cols-2 md:grid-cols-4 gap-3 mb-4';
+/**
+ * Coach Scoreboard: Side-by-side comparative cards for CE, A25E, and Attack Threat
+ */
+function renderCoachScoreboard(container, teams, allEntries, state, onChange) {
+    container.replaceChildren();
 
-    const ce = stats.circleEntries || { total: 0, counter: 0, buildUp: 0 };
-    const a25 = stats.a25Entries || { total: 0, counter: 0, buildUp: 0 };
-    const totalEntries = ce.total + a25.total;
-    const totalCounter = ce.counter + a25.counter;
-    const totalBuildUp = ce.buildUp + a25.buildUp;
+    const team1 = teams[0] || 'Team 1';
+    const team2 = teams[1] || 'Team 2';
 
-    kpiWrap.append(
-        kpiTile('Attacking Entries', totalEntries, `${totalCounter} Counter · ${totalBuildUp} Build-Up`, 'bg-blue-50 border-blue-200 text-blue-950'),
-        kpiTile('Circle Entries (CE)', ce.total, `${ce.counter} Counter (${percent(ce.counter, ce.total)}) · ${ce.buildUp} Build-Up`, 'bg-emerald-50 border-emerald-200 text-emerald-950'),
-        kpiTile('25m Entries (A25E)', a25.total, `${a25.counter} Counter (${percent(a25.counter, a25.total)}) · ${a25.buildUp} Build-Up`, 'bg-purple-50 border-purple-200 text-purple-950'),
-        kpiTile('Counter Threat', percent(totalCounter, totalEntries), `${totalCounter} rapid breaks in 10s`, 'bg-amber-50 border-amber-200 text-amber-950')
-    );
+    const t1Entries = allEntries.filter(e => e.team === team1);
+    const t2Entries = allEntries.filter(e => e.team === team2);
 
-    return kpiWrap;
+    const ce1 = t1Entries.filter(e => e.entryType === 'CE');
+    const ce2 = t2Entries.filter(e => e.entryType === 'CE');
+
+    const a251 = t1Entries.filter(e => e.entryType === 'A25E');
+    const a252 = t2Entries.filter(e => e.entryType === 'A25E');
+
+    const counter1 = t1Entries.filter(e => e.originType === 'Counter');
+    const counter2 = t2Entries.filter(e => e.originType === 'Counter');
+
+    const totalCounter = counter1.length + counter2.length;
+    const totalEntries = allEntries.length;
+
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-1 md:grid-cols-3 gap-3';
+
+    // Card 1: Circle Entries (CE) — Danger & Penetration
+    const isCeActive = state.entryType === 'CE';
+    const ceCard = scoreboardCard({
+        title: 'Circle Entries (CE)',
+        subtitle: 'D-Penetration & Danger',
+        isActive: isCeActive,
+        onClick: () => {
+            state.entryType = isCeActive ? 'all' : 'CE';
+            onChange();
+        },
+        team1,
+        team2,
+        val1: ce1.length,
+        val2: ce2.length,
+        sub1: `${ce1.filter(e => e.originType === 'Counter').length}⚡ · ${ce1.filter(e => e.originType === 'Build-Up').length}🛡️`,
+        sub2: `${ce2.filter(e => e.originType === 'Counter').length}⚡ · ${ce2.filter(e => e.originType === 'Build-Up').length}🛡️`,
+        badgeText: `${ce1.length + ce2.length} Total CE`,
+        badgeColor: 'border-emerald-300 bg-emerald-50 text-emerald-900'
+    });
+
+    // Card 2: 25m Entries (A25E) — Midfield Control & Territory
+    const isA25Active = state.entryType === 'A25E';
+    const a25Card = scoreboardCard({
+        title: '25m Entries (A25E)',
+        subtitle: 'Territory & Midfield Control',
+        isActive: isA25Active,
+        onClick: () => {
+            state.entryType = isA25Active ? 'all' : 'A25E';
+            onChange();
+        },
+        team1,
+        team2,
+        val1: a251.length,
+        val2: a252.length,
+        sub1: `${a251.filter(e => e.originType === 'Counter').length}⚡ · ${a251.filter(e => e.originType === 'Build-Up').length}🛡️`,
+        sub2: `${a252.filter(e => e.originType === 'Counter').length}⚡ · ${a252.filter(e => e.originType === 'Build-Up').length}🛡️`,
+        badgeText: `${a251.length + a252.length} Total 25m`,
+        badgeColor: 'border-slate-300 bg-slate-100 text-slate-800'
+    });
+
+    // Card 3: Attack Origin (Counter vs Build-Up)
+    const isCounterActive = state.originType === 'Counter';
+    const originCard = scoreboardCard({
+        title: 'Attack Origins',
+        subtitle: '⚡ Counter (<10s) vs 🛡️ Build-Up',
+        isActive: isCounterActive,
+        onClick: () => {
+            state.originType = isCounterActive ? 'all' : 'Counter';
+            onChange();
+        },
+        team1,
+        team2,
+        val1: counter1.length,
+        val2: counter2.length,
+        sub1: `${t1Entries.length - counter1.length} Build-Up`,
+        sub2: `${t2Entries.length - counter2.length} Build-Up`,
+        badgeText: `${totalCounter} Counter (${percent(totalCounter, totalEntries)})`,
+        badgeColor: 'border-amber-300 bg-amber-50 text-amber-900'
+    });
+
+    grid.append(ceCard, a25Card, originCard);
+    container.append(grid);
 }
 
-function kpiTile(title, value, subtitle, accentClasses) {
-    const tile = document.createElement('div');
-    tile.className = `surface p-3 border rounded-lg ${accentClasses}`;
-    tile.innerHTML = `
-        <div class="text-xs font-semibold uppercase tracking-wider opacity-75">${title}</div>
-        <div class="text-2xl font-bold my-0.5 tabular-nums">${value}</div>
-        <div class="text-xs opacity-80 truncate">${subtitle}</div>
+function scoreboardCard({ title, subtitle, isActive, onClick, team1, team2, val1, val2, sub1, sub2, badgeText, badgeColor }) {
+    const card = document.createElement('div');
+    const activeRing = isActive ? 'ring-2 ring-blue-600 bg-blue-50/20' : 'hover:border-slate-300';
+    card.className = `surface p-3.5 border rounded-lg cursor-pointer transition-all select-none ${activeRing}`;
+
+    const total = val1 + val2;
+    const p1 = total ? Math.round((val1 / total) * 100) : 50;
+    const p2 = total ? 100 - p1 : 50;
+
+    card.innerHTML = `
+        <div class="flex items-center justify-between gap-1 mb-2">
+            <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">${title}</h3>
+                <p class="text-[11px] text-slate-500">${subtitle}</p>
+            </div>
+            <span class="text-[11px] px-2 py-0.5 rounded font-bold border ${badgeColor}">${badgeText}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 my-2 py-1 border-y border-slate-100">
+            <div class="text-left">
+                <div class="text-xs font-semibold text-slate-600 truncate">${team1}</div>
+                <div class="text-2xl font-black text-slate-900 tabular-nums">${val1}</div>
+                <div class="text-[11px] text-slate-500 truncate">${sub1}</div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs font-semibold text-slate-600 truncate">${team2}</div>
+                <div class="text-2xl font-black text-slate-900 tabular-nums">${val2}</div>
+                <div class="text-[11px] text-slate-500 truncate">${sub2}</div>
+            </div>
+        </div>
+        <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden flex mt-2">
+            <div class="bg-blue-600 h-full" style="width: ${p1}%" title="${team1}: ${p1}%"></div>
+            <div class="bg-amber-500 h-full" style="width: ${p2}%" title="${team2}: ${p2}%"></div>
+        </div>
+        <div class="mt-2 text-[11px] text-blue-700 font-medium text-right flex items-center justify-end gap-1">
+            <span>${isActive ? 'Active filter' : 'Filter by this'}</span>
+            <i class="fas fa-arrow-right text-[10px]" aria-hidden="true"></i>
+        </div>
     `;
-    return tile;
+
+    card.addEventListener('click', onClick);
+    return card;
+}
+
+/**
+ * Filter Lens Bar with interactive pills
+ */
+function renderFilterLens(card, teams, allEntries, state, onChange) {
+    card.replaceChildren();
+
+    const isFiltered = state.team !== 'all' || state.entryType !== 'all' || state.originType !== 'all';
+
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between pb-2 mb-2 border-b border-slate-200';
+    header.innerHTML = `
+        <div class="flex items-center gap-1.5">
+            <i class="fas fa-filter text-slate-500 text-xs" aria-hidden="true"></i>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Filter Lens</span>
+        </div>
+        ${isFiltered ? '<button type="button" id="reset-filters" class="text-xs text-brand hover:underline font-semibold">Clear filters</button>' : '<span class="text-[11px] text-slate-400">Showing all</span>'}
+    `;
+    card.append(header);
+
+    const resetBtn = card.querySelector('#reset-filters');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            state.team = 'all';
+            state.entryType = 'all';
+            state.originType = 'all';
+            onChange();
+        });
+    }
+
+    // Team Filter Row
+    if (teams.length > 1) {
+        const teamRow = document.createElement('div');
+        teamRow.className = 'flex flex-wrap items-center gap-1.5 mb-2';
+        teamRow.append(filterLabel('Team:'));
+        teamRow.append(pill('All', state.team === 'all', () => { state.team = 'all'; onChange(); }, allEntries.length));
+        teams.forEach(t => {
+            const count = allEntries.filter(e => e.team === t).length;
+            teamRow.append(pill(t, state.team === t, () => { state.team = t; onChange(); }, count));
+        });
+        card.append(teamRow);
+    }
+
+    // Entry Type Row
+    const typeRow = document.createElement('div');
+    typeRow.className = 'flex flex-wrap items-center gap-1.5 mb-2';
+    typeRow.append(filterLabel('Entry:'));
+
+    const ceCount = allEntries.filter(e => (state.team === 'all' || e.team === state.team) && e.entryType === 'CE').length;
+    const a25Count = allEntries.filter(e => (state.team === 'all' || e.team === state.team) && e.entryType === 'A25E').length;
+
+    typeRow.append(
+        pill('All', state.entryType === 'all', () => { state.entryType = 'all'; onChange(); }, ceCount + a25Count),
+        pill('Circle Entries (CE)', state.entryType === 'CE', () => { state.entryType = 'CE'; onChange(); }, ceCount),
+        pill('25m Entries (A25E)', state.entryType === 'A25E', () => { state.entryType = 'A25E'; onChange(); }, a25Count)
+    );
+    card.append(typeRow);
+
+    // Origin Type Row
+    const originRow = document.createElement('div');
+    originRow.className = 'flex flex-wrap items-center gap-1.5';
+    originRow.append(filterLabel('Origin:'));
+
+    const filteredPool = allEntries.filter(e =>
+        (state.team === 'all' || e.team === state.team) &&
+        (state.entryType === 'all' || e.entryType === state.entryType)
+    );
+    const counterCount = filteredPool.filter(e => e.originType === 'Counter').length;
+    const buildUpCount = filteredPool.filter(e => e.originType === 'Build-Up').length;
+
+    originRow.append(
+        pill('All', state.originType === 'all', () => { state.originType = 'all'; onChange(); }, filteredPool.length),
+        pill('⚡ Counter', state.originType === 'Counter', () => { state.originType = 'Counter'; onChange(); }, counterCount, 'amber'),
+        pill('🛡️ Build-Up', state.originType === 'Build-Up', () => { state.originType = 'Build-Up'; onChange(); }, buildUpCount, 'blue')
+    );
+    card.append(originRow);
+}
+
+function filterLabel(text) {
+    const span = document.createElement('span');
+    span.className = 'text-xs font-semibold text-slate-500 w-12';
+    span.textContent = text;
+    return span;
+}
+
+function pill(label, isActive, onClick, count = null, color = null) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const baseClass = 'px-2.5 py-1 rounded-full text-xs font-medium transition-colors border select-none inline-flex items-center gap-1';
+    let stateClass = 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50';
+
+    if (isActive) {
+        if (color === 'amber') {
+            stateClass = 'bg-amber-100 text-amber-900 border-amber-300 font-semibold shadow-sm';
+        } else if (color === 'blue') {
+            stateClass = 'bg-blue-100 text-blue-900 border-blue-300 font-semibold shadow-sm';
+        } else {
+            stateClass = 'bg-slate-900 text-white border-slate-900 font-semibold shadow-sm';
+        }
+    }
+
+    btn.className = `${baseClass} ${stateClass}`;
+    btn.innerHTML = `${label}${count != null ? `<span class="opacity-70 text-[11px] tabular-nums">(${count})</span>` : ''}`;
+    btn.addEventListener('click', onClick);
+    return btn;
 }
 
 function renderVideoCard(onSeek) {
     const card = document.createElement('div');
-    card.className = 'surface surface-padded';
+    card.className = 'surface surface-padded border rounded-lg';
 
     const header = document.createElement('div');
     header.className = 'flex items-center justify-between pb-2 mb-2 border-b border-slate-200';
@@ -121,11 +329,11 @@ function renderVideoCard(onSeek) {
             <i class="fas fa-video text-slate-500 text-sm" aria-hidden="true"></i>
             <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Match Video</span>
         </div>
-        <span id="video-filename" class="text-xs text-muted truncate max-w-[160px]">No video attached</span>
+        <span id="video-filename" class="text-xs text-muted truncate max-w-[200px]">No video attached</span>
     `;
 
     const videoEl = document.createElement('video');
-    videoEl.className = 'w-full aspect-video bg-black rounded border border-slate-800 object-contain';
+    videoEl.className = 'w-full aspect-video bg-black rounded border border-slate-800 object-contain shadow-inner';
     videoEl.controls = true;
     videoEl.playsInline = true;
 
@@ -226,105 +434,6 @@ function renderVideoCard(onSeek) {
     return card;
 }
 
-function renderFilterControls(card, teams, allEntries, state, onChange) {
-    card.replaceChildren();
-
-    const header = document.createElement('div');
-    header.className = 'flex items-center justify-between pb-2 mb-2 border-b border-slate-200';
-    header.innerHTML = `
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Filter Entries</span>
-        <button type="button" id="reset-filters" class="text-xs text-brand hover:underline font-medium">Reset all</button>
-    `;
-    card.append(header);
-
-    card.querySelector('#reset-filters').addEventListener('click', () => {
-        state.team = 'all';
-        state.entryType = 'all';
-        state.originType = 'all';
-        onChange();
-    });
-
-    // Filter Group 1: Teams
-    if (teams.length > 1) {
-        const teamRow = document.createElement('div');
-        teamRow.className = 'flex flex-wrap items-center gap-1.5 mb-2';
-        teamRow.append(filterLabel('Team:'));
-
-        const allCount = allEntries.length;
-        teamRow.append(pill('All', state.team === 'all', () => { state.team = 'all'; onChange(); }, allCount));
-
-        teams.forEach(t => {
-            const count = allEntries.filter(e => e.team === t).length;
-            teamRow.append(pill(t, state.team === t, () => { state.team = t; onChange(); }, count));
-        });
-        card.append(teamRow);
-    }
-
-    // Filter Group 2: Entry Type (CE vs A25E)
-    const typeRow = document.createElement('div');
-    typeRow.className = 'flex flex-wrap items-center gap-1.5 mb-2';
-    typeRow.append(filterLabel('Entry:'));
-
-    const ceCount = allEntries.filter(e => (state.team === 'all' || e.team === state.team) && e.entryType === 'CE').length;
-    const a25Count = allEntries.filter(e => (state.team === 'all' || e.team === state.team) && e.entryType === 'A25E').length;
-    const typeTotal = ceCount + a25Count;
-
-    typeRow.append(
-        pill('All', state.entryType === 'all', () => { state.entryType = 'all'; onChange(); }, typeTotal),
-        pill('Circle Entries (CE)', state.entryType === 'CE', () => { state.entryType = 'CE'; onChange(); }, ceCount),
-        pill('25m Entries (A25E)', state.entryType === 'A25E', () => { state.entryType = 'A25E'; onChange(); }, a25Count)
-    );
-    card.append(typeRow);
-
-    // Filter Group 3: Origin (Counter vs Build-Up)
-    const originRow = document.createElement('div');
-    originRow.className = 'flex flex-wrap items-center gap-1.5';
-    originRow.append(filterLabel('Origin:'));
-
-    const filteredForOrigin = allEntries.filter(e =>
-        (state.team === 'all' || e.team === state.team) &&
-        (state.entryType === 'all' || e.entryType === state.entryType)
-    );
-    const counterCount = filteredForOrigin.filter(e => e.originType === 'Counter').length;
-    const buildUpCount = filteredForOrigin.filter(e => e.originType === 'Build-Up').length;
-
-    originRow.append(
-        pill('All', state.originType === 'all', () => { state.originType = 'all'; onChange(); }, filteredForOrigin.length),
-        pill('⚡ Counter', state.originType === 'Counter', () => { state.originType = 'Counter'; onChange(); }, counterCount, 'amber'),
-        pill('🛡️ Build-Up', state.originType === 'Build-Up', () => { state.originType = 'Build-Up'; onChange(); }, buildUpCount, 'blue')
-    );
-    card.append(originRow);
-}
-
-function filterLabel(text) {
-    const span = document.createElement('span');
-    span.className = 'text-xs font-semibold text-slate-500 w-12';
-    span.textContent = text;
-    return span;
-}
-
-function pill(label, isActive, onClick, count = null, color = null) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const baseClass = 'px-2.5 py-1 rounded-full text-xs font-medium transition-colors border select-none inline-flex items-center gap-1';
-    let stateClass = 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50';
-
-    if (isActive) {
-        if (color === 'amber') {
-            stateClass = 'bg-amber-100 text-amber-900 border-amber-300 font-semibold shadow-sm';
-        } else if (color === 'blue') {
-            stateClass = 'bg-blue-100 text-blue-900 border-blue-300 font-semibold shadow-sm';
-        } else {
-            stateClass = 'bg-slate-900 text-white border-slate-900 font-semibold shadow-sm';
-        }
-    }
-
-    btn.className = `${baseClass} ${stateClass}`;
-    btn.innerHTML = `${label}${count != null ? `<span class="opacity-70 text-[11px] tabular-nums">(${count})</span>` : ''}`;
-    btn.addEventListener('click', onClick);
-    return btn;
-}
-
 function renderEntryList(container, allEntries, state, onSelect) {
     container.replaceChildren();
 
@@ -337,11 +446,11 @@ function renderEntryList(container, allEntries, state, onSelect) {
 
     if (!filtered.length) {
         const empty = document.createElement('div');
-        empty.className = 'surface surface-padded text-center py-8 text-muted';
+        empty.className = 'surface surface-padded text-center py-8 text-muted border rounded-lg';
         empty.innerHTML = `
             <i class="fas fa-filter text-2xl mb-2 opacity-50" aria-hidden="true"></i>
             <p class="font-medium text-slate-700">No matching entries</p>
-            <p class="text-xs">Try adjusting the filter pills above.</p>
+            <p class="text-xs">Try clearing or adjusting the filter lens above.</p>
         `;
         container.append(empty);
         return;
@@ -371,7 +480,6 @@ function renderEntryList(container, allEntries, state, onSelect) {
             : 'bg-blue-100 text-blue-900 border-blue-300';
 
         const badgeIcon = isCounter ? '⚡ Counter' : '🛡️ Build-Up';
-
         const clockText = entry.quarter ? `${entry.quarter} ${entry.matchClock}` : `match ${entry.matchClock}`;
 
         row.innerHTML = `
