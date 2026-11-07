@@ -793,6 +793,56 @@ async function captureSequenceSpikeSnapshots(browser, baseUrl, results) {
     }
 }
 
+async function captureNavMenuSnapshot(browser, baseUrl, results, { name, urlPath, waitForSelector }) {
+    const vp = VIEWPORTS.find(viewport => viewport.name === 'mobile');
+    const context = await browser.newContext({
+        viewport: { width: vp.width, height: vp.height },
+        deviceScaleFactor: 2
+    });
+    const page = await context.newPage();
+    await page.goto(`${baseUrl}${urlPath}`, { waitUntil: 'domcontentloaded' });
+    if (waitForSelector) {
+        try {
+            await page.waitForSelector(waitForSelector, { timeout: 10000 });
+        } catch {
+            // The menu proof still records whatever chrome loaded.
+        }
+    }
+    await page.click('#mobileMenuButton');
+    await page.waitForSelector('#mainMenu:not(.hidden) #navSequences');
+    await page.waitForTimeout(250);
+
+    const fileName = `${name}-${vp.name}.png`;
+    const filePath = path.join(OUTPUT_DIR, fileName);
+    await page.screenshot({ path: filePath, fullPage: false });
+    results.push({
+        name,
+        viewport: vp.name,
+        size: `${vp.width}x${vp.height}`,
+        file: fileName,
+        bytes: fs.statSync(filePath).size
+    });
+    await context.close();
+}
+
+async function captureNavMenuSnapshots(browser, baseUrl, results) {
+    await captureNavMenuSnapshot(browser, baseUrl, results, {
+        name: 'saved-games-nav-menu',
+        urlPath: '/#saved-games?mock=sample',
+        waitForSelector: '#savedGamesList'
+    });
+    await captureNavMenuSnapshot(browser, baseUrl, results, {
+        name: 'match-review-nav-menu',
+        urlPath: '/timeline-video.html?game=sample-game&mock=sample',
+        waitForSelector: '#timeline-events'
+    });
+    await captureNavMenuSnapshot(browser, baseUrl, results, {
+        name: 'sequence-spike-nav-menu',
+        urlPath: '/spike/sequences/',
+        waitForSelector: '#sequence-video-card, .entry-row'
+    });
+}
+
 async function captureDiffPreviewSnapshot(browser, baseUrl) {
     const diffContext = await browser.newContext({
         viewport: { width: 1280, height: 800 },
@@ -854,6 +904,7 @@ async function runSnapshots() {
         await captureVideoAlignmentSnapshots(browser, baseUrl, results);
         await capturePresentationSnapshots(browser, baseUrl, results);
         await captureSequenceSpikeSnapshots(browser, baseUrl, results);
+        await captureNavMenuSnapshots(browser, baseUrl, results);
         await captureDiffPreviewSnapshot(browser, baseUrl);
 
         console.log('\n📸 Visual Snapshots Generated:\n');

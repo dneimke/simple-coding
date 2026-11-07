@@ -229,4 +229,31 @@ describe('sequence spike', () => {
         closeBtn.click();
         expect(modal.classList.contains('hidden')).toBe(true);
     });
+
+    test('opens the trial nav menu and ignores a page that has no nav', () => {
+        document.body.innerHTML = '<div id="report"></div><p id="status"></p>';
+        expect(() => mountSequenceSpike(document, {
+            storage: { getItem: () => '[]' },
+            fetchSample: () => new Promise(() => {}),
+            autoLoad: false
+        })).not.toThrow();
+
+        document.body.innerHTML = `
+            <button type="button" id="mobileMenuButton"></button>
+            <div id="mainMenu" class="hidden"></div>
+            <div id="report"></div>
+            <p id="status"></p>
+        `;
+        mountSequenceSpike(document, {
+            storage: { getItem: () => '[]' },
+            fetchSample: () => new Promise(() => {}),
+            autoLoad: false
+        });
+
+        const menu = document.getElementById('mainMenu');
+        expect(menu.classList.contains('hidden')).toBe(true);
+        document.getElementById('mobileMenuButton').click();
+        expect(menu.classList.contains('hidden')).toBe(false);
+        expect(document.getElementById('mobileMenuButton').getAttribute('aria-expanded')).toBe('true');
+    });
 });

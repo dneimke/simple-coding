@@ -3,11 +3,33 @@ import path from 'path';
 
 describe('Navigation Menu Consistency Across Screens', () => {
     const htmlFiles = [
-        { file: 'src/index.html', matchesHref: '#saved-games', configHref: '#configure', helpHref: '#help' },
-        { file: 'src/timeline-video.html', matchesHref: 'index.html#saved-games', configHref: 'index.html#configure', helpHref: 'index.html#help' }
+        {
+            file: 'src/index.html',
+            matchesHref: '#saved-games',
+            configHref: '#configure',
+            helpHref: '#help',
+            sequenceHref: 'spike/sequences/',
+            sequenceCurrent: false
+        },
+        {
+            file: 'src/timeline-video.html',
+            matchesHref: 'index.html#saved-games',
+            configHref: 'index.html#configure',
+            helpHref: 'index.html#help',
+            sequenceHref: 'spike/sequences/',
+            sequenceCurrent: false
+        },
+        {
+            file: 'src/spike/sequences/index.html',
+            matchesHref: '../../index.html#saved-games',
+            configHref: '../../index.html#configure',
+            helpHref: '../../index.html#help',
+            sequenceHref: './',
+            sequenceCurrent: true
+        }
     ];
 
-    htmlFiles.forEach(({ file, matchesHref, configHref, helpHref }) => {
+    htmlFiles.forEach(({ file, matchesHref, configHref, helpHref, sequenceHref, sequenceCurrent }) => {
         describe(`in ${file}`, () => {
             let container;
 
@@ -19,15 +41,20 @@ describe('Navigation Menu Consistency Across Screens', () => {
                 container = doc;
             });
 
-            test('main menu contains Configure and Help entry points with brand acting as Home/Matches link', () => {
+            test('main menu lists Configure, Help, then Sequence trial, with the brand opening Matches', () => {
                 const navLinks = Array.from(container.querySelectorAll('#mainMenu .nav-link'));
-                expect(navLinks).toHaveLength(2);
+                expect(navLinks).toHaveLength(3);
 
                 const linkTexts = navLinks.map(el => el.querySelector('span')?.textContent.trim() || el.textContent.trim());
-                expect(linkTexts).toEqual(['Configure', 'Help']);
+                expect(linkTexts).toEqual(['Configure', 'Help', 'Sequence trial']);
 
                 expect(navLinks[0].getAttribute('href')).toBe(configHref);
                 expect(navLinks[1].getAttribute('href')).toBe(helpHref);
+                expect(navLinks[2].id).toBe('navSequences');
+                expect(navLinks[2].getAttribute('href')).toBe(sequenceHref);
+                expect(navLinks[2].querySelector('.fa-flask')).not.toBeNull();
+                expect(navLinks[2].classList.contains('nav-link-active')).toBe(sequenceCurrent);
+                expect(navLinks[2].getAttribute('aria-current')).toBe(sequenceCurrent ? 'page' : null);
             });
 
             test('does not contain "Event Capture", "Saved Games", or redundant "Matches" link in main menu', () => {
@@ -48,5 +75,15 @@ describe('Navigation Menu Consistency Across Screens', () => {
                 });
             });
         });
+    });
+
+    test('Matches subtitle keeps How the 3 modes work and leaves Sequence trial to the nav', () => {
+        const html = fs.readFileSync(path.resolve(process.cwd(), 'src/index.html'), 'utf8');
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const subtitle = doc.querySelector('#saved-games-view .page-subtitle');
+        expect(subtitle).not.toBeNull();
+        expect(subtitle.textContent).toContain('How the 3 modes work');
+        expect(subtitle.textContent).not.toContain('Sequence trial');
+        expect(subtitle.querySelector('a[href="spike/sequences/"]')).toBeNull();
     });
 });

@@ -2,7 +2,7 @@
 
 Classifies attacking 25m entries (`A25E`) and circle entries (`CE`) from a coded match as **Counter** or **Build-Up**. The trial page is served with the site at `/spike/sequences/`. Capture and match review do not use it.
 
-On the deployed site, open **Sequence trial** from Matches, or go directly to `spike/sequences/`. Pick a match saved in that browser, upload an export, or open the sample.
+On the deployed site, open **Sequence trial** from the main nav (flask icon, after Help), or go directly to `spike/sequences/`. Pick a match saved in that browser, upload an export, or open the sample.
 
 The command-line check reads the same rules:
 

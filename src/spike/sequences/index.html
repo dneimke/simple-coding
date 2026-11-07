@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0b1220">
     <title>Sequence trial</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="../../styles.css?v=20261020c">
+    <link rel="stylesheet" href="../../styles.css?v=20261108a">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -17,8 +17,51 @@
     <link rel="icon" type="image/png" sizes="32x32" href="../../assets/icons/favicon-32x32.png">
 </head>
 
-<body>
+<body class="sequence-page">
     <div class="app-shell">
+        <nav class="app-nav" aria-label="Main">
+            <div class="app-nav-inner">
+                <div class="app-nav-bar md:hidden">
+                    <a href="../../index.html#saved-games" id="navEventCaptureMobile" class="app-brand" title="Hockey Tracker Matches">
+                        <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
+                        <span>Hockey Tracker</span>
+                    </a>
+                    <button id="mobileMenuButton" type="button" class="app-nav-icon-button" aria-label="Toggle menu"
+                        aria-controls="mainMenu">
+                        <i class="fas fa-bars text-xl" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <div id="mainMenu" class="hidden md:flex md:h-14 md:items-center md:justify-between flex-col md:flex-row">
+                    <div class="app-nav-links flex flex-col md:flex-row md:items-center gap-1">
+                        <a href="../../index.html#saved-games" class="app-brand hidden md:inline-flex md:mr-4" title="Hockey Tracker Matches">
+                            <span class="app-brand-mark"><i class="fas fa-hockey-puck" aria-hidden="true"></i></span>
+                            <span>Hockey Tracker</span>
+                        </a>
+                        <a href="../../index.html#configure" id="navConfig" class="nav-link">
+                            <i class="fas fa-sliders text-sm" aria-hidden="true"></i>
+                            <span>Configure</span>
+                        </a>
+                        <a href="../../index.html#help" id="navHelp" class="nav-link">
+                            <i class="fas fa-circle-question text-sm" aria-hidden="true"></i>
+                            <span>Help</span>
+                        </a>
+                        <a href="./" id="navSequences" class="nav-link nav-link-active" aria-current="page">
+                            <i class="fas fa-flask text-sm" aria-hidden="true"></i>
+                            <span>Sequence trial</span>
+                        </a>
+                    </div>
+                    <div class="flex mt-1 md:mt-0">
+                        <a href="https://github.com/dneimke/simple-coding" target="_blank" rel="noopener"
+                            title="Visit the GitHub repository" aria-label="GitHub repository"
+                            class="app-nav-icon-button">
+                            <i class="fab fa-github text-xl" aria-hidden="true"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
         <main class="app-main">
             <div class="page max-w-full px-4 lg:px-8 mx-auto" id="sequence-spike">
                 <header class="py-2 mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">

@@ -2,6 +2,7 @@
  * Wires the sequence spike page. Capture and review do not load this module.
  */
 
+import { setupMobileMenu } from '../../utils/domUtils.js';
 import { analyseGameText, gameLabel, readSavedGames } from './games.js';
 import { renderReport } from './render.js';
 
@@ -10,6 +11,8 @@ import { renderReport } from './render.js';
  * @param {{ storage?: Storage, fetchSample?: () => Promise<string> }} [options]
  */
 export function mountSequenceSpike(doc, options = {}) {
+    setupMobileMenu(doc.getElementById('mobileMenuButton'), doc.getElementById('mainMenu'));
+
     const storage = options.storage || window.localStorage;
     const savedRoot = doc.getElementById('saved-games');
     const status = doc.getElementById('status');
