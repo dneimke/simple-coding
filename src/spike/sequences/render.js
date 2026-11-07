@@ -319,9 +319,8 @@ function renderVideoCard(onSeek, feedbackStore, options = {}) {
     const controlsRow = createVideoControlsRow(videoEl, feedbackStore, () => currentEntry);
 
     wireFileInput(fileInput, videoEl, card);
-    restoreInitialVideo(videoEl, card, options);
-
     card.append(header, urlBar, fileInput, videoEl, controlsRow);
+    restoreInitialVideo(videoEl, card, options);
 
     card.videoEl = videoEl;
     card.seekTo = (seconds, entry) => {
@@ -580,10 +579,15 @@ function renderEntryList(container, allEntries, state, options = {}) {
     if (!filtered.length) {
         const empty = document.createElement('div');
         empty.className = 'surface surface-padded text-center py-8 text-muted border rounded-lg';
-        empty.innerHTML = `
+        empty.innerHTML = allEntries.length
+            ? `
             <i class="fas fa-filter text-2xl mb-2 opacity-50" aria-hidden="true"></i>
             <p class="font-medium text-slate-700">No matching entries</p>
             <p class="text-xs">Try clearing or adjusting the filter lens above.</p>
+        `
+            : `
+            <p class="font-medium text-slate-700">No attacking entries</p>
+            <p class="text-xs">This match has no circle or 25m entries.</p>
         `;
         container.append(empty);
         return;

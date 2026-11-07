@@ -793,6 +793,63 @@ async function captureSequenceSpikeSnapshots(browser, baseUrl, results) {
     }
 }
 
+async function captureSequenceSavedGameSnapshots(browser, baseUrl, results) {
+    const quietGame = {
+        id: 'quiet-game',
+        name: 'Quiet match',
+        events: [{ id: '1', event: 'BS1', isTeam1: true, timeMs: 1000 }]
+    };
+
+    for (const vp of VIEWPORTS) {
+        const savedContext = await browser.newContext({
+            viewport: { width: vp.width, height: vp.height },
+            deviceScaleFactor: 2
+        });
+        const savedPage = await savedContext.newPage();
+        await savedPage.goto(`${baseUrl}/#saved-games?mock=sample`, { waitUntil: 'domcontentloaded' });
+        await savedPage.waitForSelector('#savedGamesList .saved-game-card');
+        await savedPage.goto(`${baseUrl}/spike/sequences/?game=sample-game`, { waitUntil: 'domcontentloaded' });
+        await savedPage.waitForFunction(() => {
+            const badge = document.getElementById('current-match-badge');
+            return badge && badge.textContent.includes('FIRE');
+        });
+        const savedPath = path.join(OUTPUT_DIR, `sequence-spike-saved-game-${vp.name}.png`);
+        await savedPage.screenshot({ path: savedPath, fullPage: true });
+        results.push({
+            name: 'sequence-spike-saved-game',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `sequence-spike-saved-game-${vp.name}.png`,
+            bytes: fs.statSync(savedPath).size
+        });
+        await savedContext.close();
+
+        const quietContext = await browser.newContext({
+            viewport: { width: vp.width, height: vp.height },
+            deviceScaleFactor: 2
+        });
+        const quietPage = await quietContext.newPage();
+        await quietPage.addInitScript(game => {
+            localStorage.setItem('fieldHockeyGames_v1', JSON.stringify([game]));
+        }, quietGame);
+        await quietPage.goto(`${baseUrl}/spike/sequences/?game=quiet-game`, { waitUntil: 'domcontentloaded' });
+        await quietPage.waitForFunction(() => {
+            const badge = document.getElementById('current-match-badge');
+            return badge && badge.textContent === 'Quiet match';
+        });
+        const quietPath = path.join(OUTPUT_DIR, `sequence-spike-no-entries-${vp.name}.png`);
+        await quietPage.screenshot({ path: quietPath, fullPage: true });
+        results.push({
+            name: 'sequence-spike-no-entries',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `sequence-spike-no-entries-${vp.name}.png`,
+            bytes: fs.statSync(quietPath).size
+        });
+        await quietContext.close();
+    }
+}
+
 async function captureNavMenuSnapshot(browser, baseUrl, results, { name, urlPath, waitForSelector }) {
     const vp = VIEWPORTS.find(viewport => viewport.name === 'mobile');
     const context = await browser.newContext({
@@ -904,6 +961,7 @@ async function runSnapshots() {
         await captureVideoAlignmentSnapshots(browser, baseUrl, results);
         await capturePresentationSnapshots(browser, baseUrl, results);
         await captureSequenceSpikeSnapshots(browser, baseUrl, results);
+        await captureSequenceSavedGameSnapshots(browser, baseUrl, results);
         await captureNavMenuSnapshots(browser, baseUrl, results);
         await captureDiffPreviewSnapshot(browser, baseUrl);
 

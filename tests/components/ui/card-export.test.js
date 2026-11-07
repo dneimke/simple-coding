@@ -206,6 +206,7 @@ describe('Saved game actions', () => {
         handlers = {
             onSelect: jest.fn(),
             onContinueCoding: jest.fn(),
+            onSequenceTrial: jest.fn(),
             onViewLog: jest.fn(),
             onRename: jest.fn(),
             onDelete: jest.fn()
@@ -246,14 +247,21 @@ describe('Saved game actions', () => {
         expect(findReviewButton(card)).toBeUndefined();
     });
 
-    test('the menu starts hidden and lists Continue coding, View log, Export XML, Rename, Delete', () => {
+    test('the menu starts hidden and lists Continue coding, Sequence trial, View log, Export XML, Rename, Delete', () => {
         const card = createGameCard({ game, index: 0, ...handlers });
 
         const { toggle, menu, items } = getMenuParts(card);
         expect(menu.className).toContain('hidden');
         expect(toggle.setAttribute).toHaveBeenCalledWith('aria-expanded', 'false');
         expect(toggle.setAttribute).toHaveBeenCalledWith('aria-label', 'More actions for Test Team vs Opponent');
-        expect(items.map(item => item.textContent)).toEqual(['Continue coding', 'View log', 'Export XML', 'Rename', 'Delete']);
+        expect(items.map(item => item.textContent)).toEqual([
+            'Continue coding',
+            'Sequence trial',
+            'View log',
+            'Export XML',
+            'Rename',
+            'Delete'
+        ]);
         expect(findMenuItem(card, 'Delete').className).toContain('saved-game-menu-item-danger');
     });
 
@@ -267,6 +275,12 @@ describe('Saved game actions', () => {
 
         toggle.onclick({ stopPropagation: jest.fn() });
         expect(menu.classList.add).toHaveBeenCalledWith('hidden');
+    });
+
+    test('Sequence trial is not listed without an onSequenceTrial handler', () => {
+        const { onSequenceTrial, ...rest } = handlers;
+        const card = createGameCard({ game, index: 0, ...rest });
+        expect(findMenuItem(card, 'Sequence trial')).toBeUndefined();
     });
 
     test('Continue coding is not listed without an onContinueCoding handler', () => {
@@ -294,6 +308,7 @@ describe('Saved game actions', () => {
 
     test.each([
         ['Continue coding', 'onContinueCoding'],
+        ['Sequence trial', 'onSequenceTrial'],
         ['View log', 'onViewLog'],
         ['Rename', 'onRename'],
         ['Delete', 'onDelete']

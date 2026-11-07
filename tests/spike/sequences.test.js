@@ -230,6 +230,90 @@ describe('sequence spike', () => {
         expect(modal.classList.contains('hidden')).toBe(true);
     });
 
+    test('loads the saved match for a game id and does not open the sample', () => {
+        document.body.innerHTML = `
+            <span id="current-match-badge">Sample match</span>
+            <div id="report"></div>
+            <div id="matches-modal" class="hidden"><p id="status"></p></div>
+        `;
+        const fetchSample = jest.fn(() => Promise.resolve(fixtureText));
+        const saved = {
+            id: 'fire-game',
+            name: 'FIRE vs TIGERS',
+            teams: ['FIRE', 'TIGERS'],
+            videoUrl: 'https://example.com/matches/fire.mp4',
+            events: [
+                { id: '1', event: 'BW1', isTeam1: true, timeMs: 1000 },
+                { id: '2', event: 'CE', isTeam1: true, timeMs: 5000 }
+            ]
+        };
+
+        mountSequenceSpike(document, {
+            storage: {
+                getItem: () => JSON.stringify([saved]),
+                setItem: () => {}
+            },
+            fetchSample,
+            gameId: 'fire-game'
+        });
+
+        expect(fetchSample).not.toHaveBeenCalled();
+        expect(document.getElementById('current-match-badge').textContent).toBe('FIRE vs TIGERS');
+        expect(document.getElementById('report').textContent).toContain('Circle Entries (1)');
+        expect(document.getElementById('report').textContent).toContain('cloud: fire.mp4');
+        expect(document.getElementById('matches-modal').classList.contains('hidden')).toBe(true);
+    });
+
+    test('keeps a match with no attacking entries and does not substitute the sample', () => {
+        document.body.innerHTML = `
+            <span id="current-match-badge">Sample match</span>
+            <div id="report"></div>
+            <p id="status"></p>
+        `;
+        const fetchSample = jest.fn(() => Promise.resolve(fixtureText));
+
+        mountSequenceSpike(document, {
+            storage: {
+                getItem: () => JSON.stringify([{
+                    id: 'quiet-game',
+                    name: 'Quiet match',
+                    events: [{ id: '1', event: 'BS1', isTeam1: true, timeMs: 1000 }]
+                }])
+            },
+            fetchSample,
+            gameId: 'quiet-game'
+        });
+
+        expect(fetchSample).not.toHaveBeenCalled();
+        expect(document.getElementById('current-match-badge').textContent).toBe('Quiet match');
+        expect(document.getElementById('report').textContent).toContain('Circle Entries (0)');
+        expect(document.getElementById('report').textContent).toContain('25m Entries (0)');
+        expect(document.getElementById('report').textContent).toContain('No attacking entries');
+        expect(document.getElementById('report').textContent).toContain('This match has no circle or 25m entries.');
+        expect(document.getElementById('report').textContent).not.toContain('Circle Entries (8)');
+    });
+
+    test('an unknown match id explains that it is not saved and does not load the sample', () => {
+        document.body.innerHTML = `
+            <span id="current-match-badge">Sample match</span>
+            <div id="report"></div>
+            <div id="matches-modal" class="hidden"><p id="status"></p></div>
+        `;
+        const fetchSample = jest.fn(() => Promise.resolve(fixtureText));
+
+        mountSequenceSpike(document, {
+            storage: { getItem: () => '[]' },
+            fetchSample,
+            gameId: 'missing-game'
+        });
+
+        expect(fetchSample).not.toHaveBeenCalled();
+        expect(document.getElementById('status').textContent).toBe('That match is not saved in this browser.');
+        expect(document.getElementById('current-match-badge').textContent).toBe('');
+        expect(document.getElementById('matches-modal').classList.contains('hidden')).toBe(false);
+        expect(document.getElementById('report').textContent).not.toContain('Circle Entries (8)');
+    });
+
     test('opens the trial nav menu and ignores a page that has no nav', () => {
         document.body.innerHTML = '<div id="report"></div><p id="status"></p>';
         expect(() => mountSequenceSpike(document, {

@@ -303,7 +303,7 @@ function exportGameXmlWithPrompt(game, index) {
 }
 
 function createGameCardActions(game, title, index, handlers) {
-    const { onSelect, onContinueCoding, onViewLog, onAppendXml, onRename, onDelete } = handlers;
+    const { onSelect, onContinueCoding, onSequenceTrial, onViewLog, onAppendXml, onRename, onDelete } = handlers;
     const reviewButton = onSelect ? createButton({
         text: 'Review',
         type: 'secondary',
@@ -317,6 +317,7 @@ function createGameCardActions(game, title, index, handlers) {
 
     const menu = createGameMenu(title, [
         onContinueCoding && { text: 'Continue coding', onClick: onContinueCoding },
+        onSequenceTrial && { text: 'Sequence trial', onClick: onSequenceTrial },
         onViewLog && { text: 'View log', onClick: onViewLog },
         onAppendXml && { text: 'Append XML…', onClick: onAppendXml },
         { text: 'Export XML', onClick: () => exportGameXmlWithPrompt(game, index) },
@@ -337,6 +338,7 @@ export const createGameCard = ({
     onRename,
     onSelect,
     onContinueCoding,
+    onSequenceTrial,
     onViewLog,
     onAppendXml
 }) => {
@@ -354,7 +356,7 @@ export const createGameCard = ({
     const title = game.teams ? game.teams : `Game ${index + 1}`;
     const gameDetails = createGameCardDetails(game, title, onSelect);
     const actions = createGameCardActions(game, title, index, {
-        onSelect, onContinueCoding, onViewLog, onAppendXml, onRename, onDelete
+        onSelect, onContinueCoding, onSequenceTrial, onViewLog, onAppendXml, onRename, onDelete
     });
 
     gameCard.append(icon, gameDetails, actions);

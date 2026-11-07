@@ -24,13 +24,18 @@ function loadGameJson(data, gameId) {
     if (!game || !Array.isArray(game.events)) {
         throw new Error('Expected a game object with an events array, or a list of games.');
     }
-    return {
+    const loaded = {
         name: game.name || game.id || 'Coded game',
         id: game.id || null,
         teams: normalizeTeams(game),
         timeSource: 'timeMs',
         events: game.events.map(event => ({ ...event, labels: copyLabels(event.labels) }))
     };
+    if (typeof game.videoUrl === 'string' && game.videoUrl) loaded.videoUrl = game.videoUrl;
+    if (game.metadata && typeof game.metadata.videoUrl === 'string' && game.metadata.videoUrl) {
+        loaded.metadata = { videoUrl: game.metadata.videoUrl };
+    }
+    return loaded;
 }
 
 function selectGame(data, gameId) {
