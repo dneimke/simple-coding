@@ -38,27 +38,27 @@ export function renderReport(container, game, result, meta = {}) {
     const kpiSection = renderKpis(stats);
     container.append(kpiSection);
 
-    // Two-column workspace: Sticky Video Player (left) + Filter & Entry Table (right)
+    // Two-column workspace: Filters & Entry Rows (left, 5 cols) + Large Sticky Video Player (right, 7 cols)
     const workspace = document.createElement('div');
-    workspace.className = 'grid grid-cols-1 lg:grid-cols-12 gap-4 items-start';
+    workspace.className = 'grid grid-cols-1 lg:grid-cols-12 gap-5 items-start';
 
-    // Left Column: Sticky Video player
-    const videoCol = document.createElement('div');
-    videoCol.className = 'lg:col-span-5 lg:sticky lg:top-4 z-10 flex flex-col gap-2';
-    const videoCard = renderVideoCard((seekSec, entry) => {
-        if (meta.onSeek) meta.onSeek(seekSec, entry);
-    });
-    videoCol.append(videoCard);
-
-    // Right Column: Filters + Entry Rows
+    // Left Column: Filters + Entry Rows (5 cols)
     const listCol = document.createElement('div');
-    listCol.className = 'lg:col-span-7 flex flex-col gap-3 min-w-0';
+    listCol.className = 'lg:col-span-5 flex flex-col gap-3 min-w-0 order-2 lg:order-1';
 
     const filterCard = document.createElement('div');
     filterCard.className = 'surface surface-padded';
 
     const listContainer = document.createElement('div');
     listContainer.className = 'flex flex-col gap-2';
+
+    // Right Column: Large Sticky Video player (7 cols)
+    const videoCol = document.createElement('div');
+    videoCol.className = 'lg:col-span-7 lg:sticky lg:top-4 z-10 flex flex-col gap-2 order-1 lg:order-2';
+    const videoCard = renderVideoCard((seekSec, entry) => {
+        if (meta.onSeek) meta.onSeek(seekSec, entry);
+    });
+    videoCol.append(videoCard);
 
     function update() {
         renderFilterControls(filterCard, teams, allEntries, state, () => {
@@ -73,7 +73,7 @@ export function renderReport(container, game, result, meta = {}) {
     }
 
     listCol.append(filterCard, listContainer);
-    workspace.append(videoCol, listCol);
+    workspace.append(listCol, videoCol);
     container.append(workspace);
 
     update();

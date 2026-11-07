@@ -72,10 +72,13 @@ function instanceToEvent(block, index) {
         group: decodeXml(tagText(match[1], 'group')),
         text: decodeXml(tagText(match[1], 'text'))
     })).filter(label => label.text);
+    const timeMs = instanceTimeMs(start, end);
+    const lead = Math.max(0, Math.round((timeMs / 1000) - start));
     return {
         id: tagText(block, 'ID') || `i${index}`,
         event: decodeXml(tagText(block, 'code')),
-        timeMs: instanceTimeMs(start, end),
+        timeMs,
+        lead: lead > 0 ? lead : undefined,
         labels: labels.length ? labels : undefined
     };
 }
