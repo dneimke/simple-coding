@@ -7,7 +7,8 @@ import {
     formatFeedbackMarkdown,
     exportFeedbackJson,
     renderFeedbackBar,
-    openFeedbackModal
+    openFeedbackModal,
+    wireFeedbackHeader
 } from '../../src/spike/sequences/feedback.js';
 
 describe('sequence feedback module', () => {
@@ -190,5 +191,75 @@ describe('sequence feedback module', () => {
         expect(saved.suggestedSeek).toBe('15:45');
         expect(saved.issues).toContain('Timing too late (missed turnover / leadup)');
         expect(saved.coachNotes).toBe('Need earlier seek');
+    });
+
+    test('wireFeedbackHeader controls badge visibility, modal, and copy actions', async () => {
+        document.body.innerHTML = `
+            <button id="feedback-badge-btn" class="hidden"><span id="feedback-badge-count">0</span></button>
+            <div id="feedback-modal" class="hidden">
+                <span id="feedback-modal-count-badge">0</span>
+                <button id="close-feedback-modal"></button>
+                <button id="copy-feedback-batch-btn"></button>
+                <button id="download-feedback-batch-json"></button>
+                <button id="clear-feedback-batch-btn"></button>
+                <div id="feedback-copy-status" class="hidden"></div>
+                <div id="feedback-items-list"></div>
+            </div>
+        `;
+
+        let copiedText = '';
+        Object.assign(navigator, {
+            clipboard: {
+                writeText: (txt) => {
+                    copiedText = txt;
+                    return Promise.resolve();
+                }
+            }
+        });
+
+        const store = createFeedbackStore(null, 'test-wire');
+        wireFeedbackHeader(document, store, { gameLabel: 'Demo Match' });
+
+        const badgeBtn = document.getElementById('feedback-badge-btn');
+        const badgeCount = document.getElementById('feedback-badge-count');
+        const modal = document.getElementById('feedback-modal');
+
+        // Initially hidden with 0 items
+        expect(badgeBtn.classList.contains('hidden')).toBe(true);
+
+        // Add 1 item
+        store.set({
+            id: 'item-1',
+            team: 'FIRE',
+            entryType: 'CE',
+            clockText: '05:00',
+            videoTime: '05:00',
+            currentSeek: '04:55',
+            originType: 'Counter',
+            reason: '5s after BW1'
+        });
+
+        expect(badgeBtn.classList.contains('hidden')).toBe(false);
+        expect(badgeCount.textContent).toBe('1 Flagged');
+
+        // Open modal
+        badgeBtn.click();
+        expect(modal.classList.contains('hidden')).toBe(false);
+        expect(document.getElementById('feedback-modal-count-badge').textContent).toBe('1');
+        expect(document.getElementById('feedback-items-list').textContent).toContain('FIRE CE');
+
+        // Copy batch for AI
+        document.getElementById('copy-feedback-batch-btn').click();
+        await Promise.resolve();
+        expect(copiedText).toContain('Sequence Feedback Batch');
+        expect(copiedText).toContain('FIRE CE');
+
+        // Close modal
+        document.getElementById('close-feedback-modal').click();
+        expect(modal.classList.contains('hidden')).toBe(true);
+
+        // Clear store
+        store.clear();
+        expect(badgeBtn.classList.contains('hidden')).toBe(true);
     });
 });

@@ -17,6 +17,10 @@ export function mountSequenceSpike(doc, options = {}) {
     const fileInput = doc.getElementById('file-input');
     const matchDetails = doc.getElementById('match-selector-details');
     const matchTitle = doc.getElementById('match-selector-title');
+    const currentMatchBadge = doc.getElementById('current-match-badge');
+    const matchesModal = doc.getElementById('matches-modal');
+
+    let currentLoadedGame = null;
 
     const fetchSample = options.fetchSample || (() => fetch('fixture.json').then(response => {
         if (!response.ok) throw new Error('Sample match is unavailable.');
@@ -28,9 +32,12 @@ export function mountSequenceSpike(doc, options = {}) {
     }
 
     function showAnalysis(analysed, label) {
+        currentLoadedGame = label;
         showStatus(label);
+        if (currentMatchBadge) currentMatchBadge.textContent = label;
         if (matchTitle) matchTitle.textContent = `Match: ${label}`;
-        if (matchDetails) matchDetails.open = false; // Collapse to let video & analysis take focus
+        if (matchDetails) matchDetails.open = false;
+        if (matchesModal) matchesModal.classList.add('hidden');
         renderReport(report, analysed.game, analysed.result, { mutated: analysed.mutated, storage });
     }
 
@@ -50,6 +57,16 @@ export function mountSequenceSpike(doc, options = {}) {
     paintSavedGames(doc, savedRoot, readSavedGames(storage), showText);
     wireFileInput(doc, fileInput, showText, showFailure);
     wireSample(doc, fetchSample, showText, showStatus, showFailure);
+    wireMatchesModal(doc);
+
+    // Immediate sample load on first visit so coaches arrive directly to an active workspace
+    if (options.autoLoad !== false) {
+        fetchSample().then(text => {
+            if (!currentLoadedGame) {
+                showText(text, 'Sample match');
+            }
+        }).catch(() => {});
+    }
 }
 
 const root = typeof document !== 'undefined' ? document.getElementById('sequence-spike') : null;
@@ -60,18 +77,21 @@ function paintSavedGames(doc, savedRoot, games, showText) {
     savedRoot.replaceChildren();
     if (!games.length) {
         const empty = doc.createElement('p');
-        empty.className = 'help-text';
-        empty.textContent = 'No matches are saved in this browser yet.';
+        empty.className = 'help-text text-xs text-slate-400 py-1 text-center';
+        empty.textContent = 'No other matches saved in this browser yet.';
         savedRoot.append(empty);
         return;
     }
     for (const game of games) {
         const button = doc.createElement('button');
         button.type = 'button';
-        button.className = 'btn btn-secondary text-left flex justify-between items-center';
-        const count = game.events.length;
-        button.innerHTML = `<span>${gameLabel(game)}</span><span class="text-xs text-muted tabular-nums">${count} ${count === 1 ? 'event' : 'events'}</span>`;
-        button.addEventListener('click', () => showText(JSON.stringify(game), gameLabel(game)));
+        button.className = 'btn btn-secondary text-left flex justify-between items-center px-3 py-2 text-xs hover:border-slate-400';
+        const label = gameLabel(game);
+        button.innerHTML = `
+            <span class="font-semibold text-slate-800 truncate mr-2">${label}</span>
+            <span class="text-[11px] text-brand flex-shrink-0 font-medium">Open →</span>
+        `;
+        button.addEventListener('click', () => showText(JSON.stringify(game), label));
         savedRoot.append(button);
     }
 }
@@ -103,4 +123,24 @@ function wireSample(doc, fetchSample, showText, showStatus, showFailure) {
             });
         });
     }
+}
+
+function wireMatchesModal(doc) {
+    const modal = doc.getElementById('matches-modal');
+    const openBtn = doc.getElementById('matches-button');
+    const closeBtn = doc.getElementById('close-matches-modal');
+    if (!modal || !openBtn) return;
+
+    openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+    if (closeBtn) closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+    });
+
+    doc.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+        }
+    });
 }
