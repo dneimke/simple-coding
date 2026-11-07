@@ -1405,6 +1405,14 @@ code {
     display: none;
 }
 
+.saved-game-menu-icon {
+    width: 1rem;
+    margin-inline-end: var(--space-2);
+    color: var(--color-success);
+    text-align: center;
+    flex: none;
+}
+
 .saved-game-menu-item {
     display: flex;
     align-items: center;
