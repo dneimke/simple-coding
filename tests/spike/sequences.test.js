@@ -124,5 +124,20 @@ describe('sequence spike', () => {
         expect(firstRow).toBeDefined();
         firstRow.click();
         expect(document.getElementById('active-entry-info').textContent).toContain('Counter');
+
+        // Test Cloud URL toggle & loading
+        const toggleUrlBtn = document.getElementById('btn-toggle-url');
+        expect(toggleUrlBtn).not.toBeNull();
+        toggleUrlBtn.click();
+        const urlBar = document.getElementById('video-url-bar');
+        expect(urlBar.classList.contains('hidden')).toBe(false);
+
+        const urlInput = document.getElementById('video-url-input');
+        urlInput.value = 'https://example.com/matches/test-match.mp4';
+        document.getElementById('btn-load-url').click();
+
+        const videoEl = document.querySelector('#report video');
+        expect(videoEl.src).toBe('https://example.com/matches/test-match.mp4');
+        expect(document.getElementById('video-filename').textContent).toContain('test-match.mp4');
     });
 });

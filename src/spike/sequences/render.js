@@ -41,19 +41,19 @@ export function renderReport(container, game, result, meta = {}) {
 
     // Top: Coach Match Scoreboard
     const scoreboard = document.createElement('div');
-    scoreboard.className = 'mb-4';
+    scoreboard.className = 'mb-2.5';
     container.append(scoreboard);
 
     // Two-column workspace: Entries List (left, 5 cols) + Large Sticky Video Player (right, 7 cols)
     const workspace = document.createElement('div');
-    workspace.className = 'grid grid-cols-1 lg:grid-cols-12 gap-5 items-start';
+    workspace.className = 'grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start';
 
     // Left Column: Filter Lens Header + Entry Rows (5 cols)
     const listCol = document.createElement('div');
-    listCol.className = 'lg:col-span-5 flex flex-col gap-3 min-w-0 order-2 lg:order-1';
+    listCol.className = 'lg:col-span-5 flex flex-col gap-2.5 min-w-0 order-2 lg:order-1';
 
     const filterLensCard = document.createElement('div');
-    filterLensCard.className = 'surface surface-padded border rounded-lg';
+    filterLensCard.className = 'surface p-2.5 border rounded-lg';
 
     const listContainer = document.createElement('div');
     listContainer.className = 'flex flex-col gap-2';
@@ -62,10 +62,14 @@ export function renderReport(container, game, result, meta = {}) {
 
     // Right Column: Large Sticky Video player (7 cols)
     const videoCol = document.createElement('div');
-    videoCol.className = 'lg:col-span-7 lg:sticky lg:top-4 z-10 flex flex-col gap-2 order-1 lg:order-2';
+    videoCol.className = 'lg:col-span-7 lg:sticky lg:top-2 z-10 flex flex-col gap-2 order-1 lg:order-2';
     const videoCard = renderVideoCard((seekSec, entry) => {
         if (meta.onSeek) meta.onSeek(seekSec, entry);
-    }, feedbackStore);
+    }, feedbackStore, {
+        storage: meta.storage,
+        storageKey: `sequence_spike_video_${game.id || game.name || 'default'}`,
+        initialUrl: game.videoUrl || (game.metadata && game.metadata.videoUrl) || null
+    });
     videoCol.append(videoCard);
 
     workspace.append(listCol, videoCol);
@@ -183,40 +187,36 @@ function renderCoachScoreboard(container, teams, allEntries, state, onChange) {
 
 function scoreboardCard({ title, subtitle, isActive, onClick, team1, team2, val1, val2, sub1, sub2, badgeText, badgeColor }) {
     const card = document.createElement('div');
-    const activeRing = isActive ? 'ring-2 ring-blue-600 bg-blue-50/20' : 'hover:border-slate-300';
-    card.className = `surface p-3.5 border rounded-lg cursor-pointer transition-all select-none ${activeRing}`;
+    const activeRing = isActive ? 'ring-2 ring-blue-600 bg-blue-50/30 border-blue-400' : 'hover:border-slate-300';
+    card.className = `surface px-3 py-2 border rounded-lg cursor-pointer transition-all select-none ${activeRing}`;
 
     const total = val1 + val2;
     const p1 = total ? Math.round((val1 / total) * 100) : 50;
     const p2 = total ? 100 - p1 : 50;
 
     card.innerHTML = `
-        <div class="flex items-center justify-between gap-1 mb-2">
-            <div>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">${title}</h3>
-                <p class="text-[11px] text-slate-500">${subtitle}</p>
+        <div class="flex items-center justify-between gap-1 mb-1">
+            <div class="flex items-center gap-1.5 min-w-0">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800 truncate">${title}</h3>
+                <span class="text-[10px] text-slate-400 hidden xl:inline">(${subtitle})</span>
             </div>
-            <span class="text-[11px] px-2 py-0.5 rounded font-bold border ${badgeColor}">${badgeText}</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded font-bold border ${badgeColor} flex-shrink-0">${badgeText}</span>
         </div>
-        <div class="grid grid-cols-2 gap-2 my-2 py-1 border-y border-slate-100">
-            <div class="text-left">
-                <div class="text-xs font-semibold text-slate-600 truncate">${team1}</div>
-                <div class="text-2xl font-black text-slate-900 tabular-nums">${val1}</div>
-                <div class="text-[11px] text-slate-500 truncate">${sub1}</div>
+        <div class="flex items-center justify-between gap-2 py-0.5">
+            <div class="text-left flex items-baseline gap-1.5 min-w-0">
+                <span class="text-xs font-semibold text-slate-700 truncate max-w-[75px]">${team1}</span>
+                <span class="text-xl font-black text-slate-900 tabular-nums">${val1}</span>
+                <span class="text-[10px] text-slate-500 hidden sm:inline truncate">${sub1}</span>
             </div>
-            <div class="text-right">
-                <div class="text-xs font-semibold text-slate-600 truncate">${team2}</div>
-                <div class="text-2xl font-black text-slate-900 tabular-nums">${val2}</div>
-                <div class="text-[11px] text-slate-500 truncate">${sub2}</div>
+            <div class="text-right flex items-baseline gap-1.5 min-w-0 justify-end">
+                <span class="text-[10px] text-slate-500 hidden sm:inline truncate">${sub2}</span>
+                <span class="text-xl font-black text-slate-900 tabular-nums">${val2}</span>
+                <span class="text-xs font-semibold text-slate-700 truncate max-w-[75px]">${team2}</span>
             </div>
         </div>
-        <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden flex mt-2">
+        <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden flex mt-1">
             <div class="bg-blue-600 h-full" style="width: ${p1}%" title="${team1}: ${p1}%"></div>
             <div class="bg-amber-500 h-full" style="width: ${p2}%" title="${team2}: ${p2}%"></div>
-        </div>
-        <div class="mt-2 text-[11px] text-blue-700 font-medium text-right flex items-center justify-end gap-1">
-            <span>${isActive ? 'Active filter' : 'Filter by this'}</span>
-            <i class="fas fa-arrow-right text-[10px]" aria-hidden="true"></i>
         </div>
     `;
 
@@ -330,151 +330,242 @@ function pill(label, isActive, onClick, count = null, color = null) {
     return btn;
 }
 
-function renderVideoCard(onSeek, feedbackStore) {
+function renderVideoCard(onSeek, feedbackStore, options = {}) {
     const card = document.createElement('div');
-    card.className = 'surface surface-padded border rounded-lg';
+    card.className = 'surface p-2.5 border rounded-lg flex flex-col gap-1.5';
 
-    const header = document.createElement('div');
-    header.className = 'flex items-center justify-between pb-2 mb-2 border-b border-slate-200';
-    header.innerHTML = `
-        <div class="flex items-center gap-2">
-            <i class="fas fa-video text-slate-500 text-sm" aria-hidden="true"></i>
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Match Video</span>
-        </div>
-        <span id="video-filename" class="text-xs text-muted truncate max-w-[200px]">No video attached</span>
-    `;
-
-    const videoEl = document.createElement('video');
-    videoEl.className = 'w-full aspect-video bg-black rounded border border-slate-800 object-contain shadow-inner';
-    videoEl.controls = true;
-    videoEl.playsInline = true;
-
-    const attachRow = document.createElement('div');
-    attachRow.className = 'mt-2 flex items-center justify-between gap-2';
+    let currentEntry = null;
 
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'video/*';
     fileInput.className = 'hidden';
 
-    const attachBtn = document.createElement('button');
-    attachBtn.type = 'button';
-    attachBtn.className = 'btn btn-secondary btn-compact';
-    attachBtn.innerHTML = '<i class="fas fa-paperclip text-xs mr-1" aria-hidden="true"></i>Attach MP4';
-    attachBtn.addEventListener('click', () => fileInput.click());
+    const videoEl = document.createElement('video');
+    videoEl.className = 'w-full max-h-[38vh] aspect-video bg-black rounded border border-slate-800 object-contain shadow-inner';
+    videoEl.controls = true;
+    videoEl.playsInline = true;
 
-    fileInput.addEventListener('change', () => {
-        const file = fileInput.files && fileInput.files[0];
-        if (file) {
-            const url = URL.createObjectURL(file);
-            videoEl.src = url;
-            const nameEl = card.querySelector('#video-filename');
-            if (nameEl) nameEl.textContent = file.name;
-            videoEl.play().catch(() => {});
-        }
-    });
+    const header = createVideoHeader(() => fileInput.click(), () => toggleUrlBar(card));
+    const urlBar = createVideoUrlBar((url) => setVideoUrl(url, videoEl, card, options), () => toggleUrlBar(card, false));
+    const controlsRow = createVideoControlsRow(videoEl, feedbackStore, () => currentEntry);
 
-    const activeInfo = document.createElement('div');
-    activeInfo.id = 'active-entry-info';
-    activeInfo.className = 'text-xs text-slate-600 truncate flex-1 text-right';
-    activeInfo.textContent = 'Click an entry to seek';
+    wireFileInput(fileInput, videoEl, card);
+    restoreInitialVideo(videoEl, card, options);
 
-    attachRow.append(attachBtn, fileInput, activeInfo);
-
-    // Quick replay controls
-    const controlsRow = document.createElement('div');
-    controlsRow.className = 'mt-2 flex items-center justify-between gap-1 pt-2 border-t border-slate-100';
-    controlsRow.innerHTML = `
-        <div class="flex items-center gap-1">
-            <button type="button" class="btn btn-secondary btn-compact px-2" id="replay-btn" title="Replay current sequence">
-                <i class="fas fa-rotate-left text-xs mr-1" aria-hidden="true"></i>Replay
-            </button>
-            <button type="button" class="btn btn-secondary btn-compact px-2" id="back-5s" title="Back 5s">
-                -5s
-            </button>
-            <button type="button" class="btn btn-secondary btn-compact px-2" id="fwd-5s" title="Forward 5s">
-                +5s
-            </button>
-            <button type="button" class="btn btn-secondary btn-compact px-2 flex items-center gap-1" id="video-flag-btn" title="Flag this clip for review" disabled>
-                <i class="fas fa-flag text-xs" aria-hidden="true"></i><span id="video-flag-text">Flag</span>
-            </button>
-        </div>
-        <div class="segmented segmented-compact" role="group">
-            <button type="button" class="is-active" data-speed="1">1x</button>
-            <button type="button" data-speed="1.5">1.5x</button>
-            <button type="button" data-speed="2">2x</button>
-        </div>
-    `;
-
-    let currentEntry = null;
-
-    controlsRow.querySelector('#replay-btn').addEventListener('click', () => {
-        if (currentEntry) {
-            videoEl.currentTime = currentEntry.seekSeconds;
-            videoEl.play().catch(() => {});
-        }
-    });
-    controlsRow.querySelector('#back-5s').addEventListener('click', () => {
-        videoEl.currentTime = Math.max(0, videoEl.currentTime - 5);
-    });
-    controlsRow.querySelector('#fwd-5s').addEventListener('click', () => {
-        videoEl.currentTime = Math.min(videoEl.duration || 999999, videoEl.currentTime + 5);
-    });
-
-    const videoFlagBtn = controlsRow.querySelector('#video-flag-btn');
-    if (videoFlagBtn) {
-        videoFlagBtn.addEventListener('click', () => {
-            if (currentEntry && feedbackStore) {
-                openFeedbackModal(card.ownerDocument || document, currentEntry, videoEl, feedbackStore);
-            }
-        });
-    }
-
-    function updateVideoFlagBtn() {
-        if (!videoFlagBtn) return;
-        if (!currentEntry) {
-            videoFlagBtn.disabled = true;
-            return;
-        }
-        videoFlagBtn.disabled = false;
-        const isFlagged = feedbackStore && feedbackStore.has(currentEntry.id);
-        const textSpan = videoFlagBtn.querySelector('#video-flag-text');
-        if (textSpan) textSpan.textContent = isFlagged ? 'Flagged' : 'Flag';
-        if (isFlagged) {
-            videoFlagBtn.classList.add('bg-amber-100', 'text-amber-900', 'border-amber-300');
-        } else {
-            videoFlagBtn.classList.remove('bg-amber-100', 'text-amber-900', 'border-amber-300');
-        }
-    }
-
-    controlsRow.querySelectorAll('[data-speed]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            controlsRow.querySelectorAll('[data-speed]').forEach(b => b.classList.remove('is-active'));
-            btn.classList.add('is-active');
-            videoEl.playbackRate = Number(btn.getAttribute('data-speed')) || 1;
-        });
-    });
-
-    card.append(header, videoEl, attachRow, controlsRow);
+    card.append(header, urlBar, fileInput, videoEl, controlsRow);
 
     card.videoEl = videoEl;
     card.seekTo = (seconds, entry) => {
         currentEntry = entry;
-        updateVideoFlagBtn();
-        videoEl.currentTime = Math.max(0, seconds);
-        try {
-            const playPromise = videoEl.play();
-            if (playPromise && typeof playPromise.catch === 'function') {
-                playPromise.catch(() => {});
-            }
-        } catch {}
-        const info = card.querySelector('#active-entry-info');
-        if (info && entry) {
-            info.innerHTML = `<strong>${entry.originType}</strong> · ${entry.team} ${entry.entryType} at ${entry.videoTime}`;
-        }
+        controlsRow.updateFlag();
+        seekVideo(videoEl, seconds);
+        updateActiveEntryInfo(card, entry);
     };
 
     return card;
+}
+
+function createVideoHeader(onFileClick, onUrlToggle) {
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between pb-1.5 border-b border-slate-200 text-xs';
+    header.innerHTML = `
+        <div class="flex items-center gap-1.5 min-w-0">
+            <i class="fas fa-video text-slate-500 text-xs" aria-hidden="true"></i>
+            <span class="font-bold uppercase tracking-wider text-slate-700">Video</span>
+            <span id="video-filename" class="text-muted truncate max-w-[180px]" title="No video attached">No video attached</span>
+        </div>
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button type="button" id="btn-attach-file" class="btn btn-secondary btn-compact text-[11px] px-2" title="Attach local video file from disk">
+                <i class="fas fa-folder-open mr-1 text-[10px]" aria-hidden="true"></i>Disk
+            </button>
+            <button type="button" id="btn-toggle-url" class="btn btn-secondary btn-compact text-[11px] px-2" title="Load video from cloud URL">
+                <i class="fas fa-cloud mr-1 text-[10px]" aria-hidden="true"></i>Cloud URL
+            </button>
+        </div>
+    `;
+    header.querySelector('#btn-attach-file').addEventListener('click', onFileClick);
+    header.querySelector('#btn-toggle-url').addEventListener('click', onUrlToggle);
+    return header;
+}
+
+function createVideoUrlBar(onLoad, onCancel) {
+    const bar = document.createElement('div');
+    bar.id = 'video-url-bar';
+    bar.className = 'hidden p-1.5 bg-slate-50 border border-slate-200 rounded flex items-center gap-1.5 text-xs';
+    bar.innerHTML = `
+        <i class="fas fa-link text-slate-400 text-xs ml-1" aria-hidden="true"></i>
+        <input type="url" id="video-url-input" placeholder="Enter video stream URL (https://...)" class="input input-sm border rounded flex-1 px-2 py-0.5 text-xs bg-white">
+        <button type="button" id="btn-load-url" class="btn btn-primary btn-compact text-xs font-semibold">Load</button>
+        <button type="button" id="btn-cancel-url" class="btn btn-ghost btn-compact text-xs text-slate-500">✕</button>
+    `;
+    const input = bar.querySelector('#video-url-input');
+    const submit = () => {
+        if (input.value && input.value.trim()) onLoad(input.value.trim());
+    };
+    bar.querySelector('#btn-load-url').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    bar.querySelector('#btn-cancel-url').addEventListener('click', onCancel);
+    return bar;
+}
+
+function toggleUrlBar(card, forceState) {
+    const bar = card.querySelector('#video-url-bar');
+    if (!bar) return;
+    const isHidden = forceState != null ? !forceState : bar.classList.contains('hidden');
+    bar.classList.toggle('hidden', !isHidden);
+    if (isHidden) {
+        const input = bar.querySelector('#video-url-input');
+        if (input) setTimeout(() => input.focus(), 50);
+    }
+}
+
+function setVideoUrl(url, videoEl, card, options) {
+    try {
+        const clean = url.trim();
+        videoEl.src = clean;
+        const nameEl = card.querySelector('#video-filename');
+        if (nameEl) {
+            const short = clean.split('/').pop().split('?')[0] || clean;
+            nameEl.textContent = `cloud: ${short}`;
+            nameEl.title = clean;
+            nameEl.className = 'text-blue-700 font-medium truncate max-w-[180px]';
+        }
+        toggleUrlBar(card, false);
+        if (options.storage && options.storageKey) {
+            try { options.storage.setItem(options.storageKey, clean); } catch {}
+        }
+        safePlay(videoEl);
+    } catch {}
+}
+
+function wireFileInput(fileInput, videoEl, card) {
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (file) {
+            videoEl.src = URL.createObjectURL(file);
+            const nameEl = card.querySelector('#video-filename');
+            if (nameEl) {
+                nameEl.textContent = file.name;
+                nameEl.title = `Local file: ${file.name}`;
+                nameEl.className = 'text-slate-800 font-medium truncate max-w-[180px]';
+            }
+            toggleUrlBar(card, false);
+            safePlay(videoEl);
+        }
+    });
+}
+
+function restoreInitialVideo(videoEl, card, options) {
+    const initialUrl = options.initialUrl || (options.storage && options.storageKey ? options.storage.getItem(options.storageKey) : null);
+    if (initialUrl) {
+        setVideoUrl(initialUrl, videoEl, card, options);
+    }
+}
+
+function createVideoControlsRow(videoEl, feedbackStore, getEntry) {
+    const row = document.createElement('div');
+    row.className = 'flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-slate-100 text-xs';
+    row.innerHTML = `
+        <div class="flex items-center gap-1">
+            <button type="button" class="btn btn-secondary btn-compact px-2" id="replay-btn" title="Replay current sequence">
+                <i class="fas fa-rotate-left text-xs mr-1" aria-hidden="true"></i>Replay
+            </button>
+            <button type="button" class="btn btn-secondary btn-compact px-1.5" id="back-5s" title="Back 5s">-5s</button>
+            <button type="button" class="btn btn-secondary btn-compact px-1.5" id="fwd-5s" title="Forward 5s">+5s</button>
+            <button type="button" class="btn btn-secondary btn-compact px-2 flex items-center gap-1" id="video-flag-btn" title="Flag this clip for review" disabled>
+                <i class="fas fa-flag text-xs" aria-hidden="true"></i><span id="video-flag-text">Flag</span>
+            </button>
+        </div>
+        <div class="flex items-center gap-2">
+            <div class="segmented segmented-compact" role="group">
+                <button type="button" class="is-active" data-speed="1">1x</button>
+                <button type="button" data-speed="1.5">1.5x</button>
+                <button type="button" data-speed="2">2x</button>
+            </div>
+            <div id="active-entry-info" class="text-[11px] text-slate-600 truncate max-w-[160px] hidden sm:block">Click an entry to seek</div>
+        </div>
+    `;
+
+    wirePlaybackButtons(row, videoEl, getEntry);
+    wireFlagButton(row, videoEl, feedbackStore, getEntry);
+    wireSpeedButtons(row, videoEl);
+
+    row.updateFlag = () => updateFlagButton(row, feedbackStore, getEntry());
+    return row;
+}
+
+function wirePlaybackButtons(row, videoEl, getEntry) {
+    row.querySelector('#replay-btn').addEventListener('click', () => {
+        const entry = getEntry();
+        if (entry) {
+            videoEl.currentTime = entry.seekSeconds;
+            videoEl.play().catch(() => {});
+        }
+    });
+    row.querySelector('#back-5s').addEventListener('click', () => {
+        videoEl.currentTime = Math.max(0, videoEl.currentTime - 5);
+    });
+    row.querySelector('#fwd-5s').addEventListener('click', () => {
+        videoEl.currentTime = Math.min(videoEl.duration || 999999, videoEl.currentTime + 5);
+    });
+}
+
+function wireFlagButton(row, videoEl, feedbackStore, getEntry) {
+    const flagBtn = row.querySelector('#video-flag-btn');
+    if (flagBtn) {
+        flagBtn.addEventListener('click', () => {
+            const entry = getEntry();
+            if (entry && feedbackStore) {
+                openFeedbackModal(row.ownerDocument || document, entry, videoEl, feedbackStore);
+            }
+        });
+    }
+}
+
+function updateFlagButton(row, feedbackStore, currentEntry) {
+    const flagBtn = row.querySelector('#video-flag-btn');
+    if (!flagBtn) return;
+    if (!currentEntry) {
+        flagBtn.disabled = true;
+        return;
+    }
+    flagBtn.disabled = false;
+    const isFlagged = feedbackStore && feedbackStore.has(currentEntry.id);
+    const textSpan = flagBtn.querySelector('#video-flag-text');
+    if (textSpan) textSpan.textContent = isFlagged ? 'Flagged' : 'Flag';
+    if (isFlagged) {
+        flagBtn.classList.add('bg-amber-100', 'text-amber-900', 'border-amber-300');
+    } else {
+        flagBtn.classList.remove('bg-amber-100', 'text-amber-900', 'border-amber-300');
+    }
+}
+
+function wireSpeedButtons(row, videoEl) {
+    row.querySelectorAll('[data-speed]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            row.querySelectorAll('[data-speed]').forEach(b => b.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            videoEl.playbackRate = Number(btn.getAttribute('data-speed')) || 1;
+        });
+    });
+}
+
+function seekVideo(videoEl, seconds) {
+    videoEl.currentTime = Math.max(0, seconds);
+    try {
+        const playPromise = videoEl.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {});
+        }
+    } catch {}
+}
+
+function updateActiveEntryInfo(card, entry) {
+    const info = card.querySelector('#active-entry-info');
+    if (info && entry) {
+        info.innerHTML = `<strong>${entry.originType}</strong> · ${entry.team} ${entry.entryType} at ${entry.videoTime}`;
+    }
 }
 
 function renderEntryList(container, allEntries, state, options = {}) {
@@ -511,72 +602,71 @@ function renderEntryList(container, allEntries, state, options = {}) {
     container.append(header);
 
     filtered.forEach(entry => {
-        const row = document.createElement('div');
-        const isSelected = entry.id === state.activeEntryId;
-        const isCounter = entry.originType === 'Counter';
-        const isFlagged = feedbackStore ? feedbackStore.has(entry.id) : false;
-
-        const borderClass = isSelected
-            ? 'ring-2 ring-blue-500 bg-blue-50/40'
-            : 'hover:border-slate-300 hover:bg-slate-50/70';
-
-        row.className = `entry-row surface px-3 py-2.5 border rounded-lg cursor-pointer transition-all ${borderClass}`;
-
-        const badgeClass = isCounter
-            ? 'bg-amber-100 text-amber-900 border-amber-300'
-            : 'bg-blue-100 text-blue-900 border-blue-300';
-
-        const badgeIcon = isCounter ? '⚡ Counter' : '🛡️ Build-Up';
-        const clockText = entry.quarter ? `${entry.quarter} ${entry.matchClock}` : `match ${entry.matchClock}`;
-
-        const flagClass = isFlagged
-            ? 'text-amber-600 bg-amber-100 border border-amber-300 font-semibold'
-            : 'text-slate-400 hover:text-amber-600';
-
-        row.innerHTML = `
-            <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0">
-                    <span class="px-2 py-0.5 rounded text-[11px] font-bold border ${badgeClass}">
-                        ${badgeIcon}
-                    </span>
-                    <strong class="text-sm text-slate-900 font-semibold">${entry.team} ${entry.entryType}</strong>
-                    <span class="text-xs text-slate-500 tabular-nums">· ${clockText}</span>
-                    <span class="text-xs text-slate-400 tabular-nums hidden sm:inline">(video ${entry.videoTime})</span>
-                </div>
-                <div class="flex items-center gap-1.5 flex-shrink-0">
-                    <button type="button" class="btn-flag btn btn-ghost btn-compact text-xs px-2 ${flagClass}" title="${isFlagged ? 'Flagged (click to edit)' : 'Flag for review'}">
-                        <i class="fas fa-flag text-[11px]" aria-hidden="true"></i>${isFlagged ? '<span class="ml-1 text-[11px]">Flagged</span>' : ''}
-                    </button>
-                    <button type="button" class="btn btn-ghost btn-compact text-xs text-brand font-semibold flex items-center gap-1" title="Play from start of play">
-                        <i class="fas fa-play text-[10px]" aria-hidden="true"></i>Seek ${formatClock(entry.seekSeconds * 1000)}
-                    </button>
-                </div>
-            </div>
-            <div class="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div class="font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px] truncate max-w-full">
-                    ${entryCodes(entry)}
-                </div>
-                <div class="text-slate-500 text-[11px] flex-shrink-0">
-                    ${entry.reason}
-                </div>
-            </div>
-        `;
-
-        const flagBtn = row.querySelector('.btn-flag');
-        if (flagBtn) {
-            flagBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (feedbackStore) {
-                    openFeedbackModal(row.ownerDocument || document, entry, videoEl, feedbackStore);
-                }
-            });
-        }
-
-        row.addEventListener('click', () => {
-            if (onSelect) onSelect(entry);
-        });
-        container.append(row);
+        container.append(createEntryRow(entry, state, { onSelect, feedbackStore, videoEl }));
     });
+}
+
+function createEntryRow(entry, state, options) {
+    const isSelected = entry.id === state.activeEntryId;
+    const isCounter = entry.originType === 'Counter';
+    const isFlagged = options.feedbackStore ? options.feedbackStore.has(entry.id) : false;
+
+    const row = document.createElement('div');
+    row.className = `entry-row surface px-3 py-2 border rounded-lg cursor-pointer transition-all ${getEntryRowBorder(isSelected)}`;
+    row.innerHTML = getEntryRowHtml(entry, isCounter, isFlagged);
+
+    const flagBtn = row.querySelector('.btn-flag');
+    if (flagBtn && options.feedbackStore) {
+        flagBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openFeedbackModal(row.ownerDocument || document, entry, options.videoEl, options.feedbackStore);
+        });
+    }
+
+    row.addEventListener('click', () => {
+        if (options.onSelect) options.onSelect(entry);
+    });
+    return row;
+}
+
+function getEntryRowBorder(isSelected) {
+    return isSelected ? 'ring-2 ring-blue-500 bg-blue-50/40' : 'hover:border-slate-300 hover:bg-slate-50/70';
+}
+
+function getEntryRowHtml(entry, isCounter, isFlagged) {
+    const badgeClass = isCounter ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-blue-100 text-blue-900 border-blue-300';
+    const badgeIcon = isCounter ? '⚡ Counter' : '🛡️ Build-Up';
+    const clockText = entry.quarter ? `${entry.quarter} ${entry.matchClock}` : `match ${entry.matchClock}`;
+    const flagClass = isFlagged ? 'text-amber-600 bg-amber-100 border border-amber-300 font-semibold' : 'text-slate-400 hover:text-amber-600';
+
+    return `
+        <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold border ${badgeClass}">
+                    ${badgeIcon}
+                </span>
+                <strong class="text-sm text-slate-900 font-semibold">${entry.team} ${entry.entryType}</strong>
+                <span class="text-xs text-slate-500 tabular-nums">· ${clockText}</span>
+                <span class="text-xs text-slate-400 tabular-nums hidden sm:inline">(video ${entry.videoTime})</span>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button type="button" class="btn-flag btn btn-ghost btn-compact text-xs px-2 ${flagClass}" title="${isFlagged ? 'Flagged (click to edit)' : 'Flag for review'}">
+                    <i class="fas fa-flag text-[11px]" aria-hidden="true"></i>${isFlagged ? '<span class="ml-1 text-[11px]">Flagged</span>' : ''}
+                </button>
+                <button type="button" class="btn btn-ghost btn-compact text-xs text-brand font-semibold flex items-center gap-1" title="Play from start of play">
+                    <i class="fas fa-play text-[10px]" aria-hidden="true"></i>Seek ${formatClock(entry.seekSeconds * 1000)}
+                </button>
+            </div>
+        </div>
+        <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px] truncate max-w-full">
+                ${entryCodes(entry)}
+            </div>
+            <div class="text-slate-500 text-[11px] flex-shrink-0">
+                ${entry.reason}
+            </div>
+        </div>
+    `;
 }
 
 function percent(part, total) {

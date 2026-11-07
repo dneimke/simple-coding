@@ -153,24 +153,22 @@ export function renderFeedbackBar(container, store, options = {}) {
         container.replaceChildren();
 
         const banner = document.createElement('div');
-        banner.className = 'surface surface-padded border rounded-lg mb-4 flex flex-wrap items-center justify-between gap-3 bg-amber-50/60 border-amber-200';
+        banner.className = 'surface px-3 py-1.5 border rounded-lg mb-2.5 flex flex-wrap items-center justify-between gap-2 bg-amber-50/60 border-amber-200 text-xs';
 
         const left = document.createElement('div');
-        left.className = 'flex items-center gap-3 min-w-0';
+        left.className = 'flex items-center gap-2 min-w-0';
         left.innerHTML = `
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full ${count > 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-500'} font-bold text-xs flex-shrink-0">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full ${count > 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-500'} font-bold text-[10px] flex-shrink-0">
                 <i class="fas fa-flag" aria-hidden="true"></i>
             </span>
-            <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                    <span class="font-semibold text-sm text-slate-900">Feedback Batch</span>
-                    <span class="px-2 py-0.2 rounded-full text-xs font-bold ${count > 0 ? 'bg-amber-200 text-amber-900' : 'bg-slate-200 text-slate-700'}" id="feedback-count-badge">
-                        ${count} ${count === 1 ? 'item' : 'items'}
-                    </span>
-                </div>
-                <p class="text-xs text-slate-600 truncate">
-                    ${count > 0 ? 'Review completed. Copy formatted batch or download JSON for AI refinement.' : 'Click 🚩 on any sequence card or video to batch up timing or classification feedback.'}
-                </p>
+            <div class="min-w-0 flex items-center gap-2 flex-wrap">
+                <span class="font-semibold text-xs text-slate-900">Feedback Batch</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[11px] font-bold ${count > 0 ? 'bg-amber-200 text-amber-900' : 'bg-slate-200 text-slate-700'}" id="feedback-count-badge">
+                    ${count} ${count === 1 ? 'item' : 'items'}
+                </span>
+                <span class="text-[11px] text-slate-500 hidden md:inline truncate">
+                    ${count > 0 ? 'Review completed. Copy formatted batch or download JSON.' : 'Click 🚩 on any sequence card or video to flag issues.'}
+                </span>
             </div>
         `;
 
