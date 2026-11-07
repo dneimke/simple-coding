@@ -257,6 +257,9 @@ function renderSavedGames() {
                     onContinueCoding: () => {
                         window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}&mode=tag`;
                     },
+                    onSequenceTrial: () => {
+                        window.location.href = `spike/sequences/?game=${encodeURIComponent(game.id)}`;
+                    },
                     onViewLog: () => {
                         window.location.hash = `log/${encodeURIComponent(game.id)}`;
                     },

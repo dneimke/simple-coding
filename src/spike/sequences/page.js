@@ -62,6 +62,16 @@ export function mountSequenceSpike(doc, options = {}) {
     wireSample(doc, fetchSample, showText, showStatus, showFailure);
     wireMatchesModal(doc);
 
+    if (openSavedGame(readSavedGames(storage), requestedGameId(options), {
+        showText,
+        showMissing: () => {
+            showStatus('That match is not saved in this browser.');
+            if (currentMatchBadge) currentMatchBadge.textContent = '';
+            if (report) report.replaceChildren();
+            if (matchesModal) matchesModal.classList.remove('hidden');
+        }
+    })) return;
+
     // Immediate sample load on first visit so coaches arrive directly to an active workspace
     if (options.autoLoad !== false) {
         fetchSample().then(text => {
@@ -69,6 +79,25 @@ export function mountSequenceSpike(doc, options = {}) {
                 showText(text, 'Sample match');
             }
         }).catch(() => {});
+    }
+}
+
+function openSavedGame(games, gameId, { showText, showMissing }) {
+    if (!gameId) return false;
+    const saved = games.find(game => game && game.id === gameId);
+    if (saved) showText(JSON.stringify(saved), gameLabel(saved));
+    else showMissing();
+    return true;
+}
+
+function requestedGameId(options) {
+    if (Object.prototype.hasOwnProperty.call(options, 'gameId')) {
+        return options.gameId ? String(options.gameId) : '';
+    }
+    try {
+        return new URLSearchParams(window.location.search).get('game') || '';
+    } catch {
+        return '';
     }
 }
 
