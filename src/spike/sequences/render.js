@@ -4,7 +4,7 @@
  */
 
 import { entryCodes, formatClock } from './copy.js';
-import { createFeedbackStore, openFeedbackModal } from './feedback.js';
+import { createFeedbackStore, openFeedbackModal, wireFeedbackHeader } from './feedback.js';
 
 /**
  * @typedef {Object} FilterState
@@ -86,6 +86,7 @@ export function renderReport(container, game, result, meta = {}) {
     }
 
     feedbackStore.subscribe(update);
+    wireFeedbackHeader(container.ownerDocument || document, feedbackStore, { gameLabel: game.name || 'Coded match' });
     update();
 }
 

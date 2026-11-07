@@ -468,3 +468,116 @@ function hasIssue(existing, needle) {
     if (!existing || !Array.isArray(existing.issues)) return false;
     return existing.issues.some(iss => iss.includes(needle));
 }
+
+export function wireFeedbackHeader(doc, store, options = {}) {
+    const badgeBtn = doc.getElementById('feedback-badge-btn');
+    const badgeCount = doc.getElementById('feedback-badge-count');
+    const modal = doc.getElementById('feedback-modal');
+    if (!badgeBtn || !modal) return;
+
+    const gameLabel = options.gameLabel || 'Coded match';
+    const closeBtn = doc.getElementById('close-feedback-modal');
+    const copyBtn = doc.getElementById('copy-feedback-batch-btn');
+    const jsonBtn = doc.getElementById('download-feedback-batch-json');
+    const clearBtn = doc.getElementById('clear-feedback-batch-btn');
+    const copyStatus = doc.getElementById('feedback-copy-status');
+    const listEl = doc.getElementById('feedback-items-list');
+    const countBadge = doc.getElementById('feedback-modal-count-badge');
+
+    function sync() {
+        const items = store.getAll();
+        const count = items.length;
+        if (badgeCount) badgeCount.textContent = `${count} Flagged`;
+        if (countBadge) countBadge.textContent = String(count);
+
+        if (count > 0) {
+            badgeBtn.classList.remove('hidden');
+        } else {
+            badgeBtn.classList.add('hidden');
+            modal.classList.add('hidden');
+        }
+        renderFeedbackItemsList(listEl, items, store);
+    }
+
+    badgeBtn.onclick = () => {
+        sync();
+        modal.classList.remove('hidden');
+    };
+
+    if (closeBtn) closeBtn.onclick = () => modal.classList.add('hidden');
+
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+    };
+
+    if (copyBtn) {
+        copyBtn.onclick = () => {
+            const md = formatFeedbackMarkdown(store.getAll(), gameLabel);
+            copyTextToClipboard(md, copyStatus);
+        };
+    }
+
+    if (jsonBtn) {
+        jsonBtn.onclick = () => {
+            const jsonStr = exportFeedbackJson(store.getAll(), gameLabel);
+            downloadJsonBlob(jsonStr, 'sequence-feedback.json');
+        };
+    }
+
+    if (clearBtn) {
+        clearBtn.onclick = () => {
+            store.clear();
+        };
+    }
+
+    store.subscribe(sync);
+    sync();
+}
+
+function renderFeedbackItemsList(container, items, store) {
+    if (!container) return;
+    container.replaceChildren();
+    if (!items.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-xs text-slate-400 text-center py-2';
+        empty.textContent = 'No flagged clips yet.';
+        container.append(empty);
+        return;
+    }
+    items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'p-2 bg-slate-50 border border-slate-200 rounded text-xs flex items-center justify-between gap-2';
+        const issuesText = item.issues && item.issues.length ? `<span class="text-[11px] text-amber-800">(${item.issues.join(', ')})</span>` : '';
+        card.innerHTML = `
+            <div class="min-w-0 flex flex-col">
+                <span class="font-bold text-slate-800 truncate">${item.team} ${item.entryType} · ${item.clockText}</span>
+                <span class="text-[11px] text-slate-500 truncate">${item.originType} · Seek ${item.currentSeek || item.suggestedSeek || ''} ${issuesText}</span>
+            </div>
+            <button type="button" class="btn btn-ghost btn-compact text-slate-400 hover:text-rose-600 text-xs px-1.5" title="Remove flag">✕</button>
+        `;
+        card.querySelector('button').onclick = () => store.remove(item.id);
+        container.append(card);
+    });
+}
+
+function copyTextToClipboard(text, statusEl) {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (statusEl) {
+                statusEl.classList.remove('hidden');
+                setTimeout(() => statusEl.classList.add('hidden'), 2500);
+            }
+        }).catch(() => {});
+    }
+}
+
+function downloadJsonBlob(jsonStr, filename) {
+    if (typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof document === 'undefined') return;
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}

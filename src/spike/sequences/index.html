@@ -28,6 +28,10 @@
                         <span id="current-match-badge" class="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[220px]">Sample match</span>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button type="button" id="feedback-badge-btn" class="hidden btn btn-compact text-xs bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-semibold flex items-center gap-1.5 shadow-sm transition-all" title="View flagged clips">
+                            <i class="fas fa-flag text-amber-600 text-[11px]" aria-hidden="true"></i>
+                            <span id="feedback-badge-count">0 Flagged</span>
+                        </button>
                         <button type="button" id="matches-button" class="btn btn-secondary btn-compact text-xs flex items-center gap-1.5" title="Switch match or upload">
                             <i class="fas fa-folder-open text-slate-500" aria-hidden="true"></i>Matches
                         </button>
@@ -69,6 +73,39 @@
                         </div>
 
                         <p id="status" class="help-text text-xs text-center text-slate-500" role="status"></p>
+                    </div>
+                </div>
+
+                <!-- Feedback Batch Modal -->
+                <div id="feedback-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
+                    <div class="surface rounded-xl shadow-2xl max-w-md w-full p-4 sm:p-5 flex flex-col gap-3.5 border border-slate-200 max-h-[90vh] overflow-y-auto">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-flag text-amber-600 text-xs" aria-hidden="true"></i>
+                                <h2 id="feedback-modal-title" class="text-sm font-bold text-slate-900">Flagged Sequences</h2>
+                                <span id="feedback-modal-count-badge" class="px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">0</span>
+                            </div>
+                            <button type="button" id="close-feedback-modal" class="btn btn-ghost btn-compact text-slate-400 hover:text-slate-700 text-sm px-2 py-0.5" aria-label="Close">✕</button>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" id="copy-feedback-batch-btn" class="btn btn-primary btn-compact text-xs font-semibold flex items-center gap-1.5 flex-1 justify-center">
+                                <i class="fas fa-clipboard text-xs" aria-hidden="true"></i>Copy Batch for AI
+                            </button>
+                            <button type="button" id="download-feedback-batch-json" class="btn btn-secondary btn-compact text-xs font-semibold flex items-center gap-1.5">
+                                <i class="fas fa-download text-xs" aria-hidden="true"></i>JSON
+                            </button>
+                            <button type="button" id="clear-feedback-batch-btn" class="btn btn-ghost btn-compact text-xs text-rose-600 hover:bg-rose-50 font-semibold">
+                                Clear all
+                            </button>
+                        </div>
+
+                        <div id="feedback-copy-status" class="text-xs text-emerald-700 font-medium hidden text-center bg-emerald-50 py-1.5 rounded border border-emerald-200">
+                            ✓ Copied Markdown to clipboard! Ready to paste into chat.
+                        </div>
+
+                        <!-- List of flagged items preview -->
+                        <div class="flex flex-col gap-2 max-h-56 overflow-y-auto border-t border-slate-100 pt-2" id="feedback-items-list"></div>
                     </div>
                 </div>
             </div>
