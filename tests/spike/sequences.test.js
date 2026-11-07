@@ -72,6 +72,7 @@ describe('sequence spike', () => {
         const games = readSavedGames(storage);
         expect(games).toHaveLength(1);
         expect(gameLabel(games[0])).toBe('FIRE vs TIGERS');
+        expect(gameLabel({ name: 'h1m 20261031 fire v pride' })).toBe('fire vs pride');
         expect(gameLabel({ teams: 'PRIDE vs THUNDER' })).toBe('PRIDE vs THUNDER');
         expect(gameLabel({ teams: [{ code: 'FIRE' }, { name: 'TIGERS' }] })).toBe('FIRE vs TIGERS');
         expect(gameLabel({ teams: ['FIRE', 'TIGERS'] })).toBe('FIRE vs TIGERS');
@@ -151,5 +152,45 @@ describe('sequence spike', () => {
         expect(swapBtn).not.toBeNull();
         swapBtn.click();
         expect(document.getElementById('video-swap-dropdown').classList.contains('hidden')).toBe(false);
+    });
+
+    test('auto-loads sample match on visit and wires matches popover modal', async () => {
+        document.body.innerHTML = `
+            <header>
+                <span id="current-match-badge"></span>
+                <button type="button" id="matches-button">Matches</button>
+            </header>
+            <div id="report"></div>
+            <div id="matches-modal" class="hidden">
+                <button type="button" id="close-matches-modal"></button>
+                <button type="button" id="sample-button"></button>
+                <div id="saved-games"></div>
+                <button type="button" id="upload-button"></button>
+                <input id="file-input">
+                <p id="status"></p>
+            </div>
+        `;
+
+        mountSequenceSpike(document, {
+            storage: { getItem: () => '[]' },
+            fetchSample: () => Promise.resolve(fixtureText)
+        });
+
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(document.getElementById('current-match-badge').textContent).toBe('Sample match');
+        expect(document.getElementById('report').textContent).toContain('Circle Entries (8)');
+
+        // Modal open & close
+        const modal = document.getElementById('matches-modal');
+        const openBtn = document.getElementById('matches-button');
+        const closeBtn = document.getElementById('close-matches-modal');
+
+        expect(modal.classList.contains('hidden')).toBe(true);
+        openBtn.click();
+        expect(modal.classList.contains('hidden')).toBe(false);
+        closeBtn.click();
+        expect(modal.classList.contains('hidden')).toBe(true);
     });
 });

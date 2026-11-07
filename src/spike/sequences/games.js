@@ -24,8 +24,18 @@ export function readSavedGames(storage) {
  */
 export function gameLabel(game) {
     if (!game) return 'Coded match';
-    if (game.name) return String(game.name);
+    if (game.name) return formatCoachGameName(game.name);
     return teamsLabel(game.teams) || 'Coded match';
+}
+
+function formatCoachGameName(name) {
+    const raw = String(name || '').trim();
+    const cleaned = raw
+        .replace(/^(?:h\d+m|\d{8})\s+/i, '')
+        .replace(/\b(\d{8})\b\s*/g, '')
+        .replace(/\s+v\s+/i, ' vs ')
+        .trim();
+    return cleaned || raw;
 }
 
 function teamsLabel(teams) {
