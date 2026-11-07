@@ -190,51 +190,41 @@ function publishEntry(chain, item, counterMs, gapMs, preRollSeconds = DEFAULT_PR
 }
 
 function classifyEntryOrigin(items, entryItem, counterMs, gapMs) {
-    const bwItem = findLastBallWon(items);
-    if (bwItem) {
-        return classifyFromBallWon(bwItem, entryItem, counterMs);
-    }
     const first = items[0];
-    if (first && first.id !== entryItem.id) {
-        const seconds = Math.round((entryItem.timeMs - first.timeMs) / 1000);
+    if (!first || first.id === entryItem.id) {
+        return {
+            originType: 'Build-Up',
+            triggerCode: null,
+            secondsFromTrigger: null,
+            reason: `No prior same-team tag in ${gapMs / 1000}s`
+        };
+    }
+
+    const deltaMs = entryItem.timeMs - first.timeMs;
+    const seconds = Math.round(deltaMs / 1000);
+
+    if (first.role === 'bw') {
+        if (deltaMs <= counterMs) {
+            return {
+                originType: 'Counter',
+                triggerCode: first.code,
+                secondsFromTrigger: seconds,
+                reason: `${seconds}s after ${first.code}`
+            };
+        }
         return {
             originType: 'Build-Up',
             triggerCode: first.code,
             secondsFromTrigger: seconds,
-            reason: `${seconds}s after ${first.code}`
+            reason: `${seconds}s after ${first.code} (over ${counterMs / 1000}s counter window)`
         };
     }
+
     return {
         originType: 'Build-Up',
-        triggerCode: null,
-        secondsFromTrigger: null,
-        reason: `No prior same-team tag in ${gapMs / 1000}s`
-    };
-}
-
-function findLastBallWon(items) {
-    for (let i = items.length - 1; i >= 0; i--) {
-        if (items[i].role === 'bw') return items[i];
-    }
-    return null;
-}
-
-function classifyFromBallWon(bwItem, entryItem, counterMs) {
-    const deltaMs = entryItem.timeMs - bwItem.timeMs;
-    const seconds = Math.round(deltaMs / 1000);
-    if (deltaMs <= counterMs) {
-        return {
-            originType: 'Counter',
-            triggerCode: bwItem.code,
-            secondsFromTrigger: seconds,
-            reason: `${seconds}s after ${bwItem.code}`
-        };
-    }
-    return {
-        originType: 'Build-Up',
-        triggerCode: bwItem.code,
+        triggerCode: first.code,
         secondsFromTrigger: seconds,
-        reason: `${seconds}s after ${bwItem.code} (over ${counterMs / 1000}s counter window)`
+        reason: `${seconds}s after ${first.code}`
     };
 }
 
