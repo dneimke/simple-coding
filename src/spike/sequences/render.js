@@ -303,7 +303,7 @@ function renderVideoCard(onSeek, feedbackStore, options = {}) {
     fileInput.className = 'hidden';
 
     const videoEl = document.createElement('video');
-    videoEl.className = 'w-full max-h-[38vh] aspect-video bg-black rounded border border-slate-800 object-contain shadow-inner';
+    videoEl.className = 'w-full max-h-[60vh] aspect-video bg-black rounded border border-slate-800 object-contain shadow-inner';
     videoEl.controls = true;
     videoEl.playsInline = true;
 
