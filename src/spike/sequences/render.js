@@ -294,11 +294,13 @@ function pill(label, isActive, onClick, count = null, color = null) {
 
 function renderVideoCard(onSeek, feedbackStore, options = {}) {
     const card = document.createElement('div');
+    card.id = 'sequence-video-card';
     card.className = 'surface p-2.5 border rounded-lg flex flex-col gap-1.5';
 
     let currentEntry = null;
 
     const fileInput = document.createElement('input');
+    fileInput.id = 'video-file-input';
     fileInput.type = 'file';
     fileInput.accept = 'video/*';
     fileInput.className = 'hidden';
@@ -308,7 +310,11 @@ function renderVideoCard(onSeek, feedbackStore, options = {}) {
     videoEl.controls = true;
     videoEl.playsInline = true;
 
-    const header = createVideoHeader(() => fileInput.click(), () => toggleUrlBar(card));
+    const header = createVideoHeader(
+        () => fileInput.click(),
+        () => toggleUrlBar(card),
+        () => clearVideo(videoEl, card, options)
+    );
     const urlBar = createVideoUrlBar((url) => setVideoUrl(url, videoEl, card, options), () => toggleUrlBar(card, false));
     const controlsRow = createVideoControlsRow(videoEl, feedbackStore, () => currentEntry);
 
@@ -327,7 +333,7 @@ function renderVideoCard(onSeek, feedbackStore, options = {}) {
     return card;
 }
 
-function createVideoHeader(onFileClick, onUrlToggle) {
+function createVideoHeader(onFileClick, onUrlToggle, onClear) {
     const header = document.createElement('div');
     header.className = 'flex items-center justify-between pb-1.5 border-b border-slate-200 text-xs';
     header.innerHTML = `
@@ -337,70 +343,47 @@ function createVideoHeader(onFileClick, onUrlToggle) {
             <span id="video-filename" class="text-muted truncate max-w-[180px]" title="No video attached">No video attached</span>
         </div>
         <div class="flex items-center gap-1.5 flex-shrink-0" id="video-source-actions">
-            <div id="video-initial-sources" class="flex items-center gap-1.5">
-                <button type="button" id="btn-attach-file" class="btn btn-secondary btn-compact text-[11px] px-2" title="Attach local video file from disk">
-                    <i class="fas fa-folder-open mr-1 text-[10px]" aria-hidden="true"></i>Disk
-                </button>
-                <button type="button" id="btn-toggle-url" class="btn btn-secondary btn-compact text-[11px] px-2" title="Load video from cloud URL">
-                    <i class="fas fa-cloud mr-1 text-[10px]" aria-hidden="true"></i>Cloud URL
-                </button>
-            </div>
-            <div id="video-loaded-menu" class="hidden relative">
-                <button type="button" id="btn-swap-video" class="btn btn-ghost btn-compact text-xs text-slate-500 hover:text-slate-800 px-1.5 flex items-center gap-1" title="Change video source">
-                    <i class="fas fa-arrow-right-arrow-left text-[11px]" aria-hidden="true"></i>Swap
-                </button>
-                <div id="video-swap-dropdown" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg p-1 z-20 flex flex-col gap-1 min-w-[110px]">
-                    <button type="button" id="btn-swap-disk" class="btn btn-ghost btn-compact text-left text-xs px-2 py-1 flex items-center gap-1.5 hover:bg-slate-50">
-                        <i class="fas fa-folder-open text-slate-500 text-[11px]" aria-hidden="true"></i>Disk
-                    </button>
-                    <button type="button" id="btn-swap-cloud" class="btn btn-ghost btn-compact text-left text-xs px-2 py-1 flex items-center gap-1.5 hover:bg-slate-50">
-                        <i class="fas fa-cloud text-slate-500 text-[11px]" aria-hidden="true"></i>Cloud URL
-                    </button>
-                </div>
-            </div>
+            <button type="button" id="btn-attach-file" class="btn btn-secondary btn-compact text-[11px] px-2" title="Attach local video file from disk">
+                <i class="fas fa-folder-open mr-1 text-[10px]" aria-hidden="true"></i>Disk
+            </button>
+            <button type="button" id="btn-toggle-url" class="btn btn-secondary btn-compact text-[11px] px-2" title="Load video from cloud URL">
+                <i class="fas fa-cloud mr-1 text-[10px]" aria-hidden="true"></i>Cloud URL
+            </button>
+            <button type="button" id="btn-clear-video" class="btn btn-ghost btn-compact text-xs text-slate-400 hover:text-rose-600 px-1.5 hidden" title="Detach video">
+                <i class="fas fa-times text-xs" aria-hidden="true"></i>
+            </button>
         </div>
     `;
-    wireVideoHeaderEvents(header, onFileClick, onUrlToggle);
+    wireVideoHeaderEvents(header, onFileClick, onUrlToggle, onClear);
     return header;
 }
 
-function wireVideoHeaderEvents(header, onFileClick, onUrlToggle) {
+function wireVideoHeaderEvents(header, onFileClick, onUrlToggle, onClear) {
     header.querySelector('#btn-attach-file').addEventListener('click', onFileClick);
     header.querySelector('#btn-toggle-url').addEventListener('click', onUrlToggle);
-
-    const swapBtn = header.querySelector('#btn-swap-video');
-    const dropdown = header.querySelector('#video-swap-dropdown');
-    swapBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdown.classList.toggle('hidden');
-    });
-
-    header.querySelector('#btn-swap-disk').addEventListener('click', () => {
-        dropdown.classList.add('hidden');
-        onFileClick();
-    });
-
-    header.querySelector('#btn-swap-cloud').addEventListener('click', () => {
-        dropdown.classList.add('hidden');
-        onUrlToggle();
-    });
-
-    header.ownerDocument?.addEventListener('click', () => {
-        dropdown.classList.add('hidden');
-    });
+    header.querySelector('#btn-clear-video').addEventListener('click', onClear);
 }
 
 function updateVideoLoadedState(card, isLoaded) {
-    const initialSources = card.querySelector('#video-initial-sources');
-    const loadedMenu = card.querySelector('#video-loaded-menu');
-    if (initialSources && loadedMenu) {
-        if (isLoaded) {
-            initialSources.classList.add('hidden');
-            loadedMenu.classList.remove('hidden');
-        } else {
-            initialSources.classList.remove('hidden');
-            loadedMenu.classList.add('hidden');
-        }
+    const clearBtn = card.querySelector('#btn-clear-video');
+    if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !isLoaded);
+    }
+}
+
+function clearVideo(videoEl, card, options = {}) {
+    videoEl.removeAttribute('src');
+    videoEl.load();
+    const nameEl = card.querySelector('#video-filename');
+    if (nameEl) {
+        nameEl.textContent = 'No video attached';
+        nameEl.title = 'No video attached';
+        nameEl.className = 'text-muted truncate max-w-[180px]';
+    }
+    updateVideoLoadedState(card, false);
+    toggleUrlBar(card, false);
+    if (options.storage && options.storageKey) {
+        try { options.storage.removeItem(options.storageKey); } catch {}
     }
 }
 
@@ -427,9 +410,9 @@ function createVideoUrlBar(onLoad, onCancel) {
 function toggleUrlBar(card, forceState) {
     const bar = card.querySelector('#video-url-bar');
     if (!bar) return;
-    const isHidden = forceState != null ? !forceState : bar.classList.contains('hidden');
-    bar.classList.toggle('hidden', !isHidden);
-    if (isHidden) {
+    const shouldShow = forceState != null ? Boolean(forceState) : bar.classList.contains('hidden');
+    bar.classList.toggle('hidden', !shouldShow);
+    if (shouldShow) {
         const input = bar.querySelector('#video-url-input');
         if (input) setTimeout(() => input.focus(), 50);
     }
@@ -459,7 +442,7 @@ function wireFileInput(fileInput, videoEl, card) {
     fileInput.addEventListener('change', () => {
         const file = fileInput.files && fileInput.files[0];
         if (file) {
-            videoEl.src = URL.createObjectURL(file);
+            videoEl.src = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '';
             const nameEl = card.querySelector('#video-filename');
             if (nameEl) {
                 nameEl.textContent = file.name;

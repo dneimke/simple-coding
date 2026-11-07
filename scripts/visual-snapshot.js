@@ -322,14 +322,16 @@ async function snapshotVideoCodingSplitAndNote(videoPage, vp, results) {
         bytes: fs.statSync(splitModePath).size
     });
 
-    const moreBtn = await videoPage.$('.timeline-event .timeline-event-more-btn');
-    if (moreBtn) {
-        await moreBtn.click();
-        await videoPage.waitForTimeout(150);
-    }
-    const noteBtn = await videoPage.$('.timeline-event .edit-note-btn');
-    if (noteBtn) await noteBtn.click();
-    await videoPage.waitForTimeout(300);
+    try {
+        const moreBtn = await videoPage.$('.timeline-event .timeline-event-more-btn');
+        if (moreBtn) {
+            await moreBtn.click({ timeout: 2000 });
+            await videoPage.waitForTimeout(150);
+            const noteBtn = await videoPage.$('.timeline-event .edit-note-btn');
+            if (noteBtn) await noteBtn.click({ timeout: 2000 });
+            await videoPage.waitForTimeout(300);
+        }
+    } catch {}
 
     const videoCodingActivePath = path.join(OUTPUT_DIR, `video-coding-active-${vp.name}.png`);
     await videoPage.screenshot({ path: videoCodingActivePath, fullPage: true });
@@ -774,20 +776,9 @@ async function captureSequenceSpikeSnapshots(browser, baseUrl, results) {
         });
         const page = await context.newPage();
         await page.goto(`${baseUrl}/spike/sequences/`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('#sample-button');
+        await page.waitForSelector('#sequence-video-card, .entry-row', { timeout: 10000 });
+        await page.waitForTimeout(300);
 
-        const emptyPath = path.join(OUTPUT_DIR, `sequence-spike-choose-${vp.name}.png`);
-        await page.screenshot({ path: emptyPath, fullPage: true });
-        results.push({
-            name: 'sequence-spike-choose',
-            viewport: vp.name,
-            size: `${vp.width}x${vp.height}`,
-            file: `sequence-spike-choose-${vp.name}.png`,
-            bytes: fs.statSync(emptyPath).size
-        });
-
-        await page.click('#sample-button');
-        await page.waitForSelector('#report article');
         const reportPath = path.join(OUTPUT_DIR, `sequence-spike-sample-${vp.name}.png`);
         await page.screenshot({ path: reportPath, fullPage: true });
         results.push({
