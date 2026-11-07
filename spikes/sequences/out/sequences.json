@@ -5,48 +5,6 @@
   "mutated": false,
   "entries": [
     {
-      "id": "entry-FIRE-a2",
-      "eventId": "a2",
-      "team": "FIRE",
-      "entryType": "A25E",
-      "code": "A25E",
-      "quarter": "Q1",
-      "timeMs": 64000,
-      "startTimeMs": 60000,
-      "endTimeMs": 64000,
-      "videoTime": "01:04",
-      "matchClock": "01:04",
-      "seekSeconds": 55,
-      "originType": "Counter",
-      "triggerCode": "BW1",
-      "secondsFromTrigger": 4,
-      "reason": "4s after BW1",
-      "codes": [
-        "BW1",
-        "A25E"
-      ],
-      "eventInstanceIds": [
-        "a1",
-        "a2"
-      ],
-      "events": [
-        {
-          "id": "a1",
-          "index": 1,
-          "code": "BW1",
-          "timeMs": 60000,
-          "attack": null
-        },
-        {
-          "id": "a2",
-          "index": 2,
-          "code": "A25E",
-          "timeMs": 64000,
-          "attack": "A25E"
-        }
-      ]
-    },
-    {
       "id": "entry-FIRE-a3",
       "eventId": "a3",
       "team": "FIRE",
@@ -248,39 +206,6 @@
       ]
     },
     {
-      "id": "entry-FIRE-e1",
-      "eventId": "e1",
-      "team": "FIRE",
-      "entryType": "A25E",
-      "code": "A25E",
-      "quarter": "Q1",
-      "timeMs": 400000,
-      "startTimeMs": 400000,
-      "endTimeMs": 400000,
-      "videoTime": "06:40",
-      "matchClock": "06:40",
-      "seekSeconds": 400,
-      "originType": "Build-Up",
-      "triggerCode": null,
-      "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 25s",
-      "codes": [
-        "A25E"
-      ],
-      "eventInstanceIds": [
-        "e1"
-      ],
-      "events": [
-        {
-          "id": "e1",
-          "index": 12,
-          "code": "A25E",
-          "timeMs": 400000,
-          "attack": "A25E"
-        }
-      ]
-    },
-    {
       "id": "entry-FIRE-e2",
       "eventId": "e2",
       "team": "FIRE",
@@ -319,48 +244,6 @@
           "code": "CE",
           "timeMs": 406000,
           "attack": "CE"
-        }
-      ]
-    },
-    {
-      "id": "entry-TIGERS-f2",
-      "eventId": "f2",
-      "team": "TIGERS",
-      "entryType": "A25E",
-      "code": "A25E",
-      "quarter": "Q1",
-      "timeMs": 506000,
-      "startTimeMs": 500000,
-      "endTimeMs": 506000,
-      "videoTime": "08:26",
-      "matchClock": "08:26",
-      "seekSeconds": 500,
-      "originType": "Build-Up",
-      "triggerCode": "OH",
-      "secondsFromTrigger": 6,
-      "reason": "6s after OH",
-      "codes": [
-        "OH",
-        "A25E"
-      ],
-      "eventInstanceIds": [
-        "f1",
-        "f2"
-      ],
-      "events": [
-        {
-          "id": "f1",
-          "index": 15,
-          "code": "OH",
-          "timeMs": 500000,
-          "attack": null
-        },
-        {
-          "id": "f2",
-          "index": 16,
-          "code": "A25E",
-          "timeMs": 506000,
-          "attack": "A25E"
         }
       ]
     },
@@ -412,39 +295,6 @@
           "code": "CE",
           "timeMs": 510000,
           "attack": "CE"
-        }
-      ]
-    },
-    {
-      "id": "entry-FIRE-g1",
-      "eventId": "g1",
-      "team": "FIRE",
-      "entryType": "A25E",
-      "code": "A25E",
-      "quarter": "Q1",
-      "timeMs": 600000,
-      "startTimeMs": 600000,
-      "endTimeMs": 600000,
-      "videoTime": "10:00",
-      "matchClock": "10:00",
-      "seekSeconds": 600,
-      "originType": "Build-Up",
-      "triggerCode": null,
-      "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 25s",
-      "codes": [
-        "A25E"
-      ],
-      "eventInstanceIds": [
-        "g1"
-      ],
-      "events": [
-        {
-          "id": "g1",
-          "index": 19,
-          "code": "A25E",
-          "timeMs": 600000,
-          "attack": "A25E"
         }
       ]
     },
@@ -535,48 +385,6 @@
   ],
   "sequences": [
     {
-      "id": "entry-FIRE-a2",
-      "eventId": "a2",
-      "team": "FIRE",
-      "entryType": "A25E",
-      "code": "A25E",
-      "quarter": "Q1",
-      "timeMs": 64000,
-      "startTimeMs": 60000,
-      "endTimeMs": 64000,
-      "videoTime": "01:04",
-      "matchClock": "01:04",
-      "seekSeconds": 55,
-      "originType": "Counter",
-      "triggerCode": "BW1",
-      "secondsFromTrigger": 4,
-      "reason": "4s after BW1",
-      "codes": [
-        "BW1",
-        "A25E"
-      ],
-      "eventInstanceIds": [
-        "a1",
-        "a2"
-      ],
-      "events": [
-        {
-          "id": "a1",
-          "index": 1,
-          "code": "BW1",
-          "timeMs": 60000,
-          "attack": null
-        },
-        {
-          "id": "a2",
-          "index": 2,
-          "code": "A25E",
-          "timeMs": 64000,
-          "attack": "A25E"
-        }
-      ]
-    },
-    {
       "id": "entry-FIRE-a3",
       "eventId": "a3",
       "team": "FIRE",
@@ -778,39 +586,6 @@
       ]
     },
     {
-      "id": "entry-FIRE-e1",
-      "eventId": "e1",
-      "team": "FIRE",
-      "entryType": "A25E",
-      "code": "A25E",
-      "quarter": "Q1",
-      "timeMs": 400000,
-      "startTimeMs": 400000,
-      "endTimeMs": 400000,
-      "videoTime": "06:40",
-      "matchClock": "06:40",
-      "seekSeconds": 400,
-      "originType": "Build-Up",
-      "triggerCode": null,
-      "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 25s",
-      "codes": [
-        "A25E"
-      ],
-      "eventInstanceIds": [
-        "e1"
-      ],
-      "events": [
-        {
-          "id": "e1",
-          "index": 12,
-          "code": "A25E",
-          "timeMs": 400000,
-          "attack": "A25E"
-        }
-      ]
-    },
-    {
       "id": "entry-FIRE-e2",
       "eventId": "e2",
       "team": "FIRE",
@@ -849,48 +624,6 @@
           "code": "CE",
           "timeMs": 406000,
           "attack": "CE"
-        }
-      ]
-    },
-    {
-      "id": "entry-TIGERS-f2",
-      "eventId": "f2",
-      "team": "TIGERS",
-      "entryType": "A25E",
-      "code": "A25E",
-      "quarter": "Q1",
-      "timeMs": 506000,
-      "startTimeMs": 500000,
-      "endTimeMs": 506000,
-      "videoTime": "08:26",
-      "matchClock": "08:26",
-      "seekSeconds": 500,
-      "originType": "Build-Up",
-      "triggerCode": "OH",
-      "secondsFromTrigger": 6,
-      "reason": "6s after OH",
-      "codes": [
-        "OH",
-        "A25E"
-      ],
-      "eventInstanceIds": [
-        "f1",
-        "f2"
-      ],
-      "events": [
-        {
-          "id": "f1",
-          "index": 15,
-          "code": "OH",
-          "timeMs": 500000,
-          "attack": null
-        },
-        {
-          "id": "f2",
-          "index": 16,
-          "code": "A25E",
-          "timeMs": 506000,
-          "attack": "A25E"
         }
       ]
     },
@@ -942,39 +675,6 @@
           "code": "CE",
           "timeMs": 510000,
           "attack": "CE"
-        }
-      ]
-    },
-    {
-      "id": "entry-FIRE-g1",
-      "eventId": "g1",
-      "team": "FIRE",
-      "entryType": "A25E",
-      "code": "A25E",
-      "quarter": "Q1",
-      "timeMs": 600000,
-      "startTimeMs": 600000,
-      "endTimeMs": 600000,
-      "videoTime": "10:00",
-      "matchClock": "10:00",
-      "seekSeconds": 600,
-      "originType": "Build-Up",
-      "triggerCode": null,
-      "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 25s",
-      "codes": [
-        "A25E"
-      ],
-      "eventInstanceIds": [
-        "g1"
-      ],
-      "events": [
-        {
-          "id": "g1",
-          "index": 19,
-          "code": "A25E",
-          "timeMs": 600000,
-          "attack": "A25E"
         }
       ]
     },
@@ -1065,12 +765,12 @@
   ],
   "stats": {
     "eventCount": 26,
-    "entryCount": 13,
-    "sequenceCount": 13,
+    "entryCount": 9,
+    "sequenceCount": 9,
     "a25Entries": {
-      "total": 5,
-      "counter": 1,
-      "buildUp": 4
+      "total": 1,
+      "counter": 0,
+      "buildUp": 1
     },
     "circleEntries": {
       "total": 8,
@@ -1079,7 +779,7 @@
     },
     "circleEntriesCoded": 8,
     "circleEntriesInSequences": 8,
-    "elapsedMs": 2.4,
+    "elapsedMs": 1.89,
     "rules": {
       "gapMs": 25000,
       "counterMs": 10000

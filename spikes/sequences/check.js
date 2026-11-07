@@ -26,25 +26,20 @@ assert.deepEqual(result.stats.circleEntries, {
     buildUp: 6
 });
 assert.deepEqual(result.stats.a25Entries, {
-    total: 5,
-    counter: 1,
-    buildUp: 4
+    total: 1,
+    counter: 0,
+    buildUp: 1
 });
 
-const counterA25 = byEvent('a2');
-assert.equal(counterA25.entryType, 'A25E');
-assert.equal(counterA25.originType, 'Counter');
-assert.equal(counterA25.triggerCode, 'BW1');
-assert.equal(counterA25.secondsFromTrigger, 4);
-assert.equal(counterA25.quarter, 'Q1');
-assert.deepEqual(counterA25.eventInstanceIds, ['a1', 'a2']);
-assert.equal(counterA25.seekSeconds, 55);
+// a2 (A25E) is consolidated into a3 (CE) because the attack penetrated into the circle
+assert.equal(byEvent('a2'), undefined);
 
 const counterCe = byEvent('a3');
 assert.equal(counterCe.entryType, 'CE');
 assert.equal(counterCe.originType, 'Counter');
 assert.equal(counterCe.triggerCode, 'BW1');
 assert.equal(counterCe.secondsFromTrigger, 8);
+assert.equal(counterCe.quarter, 'Q1');
 assert.deepEqual(counterCe.eventInstanceIds, ['a1', 'a2', 'a3']);
 assert.equal(counterCe.seekSeconds, 55);
 

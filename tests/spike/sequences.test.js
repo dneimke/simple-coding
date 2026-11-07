@@ -23,9 +23,9 @@ describe('sequence spike', () => {
             buildUp: 6
         });
         expect(analysed.result.stats.a25Entries).toEqual({
-            total: 5,
-            counter: 1,
-            buildUp: 4
+            total: 1,
+            counter: 0,
+            buildUp: 1
         });
 
         const report = document.createElement('div');
@@ -33,7 +33,7 @@ describe('sequence spike', () => {
         expect(report.textContent).toContain('Circle Entries (CE)');
         expect(report.textContent).toContain('8 Total CE');
         expect(report.textContent).toContain('25m Entries (A25E)');
-        expect(report.textContent).toContain('5 Total 25m');
+        expect(report.textContent).toContain('1 Total 25m');
         expect(report.textContent).toContain('8s after BW1');
         expect(report.textContent).toContain('12s after BW2 (over 10s counter window)');
         expect(report.textContent).not.toContain('GREEN');
@@ -42,7 +42,7 @@ describe('sequence spike', () => {
         const markdown = formatReport(analysed.game, analysed.result, { mutated: false });
         expect(markdown).toContain('Attacking entries — Circle entry fixture');
         expect(markdown).toContain('| Circle entries (CE) | 8 | 2 | 6 |');
-        expect(markdown).toContain('| 25m entries (A25E) | 5 | 1 | 4 |');
+        expect(markdown).toContain('| 25m entries (A25E) | 1 | 0 | 1 |');
     });
 
     test('resolves team names from object teams and isTeam1 flags', () => {
@@ -117,7 +117,7 @@ describe('sequence spike', () => {
         const counterPill = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('⚡ Counter'));
         expect(counterPill).toBeDefined();
         counterPill.click();
-        expect(document.getElementById('report').textContent).toContain('Showing 3 of 13 entries');
+        expect(document.getElementById('report').textContent).toContain('Showing 2 of 9 entries');
 
         // Test row click seeks video
         const firstRow = document.querySelector('#report .entry-row');

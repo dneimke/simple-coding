@@ -50,16 +50,18 @@ export function buildSequences(events, options = {}) {
 
     ordered.forEach(item => placeItem(state, item));
 
-    const a25Entries = countSplit(state.entries, 'A25E');
-    const circleEntries = countSplit(state.entries, 'CE');
+    const consolidatedEntries = deduplicateAttacks(state.entries);
+
+    const a25Entries = countSplit(consolidatedEntries, 'A25E');
+    const circleEntries = countSplit(consolidatedEntries, 'CE');
 
     return {
-        entries: state.entries,
-        sequences: state.entries,
+        entries: consolidatedEntries,
+        sequences: consolidatedEntries,
         stats: {
             eventCount: source.length,
-            entryCount: state.entries.length,
-            sequenceCount: state.entries.length,
+            entryCount: consolidatedEntries.length,
+            sequenceCount: consolidatedEntries.length,
             a25Entries,
             circleEntries,
             circleEntriesCoded: circleEntries.total,
@@ -68,6 +70,22 @@ export function buildSequences(events, options = {}) {
             rules: { gapMs, counterMs }
         }
     };
+}
+
+function deduplicateAttacks(entries) {
+    const list = [];
+    for (const entry of entries) {
+        if (entry.entryType === 'A25E') {
+            const hasCeInChain = entries.some(other =>
+                other.team === entry.team &&
+                other.entryType === 'CE' &&
+                other.startTimeMs === entry.startTimeMs
+            );
+            if (hasCeInChain) continue;
+        }
+        list.push(entry);
+    }
+    return list;
 }
 
 function countSplit(entries, entryType) {
