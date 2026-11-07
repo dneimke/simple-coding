@@ -8,7 +8,7 @@ import { formatClock } from './copy.js';
  * Counter or Build-Up from the preceding same-team possession tags.
  */
 
-const DEFAULT_GAP_MS = 15000;
+const DEFAULT_GAP_MS = 25000;
 const DEFAULT_COUNTER_MS = 10000;
 
 const CODE_START = /^(?:BW\d?|BS\d?|OH|PC|APC|A25E|CE|SHOT|GOAL|GREEN|YELLOW|RED|CARD|SUB|SUBSTITUTION|KICKOFF|Q[1-4]|START|QUARTER)\b/i;

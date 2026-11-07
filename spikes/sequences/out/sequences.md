@@ -4,11 +4,11 @@ Standalone spike. Classifies 25m entries (A25E) and circle entries (CE) as Count
 
 | Rule | Value |
 | --- | --- |
-| Gap that ends a possession window | 15s |
+| Gap that ends a possession window | 25s |
 | Counter window after Ball Won | 10s |
 | Event time | timeMs on the coded event |
 | Source events modified | no |
-| Built in | 1.82ms |
+| Built in | 2.4ms |
 
 - Circle entries (CE): 8 total — 2 Counter, 6 Build-Up.
 - 25m entries (A25E): 5 total — 1 Counter, 4 Build-Up.
@@ -28,11 +28,11 @@ Standalone spike. Classifies 25m entries (A25E) and circle entries (CE) as Count
 
 8s after BW1 · Seek 00:55. Events a1, a2, a3.
 
-**Build-Up · Q1 01:56 (video 01:56)**
+**Build-Up · Q1 02:10 (video 02:10)**
 
-01:56 CE
+02:10 CE
 
-No prior same-team tag in 15s · Seek 01:56. Events b2.
+No prior same-team tag in 25s · Seek 02:10. Events b2.
 
 **Build-Up · Q1 03:28 (video 03:28)**
 
@@ -76,19 +76,19 @@ No prior same-team tag in 15s · Seek 01:56. Events b2.
 
 01:40 A25E
 
-No prior same-team tag in 15s · Seek 01:40. Events b1.
+No prior same-team tag in 25s · Seek 01:40. Events b1.
 
 **Build-Up · Q1 06:40 (video 06:40)**
 
 06:40 A25E
 
-No prior same-team tag in 15s · Seek 06:40. Events e1.
+No prior same-team tag in 25s · Seek 06:40. Events e1.
 
 **Build-Up · Q1 10:00 (video 10:00)**
 
 10:00 A25E
 
-No prior same-team tag in 15s · Seek 10:00. Events g1.
+No prior same-team tag in 25s · Seek 10:00. Events g1.
 
 ## TIGERS
 

@@ -10,7 +10,7 @@
     { "id": "card", "event": "FIRE GREEN", "timeMs": 70000 },
     { "id": "a4", "event": "FIRE SHOT", "timeMs": 72000 },
     { "id": "b1", "event": "FIRE A25E", "timeMs": 100000 },
-    { "id": "b2", "event": "FIRE CE", "timeMs": 116000 },
+    { "id": "b2", "event": "FIRE CE", "timeMs": 130000 },
     { "id": "c1", "event": "FIRE BS3", "timeMs": 200000 },
     { "id": "c2", "event": "FIRE CE", "timeMs": 208000 },
     { "id": "d1", "event": "FIRE BW2", "timeMs": 300000 },

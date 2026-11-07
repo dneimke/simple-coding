@@ -113,7 +113,7 @@
       "originType": "Build-Up",
       "triggerCode": null,
       "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 15s",
+      "reason": "No prior same-team tag in 25s",
       "codes": [
         "A25E"
       ],
@@ -137,16 +137,16 @@
       "entryType": "CE",
       "code": "CE",
       "quarter": "Q1",
-      "timeMs": 116000,
-      "startTimeMs": 116000,
-      "endTimeMs": 116000,
-      "videoTime": "01:56",
-      "matchClock": "01:56",
-      "seekSeconds": 116,
+      "timeMs": 130000,
+      "startTimeMs": 130000,
+      "endTimeMs": 130000,
+      "videoTime": "02:10",
+      "matchClock": "02:10",
+      "seekSeconds": 130,
       "originType": "Build-Up",
       "triggerCode": null,
       "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 15s",
+      "reason": "No prior same-team tag in 25s",
       "codes": [
         "CE"
       ],
@@ -158,7 +158,7 @@
           "id": "b2",
           "index": 7,
           "code": "CE",
-          "timeMs": 116000,
+          "timeMs": 130000,
           "attack": "CE"
         }
       ]
@@ -263,7 +263,7 @@
       "originType": "Build-Up",
       "triggerCode": null,
       "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 15s",
+      "reason": "No prior same-team tag in 25s",
       "codes": [
         "A25E"
       ],
@@ -431,7 +431,7 @@
       "originType": "Build-Up",
       "triggerCode": null,
       "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 15s",
+      "reason": "No prior same-team tag in 25s",
       "codes": [
         "A25E"
       ],
@@ -643,7 +643,7 @@
       "originType": "Build-Up",
       "triggerCode": null,
       "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 15s",
+      "reason": "No prior same-team tag in 25s",
       "codes": [
         "A25E"
       ],
@@ -667,16 +667,16 @@
       "entryType": "CE",
       "code": "CE",
       "quarter": "Q1",
-      "timeMs": 116000,
-      "startTimeMs": 116000,
-      "endTimeMs": 116000,
-      "videoTime": "01:56",
-      "matchClock": "01:56",
-      "seekSeconds": 116,
+      "timeMs": 130000,
+      "startTimeMs": 130000,
+      "endTimeMs": 130000,
+      "videoTime": "02:10",
+      "matchClock": "02:10",
+      "seekSeconds": 130,
       "originType": "Build-Up",
       "triggerCode": null,
       "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 15s",
+      "reason": "No prior same-team tag in 25s",
       "codes": [
         "CE"
       ],
@@ -688,7 +688,7 @@
           "id": "b2",
           "index": 7,
           "code": "CE",
-          "timeMs": 116000,
+          "timeMs": 130000,
           "attack": "CE"
         }
       ]
@@ -793,7 +793,7 @@
       "originType": "Build-Up",
       "triggerCode": null,
       "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 15s",
+      "reason": "No prior same-team tag in 25s",
       "codes": [
         "A25E"
       ],
@@ -961,7 +961,7 @@
       "originType": "Build-Up",
       "triggerCode": null,
       "secondsFromTrigger": null,
-      "reason": "No prior same-team tag in 15s",
+      "reason": "No prior same-team tag in 25s",
       "codes": [
         "A25E"
       ],
@@ -1079,9 +1079,9 @@
     },
     "circleEntriesCoded": 8,
     "circleEntriesInSequences": 8,
-    "elapsedMs": 1.82,
+    "elapsedMs": 2.4,
     "rules": {
-      "gapMs": 15000,
+      "gapMs": 25000,
       "counterMs": 10000
     }
   }
