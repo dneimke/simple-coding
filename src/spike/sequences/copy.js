@@ -9,25 +9,21 @@ export function formatClock(ms) {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function sequenceTitle(sequence) {
-    const clock = sequence.quarter
-        ? `${sequence.quarter} ${sequence.matchClockStart}`
-        : `match ${sequence.matchClockStart}`;
-    return [
-        `${sequence.videoStart}–${sequence.videoEnd}`,
-        clock,
-        sequence.originType || 'origin not coded',
-        sequence.primaryChannel || 'channel not coded'
-    ].join(' · ');
+export function entryTitle(entry) {
+    const clock = entry.quarter
+        ? `${entry.quarter} ${entry.matchClock}`
+        : `match ${entry.matchClock}`;
+    return `${entry.originType} · ${clock} (video ${entry.videoTime})`;
 }
 
-export function sequenceCodes(sequence) {
-    return sequence.events.map(event => `${formatClock(event.timeMs)} ${event.code}`).join(' → ');
+export function entryCodes(entry) {
+    return entry.events.map(event => `${formatClock(event.timeMs)} ${event.code}`).join(' → ');
 }
 
-export function sequenceCloseNote(sequence) {
-    if (sequence.closedBecause === 'opponent-bw') return 'Closed when the other team won the ball.';
-    if (sequence.closedBecause === 'goal') return 'Ends at the goal.';
-    if (sequence.closedBecause === 'gap') return `No same-team tag for ${sequence.gapSeconds}s.`;
-    return '';
+export function entryDetail(entry) {
+    return `${entry.reason} · Seek ${formatClock(entry.seekSeconds * 1000)}`;
+}
+
+export function splitSummaryText(label, counts) {
+    return `${label}: ${counts.total} total — ${counts.counter} Counter, ${counts.buildUp} Build-Up.`;
 }

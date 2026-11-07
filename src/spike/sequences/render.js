@@ -1,43 +1,38 @@
 /**
- * Renders sequence spike results with the site's existing classes.
+ * Renders attacking entry (A25E and CE) Counter vs Build-Up results with the site's existing classes.
  */
 
-import { formatClock, sequenceCloseNote, sequenceCodes, sequenceTitle } from './copy.js';
+import { entryCodes, entryDetail, entryTitle, splitSummaryText } from './copy.js';
 
-const OUTCOME_ORDER = ['Goal', 'PC', 'Shot', 'Turnover', 'No shot', 'No circle', 'No entry'];
+const ENTRY_GROUPS = [
+    ['CE', 'Circle entries (CE)'],
+    ['A25E', '25m entries (A25E)']
+];
 
 /**
  * @param {HTMLElement} container
  * @param {{ name: string, timeSource: string }} game
- * @param {{ sequences: Array<object>, dispositions: Array<object>, stats: object }} result
+ * @param {{ entries: Array<object>, stats: object }} result
  * @param {{ mutated?: boolean }} [meta]
  */
 export function renderReport(container, game, result, meta = {}) {
-    const { sequences, dispositions, stats } = result;
+    const entries = result.entries || result.sequences || [];
+    const { stats } = result;
     container.replaceChildren();
     container.append(summarySection(game, stats, meta));
-    appendTeamBlocks(container, sequences);
-    appendIgnored(container, dispositions);
+    appendTeamBlocks(container, entries);
 }
 
 function summarySection(game, stats, meta) {
     const summary = section();
     summary.append(
-        heading('Chains'),
-        paragraph(summarySentence(stats)),
+        heading('Attacking entries'),
+        paragraph(splitSummaryText('Circle entries (CE)', stats.circleEntries)),
+        paragraph(splitSummaryText('25m entries (A25E)', stats.a25Entries)),
         paragraph(unchangedSentence(meta.mutated)),
         paragraph(timeSourceSentence(game.timeSource))
     );
-    const counts = outcomeList(stats.circleEntriesByOutcome);
-    if (counts.childElementCount) summary.append(counts);
     return summary;
-}
-
-function summarySentence(stats) {
-    const circles = countLabel(stats.circleEntriesCoded, 'circle entry', 'circle entries');
-    const sequences = countLabel(stats.sequenceCount, 'sequence', 'sequences');
-    const events = countLabel(stats.eventCount, 'event', 'events');
-    return `${circles} coded, ${stats.circleEntriesInSequences} placed in a chain. ${sequences} from ${events}.`;
 }
 
 function unchangedSentence(mutated) {
@@ -52,67 +47,48 @@ function timeSourceSentence(timeSource) {
         : 'Times come from the coded match.';
 }
 
-function outcomeList(byOutcome) {
-    const counts = document.createElement('ul');
-    counts.className = 'mt-4 flex flex-col gap-1';
-    OUTCOME_ORDER.forEach(outcome => appendOutcomeCount(counts, outcome, byOutcome[outcome] || 0));
-    return counts;
+function appendTeamBlocks(container, entries) {
+    const teams = [...new Set(entries.map(entry => entry.team))];
+    teams.forEach(team => container.append(teamBlock(team, entries)));
 }
 
-function appendOutcomeCount(list, outcome, count) {
-    if (!count) return;
-    const item = document.createElement('li');
-    item.className = 'help-text';
-    item.textContent = `${outcome}: ${countLabel(count, 'circle entry', 'circle entries')}`;
-    list.append(item);
-}
-
-function appendTeamBlocks(container, sequences) {
-    const teams = [...new Set(sequences.map(sequence => sequence.team))];
-    teams.forEach(team => container.append(teamBlock(team, sequences)));
-}
-
-function teamBlock(team, sequences) {
+function teamBlock(team, entries) {
     const block = document.createElement('section');
     block.className = 'mb-4';
-    block.append(heading(team, 'h2'));
-    const teamSequences = sequences.filter(sequence => sequence.team === team);
-    OUTCOME_ORDER.forEach(outcome => appendOutcomeGroup(block, outcome, teamSequences));
+    const teamEntries = entries.filter(entry => entry.team === team);
+    block.append(heading(team, 'h2'), paragraph(teamSummary(teamEntries)));
+    ENTRY_GROUPS.forEach(([entryType, label]) => appendEntryGroup(block, entryType, label, teamEntries));
     return block;
 }
 
-function appendOutcomeGroup(block, outcome, teamSequences) {
-    const group = teamSequences.filter(sequence => sequence.outcome === outcome);
+function teamSummary(teamEntries) {
+    const ce = teamGroupSummary(teamEntries, 'CE', 'circle entry', 'circle entries');
+    const a25 = teamGroupSummary(teamEntries, 'A25E', '25m entry', '25m entries');
+    return `${ce} · ${a25}`;
+}
+
+function teamGroupSummary(teamEntries, entryType, singular, plural) {
+    const group = teamEntries.filter(entry => entry.entryType === entryType);
+    const counter = group.filter(entry => entry.originType === 'Counter').length;
+    const buildUp = group.length - counter;
+    return `${countLabel(group.length, singular, plural)} (${counter} Counter, ${buildUp} Build-Up)`;
+}
+
+function appendEntryGroup(block, entryType, label, teamEntries) {
+    const group = teamEntries.filter(entry => entry.entryType === entryType);
     if (!group.length) return;
-    block.append(subheading(`${outcome} (${group.length})`));
-    group.forEach(sequence => block.append(sequenceCard(sequence)));
+    block.append(subheading(`${label} — ${group.length}`));
+    group.forEach(entry => block.append(entryCard(entry)));
 }
 
-function appendIgnored(container, dispositions) {
-    const ignored = dispositions.filter(entry => entry.disposition === 'ignored');
-    if (!ignored.length) return;
-    const aside = section();
-    aside.append(heading('Left out'), ignoredList(ignored));
-    container.append(aside);
-}
-
-function ignoredList(ignored) {
-    const list = document.createElement('ul');
-    list.className = 'flex flex-col gap-1';
-    ignored.forEach(entry => {
-        const item = document.createElement('li');
-        item.className = 'help-text';
-        item.textContent = `${formatClock(entry.timeMs)} ${entry.code} — ${reasonLabel(entry.reason)}`;
-        list.append(item);
-    });
-    return list;
-}
-
-function sequenceCard(sequence) {
+function entryCard(entry) {
     const card = document.createElement('article');
     card.className = 'surface surface-padded mb-3';
-    const seek = `Seek ${formatClock(sequence.seekSeconds * 1000)}. ${sequenceCloseNote(sequence)}`.trim();
-    card.append(heading(sequenceTitle(sequence), 'h3'), textLine(sequenceCodes(sequence)), paragraph(seek));
+    card.append(
+        heading(entryTitle(entry), 'h3'),
+        textLine(entryCodes(entry)),
+        paragraph(entryDetail(entry))
+    );
     return card;
 }
 
@@ -131,7 +107,7 @@ function heading(text, tag = 'h2') {
 
 function subheading(text) {
     const node = document.createElement('h3');
-    node.className = 'help-text mb-2';
+    node.className = 'help-text mt-3 mb-2';
     node.textContent = text;
     return node;
 }
@@ -148,12 +124,6 @@ function textLine(text) {
     node.className = 'mt-2 font-medium';
     node.textContent = text;
     return node;
-}
-
-function reasonLabel(reason) {
-    if (reason === 'quarter-marker') return 'quarter marker';
-    if (reason === 'card-or-sub') return 'card or substitution';
-    return 'not part of a chain';
 }
 
 function countLabel(count, singular, plural) {

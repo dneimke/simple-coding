@@ -1,6 +1,6 @@
 # Sequence spike
 
-Groups a coded match into chains. The trial page is served with the site at `/spike/sequences/`. Capture and match review do not use it.
+Classifies attacking 25m entries (`A25E`) and circle entries (`CE`) from a coded match as **Counter** or **Build-Up**. The trial page is served with the site at `/spike/sequences/`. Capture and match review do not use it.
 
 On the deployed site, open **Sequence trial** from Matches, or go directly to `spike/sequences/`. Pick a match saved in that browser, upload an export, or open the sample.
 
@@ -13,12 +13,11 @@ node spikes/sequences/run.js path/to/saved-game.json --out spikes/sequences/out
 node spikes/sequences/run.js path/to/sportscode.xml --out spikes/sequences/out
 ```
 
-A saved match keeps each event's `timeMs`. A Sportscode export uses the clip midpoint, so a chain near the 15 second gap can move.
+A saved match keeps each event's `timeMs`. A Sportscode export uses the clip midpoint, so an entry near the 10-second counter window or 15-second gap can shift.
 
 Rules:
 
-- One chain is one team. A gap over 15 seconds starts a new chain.
-- Ball Won reaching an attacking tag within 10 seconds is a counter. The same Ball Won arriving later is build-up.
-- Outcome is Goal, then PC, then Shot. The other team winning the ball before any of those is a turnover. A circle entry with neither is "No shot". A 25 entry that never reaches the circle is "No circle".
-- Channel is copied from a Left, Center, or Right label already on the circle entry or 25 entry.
-- Cards, substitutions, and quarter markers stay out of the chain and are listed under Left out.
+- Only attacking entries (`A25E` and `CE`) are emitted in the report; isolated turnovers, restarts, cards, substitutions, and quarter markers do not produce standalone rows.
+- A same-team possession window stays open while same-team tags are within 15 seconds and the other team has not logged a possession tag or scored a goal.
+- **Counter:** An `A25E` or `CE` reached within 10 seconds of a same-team Ball Won (`BW`, `BW1`–`BW4`) in the active possession window.
+- **Build-Up:** An `A25E` or `CE` reached from a restart (`BS1`–`BS4`, `OH`), a Ball Won taking more than 10 seconds, or settled possession without a prior tag in 15 seconds.

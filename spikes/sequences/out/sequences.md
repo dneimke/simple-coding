@@ -1,109 +1,109 @@
-# Sequences — Circle entry fixture
+# Attacking entries — Circle entry fixture
 
-Standalone spike. Chains are derived for review and are not written back onto the game.
+Standalone spike. Classifies 25m entries (A25E) and circle entries (CE) as Counter or Build-Up without modifying the coded match.
 
 | Rule | Value |
 | --- | --- |
-| Gap that ends a chain | 15s |
+| Gap that ends a possession window | 15s |
 | Counter window after Ball Won | 10s |
 | Event time | timeMs on the coded event |
 | Source events modified | no |
-| Built in | 2.3ms |
+| Built in | 1.82ms |
 
-8 circle entries coded, 8 placed in a chain. 10 sequences from 26 events.
+- Circle entries (CE): 8 total — 2 Counter, 6 Build-Up.
+- 25m entries (A25E): 5 total — 1 Counter, 4 Build-Up.
 
-## Circle entries by outcome
-
-| Outcome | Circle entries |
-| --- | ---: |
-| Goal | 1 |
-| PC | 1 |
-| Shot | 2 |
-| Turnover | 1 |
-| No shot | 3 |
+| Entry type | Total | Counter | Build-Up |
+| --- | ---: | ---: | ---: |
+| Circle entries (CE) | 8 | 2 | 6 |
+| 25m entries (A25E) | 5 | 1 | 4 |
 
 ## FIRE
 
-### PC (1)
+### Circle entries (CE) — 7 (2 Counter, 5 Build-Up)
 
-**10:00–10:08 · Q1 10:00 · Build-Up · channel not coded**
+**Counter · Q1 01:08 (video 01:08)**
 
-10:00 A25E → 10:04 CE → 10:08 PC
+01:00 BW1 → 01:04 A25E → 01:08 CE
 
-Seek 10:00. Events g1, g2, g3. No same-team tag for 292s.
+8s after BW1 · Seek 00:55. Events a1, a2, a3.
 
-### Shot (2)
-
-**01:00–01:12 · Q1 01:00 · Counter · Right**
-
-01:00 BW1 → 01:04 A25E → 01:08 CE → 01:12 SHOT
-
-Seek 00:55. Events a1, a2, a3, a4. No same-team tag for 28s.
-
-**16:00–16:10 · Q2 01:00 · Counter · channel not coded**
-
-16:00 BW1 → 16:04 CE → 16:10 SHOT
-
-Seek 16:00. Events h1, h2, h3.
-
-### Turnover (1)
-
-**06:40–06:46 · Q1 06:40 · Build-Up · Left**
-
-06:40 A25E → 06:46 CE
-
-Seek 06:40. Events e1, e2. Closed when the other team won the ball.
-
-### No shot (3)
-
-**01:56–01:56 · Q1 01:56 · Build-Up · channel not coded**
+**Build-Up · Q1 01:56 (video 01:56)**
 
 01:56 CE
 
-Seek 01:56. Events b2. No same-team tag for 84s.
+No prior same-team tag in 15s · Seek 01:56. Events b2.
 
-**03:20–03:28 · Q1 03:20 · Restart · channel not coded**
+**Build-Up · Q1 03:28 (video 03:28)**
 
 03:20 BS3 → 03:28 CE
 
-Seek 03:20. Events c1, c2. No same-team tag for 92s.
+8s after BS3 · Seek 03:20. Events c1, c2.
 
-**05:00–05:12 · Q1 05:00 · Build-Up · channel not coded**
+**Build-Up · Q1 05:12 (video 05:12)**
 
 05:00 BW2 → 05:12 CE
 
-Seek 05:00. Events d1, d2. No same-team tag for 88s.
+12s after BW2 (over 10s counter window) · Seek 05:00. Events d1, d2.
 
-### No circle (1)
+**Build-Up · Q1 06:46 (video 06:46)**
 
-**01:40–01:40 · Q1 01:40 · Build-Up · channel not coded**
+06:40 A25E → 06:46 CE
+
+6s after A25E · Seek 06:40. Events e1, e2.
+
+**Build-Up · Q1 10:04 (video 10:04)**
+
+10:00 A25E → 10:04 CE
+
+4s after A25E · Seek 10:00. Events g1, g2.
+
+**Counter · Q2 01:04 (video 16:04)**
+
+16:00 BW1 → 16:04 CE
+
+4s after BW1 · Seek 16:00. Events h1, h2.
+
+### 25m entries (A25E) — 4 (1 Counter, 3 Build-Up)
+
+**Counter · Q1 01:04 (video 01:04)**
+
+01:00 BW1 → 01:04 A25E
+
+4s after BW1 · Seek 00:55. Events a1, a2.
+
+**Build-Up · Q1 01:40 (video 01:40)**
 
 01:40 A25E
 
-Seek 01:40. Events b1. No same-team tag for 16s.
+No prior same-team tag in 15s · Seek 01:40. Events b1.
+
+**Build-Up · Q1 06:40 (video 06:40)**
+
+06:40 A25E
+
+No prior same-team tag in 15s · Seek 06:40. Events e1.
+
+**Build-Up · Q1 10:00 (video 10:00)**
+
+10:00 A25E
+
+No prior same-team tag in 15s · Seek 10:00. Events g1.
 
 ## TIGERS
 
-### Goal (1)
+### Circle entries (CE) — 1 (0 Counter, 1 Build-Up)
 
-**08:20–08:34 · Q1 08:20 · Restart · channel not coded**
+**Build-Up · Q1 08:30 (video 08:30)**
 
-08:20 OH → 08:26 A25E → 08:30 CE → 08:34 GOAL
+08:20 OH → 08:26 A25E → 08:30 CE
 
-Seek 08:20. Events f1, f2, f3, f4. Ends at the goal.
+10s after OH · Seek 08:20. Events f1, f2, f3.
 
-### No entry (1)
+### 25m entries (A25E) — 1 (0 Counter, 1 Build-Up)
 
-**06:50–06:50 · Q1 06:50 · origin not coded · channel not coded**
+**Build-Up · Q1 08:26 (video 08:26)**
 
-06:50 BW3
+08:20 OH → 08:26 A25E
 
-Seek 06:50. Events e3. No same-team tag for 90s.
-
-## Ignored events
-
-| Time | Code | Reason |
-| --- | --- | --- |
-| 00:00 | Q1 | quarter-marker |
-| 01:10 | GREEN | card-or-sub |
-| 15:00 | Q2 | quarter-marker |
+6s after OH · Seek 08:20. Events f1, f2.

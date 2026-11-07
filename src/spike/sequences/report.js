@@ -1,90 +1,78 @@
 /**
- * Coach-readable rendering of a sequence spike. The JSON file is the audit copy.
+ * Coach-readable rendering of attacking entry origins (Counter vs Build-Up).
+ * The JSON file is the audit copy.
  */
 
-import { formatClock, sequenceCloseNote, sequenceCodes, sequenceTitle } from './copy.js';
+import { entryCodes, entryDetail, entryTitle, splitSummaryText } from './copy.js';
 
-const OUTCOME_ORDER = ['Goal', 'PC', 'Shot', 'Turnover', 'No shot', 'No circle', 'No entry'];
+const ENTRY_GROUPS = [
+    ['CE', 'Circle entries (CE)'],
+    ['A25E', '25m entries (A25E)']
+];
 
 /**
  * @param {{ name: string, timeSource: string }} game
- * @param {{ sequences: Array<object>, dispositions: Array<object>, stats: object }} result
+ * @param {{ entries: Array<object>, stats: object }} result
  * @param {{ mutated?: boolean }} [meta]
  */
 export function formatReport(game, result, meta = {}) {
-    const { sequences, dispositions, stats } = result;
+    const entries = result.entries || result.sequences || [];
+    const { stats } = result;
     const lines = headerLines(game, stats, meta);
-    appendOutcomeRows(lines, stats.circleEntriesByOutcome);
-    appendTeamLines(lines, sequences);
-    appendIgnoredLines(lines, dispositions);
+    appendTeamLines(lines, entries);
     lines.push('');
     return lines.join('\n');
 }
 
 function headerLines(game, stats, meta) {
     return [
-        `# Sequences — ${game.name}`,
+        `# Attacking entries — ${game.name}`,
         '',
-        'Standalone spike. Chains are derived for review and are not written back onto the game.',
+        'Standalone spike. Classifies 25m entries (A25E) and circle entries (CE) as Counter or Build-Up without modifying the coded match.',
         '',
         '| Rule | Value |',
         '| --- | --- |',
-        `| Gap that ends a chain | ${stats.rules.gapMs / 1000}s |`,
+        `| Gap that ends a possession window | ${stats.rules.gapMs / 1000}s |`,
         `| Counter window after Ball Won | ${stats.rules.counterMs / 1000}s |`,
         `| Event time | ${timeSourceLabel(game.timeSource)} |`,
         `| Source events modified | ${meta.mutated ? 'yes' : 'no'} |`,
         `| Built in | ${stats.elapsedMs}ms |`,
         '',
-        `${stats.circleEntriesCoded} circle entries coded, ${stats.circleEntriesInSequences} placed in a chain. ${stats.sequenceCount} sequences from ${stats.eventCount} events.`,
+        `- ${splitSummaryText('Circle entries (CE)', stats.circleEntries)}`,
+        `- ${splitSummaryText('25m entries (A25E)', stats.a25Entries)}`,
         '',
-        '## Circle entries by outcome',
-        '',
-        '| Outcome | Circle entries |',
-        '| --- | ---: |'
+        '| Entry type | Total | Counter | Build-Up |',
+        '| --- | ---: | ---: | ---: |',
+        `| Circle entries (CE) | ${stats.circleEntries.total} | ${stats.circleEntries.counter} | ${stats.circleEntries.buildUp} |`,
+        `| 25m entries (A25E) | ${stats.a25Entries.total} | ${stats.a25Entries.counter} | ${stats.a25Entries.buildUp} |`
     ];
 }
 
-function appendOutcomeRows(lines, byOutcome) {
-    OUTCOME_ORDER.forEach(outcome => {
-        const count = byOutcome[outcome] || 0;
-        if (count) lines.push(`| ${outcome} | ${count} |`);
-    });
-}
-
-function appendTeamLines(lines, sequences) {
-    const teams = [...new Set(sequences.map(sequence => sequence.team))];
+function appendTeamLines(lines, entries) {
+    const teams = [...new Set(entries.map(entry => entry.team))];
     teams.forEach(team => {
         lines.push('', `## ${team}`);
-        const teamSequences = sequences.filter(sequence => sequence.team === team);
-        OUTCOME_ORDER.forEach(outcome => appendOutcomeLines(lines, outcome, teamSequences));
+        const teamEntries = entries.filter(entry => entry.team === team);
+        ENTRY_GROUPS.forEach(([entryType, label]) => appendEntryGroupLines(lines, entryType, label, teamEntries));
     });
 }
 
-function appendOutcomeLines(lines, outcome, teamSequences) {
-    const group = teamSequences.filter(sequence => sequence.outcome === outcome);
+function appendEntryGroupLines(lines, entryType, label, teamEntries) {
+    const group = teamEntries.filter(entry => entry.entryType === entryType);
     if (!group.length) return;
-    lines.push('', `### ${outcome} (${group.length})`);
-    group.forEach(sequence => lines.push('', formatSequence(sequence)));
+    const counter = group.filter(entry => entry.originType === 'Counter').length;
+    const buildUp = group.length - counter;
+    lines.push('', `### ${label} — ${group.length} (${counter} Counter, ${buildUp} Build-Up)`);
+    group.forEach(entry => lines.push('', formatEntry(entry)));
 }
 
-function appendIgnoredLines(lines, dispositions) {
-    const ignored = dispositions.filter(entry => entry.disposition === 'ignored');
-    if (!ignored.length) return;
-    lines.push('', '## Ignored events', '', '| Time | Code | Reason |', '| --- | --- | --- |');
-    ignored.forEach(entry => {
-        lines.push(`| ${formatClock(entry.timeMs)} | ${entry.code} | ${entry.reason} |`);
-    });
-}
-
-function formatSequence(sequence) {
-    const close = sequenceCloseNote(sequence);
-    const detail = `Seek ${formatClock(sequence.seekSeconds * 1000)}. Events ${sequence.eventInstanceIds.join(', ')}.`;
+function formatEntry(entry) {
     return [
-        `**${sequenceTitle(sequence)}**`,
+        `**${entryTitle(entry)}**`,
         '',
-        sequenceCodes(sequence),
+        entryCodes(entry),
         '',
-        close ? `${detail} ${close}` : detail
+        `${entryDetail(entry)}. Events ${entry.eventInstanceIds.join(', ')}.`
     ].join('\n');
 }
 

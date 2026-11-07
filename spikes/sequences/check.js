@@ -1,5 +1,5 @@
 /**
- * Integrity checks for the sequence spike. Exits non-zero when a chain rule breaks.
+ * Integrity checks for the sequence spike. Exits non-zero when an entry origin rule breaks.
  */
 
 import assert from 'node:assert/strict';
@@ -18,80 +18,78 @@ const result = buildSequences(game.events, { teams: game.teams });
 assert.equal(JSON.stringify(fixture), before, 'fixture file object was modified');
 assert.equal(JSON.stringify(game.events), snapshot, 'coded events were modified');
 
-const byEvent = (id) => result.sequences.find(sequence => sequence.eventInstanceIds.includes(id));
+const byEvent = (id) => result.entries.find(entry => entry.eventId === id);
 
-const converted = byEvent('a1');
-assert.equal(converted.originType, 'Counter');
-assert.equal(converted.outcome, 'Shot');
-assert.equal(converted.primaryChannel, 'Right');
-assert.equal(converted.quarter, 'Q1');
-assert.deepEqual(converted.eventInstanceIds, ['a1', 'a2', 'a3', 'a4']);
-assert.equal(converted.seekSeconds, 55);
+assert.deepEqual(result.stats.circleEntries, {
+    total: 8,
+    counter: 2,
+    buildUp: 6
+});
+assert.deepEqual(result.stats.a25Entries, {
+    total: 5,
+    counter: 1,
+    buildUp: 4
+});
+
+const counterA25 = byEvent('a2');
+assert.equal(counterA25.entryType, 'A25E');
+assert.equal(counterA25.originType, 'Counter');
+assert.equal(counterA25.triggerCode, 'BW1');
+assert.equal(counterA25.secondsFromTrigger, 4);
+assert.equal(counterA25.quarter, 'Q1');
+assert.deepEqual(counterA25.eventInstanceIds, ['a1', 'a2']);
+assert.equal(counterA25.seekSeconds, 55);
+
+const counterCe = byEvent('a3');
+assert.equal(counterCe.entryType, 'CE');
+assert.equal(counterCe.originType, 'Counter');
+assert.equal(counterCe.triggerCode, 'BW1');
+assert.equal(counterCe.secondsFromTrigger, 8);
+assert.deepEqual(counterCe.eventInstanceIds, ['a1', 'a2', 'a3']);
+assert.equal(counterCe.seekSeconds, 55);
+
+assert.equal(byEvent('card'), undefined);
+assert.equal(byEvent('e3'), undefined);
 
 const entryOnly = byEvent('b1');
 const lateCircle = byEvent('b2');
-assert.notEqual(entryOnly.id, lateCircle.id);
-assert.equal(entryOnly.outcome, 'No circle');
-assert.equal(entryOnly.closedBecause, 'gap');
-assert.equal(entryOnly.gapSeconds, 16);
-assert.equal(lateCircle.outcome, 'No shot');
-assert.equal(lateCircle.primaryChannel, null);
+assert.equal(entryOnly.originType, 'Build-Up');
+assert.equal(entryOnly.triggerCode, null);
+assert.equal(lateCircle.originType, 'Build-Up');
+assert.equal(lateCircle.triggerCode, null);
+assert.deepEqual(lateCircle.eventInstanceIds, ['b2']);
 
-const card = result.dispositions.find(entry => entry.id === 'card');
-assert.equal(card.disposition, 'ignored');
-assert.equal(card.reason, 'card-or-sub');
-assert.ok(result.sequences.every(sequence => !sequence.eventInstanceIds.includes('card')));
+const fromRestart = byEvent('c2');
+assert.equal(fromRestart.originType, 'Build-Up');
+assert.equal(fromRestart.triggerCode, 'BS3');
+assert.equal(fromRestart.secondsFromTrigger, 8);
+assert.deepEqual(fromRestart.eventInstanceIds, ['c1', 'c2']);
 
-const restart = byEvent('c1');
-assert.equal(restart.originType, 'Restart');
-assert.equal(restart.outcome, 'No shot');
-assert.deepEqual(restart.eventInstanceIds, ['c1', 'c2']);
+const slowBallWon = byEvent('d2');
+assert.equal(slowBallWon.originType, 'Build-Up');
+assert.equal(slowBallWon.triggerCode, 'BW2');
+assert.equal(slowBallWon.secondsFromTrigger, 12);
+assert.deepEqual(slowBallWon.eventInstanceIds, ['d1', 'd2']);
 
-const slowCounter = byEvent('d1');
-assert.equal(slowCounter.originType, 'Build-Up');
-assert.deepEqual(slowCounter.eventInstanceIds, ['d1', 'd2']);
+const fromA25 = byEvent('e2');
+assert.equal(fromA25.originType, 'Build-Up');
+assert.equal(fromA25.triggerCode, 'A25E');
+assert.deepEqual(fromA25.eventInstanceIds, ['e1', 'e2']);
 
-const turnover = byEvent('e2');
-assert.equal(turnover.outcome, 'Turnover');
-assert.equal(turnover.primaryChannel, 'Left');
-assert.equal(turnover.closedBecause, 'opponent-bw');
-assert.ok(!turnover.eventInstanceIds.includes('e3'));
+const fromOverhead = byEvent('f3');
+assert.equal(fromOverhead.originType, 'Build-Up');
+assert.equal(fromOverhead.triggerCode, 'OH');
+assert.deepEqual(fromOverhead.eventInstanceIds, ['f1', 'f2', 'f3']);
 
-const loneWin = byEvent('e3');
-assert.equal(loneWin.outcome, 'No entry');
-assert.equal(loneWin.originType, null);
-
-const goal = byEvent('f4');
-assert.equal(goal.outcome, 'Goal');
-assert.equal(goal.originType, 'Restart');
-assert.equal(goal.closedBecause, 'goal');
-
-const corner = byEvent('g3');
-assert.equal(corner.outcome, 'PC');
-assert.equal(corner.originType, 'Build-Up');
-
-const secondQuarter = byEvent('h1');
+const secondQuarter = byEvent('h2');
 assert.equal(secondQuarter.quarter, 'Q2');
 assert.equal(secondQuarter.originType, 'Counter');
-assert.equal(secondQuarter.outcome, 'Shot');
-assert.equal(secondQuarter.matchClockStart, '01:00');
-assert.equal(secondQuarter.videoStart, '16:00');
-
-const circleEntries = result.dispositions.filter(entry => entry.attack === 'CE');
-assert.equal(circleEntries.length, 8);
-assert.ok(circleEntries.every(entry => entry.disposition === 'in-sequence'));
-assert.deepEqual(result.stats.circleEntriesByOutcome, {
-    Goal: 1,
-    PC: 1,
-    Shot: 2,
-    Turnover: 1,
-    'No shot': 3,
-    'No circle': 0,
-    'No entry': 0
-});
+assert.equal(secondQuarter.triggerCode, 'BW1');
+assert.equal(secondQuarter.matchClock, '01:04');
+assert.equal(secondQuarter.videoTime, '16:04');
 
 const repeat = buildSequences(game.events, { teams: game.teams });
-assert.deepEqual(repeat.sequences, result.sequences);
+assert.deepEqual(repeat.entries, result.entries);
 
 const many = Array.from({ length: 500 }, (_, index) => ({
     id: `e${index}`,
@@ -100,8 +98,7 @@ const many = Array.from({ length: 500 }, (_, index) => ({
 }));
 const timed = buildSequences(many);
 assert.ok(timed.stats.elapsedMs < 50, `500 events took ${timed.stats.elapsedMs}ms`);
-assert.equal(timed.stats.circleEntriesCoded, 250);
-assert.equal(timed.stats.circleEntriesInSequences, 250);
+assert.equal(timed.stats.circleEntries.total, 250);
 
 const xml = `<?xml version="1.0" encoding="utf-8"?>
 <file>
@@ -117,10 +114,6 @@ const xml = `<?xml version="1.0" encoding="utf-8"?>
       <start>59.00</start>
       <end>69.00</end>
       <code>FIRE CE</code>
-      <label>
-        <group>Channel</group>
-        <text>Center</text>
-      </label>
     </instance>
   </ALL_INSTANCES>
 </file>`;
@@ -129,9 +122,9 @@ assert.equal(exported.timeSource, 'xml-clip-midpoint');
 assert.equal(exported.events[0].timeMs, 60000);
 assert.equal(exported.events[1].timeMs, 64000);
 const fromXml = buildSequences(exported.events);
-assert.equal(fromXml.sequences.length, 1);
-assert.equal(fromXml.sequences[0].originType, 'Counter');
-assert.equal(fromXml.sequences[0].primaryChannel, 'Center');
-assert.deepEqual(fromXml.sequences[0].eventInstanceIds, ['1', '2']);
+assert.equal(fromXml.entries.length, 1);
+assert.equal(fromXml.entries[0].originType, 'Counter');
+assert.equal(fromXml.entries[0].triggerCode, 'BW1');
+assert.deepEqual(fromXml.entries[0].eventInstanceIds, ['1', '2']);
 
-console.log(`ok — fixture ${result.stats.sequenceCount} sequences, 500 events in ${timed.stats.elapsedMs}ms`);
+console.log(`ok — fixture ${result.stats.entryCount} entries, 500 events in ${timed.stats.elapsedMs}ms`);

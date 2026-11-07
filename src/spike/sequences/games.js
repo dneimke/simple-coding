@@ -25,15 +25,18 @@ export function readSavedGames(storage) {
 export function gameLabel(game) {
     if (!game) return 'Coded match';
     if (game.name) return String(game.name);
-    if (typeof game.teams === 'string' && game.teams.trim()) return game.teams.trim();
-    if (Array.isArray(game.teams) && game.teams.length) {
-        const names = game.teams.map(team => {
-            if (typeof team === 'string') return team;
-            return team?.code || team?.name || '';
-        }).filter(Boolean);
-        if (names.length) return names.join(' vs ');
-    }
-    return 'Coded match';
+    return teamsLabel(game.teams) || 'Coded match';
+}
+
+function teamsLabel(teams) {
+    if (typeof teams === 'string') return teams.trim();
+    if (!Array.isArray(teams)) return '';
+    return teams.map(teamText).filter(Boolean).join(' vs ');
+}
+
+function teamText(team) {
+    if (typeof team === 'string') return team;
+    return team?.code || team?.name || '';
 }
 
 /**
