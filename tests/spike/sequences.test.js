@@ -30,10 +30,11 @@ describe('sequence spike', () => {
 
         const report = document.createElement('div');
         renderReport(report, analysed.game, analysed.result, { mutated: false });
-        expect(report.textContent).toContain('Circle Entries (CE)');
-        expect(report.textContent).toContain('8 Total CE');
-        expect(report.textContent).toContain('25m Entries (A25E)');
-        expect(report.textContent).toContain('1 Total 25m');
+        expect(report.textContent).toContain('Circle Entries (8)');
+        expect(report.textContent).toContain('25m Entries (1)');
+        expect(report.textContent).not.toContain('D-Penetration');
+        expect(report.textContent).not.toContain('Attack Origins');
+        expect(report.textContent).not.toContain('Feedback Batch');
         expect(report.textContent).toContain('8s after BW1');
         expect(report.textContent).toContain('12s after BW2 (over 10s counter window)');
         expect(report.textContent).not.toContain('GREEN');
@@ -106,12 +107,12 @@ describe('sequence spike', () => {
         expect(savedButton.textContent).toContain('Saved final');
         savedButton.click();
         expect(document.getElementById('status').textContent).toBe('Saved final');
-        expect(document.getElementById('report').textContent).toContain('1 Total CE');
+        expect(document.getElementById('report').textContent).toContain('Circle Entries (1)');
 
         document.getElementById('sample-button').click();
         await Promise.resolve();
         expect(document.getElementById('status').textContent).toBe('Sample match');
-        expect(document.getElementById('report').textContent).toContain('8 Total CE');
+        expect(document.getElementById('report').textContent).toContain('Circle Entries (8)');
 
         // Test filter interaction
         const counterPill = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('⚡ Counter'));
@@ -119,11 +120,13 @@ describe('sequence spike', () => {
         counterPill.click();
         expect(document.getElementById('report').textContent).toContain('Showing 2 of 9 entries');
 
-        // Test row click seeks video
+        // Test row click seeks video, highlights active row, and displays clean lead-in note without video duplication
         const firstRow = document.querySelector('#report .entry-row');
         expect(firstRow).toBeDefined();
+        expect(firstRow.textContent).toContain('Starts');
+        expect(firstRow.textContent).not.toContain('(video');
         firstRow.click();
-        expect(document.getElementById('active-entry-info').textContent).toContain('Counter');
+        expect(firstRow.classList.contains('ring-2')).toBe(true);
 
         // Test Cloud URL toggle & loading
         const toggleUrlBtn = document.getElementById('btn-toggle-url');
@@ -139,5 +142,14 @@ describe('sequence spike', () => {
         const videoEl = document.querySelector('#report video');
         expect(videoEl.src).toBe('https://example.com/matches/test-match.mp4');
         expect(document.getElementById('video-filename').textContent).toContain('test-match.mp4');
+
+        // Once video is loaded, persistent source buttons are replaced by swap menu
+        expect(document.getElementById('video-initial-sources').classList.contains('hidden')).toBe(true);
+        expect(document.getElementById('video-loaded-menu').classList.contains('hidden')).toBe(false);
+
+        const swapBtn = document.getElementById('btn-swap-video');
+        expect(swapBtn).not.toBeNull();
+        swapBtn.click();
+        expect(document.getElementById('video-swap-dropdown').classList.contains('hidden')).toBe(false);
     });
 });

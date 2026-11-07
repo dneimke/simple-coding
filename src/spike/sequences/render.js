@@ -4,7 +4,7 @@
  */
 
 import { entryCodes, formatClock } from './copy.js';
-import { createFeedbackStore, renderFeedbackBar, openFeedbackModal } from './feedback.js';
+import { createFeedbackStore, openFeedbackModal } from './feedback.js';
 
 /**
  * @typedef {Object} FilterState
@@ -33,11 +33,6 @@ export function renderReport(container, game, result, meta = {}) {
     };
 
     container.replaceChildren();
-
-    // Top: Feedback Batch Banner
-    const feedbackBar = document.createElement('div');
-    container.append(feedbackBar);
-    renderFeedbackBar(feedbackBar, feedbackStore, { gameLabel: game.name || 'Coded match' });
 
     // Top: Coach Match Scoreboard
     const scoreboard = document.createElement('div');
@@ -112,20 +107,14 @@ function renderCoachScoreboard(container, teams, allEntries, state, onChange) {
     const a251 = t1Entries.filter(e => e.entryType === 'A25E');
     const a252 = t2Entries.filter(e => e.entryType === 'A25E');
 
-    const counter1 = t1Entries.filter(e => e.originType === 'Counter');
-    const counter2 = t2Entries.filter(e => e.originType === 'Counter');
-
-    const totalCounter = counter1.length + counter2.length;
-    const totalEntries = allEntries.length;
-
     const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-1 md:grid-cols-3 gap-3';
+    grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-3';
 
-    // Card 1: Circle Entries (CE) — Danger & Penetration
+    // Card 1: Circle Entries
     const isCeActive = state.entryType === 'CE';
+    const totalCe = ce1.length + ce2.length;
     const ceCard = scoreboardCard({
-        title: 'Circle Entries (CE)',
-        subtitle: 'D-Penetration & Danger',
+        title: `Circle Entries (${totalCe})`,
         isActive: isCeActive,
         onClick: () => {
             state.entryType = isCeActive ? 'all' : 'CE';
@@ -136,16 +125,14 @@ function renderCoachScoreboard(container, teams, allEntries, state, onChange) {
         val1: ce1.length,
         val2: ce2.length,
         sub1: `${ce1.filter(e => e.originType === 'Counter').length}⚡ · ${ce1.filter(e => e.originType === 'Build-Up').length}🛡️`,
-        sub2: `${ce2.filter(e => e.originType === 'Counter').length}⚡ · ${ce2.filter(e => e.originType === 'Build-Up').length}🛡️`,
-        badgeText: `${ce1.length + ce2.length} Total CE`,
-        badgeColor: 'border-emerald-300 bg-emerald-50 text-emerald-900'
+        sub2: `${ce2.filter(e => e.originType === 'Counter').length}⚡ · ${ce2.filter(e => e.originType === 'Build-Up').length}🛡️`
     });
 
-    // Card 2: 25m Entries (A25E) — Midfield Control & Territory
+    // Card 2: 25m Entries
     const isA25Active = state.entryType === 'A25E';
+    const totalA25 = a251.length + a252.length;
     const a25Card = scoreboardCard({
-        title: '25m Entries (A25E)',
-        subtitle: 'Territory & Midfield Control',
+        title: `25m Entries (${totalA25})`,
         isActive: isA25Active,
         onClick: () => {
             state.entryType = isA25Active ? 'all' : 'A25E';
@@ -156,36 +143,14 @@ function renderCoachScoreboard(container, teams, allEntries, state, onChange) {
         val1: a251.length,
         val2: a252.length,
         sub1: `${a251.filter(e => e.originType === 'Counter').length}⚡ · ${a251.filter(e => e.originType === 'Build-Up').length}🛡️`,
-        sub2: `${a252.filter(e => e.originType === 'Counter').length}⚡ · ${a252.filter(e => e.originType === 'Build-Up').length}🛡️`,
-        badgeText: `${a251.length + a252.length} Total 25m`,
-        badgeColor: 'border-slate-300 bg-slate-100 text-slate-800'
+        sub2: `${a252.filter(e => e.originType === 'Counter').length}⚡ · ${a252.filter(e => e.originType === 'Build-Up').length}🛡️`
     });
 
-    // Card 3: Attack Origin (Counter vs Build-Up)
-    const isCounterActive = state.originType === 'Counter';
-    const originCard = scoreboardCard({
-        title: 'Attack Origins',
-        subtitle: '⚡ Counter (<10s) vs 🛡️ Build-Up',
-        isActive: isCounterActive,
-        onClick: () => {
-            state.originType = isCounterActive ? 'all' : 'Counter';
-            onChange();
-        },
-        team1,
-        team2,
-        val1: counter1.length,
-        val2: counter2.length,
-        sub1: `${t1Entries.length - counter1.length} Build-Up`,
-        sub2: `${t2Entries.length - counter2.length} Build-Up`,
-        badgeText: `${totalCounter} Counter (${percent(totalCounter, totalEntries)})`,
-        badgeColor: 'border-amber-300 bg-amber-50 text-amber-900'
-    });
-
-    grid.append(ceCard, a25Card, originCard);
+    grid.append(ceCard, a25Card);
     container.append(grid);
 }
 
-function scoreboardCard({ title, subtitle, isActive, onClick, team1, team2, val1, val2, sub1, sub2, badgeText, badgeColor }) {
+function scoreboardCard({ title, isActive, onClick, team1, team2, val1, val2, sub1, sub2 }) {
     const card = document.createElement('div');
     const activeRing = isActive ? 'ring-2 ring-blue-600 bg-blue-50/30 border-blue-400' : 'hover:border-slate-300';
     card.className = `surface px-3 py-2 border rounded-lg cursor-pointer transition-all select-none ${activeRing}`;
@@ -196,11 +161,7 @@ function scoreboardCard({ title, subtitle, isActive, onClick, team1, team2, val1
 
     card.innerHTML = `
         <div class="flex items-center justify-between gap-1 mb-1">
-            <div class="flex items-center gap-1.5 min-w-0">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800 truncate">${title}</h3>
-                <span class="text-[10px] text-slate-400 hidden xl:inline">(${subtitle})</span>
-            </div>
-            <span class="text-[10px] px-1.5 py-0.2 rounded font-bold border ${badgeColor} flex-shrink-0">${badgeText}</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800 truncate">${title}</h3>
         </div>
         <div class="flex items-center justify-between gap-2 py-0.5">
             <div class="text-left flex items-baseline gap-1.5 min-w-0">
@@ -360,7 +321,6 @@ function renderVideoCard(onSeek, feedbackStore, options = {}) {
         currentEntry = entry;
         controlsRow.updateFlag();
         seekVideo(videoEl, seconds);
-        updateActiveEntryInfo(card, entry);
     };
 
     return card;
@@ -375,18 +335,72 @@ function createVideoHeader(onFileClick, onUrlToggle) {
             <span class="font-bold uppercase tracking-wider text-slate-700">Video</span>
             <span id="video-filename" class="text-muted truncate max-w-[180px]" title="No video attached">No video attached</span>
         </div>
-        <div class="flex items-center gap-1.5 flex-shrink-0">
-            <button type="button" id="btn-attach-file" class="btn btn-secondary btn-compact text-[11px] px-2" title="Attach local video file from disk">
-                <i class="fas fa-folder-open mr-1 text-[10px]" aria-hidden="true"></i>Disk
-            </button>
-            <button type="button" id="btn-toggle-url" class="btn btn-secondary btn-compact text-[11px] px-2" title="Load video from cloud URL">
-                <i class="fas fa-cloud mr-1 text-[10px]" aria-hidden="true"></i>Cloud URL
-            </button>
+        <div class="flex items-center gap-1.5 flex-shrink-0" id="video-source-actions">
+            <div id="video-initial-sources" class="flex items-center gap-1.5">
+                <button type="button" id="btn-attach-file" class="btn btn-secondary btn-compact text-[11px] px-2" title="Attach local video file from disk">
+                    <i class="fas fa-folder-open mr-1 text-[10px]" aria-hidden="true"></i>Disk
+                </button>
+                <button type="button" id="btn-toggle-url" class="btn btn-secondary btn-compact text-[11px] px-2" title="Load video from cloud URL">
+                    <i class="fas fa-cloud mr-1 text-[10px]" aria-hidden="true"></i>Cloud URL
+                </button>
+            </div>
+            <div id="video-loaded-menu" class="hidden relative">
+                <button type="button" id="btn-swap-video" class="btn btn-ghost btn-compact text-xs text-slate-500 hover:text-slate-800 px-1.5 flex items-center gap-1" title="Change video source">
+                    <i class="fas fa-arrow-right-arrow-left text-[11px]" aria-hidden="true"></i>Swap
+                </button>
+                <div id="video-swap-dropdown" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg p-1 z-20 flex flex-col gap-1 min-w-[110px]">
+                    <button type="button" id="btn-swap-disk" class="btn btn-ghost btn-compact text-left text-xs px-2 py-1 flex items-center gap-1.5 hover:bg-slate-50">
+                        <i class="fas fa-folder-open text-slate-500 text-[11px]" aria-hidden="true"></i>Disk
+                    </button>
+                    <button type="button" id="btn-swap-cloud" class="btn btn-ghost btn-compact text-left text-xs px-2 py-1 flex items-center gap-1.5 hover:bg-slate-50">
+                        <i class="fas fa-cloud text-slate-500 text-[11px]" aria-hidden="true"></i>Cloud URL
+                    </button>
+                </div>
+            </div>
         </div>
     `;
+    wireVideoHeaderEvents(header, onFileClick, onUrlToggle);
+    return header;
+}
+
+function wireVideoHeaderEvents(header, onFileClick, onUrlToggle) {
     header.querySelector('#btn-attach-file').addEventListener('click', onFileClick);
     header.querySelector('#btn-toggle-url').addEventListener('click', onUrlToggle);
-    return header;
+
+    const swapBtn = header.querySelector('#btn-swap-video');
+    const dropdown = header.querySelector('#video-swap-dropdown');
+    swapBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+    });
+
+    header.querySelector('#btn-swap-disk').addEventListener('click', () => {
+        dropdown.classList.add('hidden');
+        onFileClick();
+    });
+
+    header.querySelector('#btn-swap-cloud').addEventListener('click', () => {
+        dropdown.classList.add('hidden');
+        onUrlToggle();
+    });
+
+    header.ownerDocument?.addEventListener('click', () => {
+        dropdown.classList.add('hidden');
+    });
+}
+
+function updateVideoLoadedState(card, isLoaded) {
+    const initialSources = card.querySelector('#video-initial-sources');
+    const loadedMenu = card.querySelector('#video-loaded-menu');
+    if (initialSources && loadedMenu) {
+        if (isLoaded) {
+            initialSources.classList.add('hidden');
+            loadedMenu.classList.remove('hidden');
+        } else {
+            initialSources.classList.remove('hidden');
+            loadedMenu.classList.add('hidden');
+        }
+    }
 }
 
 function createVideoUrlBar(onLoad, onCancel) {
@@ -431,6 +445,7 @@ function setVideoUrl(url, videoEl, card, options) {
             nameEl.title = clean;
             nameEl.className = 'text-blue-700 font-medium truncate max-w-[180px]';
         }
+        updateVideoLoadedState(card, true);
         toggleUrlBar(card, false);
         if (options.storage && options.storageKey) {
             try { options.storage.setItem(options.storageKey, clean); } catch {}
@@ -450,6 +465,7 @@ function wireFileInput(fileInput, videoEl, card) {
                 nameEl.title = `Local file: ${file.name}`;
                 nameEl.className = 'text-slate-800 font-medium truncate max-w-[180px]';
             }
+            updateVideoLoadedState(card, true);
             toggleUrlBar(card, false);
             safePlay(videoEl);
         }
@@ -483,7 +499,6 @@ function createVideoControlsRow(videoEl, feedbackStore, getEntry) {
                 <button type="button" data-speed="1.5">1.5x</button>
                 <button type="button" data-speed="2">2x</button>
             </div>
-            <div id="active-entry-info" class="text-[11px] text-slate-600 truncate max-w-[160px] hidden sm:block">Click an entry to seek</div>
         </div>
     `;
 
@@ -500,7 +515,7 @@ function wirePlaybackButtons(row, videoEl, getEntry) {
         const entry = getEntry();
         if (entry) {
             videoEl.currentTime = entry.seekSeconds;
-            videoEl.play().catch(() => {});
+            safePlay(videoEl);
         }
     });
     row.querySelector('#back-5s').addEventListener('click', () => {
@@ -551,8 +566,7 @@ function wireSpeedButtons(row, videoEl) {
     });
 }
 
-function seekVideo(videoEl, seconds) {
-    videoEl.currentTime = Math.max(0, seconds);
+function safePlay(videoEl) {
     try {
         const playPromise = videoEl.play();
         if (playPromise && typeof playPromise.catch === 'function') {
@@ -561,11 +575,9 @@ function seekVideo(videoEl, seconds) {
     } catch {}
 }
 
-function updateActiveEntryInfo(card, entry) {
-    const info = card.querySelector('#active-entry-info');
-    if (info && entry) {
-        info.innerHTML = `<strong>${entry.originType}</strong> · ${entry.team} ${entry.entryType} at ${entry.videoTime}`;
-    }
+function seekVideo(videoEl, seconds) {
+    videoEl.currentTime = Math.max(0, seconds);
+    safePlay(videoEl);
 }
 
 function renderEntryList(container, allEntries, state, options = {}) {
@@ -637,7 +649,14 @@ function getEntryRowHtml(entry, isCounter, isFlagged) {
     const badgeClass = isCounter ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-blue-100 text-blue-900 border-blue-300';
     const badgeIcon = isCounter ? '⚡ Counter' : '🛡️ Build-Up';
     const clockText = entry.quarter ? `${entry.quarter} ${entry.matchClock}` : `match ${entry.matchClock}`;
+    const showVideoOffset = entry.videoTime && entry.videoTime !== entry.matchClock;
+    const videoOffsetHtml = showVideoOffset ? `<span class="text-xs text-slate-400 tabular-nums hidden sm:inline">(video ${entry.videoTime})</span>` : '';
     const flagClass = isFlagged ? 'text-amber-600 bg-amber-100 border border-amber-300 font-semibold' : 'text-slate-400 hover:text-amber-600';
+
+    const seekTime = formatClock(entry.seekSeconds * 1000);
+    const eventSeconds = Math.round(entry.timeMs / 1000);
+    const leadDiff = eventSeconds - entry.seekSeconds;
+    const leadText = leadDiff > 0 ? `Starts ${seekTime} (-${leadDiff}s)` : `Starts ${seekTime}`;
 
     return `
         <div class="flex items-center justify-between gap-2">
@@ -647,14 +666,12 @@ function getEntryRowHtml(entry, isCounter, isFlagged) {
                 </span>
                 <strong class="text-sm text-slate-900 font-semibold">${entry.team} ${entry.entryType}</strong>
                 <span class="text-xs text-slate-500 tabular-nums">· ${clockText}</span>
-                <span class="text-xs text-slate-400 tabular-nums hidden sm:inline">(video ${entry.videoTime})</span>
+                ${videoOffsetHtml}
             </div>
-            <div class="flex items-center gap-1.5 flex-shrink-0">
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <span class="text-xs text-slate-500 tabular-nums">${leadText}</span>
                 <button type="button" class="btn-flag btn btn-ghost btn-compact text-xs px-2 ${flagClass}" title="${isFlagged ? 'Flagged (click to edit)' : 'Flag for review'}">
                     <i class="fas fa-flag text-[11px]" aria-hidden="true"></i>${isFlagged ? '<span class="ml-1 text-[11px]">Flagged</span>' : ''}
-                </button>
-                <button type="button" class="btn btn-ghost btn-compact text-xs text-brand font-semibold flex items-center gap-1" title="Play from start of play">
-                    <i class="fas fa-play text-[10px]" aria-hidden="true"></i>Seek ${formatClock(entry.seekSeconds * 1000)}
                 </button>
             </div>
         </div>
@@ -667,9 +684,4 @@ function getEntryRowHtml(entry, isCounter, isFlagged) {
             </div>
         </div>
     `;
-}
-
-function percent(part, total) {
-    if (!total) return '0%';
-    return `${Math.round((part / total) * 100)}%`;
 }
