@@ -4,6 +4,7 @@
  */
 
 import { entryCodes, formatClock } from './copy.js';
+import { createFeedbackStore, renderFeedbackBar, openFeedbackModal } from './feedback.js';
 
 /**
  * @typedef {Object} FilterState
@@ -15,13 +16,14 @@ import { entryCodes, formatClock } from './copy.js';
 
 /**
  * @param {HTMLElement} container
- * @param {{ name: string, timeSource: string }} game
+ * @param {{ name: string, timeSource: string, id?: string }} game
  * @param {{ entries: Array<object>, stats: object }} result
- * @param {{ mutated?: boolean, onSeek?: (seconds: number, entry: object) => void }} [meta]
+ * @param {{ mutated?: boolean, storage?: Storage, feedbackStore?: object, onSeek?: (seconds: number, entry: object) => void }} [meta]
  */
 export function renderReport(container, game, result, meta = {}) {
     const allEntries = result.entries || result.sequences || [];
     const teams = [...new Set(allEntries.map(e => e.team))].filter(Boolean);
+    const feedbackStore = meta.feedbackStore || createFeedbackStore(meta.storage, game.id || game.name);
 
     const state = {
         team: 'all',
@@ -31,6 +33,11 @@ export function renderReport(container, game, result, meta = {}) {
     };
 
     container.replaceChildren();
+
+    // Top: Feedback Batch Banner
+    const feedbackBar = document.createElement('div');
+    container.append(feedbackBar);
+    renderFeedbackBar(feedbackBar, feedbackStore, { gameLabel: game.name || 'Coded match' });
 
     // Top: Coach Match Scoreboard
     const scoreboard = document.createElement('div');
@@ -58,7 +65,7 @@ export function renderReport(container, game, result, meta = {}) {
     videoCol.className = 'lg:col-span-7 lg:sticky lg:top-4 z-10 flex flex-col gap-2 order-1 lg:order-2';
     const videoCard = renderVideoCard((seekSec, entry) => {
         if (meta.onSeek) meta.onSeek(seekSec, entry);
-    });
+    }, feedbackStore);
     videoCol.append(videoCard);
 
     workspace.append(listCol, videoCol);
@@ -67,14 +74,19 @@ export function renderReport(container, game, result, meta = {}) {
     function update() {
         renderCoachScoreboard(scoreboard, teams, allEntries, state, update);
         renderFilterLens(filterLensCard, teams, allEntries, state, update);
-        renderEntryList(listContainer, allEntries, state, (entry) => {
-            state.activeEntryId = entry.id;
-            update();
-            videoCard.seekTo(entry.seekSeconds, entry);
-            if (meta.onSeek) meta.onSeek(entry.seekSeconds, entry);
+        renderEntryList(listContainer, allEntries, state, {
+            feedbackStore,
+            videoEl: videoCard.videoEl,
+            onSelect: (entry) => {
+                state.activeEntryId = entry.id;
+                update();
+                videoCard.seekTo(entry.seekSeconds, entry);
+                if (meta.onSeek) meta.onSeek(entry.seekSeconds, entry);
+            }
         });
     }
 
+    feedbackStore.subscribe(update);
     update();
 }
 
@@ -318,7 +330,7 @@ function pill(label, isActive, onClick, count = null, color = null) {
     return btn;
 }
 
-function renderVideoCard(onSeek) {
+function renderVideoCard(onSeek, feedbackStore) {
     const card = document.createElement('div');
     card.className = 'surface surface-padded border rounded-lg';
 
@@ -383,6 +395,9 @@ function renderVideoCard(onSeek) {
             <button type="button" class="btn btn-secondary btn-compact px-2" id="fwd-5s" title="Forward 5s">
                 +5s
             </button>
+            <button type="button" class="btn btn-secondary btn-compact px-2 flex items-center gap-1" id="video-flag-btn" title="Flag this clip for review" disabled>
+                <i class="fas fa-flag text-xs" aria-hidden="true"></i><span id="video-flag-text">Flag</span>
+            </button>
         </div>
         <div class="segmented segmented-compact" role="group">
             <button type="button" class="is-active" data-speed="1">1x</button>
@@ -406,6 +421,32 @@ function renderVideoCard(onSeek) {
         videoEl.currentTime = Math.min(videoEl.duration || 999999, videoEl.currentTime + 5);
     });
 
+    const videoFlagBtn = controlsRow.querySelector('#video-flag-btn');
+    if (videoFlagBtn) {
+        videoFlagBtn.addEventListener('click', () => {
+            if (currentEntry && feedbackStore) {
+                openFeedbackModal(card.ownerDocument || document, currentEntry, videoEl, feedbackStore);
+            }
+        });
+    }
+
+    function updateVideoFlagBtn() {
+        if (!videoFlagBtn) return;
+        if (!currentEntry) {
+            videoFlagBtn.disabled = true;
+            return;
+        }
+        videoFlagBtn.disabled = false;
+        const isFlagged = feedbackStore && feedbackStore.has(currentEntry.id);
+        const textSpan = videoFlagBtn.querySelector('#video-flag-text');
+        if (textSpan) textSpan.textContent = isFlagged ? 'Flagged' : 'Flag';
+        if (isFlagged) {
+            videoFlagBtn.classList.add('bg-amber-100', 'text-amber-900', 'border-amber-300');
+        } else {
+            videoFlagBtn.classList.remove('bg-amber-100', 'text-amber-900', 'border-amber-300');
+        }
+    }
+
     controlsRow.querySelectorAll('[data-speed]').forEach(btn => {
         btn.addEventListener('click', () => {
             controlsRow.querySelectorAll('[data-speed]').forEach(b => b.classList.remove('is-active'));
@@ -416,8 +457,10 @@ function renderVideoCard(onSeek) {
 
     card.append(header, videoEl, attachRow, controlsRow);
 
+    card.videoEl = videoEl;
     card.seekTo = (seconds, entry) => {
         currentEntry = entry;
+        updateVideoFlagBtn();
         videoEl.currentTime = Math.max(0, seconds);
         try {
             const playPromise = videoEl.play();
@@ -434,7 +477,10 @@ function renderVideoCard(onSeek) {
     return card;
 }
 
-function renderEntryList(container, allEntries, state, onSelect) {
+function renderEntryList(container, allEntries, state, options = {}) {
+    const onSelect = typeof options === 'function' ? options : options.onSelect;
+    const feedbackStore = options?.feedbackStore;
+    const videoEl = options?.videoEl;
     container.replaceChildren();
 
     const filtered = allEntries.filter(entry => {
@@ -468,6 +514,7 @@ function renderEntryList(container, allEntries, state, onSelect) {
         const row = document.createElement('div');
         const isSelected = entry.id === state.activeEntryId;
         const isCounter = entry.originType === 'Counter';
+        const isFlagged = feedbackStore ? feedbackStore.has(entry.id) : false;
 
         const borderClass = isSelected
             ? 'ring-2 ring-blue-500 bg-blue-50/40'
@@ -482,6 +529,10 @@ function renderEntryList(container, allEntries, state, onSelect) {
         const badgeIcon = isCounter ? '⚡ Counter' : '🛡️ Build-Up';
         const clockText = entry.quarter ? `${entry.quarter} ${entry.matchClock}` : `match ${entry.matchClock}`;
 
+        const flagClass = isFlagged
+            ? 'text-amber-600 bg-amber-100 border border-amber-300 font-semibold'
+            : 'text-slate-400 hover:text-amber-600';
+
         row.innerHTML = `
             <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2 min-w-0">
@@ -492,9 +543,14 @@ function renderEntryList(container, allEntries, state, onSelect) {
                     <span class="text-xs text-slate-500 tabular-nums">· ${clockText}</span>
                     <span class="text-xs text-slate-400 tabular-nums hidden sm:inline">(video ${entry.videoTime})</span>
                 </div>
-                <button type="button" class="btn btn-ghost btn-compact text-xs text-brand font-semibold flex items-center gap-1 flex-shrink-0" title="Play from start of play">
-                    <i class="fas fa-play text-[10px]" aria-hidden="true"></i>Seek ${formatClock(entry.seekSeconds * 1000)}
-                </button>
+                <div class="flex items-center gap-1.5 flex-shrink-0">
+                    <button type="button" class="btn-flag btn btn-ghost btn-compact text-xs px-2 ${flagClass}" title="${isFlagged ? 'Flagged (click to edit)' : 'Flag for review'}">
+                        <i class="fas fa-flag text-[11px]" aria-hidden="true"></i>${isFlagged ? '<span class="ml-1 text-[11px]">Flagged</span>' : ''}
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-compact text-xs text-brand font-semibold flex items-center gap-1" title="Play from start of play">
+                        <i class="fas fa-play text-[10px]" aria-hidden="true"></i>Seek ${formatClock(entry.seekSeconds * 1000)}
+                    </button>
+                </div>
             </div>
             <div class="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div class="font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px] truncate max-w-full">
@@ -506,7 +562,19 @@ function renderEntryList(container, allEntries, state, onSelect) {
             </div>
         `;
 
-        row.addEventListener('click', () => onSelect(entry));
+        const flagBtn = row.querySelector('.btn-flag');
+        if (flagBtn) {
+            flagBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (feedbackStore) {
+                    openFeedbackModal(row.ownerDocument || document, entry, videoEl, feedbackStore);
+                }
+            });
+        }
+
+        row.addEventListener('click', () => {
+            if (onSelect) onSelect(entry);
+        });
         container.append(row);
     });
 }

@@ -41,7 +41,7 @@ assert.equal(counterCe.triggerCode, 'BW1');
 assert.equal(counterCe.secondsFromTrigger, 8);
 assert.equal(counterCe.quarter, 'Q1');
 assert.deepEqual(counterCe.eventInstanceIds, ['a1', 'a2', 'a3']);
-assert.equal(counterCe.seekSeconds, 55);
+assert.equal(counterCe.seekSeconds, 50);
 
 assert.equal(byEvent('card'), undefined);
 assert.equal(byEvent('e3'), undefined);

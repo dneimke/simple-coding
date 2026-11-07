@@ -31,7 +31,7 @@ export function mountSequenceSpike(doc, options = {}) {
         showStatus(label);
         if (matchTitle) matchTitle.textContent = `Match: ${label}`;
         if (matchDetails) matchDetails.open = false; // Collapse to let video & analysis take focus
-        renderReport(report, analysed.game, analysed.result, { mutated: analysed.mutated });
+        renderReport(report, analysed.game, analysed.result, { mutated: analysed.mutated, storage });
     }
 
     function showFailure(message) {

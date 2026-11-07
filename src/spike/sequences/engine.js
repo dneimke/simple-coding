@@ -10,6 +10,7 @@ import { formatClock } from './copy.js';
 
 const DEFAULT_GAP_MS = 25000;
 const DEFAULT_COUNTER_MS = 10000;
+const DEFAULT_PRE_ROLL_SECONDS = 5;
 
 const CODE_START = /^(?:BW\d?|BS\d?|OH|PC|APC|A25E|CE|SHOT|GOAL|GREEN|YELLOW|RED|CARD|SUB|SUBSTITUTION|KICKOFF|Q[1-4]|START|QUARTER)\b/i;
 
@@ -26,12 +27,13 @@ const ROLE_RULES = [
 
 /**
  * @param {Array<object>} events
- * @param {{ gapMs?: number, counterMs?: number, teams?: Array<string|object> }} [options]
+ * @param {{ gapMs?: number, counterMs?: number, preRollSeconds?: number, teams?: Array<string|object> }} [options]
  */
 export function buildSequences(events, options = {}) {
     const started = performance.now();
     const gapMs = options.gapMs ?? DEFAULT_GAP_MS;
     const counterMs = options.counterMs ?? DEFAULT_COUNTER_MS;
+    const preRollSeconds = options.preRollSeconds ?? DEFAULT_PRE_ROLL_SECONDS;
     const teamNames = normalizeTeamNames(options.teams);
     const source = Array.isArray(events) ? events : [];
 
@@ -45,7 +47,8 @@ export function buildSequences(events, options = {}) {
         currentQuarter: null,
         quarterStartMs: 0,
         gapMs,
-        counterMs
+        counterMs,
+        preRollSeconds
     };
 
     ordered.forEach(item => placeItem(state, item));
@@ -106,7 +109,7 @@ function placeItem(state, item) {
     chain.items.push(item);
     chain.endTimeMs = item.timeMs;
     if (item.attack) {
-        state.entries.push(publishEntry(chain, item, state.counterMs, state.gapMs));
+        state.entries.push(publishEntry(chain, item, state.counterMs, state.gapMs, state.preRollSeconds));
     }
     if (item.role === 'goal') {
         state.open.delete(item.team);
@@ -152,9 +155,10 @@ function ensureChain(state, item) {
     return chain;
 }
 
-function publishEntry(chain, item, counterMs, gapMs) {
+function publishEntry(chain, item, counterMs, gapMs, preRollSeconds = DEFAULT_PRE_ROLL_SECONDS) {
     const first = chain.items[0];
-    const seekSeconds = Math.max(0, chain.startTimeMs / 1000 - (first?.lead ?? 0));
+    const baseLead = first?.lead != null ? first.lead : 5;
+    const seekSeconds = Math.max(0, (chain.startTimeMs / 1000) - baseLead - preRollSeconds);
     const origin = classifyEntryOrigin(chain.items, item, counterMs, gapMs);
     return {
         id: `entry-${item.team}-${item.id}`,
