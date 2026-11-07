@@ -144,14 +144,34 @@ describe('sequence spike', () => {
         expect(videoEl.src).toBe('https://example.com/matches/test-match.mp4');
         expect(document.getElementById('video-filename').textContent).toContain('test-match.mp4');
 
-        // Once video is loaded, persistent source buttons are replaced by swap menu
-        expect(document.getElementById('video-initial-sources').classList.contains('hidden')).toBe(true);
-        expect(document.getElementById('video-loaded-menu').classList.contains('hidden')).toBe(false);
+        // Once video is loaded, 1-tap sources remain available and detach button is displayed
+        expect(document.getElementById('btn-attach-file')).not.toBeNull();
+        expect(document.getElementById('btn-toggle-url')).not.toBeNull();
+        const clearBtn = document.getElementById('btn-clear-video');
+        expect(clearBtn).not.toBeNull();
+        expect(clearBtn.classList.contains('hidden')).toBe(false);
+        expect(urlBar.classList.contains('hidden')).toBe(true);
 
-        const swapBtn = document.getElementById('btn-swap-video');
-        expect(swapBtn).not.toBeNull();
-        swapBtn.click();
-        expect(document.getElementById('video-swap-dropdown').classList.contains('hidden')).toBe(false);
+        // Detaching video resets filename and hides clear button
+        clearBtn.click();
+        expect(document.getElementById('video-filename').textContent).toBe('No video attached');
+        expect(clearBtn.classList.contains('hidden')).toBe(true);
+
+        // Verifying Disk file input does not open the Cloud URL bar
+        const originalCreateObjectURL = window.URL?.createObjectURL;
+        window.URL.createObjectURL = jest.fn(() => 'blob:mock-video-url');
+        try {
+            const fileInput = document.getElementById('video-file-input');
+            const mockFile = new File(['mock'], 'game-recording.mp4', { type: 'video/mp4' });
+            Object.defineProperty(fileInput, 'files', { value: [mockFile] });
+            fileInput.dispatchEvent(new Event('change'));
+
+            expect(document.getElementById('video-filename').textContent).toBe('game-recording.mp4');
+            expect(clearBtn.classList.contains('hidden')).toBe(false);
+            expect(urlBar.classList.contains('hidden')).toBe(true);
+        } finally {
+            window.URL.createObjectURL = originalCreateObjectURL;
+        }
     });
 
     test('auto-loads sample match on visit and wires matches popover modal', async () => {
