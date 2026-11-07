@@ -61,6 +61,22 @@ describe('sequence spike', () => {
         expect(result.entries[1].originType).toBe('Build-Up');
     });
 
+    test('classifies chain starting from restart as Build-Up even with late intermediate BW tag', () => {
+        const result = buildSequences(
+            [
+                { id: '1', event: 'BS4', isTeam1: true, timeMs: 1000 },
+                { id: '2', event: 'A25E', isTeam1: true, timeMs: 20000 },
+                { id: '3', event: 'BW4', isTeam1: true, timeMs: 27000 },
+                { id: '4', event: 'CE', isTeam1: true, timeMs: 29000 }
+            ],
+            { teams: ['FIRE', 'PRIDE'] }
+        );
+        expect(result.entries).toHaveLength(1);
+        expect(result.entries[0].originType).toBe('Build-Up');
+        expect(result.entries[0].triggerCode).toBe('BS4');
+        expect(result.entries[0].reason).toContain('after BS4');
+    });
+
     test('reads saved matches and formats labels across team representations', () => {
         const storage = {
             getItem: () => JSON.stringify([
