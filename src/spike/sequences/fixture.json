@@ -1,0 +1,33 @@
+{
+  "name": "Circle entry fixture",
+  "id": "circle-entry-fixture",
+  "teams": ["FIRE", "TIGERS"],
+  "events": [
+    { "id": "q1", "event": "Q1", "timeMs": 0 },
+    { "id": "a1", "event": "FIRE BW1", "timeMs": 60000, "lead": 5 },
+    { "id": "a2", "event": "FIRE A25E", "timeMs": 64000, "labels": [{ "group": "Channel", "text": "Right" }] },
+    { "id": "a3", "event": "FIRE CE", "timeMs": 68000, "labels": [{ "group": "Channel", "text": "Right" }] },
+    { "id": "card", "event": "FIRE GREEN", "timeMs": 70000 },
+    { "id": "a4", "event": "FIRE SHOT", "timeMs": 72000 },
+    { "id": "b1", "event": "FIRE A25E", "timeMs": 100000 },
+    { "id": "b2", "event": "FIRE CE", "timeMs": 130000 },
+    { "id": "c1", "event": "FIRE BS3", "timeMs": 200000 },
+    { "id": "c2", "event": "FIRE CE", "timeMs": 208000 },
+    { "id": "d1", "event": "FIRE BW2", "timeMs": 300000 },
+    { "id": "d2", "event": "FIRE CE", "timeMs": 312000 },
+    { "id": "e1", "event": "FIRE A25E", "timeMs": 400000, "labels": [{ "group": "Channel", "text": "Left" }] },
+    { "id": "e2", "event": "FIRE CE", "timeMs": 406000, "labels": [{ "group": "Channel", "text": "Left" }] },
+    { "id": "e3", "event": "TIGERS BW3", "timeMs": 410000 },
+    { "id": "f1", "event": "TIGERS OH", "timeMs": 500000 },
+    { "id": "f2", "event": "TIGERS A25E", "timeMs": 506000 },
+    { "id": "f3", "event": "TIGERS CE", "timeMs": 510000 },
+    { "id": "f4", "event": "TIGERS GOAL", "timeMs": 514000 },
+    { "id": "g1", "event": "FIRE A25E", "timeMs": 600000 },
+    { "id": "g2", "event": "FIRE CE", "timeMs": 604000 },
+    { "id": "g3", "event": "FIRE PC", "timeMs": 608000 },
+    { "id": "q2", "event": "Q2", "timeMs": 900000 },
+    { "id": "h1", "event": "FIRE BW1", "timeMs": 960000 },
+    { "id": "h2", "event": "FIRE CE", "timeMs": 964000 },
+    { "id": "h3", "event": "FIRE SHOT", "timeMs": 970000 }
+  ]
+}

@@ -49,21 +49,46 @@ function serveStaticFile(req, res, srcDir) {
     }
 
     fs.stat(filePath, (err, stats) => {
-        if (err || !stats.isFile()) {
-            res.statusCode = 404;
-            res.end(`Not Found: ${pathname}`);
+        if (!err && stats.isFile()) {
+            sendFile(res, filePath);
             return;
         }
-
-        const ext = path.extname(filePath).toLowerCase();
-        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-
-        res.writeHead(200, {
-            'Content-Type': contentType,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-        });
-        fs.createReadStream(filePath).pipe(res);
+        if (!isDirectoryRequest(err, stats, pathname)) {
+            sendMissing(res, pathname);
+            return;
+        }
+        sendDirectoryIndex(res, path.join(filePath, 'index.html'), pathname);
     });
+}
+
+function isDirectoryRequest(err, stats, pathname) {
+    return (!err && stats.isDirectory()) || (Boolean(err) && !path.extname(pathname));
+}
+
+function sendDirectoryIndex(res, indexPath, pathname) {
+    fs.stat(indexPath, (indexErr, indexStats) => {
+        if (indexErr || !indexStats.isFile()) {
+            sendMissing(res, pathname);
+            return;
+        }
+        sendFile(res, indexPath);
+    });
+}
+
+function sendMissing(res, pathname) {
+    res.statusCode = 404;
+    res.end(`Not Found: ${pathname}`);
+}
+
+function sendFile(res, filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+    res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
+    fs.createReadStream(filePath).pipe(res);
 }
 
 /**

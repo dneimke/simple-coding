@@ -766,6 +766,42 @@ async function capturePresentationSnapshots(browser, baseUrl, results) {
     }
 }
 
+async function captureSequenceSpikeSnapshots(browser, baseUrl, results) {
+    for (const vp of VIEWPORTS) {
+        const context = await browser.newContext({
+            viewport: { width: vp.width, height: vp.height },
+            deviceScaleFactor: 2
+        });
+        const page = await context.newPage();
+        await page.goto(`${baseUrl}/spike/sequences/`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#sample-button');
+
+        const emptyPath = path.join(OUTPUT_DIR, `sequence-spike-choose-${vp.name}.png`);
+        await page.screenshot({ path: emptyPath, fullPage: true });
+        results.push({
+            name: 'sequence-spike-choose',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `sequence-spike-choose-${vp.name}.png`,
+            bytes: fs.statSync(emptyPath).size
+        });
+
+        await page.click('#sample-button');
+        await page.waitForSelector('#report article');
+        const reportPath = path.join(OUTPUT_DIR, `sequence-spike-sample-${vp.name}.png`);
+        await page.screenshot({ path: reportPath, fullPage: true });
+        results.push({
+            name: 'sequence-spike-sample',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `sequence-spike-sample-${vp.name}.png`,
+            bytes: fs.statSync(reportPath).size
+        });
+
+        await context.close();
+    }
+}
+
 async function captureDiffPreviewSnapshot(browser, baseUrl) {
     const diffContext = await browser.newContext({
         viewport: { width: 1280, height: 800 },
@@ -826,6 +862,7 @@ async function runSnapshots() {
         await captureCompoundChordSnapshots(browser, baseUrl, results);
         await captureVideoAlignmentSnapshots(browser, baseUrl, results);
         await capturePresentationSnapshots(browser, baseUrl, results);
+        await captureSequenceSpikeSnapshots(browser, baseUrl, results);
         await captureDiffPreviewSnapshot(browser, baseUrl);
 
         console.log('\n📸 Visual Snapshots Generated:\n');
