@@ -1,8 +1,7 @@
 import { convertSportscodeXml } from '../../scripts/convert-sportscode-xml.js';
 
-describe('convertSportscodeXml', () => {
-    const createSampleXml = (instances) => {
-        const instanceXml = instances.map((inst, idx) => `
+const createSampleXml = (instances) => {
+    const instanceXml = instances.map((inst, idx) => `
     <instance>
         <ID>${idx + 1}</ID>
         <code>${inst.code}</code>
@@ -11,14 +10,15 @@ describe('convertSportscodeXml', () => {
         ${(inst.labels || []).map(l => `<label><text>${l}</text></label>`).join('\n')}
     </instance>`).join('\n');
 
-        return `<?xml version="1.0" encoding="UTF-8"?>
+    return `<?xml version="1.0" encoding="UTF-8"?>
 <file>
 <ALL_INSTANCES>
 ${instanceXml}
 </ALL_INSTANCES>
 </file>`;
-    };
+};
 
+describe('convertSportscodeXml - quarters and team detection', () => {
     test('throws if XML contains no instances', () => {
         expect(() => convertSportscodeXml('<file></file>')).toThrow('No <instance> entries found');
     });
@@ -40,12 +40,12 @@ ${instanceXml}
 
     test('extracts quarters from 6 QTR WHISTLE pushback instances', () => {
         const xml = createSampleXml([
-            { code: 'QTR WHISTLE', start: 10, end: 11 },    // Q1 start
-            { code: 'QTR WHISTLE', start: 100, end: 101 },  // Q2 start
-            { code: 'QTR WHISTLE', start: 180, end: 181 },  // Halftime
-            { code: 'QTR WHISTLE', start: 220, end: 221, labels: ['3'] }, // Q3 start
-            { code: 'QTR WHISTLE', start: 310, end: 311, labels: ['4'] }, // Q4 start
-            { code: 'QTR WHISTLE', start: 400, end: 401 },  // Full-time
+            { code: 'QTR WHISTLE', start: 10, end: 11 },
+            { code: 'QTR WHISTLE', start: 100, end: 101 },
+            { code: 'QTR WHISTLE', start: 180, end: 181 },
+            { code: 'QTR WHISTLE', start: 220, end: 221, labels: ['3'] },
+            { code: 'QTR WHISTLE', start: 310, end: 311, labels: ['4'] },
+            { code: 'QTR WHISTLE', start: 400, end: 401 },
             { code: 'COBRAS CE', start: 30, end: 40 },
             { code: 'FIRE CE', start: 120, end: 130 }
         ]);
@@ -59,14 +59,15 @@ ${instanceXml}
         expect(quarterEvents[2].timeMs).toBe(220000);
         expect(quarterEvents[3].timeMs).toBe(310000);
     });
+});
 
+describe('convertSportscodeXml - attacking entries and channels', () => {
     test('maps Circle Entries with channel labels and nearby fallback', () => {
         const xml = createSampleXml([
             { code: 'Q1', start: 1, end: 2 },
             { code: 'COBRAS CIRCLE ENTRY', start: 20, end: 30, labels: ['LF'] },
             { code: 'COBRAS CIRCLE ENTRY', start: 50, end: 60, labels: ['CT'] },
             { code: 'FIRE CIRCLE ENTRY', start: 80, end: 90, labels: ['RT'] },
-            // Missing direct label but nearby instance has RTE
             { code: 'FIRE A25 ENTRY', start: 108, end: 112, labels: ['RTE'] },
             { code: 'FIRE CIRCLE ENTRY', start: 110, end: 120, labels: [] }
         ]);
@@ -93,13 +94,15 @@ ${instanceXml}
         const bws = result.game.events.filter(e => e.event.includes('BW'));
         expect(bws).toHaveLength(5);
         expect(bws[0].event).toBe('COBRAS BW1');
-        expect(bws[0].timeMs).toBe(16000); // 10 + 6 = 16s
+        expect(bws[0].timeMs).toBe(16000);
         expect(bws[1].event).toBe('COBRAS BW2');
         expect(bws[2].event).toBe('COBRAS BW3');
         expect(bws[3].event).toBe('FIRE BW4');
         expect(bws[4].event).toBe('FIRE BW');
     });
+});
 
+describe('convertSportscodeXml - noise filtering and set pieces', () => {
     test('skips continuous possession, press, and standalone spatial boxes', () => {
         const xml = createSampleXml([
             { code: 'COBRAS POSSESSION', start: 10, end: 30 },
@@ -119,9 +122,9 @@ ${instanceXml}
     test('deduplicates shots/GSO, PC/PCA, and maps goals with correct type', () => {
         const xml = createSampleXml([
             { code: 'COBRAS SHOTS', start: 20, end: 30 },
-            { code: 'COBRAS GSO', start: 20, end: 32 }, // duplicate shot within 2.5s
+            { code: 'COBRAS GSO', start: 20, end: 32 },
             { code: 'COBRAS PC WON', start: 40, end: 50 },
-            { code: 'COBRAS PCA', start: 40, end: 50 },    // duplicate PC within 3s
+            { code: 'COBRAS PCA', start: 40, end: 50 },
             { code: 'COBRAS GOAL', start: 60, end: 70, labels: ['FIELD GOAL'] },
             { code: 'COBRAS GOAL', start: 80, end: 90, labels: ['SHOOTOUT GOAL'] },
             { code: 'FIRE GOAL', start: 100, end: 110, labels: ['PC GOAL'] }
