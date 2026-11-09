@@ -12,6 +12,7 @@ import { calculateVideoOffset, shiftEventTimings } from '../utils/gameUtils.js';
 import { appendZoneSuffix, stripTrailingZoneDigit, zoneForTeam } from '../utils/zoneUtils.js';
 import { setupMobileMenu } from '../utils/domUtils.js';
 import { PresentationController } from './presentationController.js';
+import { openMatchReport } from '../utils/matchReportGenerator.js';
 
 import {
     validateVideoUrl,
@@ -2973,6 +2974,24 @@ function initMatchTitleEditor() {
         saveAndExitBtn.addEventListener('click', (e) => {
             e.preventDefault();
             saveAndExit();
+        });
+    }
+
+    const openReportBtn = document.getElementById('open-match-report-btn');
+    if (openReportBtn) {
+        openReportBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!currentGameId) {
+                notificationService.notify('No match currently loaded to report on.', 'warning');
+                return;
+            }
+            const savedGames = getSavedGames();
+            const { game } = findGameById(savedGames, currentGameId);
+            if (game) {
+                openMatchReport(game);
+            } else {
+                notificationService.notify('Current match could not be found.', 'error');
+            }
         });
     }
 

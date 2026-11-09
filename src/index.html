@@ -277,6 +277,15 @@
                                         <span class="create-match-item-desc">Load a Sportscode XML match package</span>
                                     </div>
                                 </button>
+                                <button id="reportFromXmlButton" type="button" class="create-match-item" role="menuitem">
+                                    <div class="create-match-item-icon">
+                                        <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                                    </div>
+                                    <div class="create-match-item-text">
+                                        <span class="create-match-item-title">Match Report</span>
+                                        <span class="create-match-item-desc">Generate executive report from XML</span>
+                                    </div>
+                                </button>
                             </div>
                         </div>
                     </header>
@@ -287,6 +296,9 @@
                     <label for="appendXmlFileInput" class="sr-only">Upload XML to Append</label>
                     <input id="appendXmlFileInput" type="file" accept=".xml" class="hidden"
                         title="Choose an XML file to upload">
+                    <label for="reportXmlFileInput" class="sr-only">Upload XML for Match Report</label>
+                    <input id="reportXmlFileInput" type="file" accept=".xml" class="hidden"
+                        title="Choose an XML file to generate an interactive match report">
                 </div>
 
                 <!-- Help View: User Guide & Tactical Workflows -->
