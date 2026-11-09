@@ -86,10 +86,15 @@ function extractQuarters(rawInstances, events) {
     if (found) return;
 
     const qtrWhistles = rawInstances.filter(i => /^QTR\s*WHISTLE$/i.test(i.code));
-    if (qtrWhistles.length === 6 || qtrWhistles.length === 4) {
-        const qStarts = qtrWhistles.length === 6
-            ? [qtrWhistles[0], qtrWhistles[1], qtrWhistles[3], qtrWhistles[4]]
-            : qtrWhistles.slice(0, 4);
+    if (qtrWhistles.length === 8 || qtrWhistles.length === 6 || qtrWhistles.length === 4) {
+        let qStarts;
+        if (qtrWhistles.length === 8) {
+            qStarts = [qtrWhistles[0], qtrWhistles[2], qtrWhistles[4], qtrWhistles[6]];
+        } else if (qtrWhistles.length === 6) {
+            qStarts = [qtrWhistles[0], qtrWhistles[1], qtrWhistles[3], qtrWhistles[4]];
+        } else {
+            qStarts = qtrWhistles.slice(0, 4);
+        }
         qStarts.forEach((inst, idx) => {
             pushEvent(events, `Q${idx + 1}`, Math.round(inst.start * 1000), 1, 1);
         });
