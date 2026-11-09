@@ -121,13 +121,46 @@ describe('XML Utils', () => {
             expect(parse(xml).querySelector('parsererror')).toBeNull();
         });
 
-        test('does not write labels, teams, date or favourite', () => {
+        test('does not write game-level metadata like teams or date into Sportscode XML', () => {
             const xml = generateGameXml({
                 teams: 'Team A vs Team B',
                 timestamp: '2025-05-10T12:00:00Z',
-                events: [{ event: 'GOAL_FOR', timeMs: 60000, favourite: true }]
+                events: [{ event: 'GOAL_FOR', timeMs: 60000 }]
             }, 1);
-            expect(xml).not.toMatch(/label|Team A|2025-05-10|favourite/);
+            expect(xml).not.toMatch(/Team A|2025-05-10/);
+        });
+
+        test('serializes note and favorite status as Sportscode label groups', () => {
+            const xml = generateSportscodeXml([
+                {
+                    event: 'GOAL_FOR',
+                    timeMs: 60000,
+                    note: 'Top right corner strike',
+                    isFavorite: true
+                }
+            ]);
+            expect(xml).toContain('<group>Notes</group>');
+            expect(xml).toContain('<text>Top right corner strike</text>');
+            expect(xml).toContain('<group>Favorite</group>');
+            expect(xml).toContain('<text>Yes</text>');
+        });
+
+        test('escapes special characters in notes and ignores empty whitespace notes', () => {
+            const xml = generateSportscodeXml([
+                {
+                    event: 'TURNOVER',
+                    timeMs: 15000,
+                    note: 'High press <left & right>',
+                    favorite: true
+                },
+                {
+                    event: 'CIRCLE_ENTRY',
+                    timeMs: 20000,
+                    note: '   '
+                }
+            ]);
+            expect(xml).toContain('<text>High press &lt;left &amp; right&gt;</text>');
+            expect(xml).not.toMatch(/<group>Notes<\/group>\s*<text>\s*<\/text>/);
         });
     });
 
@@ -206,6 +239,96 @@ describe('XML Utils', () => {
             expect(texts(doc, 'instance > start')).toEqual(['109.14', '1652.91', '50.62', '19.34']);
             expect(texts(doc, 'instance > end')).toEqual(['121.14', '1672.91', '61.62', '21.34']);
             expect(generateSportscodeXml(imported)).toBe(xml);
+        });
+
+        test('extracts Notes and Favorite labels and keeps domain labels segregated', () => {
+            const xml = `<?xml version="1.0" encoding="utf-8"?>
+<file>
+  <ALL_INSTANCES>
+    <instance>
+      <ID>1</ID>
+      <start>55.00</start>
+      <end>65.00</end>
+      <code_id>1</code_id>
+      <code>FIRE CE</code>
+      <label>
+        <group>Channel</group>
+        <text>Left</text>
+      </label>
+      <label>
+        <group>Notes</group>
+        <text>Great overhead pass from #4</text>
+      </label>
+      <label>
+        <group>Favorite</group>
+        <text>Yes</text>
+      </label>
+    </instance>
+  </ALL_INSTANCES>
+  <ROWS>
+    <row><id>1</id><name>FIRE CE</name></row>
+  </ROWS>
+</file>`;
+            const [parsed] = parseXmlToEvents(xml);
+            expect(parsed.event).toBe('FIRE CE');
+            expect(parsed.note).toBe('Great overhead pass from #4');
+            expect(parsed.isFavorite).toBe(true);
+            expect(parsed.favorite).toBe(true);
+            expect(parsed.labels).toEqual([{ group: 'Channel', text: 'Left' }]);
+        });
+
+        test('handles alternative group names for comments and favorites on import', () => {
+            const xml = `<?xml version="1.0" encoding="utf-8"?>
+<file>
+  <ALL_INSTANCES>
+    <instance>
+      <ID>1</ID>
+      <start>55.00</start>
+      <end>65.00</end>
+      <code_id>1</code_id>
+      <code>FIRE CE</code>
+      <label>
+        <group>Comment</group>
+        <text>Opposition caught pressing</text>
+      </label>
+      <label>
+        <group>Starred</group>
+        <text>Key clip</text>
+      </label>
+    </instance>
+  </ALL_INSTANCES>
+  <ROWS>
+    <row><id>1</id><name>FIRE CE</name></row>
+  </ROWS>
+</file>`;
+            const [parsed] = parseXmlToEvents(xml);
+            expect(parsed.note).toBe('Opposition caught pressing');
+            expect(parsed.isFavorite).toBe(true);
+            expect(parsed.labels).toBeUndefined();
+        });
+
+        test('round-trips notes and favorites through export and import without label pollution', () => {
+            const events = [
+                {
+                    event: 'FIRE CE',
+                    timeMs: 60000,
+                    note: 'Crucial baseline attack',
+                    isFavorite: true,
+                    favorite: true,
+                    labels: [{ group: 'Channel', text: 'Right' }]
+                }
+            ];
+            const xml = generateSportscodeXml(events);
+            const imported = parseXmlToEvents(xml);
+            expect(imported).toHaveLength(1);
+            expect(imported[0].event).toBe('FIRE CE');
+            expect(imported[0].timeMs).toBe(60000);
+            expect(imported[0].note).toBe('Crucial baseline attack');
+            expect(imported[0].isFavorite).toBe(true);
+            expect(imported[0].labels).toEqual([
+                { group: 'Channel', text: 'Right' },
+                { group: 'Origin', text: 'Build-Up' }
+            ]);
         });
 
         test('parses legacy <game> format with teams and favourites', () => {
@@ -306,6 +429,29 @@ describe('XML Utils', () => {
             expect(result.duplicateCount).toBe(1);
             expect(result[0].timeMs).toBe(15000);
             expect(result[1].timeMs).toBe(17000);
+        });
+
+        test('enriches duplicate events with incoming notes, favorites, and labels', () => {
+            const base = [
+                { event: 'SHOT', timeMs: 15000 }
+            ];
+            const incoming = [
+                {
+                    event: 'SHOT',
+                    timeMs: 15200,
+                    note: 'Top right deflection',
+                    isFavorite: true,
+                    labels: [{ group: 'Outcome', text: 'Saved' }]
+                }
+            ];
+            const result = mergeXmlEventStreams(base, incoming, { dedupeWindowMs: 500 });
+            expect(result).toHaveLength(1);
+            expect(result.duplicateCount).toBe(1);
+            expect(result.addedCount).toBe(0);
+            expect(result[0].note).toBe('Top right deflection');
+            expect(result[0].isFavorite).toBe(true);
+            expect(result[0].favorite).toBe(true);
+            expect(result[0].labels).toEqual([{ group: 'Outcome', text: 'Saved' }]);
         });
 
         test('handles intra-file duplicates in incoming stream', () => {
