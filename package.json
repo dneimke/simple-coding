@@ -17,7 +17,8 @@
     "audit:all": "fallow",
     "audit:dead-code": "fallow dead-code",
     "guardrails": "npm run typecheck && npm run audit",
-    "typecheck": "tsc -p jsconfig.json"
+    "typecheck": "tsc -p jsconfig.json",
+    "report": "node scripts/generate-match-report.js"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.26.9",

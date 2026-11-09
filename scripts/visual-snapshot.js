@@ -160,6 +160,16 @@ async function captureDropdownSnapshots(browser, baseUrl, results) {
     }
 }
 
+// fallow-ignore-next-line complexity
+async function findMenuItem(page, selector, textMatch) {
+    const items = await page.$$(selector);
+    for (const item of items) {
+        const text = await item.textContent();
+        if (text && text.includes(textMatch)) return item;
+    }
+    return items[0] || null;
+}
+
 async function captureContinueCodingSnapshots(browser, baseUrl, results) {
     for (const vp of VIEWPORTS) {
         const continueCtx = await browser.newContext({
@@ -183,7 +193,7 @@ async function captureContinueCodingSnapshots(browser, baseUrl, results) {
             bytes: fs.statSync(step1Path).size
         });
 
-        const continueMenuItem = await continuePage.$('#savedGamesList .saved-game-menu-item');
+        const continueMenuItem = await findMenuItem(continuePage, '#savedGamesList .saved-game-menu-item', 'Continue coding');
         if (continueMenuItem) {
             await Promise.all([
                 continuePage.waitForNavigation({ waitUntil: 'domcontentloaded' }),

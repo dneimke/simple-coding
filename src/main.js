@@ -41,6 +41,7 @@ import {
 import { createGameCard } from './components/ui/card.js';
 import { initCreateMatchDropdown } from './components/ui/createMatchDropdown.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
+import { openMatchReport } from './utils/matchReportGenerator.js';
 let liveChordEngine = null;
 
 function initLiveChordEngine() {
@@ -136,8 +137,10 @@ const configJsonContainer = document.getElementById('configJsonContainer');
 const configBoardPreview = document.getElementById('configBoardPreview');
 const configVisualBannerText = document.getElementById('configVisualBannerText');
 const importXmlButton = document.getElementById('importXmlButton');
+const reportFromXmlButton = document.getElementById('reportFromXmlButton');
 const xmlFileInput = document.getElementById('xmlFileInput');
 const appendXmlFileInput = document.getElementById('appendXmlFileInput');
+const reportXmlFileInput = document.getElementById('reportXmlFileInput');
 let pendingAppendGame = null;
 const previewModal = document.getElementById('previewModal');
 const previewContainer = document.getElementById('previewContainer');
@@ -253,6 +256,9 @@ function renderSavedGames() {
                     index,
                     onSelect: () => {
                         window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}`;
+                    },
+                    onMatchReport: () => {
+                        openMatchReport(game);
                     },
                     onContinueCoding: () => {
                         window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}&mode=tag`;
@@ -1034,6 +1040,27 @@ function initXmlImportEventListeners() {
                 await handleAppendFileSelected(file, pendingAppendGame);
             }
             appendXmlFileInput.value = '';
+        });
+    }
+
+    if (reportFromXmlButton && reportXmlFileInput) {
+        reportFromXmlButton.addEventListener('click', () => {
+            reportXmlFileInput.click();
+        });
+
+        reportXmlFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const title = file.name.replace(/\.xml$/i, '');
+                openMatchReport(text, { title });
+            } catch (error) {
+                console.error('Error generating report from XML:', error);
+                notificationService.notify(`Failed to generate report: ${error.message}`, 'error');
+            } finally {
+                reportXmlFileInput.value = '';
+            }
         });
     }
 }

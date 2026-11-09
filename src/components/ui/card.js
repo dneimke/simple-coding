@@ -310,7 +310,7 @@ function exportGameXmlWithPrompt(game, index) {
 }
 
 function createGameCardActions(game, title, index, handlers) {
-    const { onSelect, onContinueCoding, onSequenceTrial, onViewLog, onAppendXml, onRename, onDelete } = handlers;
+    const { onSelect, onMatchReport, onContinueCoding, onSequenceTrial, onViewLog, onAppendXml, onRename, onDelete } = handlers;
     const reviewButton = onSelect ? createButton({
         text: 'Review',
         type: 'secondary',
@@ -322,8 +322,20 @@ function createGameCardActions(game, title, index, handlers) {
         }
     }) : null;
 
+    const reportButton = onMatchReport ? createButton({
+        text: 'Report',
+        type: 'secondary',
+        icon: '<i class="fas fa-chart-pie" aria-hidden="true"></i>',
+        className: 'saved-game-report',
+        onClick: (e) => {
+            e.stopPropagation();
+            onMatchReport(e);
+        }
+    }) : null;
+
     const menu = createGameMenu(title, [
         onContinueCoding && { text: 'Continue coding', onClick: onContinueCoding },
+        onMatchReport && { text: 'Match Report', icon: 'fa-chart-pie', onClick: onMatchReport },
         onSequenceTrial && { text: 'Sequence trial', icon: 'fa-flask', onClick: onSequenceTrial },
         onViewLog && { text: 'View log', onClick: onViewLog },
         onAppendXml && { text: 'Append XML…', onClick: onAppendXml },
@@ -334,7 +346,7 @@ function createGameCardActions(game, title, index, handlers) {
 
     const actions = document.createElement('div');
     actions.className = 'saved-game-actions';
-    actions.append(...[reviewButton, menu].filter(Boolean));
+    actions.append(...[reviewButton, reportButton, menu].filter(Boolean));
     return actions;
 }
 
@@ -344,6 +356,7 @@ export const createGameCard = ({
     onDelete,
     onRename,
     onSelect,
+    onMatchReport,
     onContinueCoding,
     onSequenceTrial,
     onViewLog,
@@ -363,7 +376,7 @@ export const createGameCard = ({
     const title = game.teams ? game.teams : `Game ${index + 1}`;
     const gameDetails = createGameCardDetails(game, title, onSelect);
     const actions = createGameCardActions(game, title, index, {
-        onSelect, onContinueCoding, onSequenceTrial, onViewLog, onAppendXml, onRename, onDelete
+        onSelect, onMatchReport, onContinueCoding, onSequenceTrial, onViewLog, onAppendXml, onRename, onDelete
     });
 
     gameCard.append(icon, gameDetails, actions);

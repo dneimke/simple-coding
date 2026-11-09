@@ -45,3 +45,6 @@ docs/myva-lead-lag-times.md
 *.temp
 # Visual snapshots
 .visual-proof/
+
+# Generated Match Reports
+reports/
