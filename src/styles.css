@@ -448,7 +448,11 @@ code {
     padding: 0;
 }
 
-/* Component display rules would otherwise beat Tailwind's .hidden */
+/* Utility and component display rules */
+.hidden {
+    display: none;
+}
+
 .btn.hidden,
 .event-button.hidden {
     display: none;

@@ -27,6 +27,9 @@ import { getDerivedLabels } from './eventAnalysisUtils.js';
 const CLIP_LEAD_SECONDS = 5;
 const CLIP_LAG_SECONDS = 5;
 
+const NOTE_GROUPS = new Set(['notes', 'note', 'comment', 'comments']);
+const FAVORITE_GROUPS = new Set(['favorite', 'favourite', 'starred', 'fav']);
+
 const formatSeconds = (seconds) => seconds.toFixed(2);
 
 /**
@@ -62,6 +65,20 @@ export const generateSportscodeXml = (events) => {
                 combinedLabels.push(d);
             }
         });
+
+        if (typeof logEntry.note === 'string' && logEntry.note.trim()) {
+            const hasNotesLabel = combinedLabels.some(l => l && l.group && NOTE_GROUPS.has(l.group.trim().toLowerCase()));
+            if (!hasNotesLabel) {
+                combinedLabels.push({ group: 'Notes', text: logEntry.note.trim() });
+            }
+        }
+
+        if (logEntry.isFavorite || logEntry.favorite || logEntry.favourite) {
+            const hasFavLabel = combinedLabels.some(l => l && l.group && FAVORITE_GROUPS.has(l.group.trim().toLowerCase()));
+            if (!hasFavLabel) {
+                combinedLabels.push({ group: 'Favorite', text: 'Yes' });
+            }
+        }
 
         const labelXml = combinedLabels
             .filter(l => l && l.text)
@@ -170,6 +187,48 @@ const readSportscodeInstance = (node) => {
 
 const roundToMs = (seconds) => Math.round(seconds * 1000) / 1000;
 
+const calculateEventTiming = (code, start, end) => {
+    if (start === 0 && end <= CLIP_LEAD_SECONDS + CLIP_LAG_SECONDS) {
+        return { event: code, timeMs: Math.round(Math.max(0, end - CLIP_LAG_SECONDS) * 1000) };
+    }
+    const timeMs = Math.round(((start + end) / 2) * 1000);
+    const eventSeconds = timeMs / 1000;
+    const lead = roundToMs(eventSeconds - start);
+    const lag = roundToMs(end - eventSeconds);
+    if (lead === CLIP_LEAD_SECONDS && lag === CLIP_LAG_SECONDS) {
+        return { event: code, timeMs };
+    }
+    return { event: code, timeMs, lead, lag };
+};
+
+const extractReservedLabels = (labels) => {
+    if (!Array.isArray(labels) || labels.length === 0) {
+        return { note: undefined, isFavorite: false, domainLabels: undefined };
+    }
+    const domainLabels = [];
+    let note;
+    let isFavorite = false;
+
+    for (const lbl of labels) {
+        if (!lbl || !lbl.text) continue;
+        const groupNorm = (lbl.group || '').trim().toLowerCase();
+        const textNorm = lbl.text.trim().toLowerCase();
+        if (NOTE_GROUPS.has(groupNorm)) {
+            note = lbl.text.trim();
+        } else if (FAVORITE_GROUPS.has(groupNorm) && textNorm !== 'no' && textNorm !== 'false') {
+            isFavorite = true;
+        } else {
+            domainLabels.push(lbl);
+        }
+    }
+
+    return {
+        note,
+        isFavorite,
+        domainLabels: domainLabels.length > 0 ? domainLabels : undefined
+    };
+};
+
 /**
  * Converts an instance clip window back to an event.
  * Clips that start at 0 and are no longer than the default export window are treated as
@@ -184,22 +243,13 @@ const roundToMs = (seconds) => Math.round(seconds * 1000) / 1000;
  * @returns {Object} Event object ({ event, timeMs, lead?, lag?, labels? })
  */
 const instanceToEvent = (code, start, end, labels) => {
-    let evt;
-    if (start === 0 && end <= CLIP_LEAD_SECONDS + CLIP_LAG_SECONDS) {
-        evt = { event: code, timeMs: Math.round(Math.max(0, end - CLIP_LAG_SECONDS) * 1000) };
-    } else {
-        const timeMs = Math.round(((start + end) / 2) * 1000);
-        const eventSeconds = timeMs / 1000;
-        const lead = roundToMs(eventSeconds - start);
-        const lag = roundToMs(end - eventSeconds);
-        if (lead === CLIP_LEAD_SECONDS && lag === CLIP_LAG_SECONDS) {
-            evt = { event: code, timeMs };
-        } else {
-            evt = { event: code, timeMs, lead, lag };
-        }
-    }
-    if (labels && labels.length > 0) {
-        evt.labels = labels;
+    const evt = calculateEventTiming(code, start, end);
+    const { note, isFavorite, domainLabels } = extractReservedLabels(labels);
+    if (domainLabels) evt.labels = domainLabels;
+    if (note) evt.note = note;
+    if (isFavorite) {
+        evt.isFavorite = true;
+        evt.favorite = true;
     }
     return evt;
 };
@@ -376,6 +426,27 @@ export const validateXmlStructure = (xmlContent) => {
  */
 export const generateGameXml = (game, gameTitle) => generateSportscodeXml(game?.events);
 
+const enrichDuplicateEvent = (target, source) => {
+    if (!target.note && source.note) {
+        target.note = source.note;
+    }
+    if (!target.isFavorite && (source.isFavorite || source.favorite)) {
+        target.isFavorite = true;
+        target.favorite = true;
+    }
+    if (!Array.isArray(source.labels) || source.labels.length === 0) return;
+
+    if (!Array.isArray(target.labels)) {
+        target.labels = [...source.labels];
+        return;
+    }
+    source.labels.forEach(l => {
+        if (!target.labels.some(existing => existing.group === l.group && existing.text === l.text)) {
+            target.labels.push(l);
+        }
+    });
+};
+
 /**
  * Merges two event arrays chronologically, deduplicating identical events within a time tolerance.
  * Two events are duplicates if they share the same event name/code and their timeMs differs by <= dedupeWindowMs.
@@ -394,8 +465,8 @@ export const mergeXmlEventStreams = (baseEvents = [], incomingEvents = [], optio
     let duplicateCount = 0;
     let addedCount = 0;
 
-    const isDuplicate = (cand, targetList) => {
-        return targetList.some(item =>
+    const findDuplicate = (cand, targetList) => {
+        return targetList.find(item =>
             item &&
             item.event === cand.event &&
             Math.abs((item.timeMs || 0) - (cand.timeMs || 0)) <= dedupeWindowMs
@@ -405,8 +476,10 @@ export const mergeXmlEventStreams = (baseEvents = [], incomingEvents = [], optio
     const acceptedIncoming = [];
     for (const ev of incoming) {
         if (!ev || !ev.event) continue;
-        if (isDuplicate(ev, base) || isDuplicate(ev, acceptedIncoming)) {
+        const duplicate = findDuplicate(ev, base) || findDuplicate(ev, acceptedIncoming);
+        if (duplicate) {
             duplicateCount++;
+            enrichDuplicateEvent(duplicate, ev);
         } else {
             acceptedIncoming.push(ev);
             addedCount++;

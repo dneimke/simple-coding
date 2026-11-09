@@ -1284,6 +1284,24 @@ describe('video coding workflow', () => {
             expect(visible.some(e => e.id === 'leg-1' && e.isFavorite === true)).toBe(true);
         });
 
+        it('keeps events with notes eligible for the unlabelled sweep filter if they lack tactical labels', () => {
+            const gameWithNoteId = 'game-with-note-unlabelled';
+            const stored = JSON.parse(localStorage.getItem('fieldHockeyGames_v1') || '[]');
+            stored.push({
+                id: gameWithNoteId,
+                teams: 'Note Game',
+                events: [
+                    { id: 'ev-note-1', event: 'FIRE CE', timeMs: 60000, note: 'High press baseline attack' }
+                ]
+            });
+            localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(stored));
+            mod.loadGame(gameWithNoteId);
+            mod.setFilterViewMode('unlabelled');
+            const visible = mod.getVisibleEvents();
+            expect(visible.map(e => e.id)).toEqual(['ev-note-1']);
+            expect(mod.getUnlabelledEventsCount()).toBe(1);
+        });
+
         it('shows error notification if file is not a video', () => {
             const file = { name: 'document.pdf', type: 'application/pdf' };
             expect(() => {
