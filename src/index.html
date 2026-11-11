@@ -242,13 +242,18 @@
                             <h1 class="page-title">Matches</h1>
                             <p class="page-subtitle">Record a live match, code from video, or import Sportscode XML. <a href="#help" id="matchesCodingModesHelpLink" class="text-brand font-medium hover:underline inline-flex items-center gap-1 ml-1"><i class="fas fa-circle-question text-xs" aria-hidden="true"></i>How the 3 modes work</a></p>
                         </div>
-                        <div class="create-match-dropdown">
-                            <button id="createMatchDropdownButton" type="button" class="btn btn-primary"
-                                aria-haspopup="menu" aria-expanded="false" aria-controls="createMatchMenu">
-                                <i class="fas fa-plus text-xs" aria-hidden="true"></i>
-                                <span>Create Match</span>
-                                <i class="fas fa-chevron-down text-xs ml-1 transition-transform duration-200" aria-hidden="true" id="createMatchChevron"></i>
+                        <div class="flex items-center gap-2">
+                            <button id="cloudSyncButton" type="button" class="btn btn-secondary" title="Connect Google Drive to sync matches across devices" aria-haspopup="dialog" aria-expanded="false" aria-controls="cloudSyncModal">
+                                <i id="cloudSyncIcon" class="fas fa-cloud text-xs" aria-hidden="true"></i>
+                                <span id="cloudSyncButtonLabel">Cloud Sync</span>
                             </button>
+                            <div class="create-match-dropdown">
+                                <button id="createMatchDropdownButton" type="button" class="btn btn-primary"
+                                    aria-haspopup="menu" aria-expanded="false" aria-controls="createMatchMenu">
+                                    <i class="fas fa-plus text-xs" aria-hidden="true"></i>
+                                    <span>Create Match</span>
+                                    <i class="fas fa-chevron-down text-xs ml-1 transition-transform duration-200" aria-hidden="true" id="createMatchChevron"></i>
+                                </button>
                             <div id="createMatchMenu" class="create-match-menu hidden" role="menu" aria-labelledby="createMatchDropdownButton">
                                 <a href="#event-capture" id="startLiveMatchButton" class="create-match-item" role="menuitem">
                                     <div class="create-match-item-icon">
@@ -288,7 +293,8 @@
                                 </button>
                             </div>
                         </div>
-                    </header>
+                    </div>
+                </header>
                     <div id="savedGamesList" class="saved-games-list"></div>
                     <label for="xmlFileInput" class="sr-only">Upload XML File</label>
                     <input id="xmlFileInput" type="file" accept=".xml" multiple class="hidden"
@@ -727,6 +733,47 @@
             <div class="modal-actions">
                 <button id="cancelImportButton" type="button" class="btn btn-secondary">Cancel</button>
                 <button id="confirmImportButton" type="button" class="btn btn-success">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personal Cloud Drive Sync Modal -->
+    <div id="cloudSyncModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cloudSyncModalTitle">
+        <div class="modal-panel max-w-md">
+            <h2 id="cloudSyncModalTitle" class="modal-title">Cloud Drive Sync</h2>
+            <p class="help-text mb-4">Sync matches across devices using Google Drive.</p>
+
+            <div id="cloudSyncStatusBanner" class="banner banner-info mb-4">
+                <div>
+                    <span id="cloudSyncStatusText" class="font-bold">Not Connected</span>
+                    <span id="cloudSyncLastSyncedText" class="text-xs text-muted block mt-0.5">Never synced</span>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="cloudSyncClientIdInput" class="field-label">Google Client ID</label>
+                <input id="cloudSyncClientIdInput" type="text" autocomplete="off" class="field mb-1" placeholder="e.g. 123456789-abcdefg.apps.googleusercontent.com">
+                <p class="help-text text-xs">
+                    OAuth Client ID for your Google Cloud project. Matches are saved in a private <code>SimpleCoding/</code> folder on your Google Drive.
+                </p>
+            </div>
+
+            <div class="surface-muted card-body text-xs mb-4">
+                <div class="font-bold text-ink mb-1">Zero-Server Security</div>
+                <p class="text-muted">Sync connects directly from your browser to Google Drive. The app cannot access any other files or folders in your account.</p>
+            </div>
+
+            <div class="modal-actions">
+                <button id="cloudSyncDisconnectButton" type="button" class="btn btn-secondary text-red-600 hover:text-red-700 hidden mr-auto">
+                    Disconnect
+                </button>
+                <button id="cloudSyncCancelButton" type="button" class="btn btn-secondary">Done</button>
+                <button id="cloudSyncConnectButton" type="button" class="event-button btn-blue">
+                    Connect Google Drive
+                </button>
+                <button id="cloudSyncNowButton" type="button" class="event-button btn-blue hidden">
+                    Sync Now
+                </button>
             </div>
         </div>
     </div>
