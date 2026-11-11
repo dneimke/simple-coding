@@ -281,25 +281,37 @@ function createGameCardDetails(game, title, onSelect) {
     return gameDetails;
 }
 
-function exportGameXmlWithPrompt(game, index) {
-    const invalidEvents = getInvalidEvents(game);
-    if (invalidEvents.length > 0) {
-        const proceed = window.confirm(
-            `Warning: This game has ${invalidEvents.length} invalid event(s).\n` +
-            `Invalid events may be missing required fields or have invalid data.\n` +
-            `Do you want to proceed with the export?`
-        );
-        if (!proceed) return;
+function tryShareXmlFile(xmlContent, fileName, title) {
+    if (typeof navigator === 'undefined' || typeof File === 'undefined' || typeof navigator.canShare !== 'function') {
+        return false;
     }
+    try {
+        const file = new File([xmlContent], fileName, { type: 'application/xml' });
+        if (navigator.canShare({ files: [file] })) {
+            navigator.share({
+                files: [file],
+                title,
+                text: `Sportscode XML for ${title}`
+            }).catch(err => {
+                if (err && err.name !== 'AbortError') {
+                    triggerXmlDownload(xmlContent, fileName);
+                }
+            });
+            return true;
+        }
+    } catch {
+        return false;
+    }
+    return false;
+}
 
-    const xmlContent = generateGameXml(game, index + 1);
+function triggerXmlDownload(xmlContent, fileName) {
     const blob = new Blob([xmlContent], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const fileName = (game.teams || `game-${index + 1}`).toLowerCase().replace(/\s+/g, '-');
 
     a.href = url;
-    a.download = `${fileName}.xml`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
 
@@ -307,6 +319,27 @@ function exportGameXmlWithPrompt(game, index) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     }, 0);
+}
+
+function confirmExportWithIssues(invalidEvents) {
+    if (invalidEvents.length === 0) return true;
+    return window.confirm(
+        `Warning: This game has ${invalidEvents.length} invalid event(s).\n` +
+        `Invalid events may be missing required fields or have invalid data.\n` +
+        `Do you want to proceed with the export?`
+    );
+}
+
+function exportGameXmlWithPrompt(game, index) {
+    if (!confirmExportWithIssues(getInvalidEvents(game))) return;
+
+    const xmlContent = generateGameXml(game, index + 1);
+    const title = game.teams || `game-${index + 1}`;
+    const fileName = `${title.toLowerCase().replace(/\s+/g, '-')}.xml`;
+
+    if (!tryShareXmlFile(xmlContent, fileName, title)) {
+        triggerXmlDownload(xmlContent, fileName);
+    }
 }
 
 function createGameCardActions(game, title, index, handlers) {

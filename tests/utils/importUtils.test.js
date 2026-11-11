@@ -6,10 +6,13 @@ import { gameStorageManager } from '../../src/services/gameStorageManager.js';
 import { storageService } from '../../src/services/storageService.js';
 import { notificationService } from '../../src/services/notificationService.js';
 
+import { saveLastTeams } from '../../src/components/teamSetupDialog.js';
+
 jest.mock('../../src/services/gameStorageManager.js', () => ({
     gameStorageManager: {
         saveGame: jest.fn(),
         ensureGameIds: jest.fn(),
+        getGameById: jest.fn(),
         STORAGE_KEY: 'fieldHockeyGames_v1'
     }
 }));
@@ -29,6 +32,12 @@ jest.mock('../../src/services/notificationService.js', () => ({
 
 jest.mock('../../src/utils/storageWarningUtils.js', () => ({
     checkStorageQuota: jest.fn()
+}));
+
+jest.mock('../../src/components/teamSetupDialog.js', () => ({
+    saveLastTeams: jest.fn(),
+    validateTeams: jest.fn(() => null),
+    normalizeTeams: jest.fn(t => t)
 }));
 
 describe('importUtils', () => {
@@ -88,6 +97,60 @@ describe('importUtils', () => {
             }));
             expect(callback).toHaveBeenCalledWith({ importedFileCount: 1 });
             expect(modal.classList.contains('hidden')).toBe(true);
+        });
+
+        test('bypasses prompt when lossless metadata has teams and preserves id, teamCodes, and restores lastTeams', () => {
+            const events = [{ event: 'GOAL', timeMs: 45000 }];
+            events.gameMetadata = {
+                gameId: 'game-456',
+                teams: 'FIRE vs TIGERS',
+                teamCodes: ['FIRE', 'TIGERS'],
+                teamMeta: [{ code: 'FIRE', color: 'team-color-fire' }, { code: 'TIGERS', color: 'team-color-tigers' }],
+                elapsedTime: 90000,
+                timestamp: '2026-11-11T12:00:00.000Z',
+                videoOffsetMs: 500
+            };
+            const callback = jest.fn();
+            gameStorageManager.getGameById.mockReturnValue(null);
+            gameStorageManager.saveGame.mockReturnValue(true);
+
+            showPreview(previewContainer, events, 'key', callback);
+            confirmBtn.click();
+
+            expect(notificationService.prompt).not.toHaveBeenCalled();
+            expect(gameStorageManager.saveGame).toHaveBeenCalledWith(expect.objectContaining({
+                id: 'game-456',
+                teams: 'FIRE vs TIGERS',
+                teamCodes: ['FIRE', 'TIGERS'],
+                teamMeta: events.gameMetadata.teamMeta,
+                elapsedTime: 90000,
+                timestamp: '2026-11-11T12:00:00.000Z'
+            }));
+            expect(saveLastTeams).toHaveBeenCalledWith(events.gameMetadata.teamMeta);
+            expect(callback).toHaveBeenCalledWith({ importedFileCount: 1 });
+        });
+
+        test('automatically routes to append preview when gameId matches an existing game in storage', () => {
+            const existingGame = {
+                id: 'game-789',
+                teams: 'HAWKS vs EAGLES',
+                events: [{ event: 'CE', timeMs: 10000 }],
+                elapsedTime: 20000
+            };
+            const incomingEvents = [
+                { event: 'SHOT', timeMs: 15000 }
+            ];
+            incomingEvents.gameMetadata = {
+                gameId: 'game-789',
+                teams: 'HAWKS vs EAGLES'
+            };
+            gameStorageManager.getGameById.mockReturnValue(existingGame);
+
+            showPreview(previewContainer, incomingEvents, 'key');
+
+            expect(previewTitle.textContent).toContain('Append to: HAWKS vs EAGLES');
+            expect(confirmBtn.textContent).toBe('Append to Match');
+            expect(previewContainer.innerHTML).toContain('+1 new event');
         });
 
         test('cancel button closes modal and invokes callback with count 0', () => {

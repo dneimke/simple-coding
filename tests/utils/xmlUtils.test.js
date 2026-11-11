@@ -121,13 +121,11 @@ describe('XML Utils', () => {
             expect(parse(xml).querySelector('parsererror')).toBeNull();
         });
 
-        test('does not write game-level metadata like teams or date into Sportscode XML', () => {
-            const xml = generateGameXml({
-                teams: 'Team A vs Team B',
-                timestamp: '2025-05-10T12:00:00Z',
-                events: [{ event: 'GOAL_FOR', timeMs: 60000 }]
-            }, 1);
-            expect(xml).not.toMatch(/Team A|2025-05-10/);
+        test('pure generateSportscodeXml produces clean file tag without custom metadata attributes', () => {
+            const xml = generateSportscodeXml([{ event: 'GOAL_FOR', timeMs: 60000 }]);
+            const doc = parse(xml);
+            expect(doc.documentElement.getAttribute('app')).toBeNull();
+            expect(doc.documentElement.getAttribute('teams')).toBeNull();
         });
 
         test('serializes note and favorite status as Sportscode label groups', () => {
@@ -165,9 +163,41 @@ describe('XML Utils', () => {
     });
 
     describe('generateGameXml', () => {
-        test('returns the Sportscode document for the game events', () => {
+        test('returns the Sportscode document for the game events with lossless root metadata', () => {
+            const game = {
+                id: 'game-123',
+                teams: 'FIRE vs TIGERS',
+                teamCodes: ['FIRE', 'TIGERS'],
+                teamMeta: [{ code: 'FIRE', color: 'team-color-fire' }, { code: 'TIGERS', color: 'team-color-tigers' }],
+                elapsedTime: 4200000,
+                timestamp: '2026-11-11T12:00:00.000Z',
+                videoOffsetMs: 1500,
+                events: [{ event: 'GOAL_FOR', timeMs: 60000 }]
+            };
+            const xml = generateGameXml(game, 1);
+            const doc = parse(xml);
+            const root = doc.documentElement;
+
+            expect(root.getAttribute('app')).toBe('simple-coding');
+            expect(root.getAttribute('game_id')).toBe('game-123');
+            expect(root.getAttribute('teams')).toBe('FIRE vs TIGERS');
+            expect(root.getAttribute('team_codes')).toBe('FIRE,TIGERS');
+            expect(JSON.parse(root.getAttribute('team_meta'))).toEqual(game.teamMeta);
+            expect(root.getAttribute('elapsed_time')).toBe('4200000');
+            expect(root.getAttribute('timestamp')).toBe('2026-11-11T12:00:00.000Z');
+            expect(root.getAttribute('video_offset')).toBe('1500');
+
+            // Sportscode elements remain standard
+            expect(doc.querySelectorAll('file > ALL_INSTANCES > instance')).toHaveLength(1);
+            expect(doc.querySelectorAll('file > ROWS > row')).toHaveLength(1);
+        });
+
+        test('serializes bare game with default fallback when metadata is missing', () => {
             const game = { events: [{ event: 'GOAL_FOR', timeMs: 60000 }] };
-            expect(generateGameXml(game, 1)).toBe(generateSportscodeXml(game.events));
+            const xml = generateGameXml(game);
+            const doc = parse(xml);
+            expect(doc.documentElement.getAttribute('app')).toBe('simple-coding');
+            expect(doc.documentElement.getAttribute('game_id')).toBeNull();
         });
     });
 
@@ -185,6 +215,35 @@ describe('XML Utils', () => {
                 ]
             }]);
             expect(events.teamsAttribute).toBeUndefined();
+        });
+
+        test('extracts lossless metadata into events.gameMetadata and attaches teamsAttribute', () => {
+            const xml = `<?xml version="1.0" encoding="utf-8"?>
+<file app="simple-coding" game_id="game-xyz" teams="LIONS vs SHARKS" team_codes="LIONS,SHARKS" team_meta='[{"code":"LIONS","color":"team-color-fire"}]' elapsed_time="120000" timestamp="2026-11-11T10:00:00.000Z" video_offset="2500">
+  <ALL_INSTANCES>
+    <instance>
+      <ID>1</ID>
+      <start>10.00</start>
+      <end>20.00</end>
+      <code>GOAL</code>
+    </instance>
+  </ALL_INSTANCES>
+  <ROWS>
+    <row><id>1</id><name>GOAL</name></row>
+  </ROWS>
+</file>`;
+            const events = parseXmlToEvents(xml);
+            expect(events).toHaveLength(1);
+            expect(events.teamsAttribute).toBe('LIONS vs SHARKS');
+            expect(events.gameMetadata).toEqual({
+                gameId: 'game-xyz',
+                teams: 'LIONS vs SHARKS',
+                teamCodes: ['LIONS', 'SHARKS'],
+                teamMeta: [{ code: 'LIONS', color: 'team-color-fire' }],
+                elapsedTime: 120000,
+                timestamp: '2026-11-11T10:00:00.000Z',
+                videoOffsetMs: 2500
+            });
         });
 
         test('exports explicit and derived labels to Sportscode XML', () => {
