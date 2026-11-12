@@ -251,6 +251,67 @@ describe('CloudSyncService', () => {
 
             expect(result.updatedLocalGames.map(g => g.id)).toEqual(['newer', 'older']);
         });
+
+        test('removes local game when it was previously synced (in remoteFileMeta) but deleted/trashed on another device (missing from activeRemoteIds)', () => {
+            const localGames = [
+                { id: 'deleted-on-device-a', teams: 'FIRE vs TIGERS', timestamp: '2026-11-11T10:00:00.000Z', events: [] },
+                { id: 'still-on-drive', teams: 'HAWKS vs OWLS', timestamp: '2026-11-12T10:00:00.000Z', events: [] },
+                { id: 'unsynced-new-local', teams: 'LIONS vs BEARS', timestamp: '2026-11-12T11:00:00.000Z', events: [] }
+            ];
+
+            const result = reconcileCloudGames(localGames, [], {
+                dirtyGameIds: [],
+                deletedGameIds: [],
+                remoteFileMeta: {
+                    'deleted-on-device-a': { fileId: 'f-1', name: 'fire-vs-tigers_deleted-on-device-a.xml', modifiedTime: '2026-11-11T10:00:00.000Z' },
+                    'still-on-drive': { fileId: 'f-2', name: 'hawks-vs-owls_still-on-drive.xml', modifiedTime: '2026-11-12T10:00:00.000Z' }
+                },
+                activeRemoteIds: ['still-on-drive']
+            });
+
+            expect(result.updatedLocalGames.map(g => g.id)).toEqual(['unsynced-new-local', 'still-on-drive']);
+            expect(result.dirtyGameIdsToUpload).toEqual(['unsynced-new-local']);
+            expect(result.remotelyDeletedCount).toBe(1);
+        });
+
+        test('propagates newly added event labels from Device A to Device B on sync', () => {
+            const deviceBLocalGame = {
+                id: 'game-labels',
+                teams: 'FIRE vs TIGERS',
+                timestamp: '2026-11-11T10:00:00.000Z',
+                events: [
+                    { id: 'evt-1', event: 'FIRE CE', timeMs: 15000 }
+                ]
+            };
+
+            const deviceARemoteXml = generateGameXml({
+                id: 'game-labels',
+                teams: 'FIRE vs TIGERS',
+                timestamp: '2026-11-11T10:00:00.000Z',
+                metadata: { lastUpdated: '2026-11-12T12:00:00.000Z' },
+                events: [
+                    { id: 'evt-1', event: 'FIRE CE', timeMs: 15000, labels: [{ group: 'Channel', text: 'Left' }] }
+                ]
+            });
+
+            const result = reconcileCloudGames(
+                [deviceBLocalGame],
+                [{ id: 'f-lbl', name: 'fire-vs-tigers_game-labels.xml', xmlContent: deviceARemoteXml, modifiedTime: '2026-11-12T12:00:00.000Z' }],
+                {
+                    dirtyGameIds: [],
+                    remoteFileMeta: {
+                        'game-labels': { fileId: 'f-lbl', name: 'fire-vs-tigers_game-labels.xml', modifiedTime: '2026-11-11T10:00:00.000Z' }
+                    },
+                    activeRemoteIds: ['game-labels']
+                }
+            );
+
+            expect(result.updatedLocalGames).toHaveLength(1);
+            expect(result.updatedLocalGames[0].events[0].labels).toEqual(
+                expect.arrayContaining([{ group: 'Channel', text: 'Left' }])
+            );
+            expect(result.pulledCount).toBe(1);
+        });
     });
 
     describe('Config, Tombstones & Session Token Management', () => {

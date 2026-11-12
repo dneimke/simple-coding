@@ -307,6 +307,7 @@ export function initCloudSyncController(options = {}) {
     const unsubscribeCloudSync = cloudSyncService.subscribe((state) => {
         if (state?.status === 'success') {
             triggerJustSynced();
+            onSyncCompleted(state);
         } else {
             render(state);
         }

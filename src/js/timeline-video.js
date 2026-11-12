@@ -2017,9 +2017,10 @@ function loadGame(gameId) {
                     evt.isFavorite = Boolean(evt.favorite ?? evt.favourite);
                 }
             });
-            // If any ids were added, persist the update
+            // If any ids were added, persist quietly without bumping lastUpdated or marking dirty for cloud sync
             if (needsResave) {
-                saveGame(gameId, events, game.metadata);
+                storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
+                invalidateSavedGamesCache();
             }
 
             // Store current game ID
