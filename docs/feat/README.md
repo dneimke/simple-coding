@@ -8,3 +8,4 @@ Nothing in this folder is deployed: GitHub Pages only publishes `src/`.
 | --- | --- |
 | [Sticky zone board](sticky-zones/spec.md) | In app (default board) |
 | [Single-pass compound tagging](single-pass-coding/spec.md) | In app (live capture + video tagging) |
+| [Personal Cloud Drive sync](cloud-sync/spec.md) | In app (Matches Hub + Match Review / Video Coding) |

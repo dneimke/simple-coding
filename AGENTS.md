@@ -96,7 +96,7 @@ When the user provides feedback, a pain point, or a feature idea:
 3. **Persona isolation**: Never degrade the *Drafted Helper* or *Bench Coach* experience to serve an *Expert Analyst* edge case—isolate advanced complexity behind named board configurations or progressive disclosure.
 4. **Protected contracts**:
    - Never rename board colour classes (`btn-blue`, `btn-red`, `btn-green`, `btn-yellow`, `btn-orange`, `btn-gray`) or `team-color-*`.
-   - Never break `localStorage` keys (`fieldHockeyGames_v1`, `fieldHockeyConfig_v1`, `fieldHockeyNamedConfigs_v1`, `fieldHockeyCaptureDraft_v1`) or Sportscode XML `<ALL_INSTANCES>` / `<ROWS>` structure.
+   - Never break `localStorage` keys (`fieldHockeyGames_v1`, `fieldHockeyConfig_v1`, `fieldHockeyNamedConfigs_v1`, `fieldHockeyCaptureDraft_v1`, `fieldHockeyCloudSync_v1`) or Sportscode XML `<ALL_INSTANCES>` / `<ROWS>` structure (see `docs/feat/cloud-sync/spec.md`).
    - Follow `docs/design-language.md` and `.cursor/rules/design-language.mdc` for all UI changes (tokens in `src/styles.css`, Tailwind for layout/spacing only).
 
 ---
