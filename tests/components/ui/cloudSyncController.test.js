@@ -10,7 +10,14 @@ jest.mock('../../../src/services/cloudSyncService.js', () => {
     let _listeners = new Set();
     let _connected = false;
     let _syncing = false;
-    let _config = { clientId: '', folderId: null, lastSyncedAt: null, dirtyGameIds: [] };
+    let _config = {
+        clientId: '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com',
+        customClientId: '',
+        connected: false,
+        folderId: null,
+        lastSyncedAt: null,
+        dirtyGameIds: []
+    };
 
     return {
         cloudSyncService: {
@@ -23,10 +30,17 @@ jest.mock('../../../src/services/cloudSyncService.js', () => {
             getConfig: jest.fn(() => ({ ..._config })),
             saveConfig: jest.fn(updates => {
                 _config = { ..._config, ...updates };
-                _connected = Boolean(_config.clientId);
+                _connected = Boolean(_config.connected);
             }),
             clearConfig: jest.fn(() => {
-                _config = { clientId: '', folderId: null, lastSyncedAt: null, dirtyGameIds: [] };
+                _config = {
+                    clientId: '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com',
+                    customClientId: '',
+                    connected: false,
+                    folderId: null,
+                    lastSyncedAt: null,
+                    dirtyGameIds: []
+                };
                 _connected = false;
             }),
             requestToken: jest.fn().mockResolvedValue('token-123'),
@@ -40,7 +54,14 @@ jest.mock('../../../src/services/cloudSyncService.js', () => {
                 _listeners.clear();
                 _connected = false;
                 _syncing = false;
-                _config = { clientId: '', folderId: null, lastSyncedAt: null, dirtyGameIds: [] };
+                _config = {
+                    clientId: '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com',
+                    customClientId: '',
+                    connected: false,
+                    folderId: null,
+                    lastSyncedAt: null,
+                    dirtyGameIds: []
+                };
             }
         }
     };
@@ -124,20 +145,36 @@ describe('CloudSyncController', () => {
         expect(elements.cloudSyncModal.classList.contains('hidden')).toBe(true);
     });
 
-    test('connects successfully when valid Client ID is provided', async () => {
+    test('connects successfully using default Client ID with 1 click when input is empty', async () => {
         initCloudSyncController();
 
-        elements.clientIdInput.value = 'my-client-id.apps.googleusercontent.com';
+        elements.clientIdInput.value = '';
         await elements.connectButton.click();
 
-        expect(cloudSyncService.saveConfig).toHaveBeenCalledWith(
-            expect.objectContaining({ clientId: 'my-client-id.apps.googleusercontent.com' })
+        expect(cloudSyncService.requestToken).toHaveBeenCalledWith(
+            '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com'
         );
-        expect(cloudSyncService.requestToken).toHaveBeenCalled();
         expect(cloudSyncService.syncNow).toHaveBeenCalled();
     });
 
-    test('warns when connecting with empty Client ID', async () => {
+    test('connects successfully with custom Client ID when provided', async () => {
+        initCloudSyncController();
+
+        elements.clientIdInput.value = 'my-custom-id.apps.googleusercontent.com';
+        await elements.connectButton.click();
+
+        expect(cloudSyncService.saveConfig).toHaveBeenCalledWith(
+            expect.objectContaining({
+                clientId: 'my-custom-id.apps.googleusercontent.com',
+                connected: true
+            })
+        );
+        expect(cloudSyncService.requestToken).toHaveBeenCalledWith('my-custom-id.apps.googleusercontent.com');
+        expect(cloudSyncService.syncNow).toHaveBeenCalled();
+    });
+
+    test('warns when connecting if no Client ID is configured', async () => {
+        cloudSyncService.getConfig.mockReturnValue({ clientId: '' });
         initCloudSyncController();
 
         elements.clientIdInput.value = '   ';
