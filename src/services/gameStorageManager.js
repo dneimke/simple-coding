@@ -95,6 +95,25 @@ export class GameStorageManager {
         this.STORAGE_KEY = storageKey;
         this._cachedRaw = null;
         this._cachedGames = null;
+        this._listeners = new Set();
+    }
+
+    addChangeListener(listener) {
+        if (typeof listener === 'function') {
+            this._listeners.add(listener);
+            return () => this._listeners.delete(listener);
+        }
+        return () => {};
+    }
+
+    _notifyChange(gameId, action) {
+        this._listeners.forEach(fn => {
+            try {
+                fn({ gameId, action });
+            } catch (err) {
+                logger.error('Error in gameStorageManager change listener:', err);
+            }
+        });
     }
 
     _updateCache(games) {
@@ -123,7 +142,8 @@ export class GameStorageManager {
             const games = this.getAllGames();
 
             // Add new game at the beginning (most recent first)
-            games.unshift({ id: generateGameId(), ...game });
+            const newGame = { id: generateGameId(), ...game };
+            games.unshift(newGame);
 
             // Prune if exceeding max limit
             if (games.length > this.MAX_GAMES) {
@@ -136,6 +156,7 @@ export class GameStorageManager {
             if (result === true) {
                 this._updateCache(games);
                 logger.log('Game saved successfully.');
+                this._notifyChange(newGame.id, 'save');
                 return true;
             } else {
                 logger.error('Error saving game:', result.message);
@@ -178,6 +199,7 @@ export class GameStorageManager {
             const result = storageService.setItem(this.STORAGE_KEY, games);
             if (result === true) {
                 this._updateCache(games);
+                this._notifyChange(gameId, 'upsert');
                 return true;
             }
             logger.error('Error saving game:', result.message);
@@ -264,6 +286,8 @@ export class GameStorageManager {
                 if (result === true) {
                     this._updateCache(games);
                     logger.log('Game updated successfully.');
+                    const gameId = games[index] && games[index].id;
+                    this._notifyChange(gameId, 'update');
                     return true;
                 } else {
                     logger.error('Error updating game:', result.message);
@@ -288,12 +312,14 @@ export class GameStorageManager {
         try {
             const games = this.getAllGames();
             if (index >= 0 && index < games.length) {
+                const removedId = games[index] && games[index].id;
                 games.splice(index, 1);
                 const result = storageService.setItem(this.STORAGE_KEY, games);
 
                 if (result === true) {
                     this._updateCache(games);
                     logger.log('Game deleted successfully.');
+                    this._notifyChange(removedId, 'remove');
                     return true;
                 } else {
                     logger.error('Error deleting game:', result.message);

@@ -160,6 +160,35 @@ async function captureDropdownSnapshots(browser, baseUrl, results) {
     }
 }
 
+async function captureCloudSyncSnapshots(browser, baseUrl, results) {
+    for (const vp of VIEWPORTS) {
+        const syncCtx = await browser.newContext({
+            viewport: { width: vp.width, height: vp.height },
+            deviceScaleFactor: 2
+        });
+        const syncPage = await syncCtx.newPage();
+        await syncPage.goto(`${baseUrl}/?mock=sample`, { waitUntil: 'domcontentloaded' });
+        await syncPage.waitForSelector('#cloudSyncButton');
+        await syncPage.click('#cloudSyncButton');
+        await syncPage.waitForSelector('#cloudSyncModal:not(.hidden)');
+        await syncPage.waitForTimeout(300);
+
+        const syncModalPath = path.join(OUTPUT_DIR, `cloud-sync-modal-${vp.name}.png`);
+        await syncPage.screenshot({ path: syncModalPath, fullPage: true });
+
+        const stats = fs.statSync(syncModalPath);
+        results.push({
+            name: 'cloud-sync-modal',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `cloud-sync-modal-${vp.name}.png`,
+            bytes: stats.size
+        });
+
+        await syncCtx.close();
+    }
+}
+
 // fallow-ignore-next-line complexity
 async function findMenuItem(page, selector, textMatch) {
     const items = await page.$$(selector);
@@ -958,6 +987,7 @@ async function runSnapshots() {
         await captureStandardScreens(browser, baseUrl, results);
         await captureTeamSetupSnapshots(browser, baseUrl, results);
         await captureDropdownSnapshots(browser, baseUrl, results);
+        await captureCloudSyncSnapshots(browser, baseUrl, results);
         await captureContinueCodingSnapshots(browser, baseUrl, results);
         await captureAppendXmlSnapshots(browser, baseUrl, results);
         await captureVideoCodingInteractionSnapshots(browser, baseUrl, results);

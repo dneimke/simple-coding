@@ -40,6 +40,8 @@ import {
 } from './components/config.js';
 import { createGameCard } from './components/ui/card.js';
 import { initCreateMatchDropdown } from './components/ui/createMatchDropdown.js';
+import { initCloudSyncController } from './components/ui/cloudSyncController.js';
+import { cloudSyncService } from './services/cloudSyncService.js';
 import { gameStorageManager } from './services/gameStorageManager.js';
 import { openMatchReport } from './utils/matchReportGenerator.js';
 let liveChordEngine = null;
@@ -1008,6 +1010,11 @@ function initXmlImportEventListeners() {
     });
 
     initCreateMatchDropdown();
+    initCloudSyncController({
+        onSyncCompleted: () => {
+            renderSavedGames();
+        }
+    });
 
     importXmlButton.addEventListener('click', () => {
         xmlFileInput.click();
@@ -1124,6 +1131,7 @@ function handleViewChange(viewName) {
     }
     if (viewName === 'SavedGames') {
         renderSavedGames();
+        cloudSyncService.syncIfConnected().catch(() => {});
         return;
     }
     if (viewName === 'Config') {
