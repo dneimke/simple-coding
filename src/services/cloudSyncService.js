@@ -5,15 +5,18 @@
  * Syncs saved matches as lossless Sportscode XML files in a dedicated 'SimpleCoding' folder.
  * Preserves Invariant 1 (Client-side first) and the Eyes-on-Pitch rule:
  * live logging and local saves never wait on network requests.
+ *
+ * See docs/feat/cloud-sync/spec.md for reconciliation and lifecycle rules.
  */
 
 import { storageService } from './storageService.js';
 import { gameStorageManager } from './gameStorageManager.js';
-import { generateGameXml, parseXmlToEvents, mergeXmlEventStreams } from '../utils/xmlUtils.js';
+import { generateGameXml, parseXmlToEvents } from '../utils/xmlUtils.js';
 import { logger } from '../utils/formatUtils.js';
 
 export const DEFAULT_GOOGLE_CLIENT_ID = '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com';
 export const CLOUD_SYNC_STORAGE_KEY = 'fieldHockeyCloudSync_v1';
+export const CLOUD_SYNC_SESSION_TOKEN_KEY = 'fieldHockeyCloudSyncToken_v1';
 const GOOGLE_DRIVE_FOLDER_NAME = 'SimpleCoding';
 const GOOGLE_OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
@@ -24,7 +27,7 @@ const GIS_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
  * @returns {string} e.g. "fire-vs-tigers_game-123.xml"
  */
 export function buildRemoteFileName(game) {
-    const rawTitle = (game && game.teams) ? game.teams : 'match';
+    const rawTitle = (game && game.teams) ? String(game.teams) : 'match';
     const slug = rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'match';
     const id = (game && game.id) ? game.id : 'unknown';
     return `${slug}_${id}.xml`;
@@ -45,57 +48,126 @@ export function extractGameIdFromRemoteFileName(fileName) {
     return withoutExt;
 }
 
-function buildMergedGameFromRemote(existing, meta, parsedEvents) {
-    const baseEvents = (existing && existing.events) || [];
-    const mergedEvents = mergeXmlEventStreams(baseEvents, parsedEvents);
-    const existingElapsed = Number(existing && existing.elapsedTime) || 0;
-    const remoteElapsed = Number(meta && meta.elapsedTime) || 0;
-    const maxEventMs = mergedEvents.reduce((max, ev) => Math.max(max, ev.timeMs || 0), 0);
+function firstDefined(...values) {
+    for (const val of values) {
+        if (val !== undefined && val !== null && val !== '') return val;
+    }
+    return undefined;
+}
 
+function computeSnapshotElapsedTime(meta, parsedEvents) {
+    const maxEventMs = parsedEvents.reduce((max, ev) => Math.max(max, ev.timeMs || 0), 0);
+    const remoteElapsed = Number(meta.elapsedTime) || 0;
+    return Math.max(remoteElapsed, maxEventMs);
+}
+
+function buildSnapshotMetadata(existing, videoUrl, lastUpdated) {
+    const baseMeta = (existing && existing.metadata) ? { ...existing.metadata } : {};
+    if (videoUrl) baseMeta.videoUrl = videoUrl;
+    if (lastUpdated) baseMeta.lastUpdated = lastUpdated;
+    return Object.keys(baseMeta).length > 0 ? baseMeta : undefined;
+}
+
+function buildRemoteSnapshotGame(gameId, meta, parsedEvents, existing = null, remoteModifiedTime = null) {
+    const base = existing || {};
+    const baseMeta = base.metadata || {};
+    const videoUrl = firstDefined(meta.videoUrl, base.videoUrl, baseMeta.videoUrl);
+    const lastUpdated = firstDefined(meta.lastUpdated, remoteModifiedTime, baseMeta.lastUpdated);
+    const metadata = buildSnapshotMetadata(base, videoUrl, lastUpdated);
+
+    const snapshot = {
+        ...base,
+        id: gameId,
+        teams: firstDefined(meta.teams, base.teams, 'Imported Game'),
+        events: parsedEvents,
+        elapsedTime: computeSnapshotElapsedTime(meta, parsedEvents),
+        timestamp: firstDefined(meta.timestamp, base.timestamp, new Date().toISOString()),
+        teamCodes: firstDefined(meta.teamCodes, base.teamCodes),
+        teamMeta: firstDefined(meta.teamMeta, base.teamMeta),
+        videoOffsetMs: meta.videoOffsetMs ?? base.videoOffsetMs
+    };
+    if (videoUrl) snapshot.videoUrl = videoUrl;
+    if (metadata) snapshot.metadata = metadata;
+    return snapshot;
+}
+
+function isLocalGameNewerOrEqual(localGame, remoteMeta, remoteModifiedTime) {
+    const localUpdatedStr = firstDefined(localGame?.lastUpdated, localGame?.metadata?.lastUpdated);
+    const remoteUpdatedStr = firstDefined(remoteMeta?.lastUpdated, remoteModifiedTime);
+    if (!remoteUpdatedStr || !localUpdatedStr) return true;
+    const localMs = new Date(localUpdatedStr).getTime();
+    const remoteMs = new Date(remoteUpdatedStr).getTime();
+    if (Number.isNaN(localMs) || Number.isNaN(remoteMs)) return true;
+    return localMs >= remoteMs;
+}
+
+function sortGamesNewestFirst(games = []) {
+    return [...games].sort((a, b) => {
+        const tA = a && a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const tB = b && b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        const validA = Number.isFinite(tA) ? tA : 0;
+        const validB = Number.isFinite(tB) ? tB : 0;
+        return validB - validA;
+    });
+}
+
+function resolveCommonGameEntry(existing, isDirty, meta, parsedEvents, entry, dirtyToUpload) {
+    if (!isDirty) {
+        return {
+            game: buildRemoteSnapshotGame(existing.id, meta, parsedEvents, existing, entry.modifiedTime),
+            updatedFromRemote: true
+        };
+    }
+    if (isLocalGameNewerOrEqual(existing, meta, entry.modifiedTime)) {
+        dirtyToUpload.add(existing.id);
+        return { game: existing, updatedFromRemote: false };
+    }
     return {
-        ...existing,
-        id: existing.id,
-        teams: existing.teams || meta.teams || null,
-        events: mergedEvents,
-        elapsedTime: Math.max(existingElapsed, remoteElapsed, maxEventMs),
-        timestamp: meta.timestamp || existing.timestamp || new Date().toISOString(),
-        teamCodes: existing.teamCodes || meta.teamCodes || undefined,
-        teamMeta: existing.teamMeta || meta.teamMeta || undefined,
-        videoOffsetMs: existing.videoOffsetMs ?? meta.videoOffsetMs ?? undefined
+        game: buildRemoteSnapshotGame(existing.id, meta, parsedEvents, existing, entry.modifiedTime),
+        updatedFromRemote: true
     };
 }
 
-function buildNewGameFromRemote(gameId, meta, parsedEvents) {
-    const maxEventMs = parsedEvents.reduce((max, ev) => Math.max(max, ev.timeMs || 0), 0);
-    const elapsedTime = meta.elapsedTime !== null && meta.elapsedTime !== undefined
-        ? Math.max(meta.elapsedTime, maxEventMs)
-        : maxEventMs;
-
-    return {
-        id: gameId,
-        teams: meta.teams || 'Imported Game',
-        events: parsedEvents,
-        elapsedTime,
-        timestamp: meta.timestamp || new Date().toISOString(),
-        teamCodes: meta.teamCodes || undefined,
-        teamMeta: meta.teamMeta || undefined,
-        videoOffsetMs: meta.videoOffsetMs ?? undefined
-    };
+function capReconciledGames(sortedGames, maxGames, dirtyToUpload) {
+    if (maxGames <= 0 || sortedGames.length <= maxGames) return sortedGames;
+    return sortedGames.filter((g, idx) => idx < maxGames || dirtyToUpload.has(g.id));
 }
 
 /**
- * Pure deterministic reconciliation between local games and remote XML files
+ * Pure deterministic reconciliation between local games and remote XML files.
+ * Follows docs/feat/cloud-sync/spec.md Reconciliation Authority Matrix.
+ *
  * @param {Array<Object>} localGames
  * @param {Array<{id: string, name: string, xmlContent: string, modifiedTime?: string}>} remoteEntries
- * @returns {{ updatedLocalGames: Array<Object>, dirtyGameIdsToUpload: Array<string> }}
+ * @param {Object} [options]
+ * @param {Array<string>} [options.dirtyGameIds]
+ * @param {Array<string>} [options.deletedGameIds]
+ * @param {Object} [options.remoteFileMeta]
+ * @param {number} [options.maxGames]
+ * @returns {{ updatedLocalGames: Array<Object>, dirtyGameIdsToUpload: Array<string>, pulledCount: number }}
  */
-export function reconcileCloudGames(localGames = [], remoteEntries = []) {
+export function reconcileCloudGames(localGames = [], remoteEntries = [], options = {}) {
+    const dirtySet = new Set(options.dirtyGameIds || []);
+    const deletedSet = new Set(options.deletedGameIds || []);
+    const knownRemoteMeta = options.remoteFileMeta || {};
+    const maxGames = Number(options.maxGames) > 0 ? Number(options.maxGames) : 0;
+
     const localMap = new Map();
     (localGames || []).forEach(g => {
-        if (g && g.id) localMap.set(g.id, { ...g });
+        if (g && g.id && !deletedSet.has(g.id)) {
+            localMap.set(g.id, { ...g });
+        }
     });
 
-    const remoteProcessedIds = new Set();
+    const remoteProcessedIds = new Set(Object.keys(knownRemoteMeta));
+    const dirtyToUpload = new Set();
+    let pulledCount = 0;
+
+    dirtySet.forEach(id => {
+        if (localMap.has(id) && !deletedSet.has(id)) {
+            dirtyToUpload.add(id);
+        }
+    });
 
     (remoteEntries || []).forEach(entry => {
         if (!entry || !entry.xmlContent) return;
@@ -103,33 +175,45 @@ export function reconcileCloudGames(localGames = [], remoteEntries = []) {
             const parsedEvents = parseXmlToEvents(entry.xmlContent);
             const meta = parsedEvents.gameMetadata || {};
             const gameId = meta.gameId || extractGameIdFromRemoteFileName(entry.name);
-            if (!gameId) return;
+            if (!gameId || deletedSet.has(gameId)) return;
 
             remoteProcessedIds.add(gameId);
 
             if (localMap.has(gameId)) {
-                const existing = localMap.get(gameId);
-                const merged = buildMergedGameFromRemote(existing, meta, parsedEvents);
-                localMap.set(gameId, merged);
+                const resolved = resolveCommonGameEntry(
+                    localMap.get(gameId),
+                    dirtySet.has(gameId),
+                    meta,
+                    parsedEvents,
+                    entry,
+                    dirtyToUpload
+                );
+                localMap.set(gameId, resolved.game);
+                if (resolved.updatedFromRemote) {
+                    dirtyToUpload.delete(gameId);
+                    pulledCount++;
+                }
             } else {
-                const newGame = buildNewGameFromRemote(gameId, meta, parsedEvents);
-                localMap.set(gameId, newGame);
+                localMap.set(gameId, buildRemoteSnapshotGame(gameId, meta, parsedEvents, null, entry.modifiedTime));
+                pulledCount++;
             }
         } catch (err) {
             logger.warn('Failed to parse remote cloud XML:', entry.name, err);
         }
     });
 
-    const updatedLocalGames = Array.from(localMap.values());
-    const dirtyGameIdsToUpload = [];
-
     (localGames || []).forEach(g => {
-        if (g && g.id && !remoteProcessedIds.has(g.id)) {
-            dirtyGameIdsToUpload.push(g.id);
+        if (g && g.id && !deletedSet.has(g.id) && !remoteProcessedIds.has(g.id)) {
+            dirtyToUpload.add(g.id);
         }
     });
 
-    return { updatedLocalGames, dirtyGameIdsToUpload };
+    const sorted = sortGamesNewestFirst(Array.from(localMap.values()));
+    return {
+        updatedLocalGames: capReconciledGames(sorted, maxGames, dirtyToUpload),
+        dirtyGameIdsToUpload: Array.from(dirtyToUpload),
+        pulledCount
+    };
 }
 
 async function fetchDriveApi(path, options = {}, token) {
@@ -168,82 +252,228 @@ function buildMultipartXmlPayload(metadata, xmlContent) {
     return { body, boundary };
 }
 
+async function safeParseJson(res) {
+    try {
+        return await res.json();
+    } catch {
+        return {};
+    }
+}
+
+async function patchExistingRemoteFile(token, existing, fileName, xmlContent) {
+    if (existing.name !== fileName) {
+        const { body, boundary } = buildMultipartXmlPayload({ name: fileName }, xmlContent);
+        const uploadUrl = `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=multipart&fields=id,name,modifiedTime`;
+        await fetchDriveApi(uploadUrl, {
+            method: 'PATCH',
+            headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+            body
+        }, token);
+        return existing.id;
+    }
+    const uploadUrl = `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=media&fields=id,name,modifiedTime`;
+    await fetchDriveApi(uploadUrl, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/xml; charset=utf-8' },
+        body: xmlContent
+    }, token);
+    return existing.id;
+}
+
 async function uploadGameFile(token, folderId, game, existingRemoteFiles = []) {
     const xmlContent = generateGameXml(game);
     const fileName = buildRemoteFileName(game);
-    const existing = existingRemoteFiles.find(f => f.name.includes(game.id) || f.name === fileName);
+    const existing = existingRemoteFiles.find(
+        f => extractGameIdFromRemoteFileName(f.name) === game.id || f.name.includes(game.id) || f.name === fileName
+    );
 
     if (existing) {
-        const uploadUrl = `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=media`;
-        await fetchDriveApi(uploadUrl, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/xml; charset=utf-8' },
-            body: xmlContent
-        }, token);
-        return existing.id;
+        return patchExistingRemoteFile(token, existing, fileName, xmlContent);
     }
 
     const metadata = { name: fileName, parents: [folderId] };
     const { body, boundary } = buildMultipartXmlPayload(metadata, xmlContent);
-    const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime';
     const res = await fetchDriveApi(uploadUrl, {
         method: 'POST',
         headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
         body
     }, token);
 
-    const data = await res.json();
+    const data = await safeParseJson(res);
     return data.id;
 }
 
-async function fetchRemoteEntries(token, remoteFiles) {
-    return Promise.all(
-        remoteFiles.map(async file => ({
-            id: file.id,
-            name: file.name,
-            modifiedTime: file.modifiedTime,
-            xmlContent: await downloadXmlContent(token, file.id)
-        }))
-    );
+function shouldDownloadRemoteFile(file, localIds, deletedSet, remoteFileMeta) {
+    const gameId = extractGameIdFromRemoteFileName(file.name);
+    if (gameId && deletedSet.has(gameId)) return false;
+    const cached = gameId ? remoteFileMeta[gameId] : null;
+    if (cached && file.modifiedTime && cached.modifiedTime === file.modifiedTime && localIds.has(gameId)) {
+        return false;
+    }
+    return true;
 }
 
-async function uploadDirtyGames(token, folderId, games, remoteFiles, dirtyIds) {
+async function fetchRemoteEntries(token, remoteFiles, options = {}) {
+    const localIds = new Set((options.localGames || []).map(g => g && g.id).filter(Boolean));
+    const deletedSet = new Set(options.deletedGameIds || []);
+    const remoteFileMeta = options.remoteFileMeta || {};
+
+    const filesToDownload = remoteFiles.filter(f =>
+        shouldDownloadRemoteFile(f, localIds, deletedSet, remoteFileMeta)
+    );
+
+    const entries = await Promise.all(
+        filesToDownload.map(async file => {
+            try {
+                const xmlContent = await downloadXmlContent(token, file.id);
+                return {
+                    id: file.id,
+                    name: file.name,
+                    modifiedTime: file.modifiedTime,
+                    xmlContent
+                };
+            } catch (err) {
+                logger.warn('Failed to download remote XML file:', file.name, err);
+                return null;
+            }
+        })
+    );
+    return entries.filter(Boolean);
+}
+
+async function trashDeletedGamesOnDrive(token, remoteFiles, deletedIds = [], remoteFileMeta = {}) {
+    const remainingDeleted = new Set(deletedIds);
+    const updatedMeta = { ...remoteFileMeta };
+
+    for (const gameId of deletedIds) {
+        const matchFile = remoteFiles.find(
+            f => extractGameIdFromRemoteFileName(f.name) === gameId || f.name.includes(gameId)
+        );
+        const fileId = (matchFile && matchFile.id) || (updatedMeta[gameId] && updatedMeta[gameId].fileId);
+        if (!fileId) {
+            remainingDeleted.delete(gameId);
+            delete updatedMeta[gameId];
+            continue;
+        }
+        try {
+            await fetchDriveApi(`files/${fileId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ trashed: true })
+            }, token);
+            remainingDeleted.delete(gameId);
+            delete updatedMeta[gameId];
+        } catch (err) {
+            logger.warn('Failed to trash deleted game on Drive:', gameId, err);
+        }
+    }
+    return {
+        remainingDeletedIds: Array.from(remainingDeleted),
+        updatedRemoteMeta: updatedMeta
+    };
+}
+
+async function uploadSingleDirtyGame(token, folderId, gameToUpload, remoteFiles, remaining, updatedMeta) {
+    try {
+        const fileId = await uploadGameFile(token, folderId, gameToUpload, remoteFiles);
+        remaining.delete(gameToUpload.id);
+        if (fileId) {
+            updatedMeta[gameToUpload.id] = {
+                fileId,
+                name: buildRemoteFileName(gameToUpload),
+                modifiedTime: new Date().toISOString()
+            };
+        }
+    } catch (uploadErr) {
+        logger.error('Failed to upload game to Drive:', gameToUpload.id, uploadErr);
+    }
+}
+
+async function uploadDirtyGames(token, folderId, games, remoteFiles, dirtyIds, remoteFileMeta = {}) {
     const remaining = new Set(dirtyIds);
+    const updatedMeta = { ...remoteFileMeta };
+
     for (const gameId of dirtyIds) {
         const gameToUpload = games.find(g => g && g.id === gameId);
         if (!gameToUpload) {
             remaining.delete(gameId);
             continue;
         }
-        try {
-            await uploadGameFile(token, folderId, gameToUpload, remoteFiles);
-            remaining.delete(gameId);
-        } catch (uploadErr) {
-            logger.error('Failed to upload game to Drive:', gameId, uploadErr);
-        }
+        await uploadSingleDirtyGame(token, folderId, gameToUpload, remoteFiles, remaining, updatedMeta);
     }
-    return Array.from(remaining);
+    return {
+        remainingDirtyIds: Array.from(remaining),
+        updatedRemoteMeta: updatedMeta
+    };
+}
+
+function readSessionToken() {
+    if (typeof sessionStorage === 'undefined') return null;
+    try {
+        const raw = sessionStorage.getItem(CLOUD_SYNC_SESSION_TOKEN_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.token && Number(parsed.expiresAt) > Date.now()) {
+            return parsed;
+        }
+        sessionStorage.removeItem(CLOUD_SYNC_SESSION_TOKEN_KEY);
+    } catch {
+        // Ignore sessionStorage errors
+    }
+    return null;
+}
+
+function writeSessionToken(token, expiresAt) {
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+        if (!token) {
+            sessionStorage.removeItem(CLOUD_SYNC_SESSION_TOKEN_KEY);
+            return;
+        }
+        sessionStorage.setItem(CLOUD_SYNC_SESSION_TOKEN_KEY, JSON.stringify({ token, expiresAt }));
+    } catch {
+        // Ignore sessionStorage errors
+    }
+}
+
+function normalizeStoredArray(val) {
+    return Array.isArray(val) ? [...val] : [];
+}
+
+function normalizeStoredObject(val) {
+    return val && typeof val === 'object' ? { ...val } : {};
+}
+
+function deriveConnectedFlag(stored) {
+    if (!stored) return false;
+    if (stored.connected !== undefined) return Boolean(stored.connected);
+    return Boolean(stored.lastSyncedAt || stored.folderId);
 }
 
 export class CloudSyncService {
     constructor() {
-        this._token = null;
-        this._tokenExpiresAt = 0;
+        const cached = readSessionToken();
+        this._token = cached ? cached.token : null;
+        this._tokenExpiresAt = cached ? cached.expiresAt : 0;
         this._listeners = new Set();
         this._gisLoadingPromise = null;
         this._syncing = false;
+        this._lastStatus = null;
     }
 
     getConfig() {
-        const stored = storageService.getItem(CLOUD_SYNC_STORAGE_KEY);
-        const customClientId = (stored && stored.clientId) || '';
+        const stored = storageService.getItem(CLOUD_SYNC_STORAGE_KEY) || {};
+        const customClientId = stored.clientId || '';
         return {
             clientId: customClientId || DEFAULT_GOOGLE_CLIENT_ID,
             customClientId,
-            connected: Boolean(stored && (stored.connected ?? Boolean(stored.lastSyncedAt || stored.folderId))),
-            folderId: (stored && stored.folderId) || null,
-            lastSyncedAt: (stored && stored.lastSyncedAt) || null,
-            dirtyGameIds: Array.isArray(stored && stored.dirtyGameIds) ? [...stored.dirtyGameIds] : []
+            connected: deriveConnectedFlag(stored),
+            folderId: stored.folderId || null,
+            lastSyncedAt: stored.lastSyncedAt || null,
+            dirtyGameIds: normalizeStoredArray(stored.dirtyGameIds),
+            deletedGameIds: normalizeStoredArray(stored.deletedGameIds),
+            remoteFileMeta: normalizeStoredObject(stored.remoteFileMeta)
         };
     }
 
@@ -258,6 +488,8 @@ export class CloudSyncService {
     clearConfig() {
         this._token = null;
         this._tokenExpiresAt = 0;
+        this._lastStatus = null;
+        writeSessionToken(null, 0);
         storageService.removeItem(CLOUD_SYNC_STORAGE_KEY);
         this._notifyListeners();
     }
@@ -267,24 +499,45 @@ export class CloudSyncService {
         return Boolean(config.connected && config.clientId);
     }
 
+    hasValidSessionToken() {
+        if (this._token && Date.now() < this._tokenExpiresAt) {
+            return true;
+        }
+        const cached = readSessionToken();
+        if (cached) {
+            this._token = cached.token;
+            this._tokenExpiresAt = cached.expiresAt;
+            return true;
+        }
+        return false;
+    }
+
     isSyncing() {
         return this._syncing;
+    }
+
+    getLastStatus() {
+        return this._lastStatus;
     }
 
     markGameDirty(gameId) {
         if (!gameId) return;
         const config = this.getConfig();
-        if (!config.dirtyGameIds.includes(gameId)) {
-            this.saveConfig({ dirtyGameIds: [...config.dirtyGameIds, gameId] });
-        }
+        const nextDirty = config.dirtyGameIds.includes(gameId)
+            ? config.dirtyGameIds
+            : [...config.dirtyGameIds, gameId];
+        const nextDeleted = config.deletedGameIds.filter(id => id !== gameId);
+        this.saveConfig({ dirtyGameIds: nextDirty, deletedGameIds: nextDeleted });
     }
 
-    clearDirtyGame(gameId) {
+    markGameDeleted(gameId) {
         if (!gameId) return;
         const config = this.getConfig();
-        if (config.dirtyGameIds.includes(gameId)) {
-            this.saveConfig({ dirtyGameIds: config.dirtyGameIds.filter(id => id !== gameId) });
-        }
+        const nextDeleted = config.deletedGameIds.includes(gameId)
+            ? config.deletedGameIds
+            : [...config.deletedGameIds, gameId];
+        const nextDirty = config.dirtyGameIds.filter(id => id !== gameId);
+        this.saveConfig({ dirtyGameIds: nextDirty, deletedGameIds: nextDeleted });
     }
 
     subscribe(listener) {
@@ -295,11 +548,14 @@ export class CloudSyncService {
     }
 
     _notifyListeners(status = null) {
+        if (status !== null) {
+            this._lastStatus = status;
+        }
         const state = {
             isConnected: this.isConnected(),
             isSyncing: this._syncing,
             lastSyncedAt: this.getConfig().lastSyncedAt,
-            status
+            status: status ?? this._lastStatus
         };
         this._listeners.forEach(fn => {
             try { fn(state); } catch (err) { logger.error('Error in cloud sync listener:', err); }
@@ -346,6 +602,8 @@ export class CloudSyncService {
                         this._token = response.access_token;
                         const expiresIn = Number(response.expires_in) || 3600;
                         this._tokenExpiresAt = Date.now() + (expiresIn - 60) * 1000;
+                        this._lastStatus = null;
+                        writeSessionToken(this._token, this._tokenExpiresAt);
                         resolve(this._token);
                     }
                 });
@@ -356,9 +614,12 @@ export class CloudSyncService {
         });
     }
 
-    async getAccessToken() {
-        if (this._token && Date.now() < this._tokenExpiresAt) {
+    async getAccessToken(options = {}) {
+        if (this.hasValidSessionToken()) {
             return this._token;
+        }
+        if (options.interactive === false) {
+            return null;
         }
         const { clientId } = this.getConfig();
         if (!clientId) return null;
@@ -395,12 +656,12 @@ export class CloudSyncService {
 
     async listRemoteXmlFiles(token, folderId) {
         const q = `'${folderId}' in parents and trashed = false and name contains '.xml'`;
-        const res = await fetchDriveApi(`files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime)`, {}, token);
+        const res = await fetchDriveApi(`files?q=${encodeURIComponent(q)}&pageSize=100&fields=files(id,name,modifiedTime)`, {}, token);
         const data = await res.json();
         return Array.isArray(data.files) ? data.files : [];
     }
 
-    async syncNow() {
+    async syncNow(options = {}) {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             logger.warn('Cloud sync skipped: offline');
             return { success: false, reason: 'offline' };
@@ -412,37 +673,75 @@ export class CloudSyncService {
         this._notifyListeners('syncing');
 
         try {
-            const token = await this.getAccessToken();
+            const token = await this.getAccessToken({ interactive: options.interactive !== false });
             if (!token) {
                 this._syncing = false;
                 this._notifyListeners('auth_required');
                 return { success: false, reason: 'auth_required' };
             }
 
+            const config = this.getConfig();
             const folderId = await this.ensureFolder(token);
             const remoteFiles = await this.listRemoteXmlFiles(token, folderId);
-            const remoteEntries = await fetchRemoteEntries(token, remoteFiles);
+
+            const { remainingDeletedIds, updatedRemoteMeta: metaAfterTrash } = await trashDeletedGamesOnDrive(
+                token,
+                remoteFiles,
+                config.deletedGameIds,
+                config.remoteFileMeta
+            );
+
+            const deletedSet = new Set(config.deletedGameIds);
+            const activeRemoteFiles = remoteFiles.filter(f => !deletedSet.has(extractGameIdFromRemoteFileName(f.name)));
 
             const localGames = gameStorageManager.getAllGames();
-            const { updatedLocalGames, dirtyGameIdsToUpload } = reconcileCloudGames(localGames, remoteEntries);
+            const remoteEntries = await fetchRemoteEntries(token, activeRemoteFiles, {
+                localGames,
+                deletedGameIds: config.deletedGameIds,
+                remoteFileMeta: metaAfterTrash
+            });
+
+            const reconciledMeta = { ...metaAfterTrash };
+            activeRemoteFiles.forEach(f => {
+                const gId = extractGameIdFromRemoteFileName(f.name);
+                if (gId) {
+                    reconciledMeta[gId] = { fileId: f.id, name: f.name, modifiedTime: f.modifiedTime };
+                }
+            });
+
+            const { updatedLocalGames, dirtyGameIdsToUpload, pulledCount } = reconcileCloudGames(localGames, remoteEntries, {
+                dirtyGameIds: config.dirtyGameIds,
+                deletedGameIds: config.deletedGameIds,
+                remoteFileMeta: reconciledMeta,
+                maxGames: gameStorageManager.MAX_GAMES || 20
+            });
 
             storageService.setItem(gameStorageManager.STORAGE_KEY, updatedLocalGames);
             if (typeof gameStorageManager._updateCache === 'function') {
                 gameStorageManager._updateCache(updatedLocalGames);
             }
 
-            const combinedDirty = [...new Set([...this.getConfig().dirtyGameIds, ...dirtyGameIdsToUpload])];
-            const nextDirty = await uploadDirtyGames(token, folderId, updatedLocalGames, remoteFiles, combinedDirty);
+            const { remainingDirtyIds, updatedRemoteMeta: finalRemoteMeta } = await uploadDirtyGames(
+                token,
+                folderId,
+                updatedLocalGames,
+                activeRemoteFiles,
+                dirtyGameIdsToUpload,
+                reconciledMeta
+            );
 
             this.saveConfig({
-                dirtyGameIds: nextDirty,
+                dirtyGameIds: remainingDirtyIds,
+                deletedGameIds: remainingDeletedIds,
+                remoteFileMeta: finalRemoteMeta,
                 lastSyncedAt: new Date().toISOString()
             });
 
-            const uploadedCount = combinedDirty.length - nextDirty.length;
+            const uploadedCount = dirtyGameIdsToUpload.length - remainingDirtyIds.length;
+            const deletedCount = config.deletedGameIds.length - remainingDeletedIds.length;
             this._syncing = false;
             this._notifyListeners('success');
-            return { success: true, pulledCount: remoteEntries.length, uploadedCount };
+            return { success: true, pulledCount, uploadedCount, deletedCount };
         } catch (error) {
             logger.error('Cloud sync error:', error);
             this._syncing = false;
@@ -453,7 +752,7 @@ export class CloudSyncService {
 
     async syncIfConnected() {
         if (!this.isConnected()) return;
-        return this.syncNow();
+        return this.syncNow({ interactive: false });
     }
 }
 

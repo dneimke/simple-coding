@@ -10,13 +10,15 @@ jest.mock('../../../src/services/cloudSyncService.js', () => {
     let _listeners = new Set();
     let _connected = false;
     let _syncing = false;
+    let _lastStatus = null;
     let _config = {
         clientId: '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com',
         customClientId: '',
         connected: false,
         folderId: null,
         lastSyncedAt: null,
-        dirtyGameIds: []
+        dirtyGameIds: [],
+        deletedGameIds: []
     };
 
     return {
@@ -27,10 +29,11 @@ jest.mock('../../../src/services/cloudSyncService.js', () => {
             }),
             isConnected: jest.fn(() => _connected),
             isSyncing: jest.fn(() => _syncing),
+            getLastStatus: jest.fn(() => _lastStatus),
             getConfig: jest.fn(() => ({ ..._config })),
             saveConfig: jest.fn(updates => {
                 _config = { ..._config, ...updates };
-                _connected = Boolean(_config.connected);
+                _connected = Boolean(_config.connected ?? true);
             }),
             clearConfig: jest.fn(() => {
                 _config = {
@@ -39,28 +42,34 @@ jest.mock('../../../src/services/cloudSyncService.js', () => {
                     connected: false,
                     folderId: null,
                     lastSyncedAt: null,
-                    dirtyGameIds: []
+                    dirtyGameIds: [],
+                    deletedGameIds: []
                 };
                 _connected = false;
+                _lastStatus = null;
             }),
             requestToken: jest.fn().mockResolvedValue('token-123'),
-            syncNow: jest.fn().mockResolvedValue({ added: 1, updated: 0, uploaded: 1 }),
-            syncIfConnected: jest.fn().mockResolvedValue({ added: 0, updated: 0, uploaded: 0 }),
+            syncNow: jest.fn().mockResolvedValue({ success: true, pulledCount: 1, uploadedCount: 1, deletedCount: 0 }),
+            syncIfConnected: jest.fn().mockResolvedValue({ success: true, pulledCount: 0, uploadedCount: 0, deletedCount: 0 }),
             markGameDirty: jest.fn(),
+            markGameDeleted: jest.fn(),
             _emit: (state) => {
+                if (state && state.status !== undefined) _lastStatus = state.status;
                 _listeners.forEach(fn => fn(state));
             },
             _reset: () => {
                 _listeners.clear();
                 _connected = false;
                 _syncing = false;
+                _lastStatus = null;
                 _config = {
                     clientId: '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com',
                     customClientId: '',
                     connected: false,
                     folderId: null,
                     lastSyncedAt: null,
-                    dirtyGameIds: []
+                    dirtyGameIds: [],
+                    deletedGameIds: []
                 };
             }
         }
@@ -84,6 +93,7 @@ describe('CloudSyncController', () => {
         document.body.innerHTML = `
             <button id="cloudSyncButton"><i id="cloudSyncIcon" class="fas fa-cloud"></i><span id="cloudSyncButtonLabel">Cloud Sync</span></button>
             <div id="cloudSyncModal" class="modal hidden">
+                <div id="cloudSyncStatusBanner" class="banner banner-info mb-4"></div>
                 <button id="closeCloudSyncModalButton"></button>
                 <button id="cloudSyncCancelButton"></button>
                 <div id="cloudSyncStatusDot"></div>
@@ -101,6 +111,7 @@ describe('CloudSyncController', () => {
             cloudSyncIcon: document.getElementById('cloudSyncIcon'),
             cloudSyncButtonLabel: document.getElementById('cloudSyncButtonLabel'),
             cloudSyncModal: document.getElementById('cloudSyncModal'),
+            statusBanner: document.getElementById('cloudSyncStatusBanner'),
             closeModalButton: document.getElementById('closeCloudSyncModalButton'),
             cancelModalButton: document.getElementById('cloudSyncCancelButton'),
             statusDot: document.getElementById('cloudSyncStatusDot'),
@@ -154,7 +165,7 @@ describe('CloudSyncController', () => {
         expect(cloudSyncService.requestToken).toHaveBeenCalledWith(
             '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com'
         );
-        expect(cloudSyncService.syncNow).toHaveBeenCalled();
+        expect(cloudSyncService.syncNow).toHaveBeenCalledWith({ interactive: true });
     });
 
     test('connects successfully with custom Client ID when provided', async () => {
@@ -170,7 +181,7 @@ describe('CloudSyncController', () => {
             })
         );
         expect(cloudSyncService.requestToken).toHaveBeenCalledWith('my-custom-id.apps.googleusercontent.com');
-        expect(cloudSyncService.syncNow).toHaveBeenCalled();
+        expect(cloudSyncService.syncNow).toHaveBeenCalledWith({ interactive: true });
     });
 
     test('warns when connecting if no Client ID is configured', async () => {
@@ -200,19 +211,46 @@ describe('CloudSyncController', () => {
         );
     });
 
-    test('manual Sync Now button triggers syncNow', async () => {
-        cloudSyncService.saveConfig({ clientId: 'active-client-id' });
+    test('manual Sync Now button triggers interactive syncNow and reports accurate counts', async () => {
+        cloudSyncService.saveConfig({ clientId: 'active-client-id', connected: true });
         const onSyncCompleted = jest.fn();
         initCloudSyncController({ onSyncCompleted });
 
         await elements.syncNowButton.click();
 
-        expect(cloudSyncService.syncNow).toHaveBeenCalled();
+        expect(cloudSyncService.syncNow).toHaveBeenCalledWith({ interactive: true });
         expect(notificationService.notify).toHaveBeenCalledWith(
-            expect.stringContaining('Matches synced'),
+            expect.stringContaining('1 pulled, 1 uploaded'),
             'success'
         );
         expect(onSyncCompleted).toHaveBeenCalled();
+    });
+
+    test('shows Reconnect Sync state when session token has expired (auth_required)', () => {
+        cloudSyncService.saveConfig({ clientId: 'active-client-id', connected: true });
+        initCloudSyncController();
+
+        cloudSyncService._emit({
+            isConnected: true,
+            isSyncing: false,
+            lastSyncedAt: new Date().toISOString(),
+            status: 'auth_required'
+        });
+
+        expect(elements.cloudSyncButtonLabel.textContent).toBe('Reconnect Sync');
+        expect(elements.statusText.textContent).toContain('Session Expired');
+        expect(elements.syncNowButton.textContent).toBe('Reconnect & Sync');
+        expect(elements.statusBanner.className).toContain('banner-warning');
+    });
+
+    test('marks game deleted and triggers background sync when a match is removed from gameStorageManager', () => {
+        const cleanup = initCloudSyncController();
+
+        gameStorageManager._notifyChange('deleted-game-99', 'remove');
+
+        expect(cloudSyncService.markGameDeleted).toHaveBeenCalledWith('deleted-game-99');
+        expect(cloudSyncService.syncIfConnected).toHaveBeenCalled();
+        cleanup();
     });
 
     test('updates UI when syncing state changes', () => {
@@ -258,4 +296,3 @@ describe('CloudSyncController', () => {
         jest.useRealTimers();
     });
 });
-

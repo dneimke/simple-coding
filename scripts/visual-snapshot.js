@@ -185,6 +185,24 @@ async function captureCloudSyncSnapshots(browser, baseUrl, results) {
             bytes: stats.size
         });
 
+        await syncPage.evaluate(async () => {
+            const syncServicePath = '/services/cloudSyncService.js';
+            const { cloudSyncService } = await import(syncServicePath);
+            cloudSyncService.saveConfig({ connected: true, lastSyncedAt: new Date(Date.now() - 3600000).toISOString() });
+            cloudSyncService._notifyListeners('auth_required');
+        });
+        await syncPage.waitForTimeout(200);
+
+        const reconnectModalPath = path.join(OUTPUT_DIR, `cloud-sync-reconnect-modal-${vp.name}.png`);
+        await syncPage.screenshot({ path: reconnectModalPath, fullPage: true });
+        results.push({
+            name: 'cloud-sync-reconnect-modal',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `cloud-sync-reconnect-modal-${vp.name}.png`,
+            bytes: fs.statSync(reconnectModalPath).size
+        });
+
         await syncCtx.close();
     }
 }
