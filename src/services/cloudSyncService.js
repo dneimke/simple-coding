@@ -12,6 +12,7 @@ import { gameStorageManager } from './gameStorageManager.js';
 import { generateGameXml, parseXmlToEvents, mergeXmlEventStreams } from '../utils/xmlUtils.js';
 import { logger } from '../utils/formatUtils.js';
 
+export const DEFAULT_GOOGLE_CLIENT_ID = '604920442128-appggcqdfj7e90qoe9ntqb83eh18qsq9.apps.googleusercontent.com';
 export const CLOUD_SYNC_STORAGE_KEY = 'fieldHockeyCloudSync_v1';
 const GOOGLE_DRIVE_FOLDER_NAME = 'SimpleCoding';
 const GOOGLE_OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive.file';
@@ -235,8 +236,11 @@ export class CloudSyncService {
 
     getConfig() {
         const stored = storageService.getItem(CLOUD_SYNC_STORAGE_KEY);
+        const customClientId = (stored && stored.clientId) || '';
         return {
-            clientId: (stored && stored.clientId) || '',
+            clientId: customClientId || DEFAULT_GOOGLE_CLIENT_ID,
+            customClientId,
+            connected: Boolean(stored && (stored.connected ?? Boolean(stored.lastSyncedAt || stored.folderId))),
             folderId: (stored && stored.folderId) || null,
             lastSyncedAt: (stored && stored.lastSyncedAt) || null,
             dirtyGameIds: Array.isArray(stored && stored.dirtyGameIds) ? [...stored.dirtyGameIds] : []
@@ -259,7 +263,8 @@ export class CloudSyncService {
     }
 
     isConnected() {
-        return Boolean(this.getConfig().clientId);
+        const config = this.getConfig();
+        return Boolean(config.connected && config.clientId);
     }
 
     isSyncing() {

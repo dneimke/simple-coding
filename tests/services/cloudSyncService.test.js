@@ -6,7 +6,8 @@ import {
     buildRemoteFileName,
     extractGameIdFromRemoteFileName,
     CloudSyncService,
-    CLOUD_SYNC_STORAGE_KEY
+    CLOUD_SYNC_STORAGE_KEY,
+    DEFAULT_GOOGLE_CLIENT_ID
 } from '../../src/services/cloudSyncService.js';
 import { storageService } from '../../src/services/storageService.js';
 import { gameStorageManager } from '../../src/services/gameStorageManager.js';
@@ -141,7 +142,9 @@ describe('CloudSyncService', () => {
         test('getConfig returns default state when no storage entry exists', () => {
             storageService.getItem.mockReturnValue(null);
             expect(service.getConfig()).toEqual({
-                clientId: '',
+                clientId: DEFAULT_GOOGLE_CLIENT_ID,
+                customClientId: '',
+                connected: false,
                 folderId: null,
                 lastSyncedAt: null,
                 dirtyGameIds: []
@@ -150,14 +153,16 @@ describe('CloudSyncService', () => {
         });
 
         test('saveConfig persists config and updates isConnected', () => {
-            service.saveConfig({ clientId: 'custom-client-id.apps.googleusercontent.com' });
+            service.saveConfig({ clientId: 'custom-client-id.apps.googleusercontent.com', connected: true });
 
             expect(storageService.setItem).toHaveBeenCalledWith(
                 CLOUD_SYNC_STORAGE_KEY,
                 expect.objectContaining({
-                    clientId: 'custom-client-id.apps.googleusercontent.com'
+                    clientId: 'custom-client-id.apps.googleusercontent.com',
+                    connected: true
                 })
             );
+            expect(service.isConnected()).toBe(true);
         });
 
         test('clearConfig wipes stored credentials and resets state', () => {

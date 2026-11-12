@@ -119,8 +119,8 @@ function updateSyncStatusView(elements, state, config, isJustSynced = false) {
     updateSyncActivityView(elements, isSyncing, lastSyncedAt, isJustSynced);
     updateControlButtons(elements, isConnected, isSyncing, isJustSynced);
 
-    if (elements.clientIdInput && !elements.clientIdInput.value && config.clientId) {
-        elements.clientIdInput.value = config.clientId;
+    if (elements.clientIdInput && !elements.clientIdInput.value && config.customClientId) {
+        elements.clientIdInput.value = config.customClientId;
     }
 }
 
@@ -172,8 +172,8 @@ function createSyncHandlers(elements, onSyncCompleted, triggerJustSynced, render
             if (elements.cloudSyncModal) {
                 elements.cloudSyncModal.classList.remove('hidden');
                 const config = cloudSyncService.getConfig();
-                if (elements.clientIdInput && !elements.clientIdInput.value) {
-                    elements.clientIdInput.value = config.clientId || '';
+                if (elements.clientIdInput && !elements.clientIdInput.value && config.customClientId) {
+                    elements.clientIdInput.value = config.customClientId;
                 }
             }
         },
@@ -182,7 +182,9 @@ function createSyncHandlers(elements, onSyncCompleted, triggerJustSynced, render
         },
         handleConnect: async () => {
             const rawClientId = elements.clientIdInput?.value?.trim() || '';
-            if (!rawClientId) {
+            const config = cloudSyncService.getConfig();
+            const targetClientId = rawClientId || config.clientId;
+            if (!targetClientId) {
                 notificationService.notify('Please enter your Google Client ID to connect.', 'warn');
                 return;
             }
@@ -191,8 +193,8 @@ function createSyncHandlers(elements, onSyncCompleted, triggerJustSynced, render
                     elements.connectButton.disabled = true;
                     elements.connectButton.innerHTML = '<i class="fas fa-rotate fa-spin mr-1.5" aria-hidden="true"></i>Connecting...';
                 }
-                cloudSyncService.saveConfig({ clientId: rawClientId });
-                await cloudSyncService.requestToken(rawClientId);
+                await cloudSyncService.requestToken(targetClientId);
+                cloudSyncService.saveConfig({ clientId: rawClientId, connected: true });
                 notificationService.notify('Connected to Google Drive! Syncing matches...', 'success');
                 const result = await cloudSyncService.syncNow();
                 triggerJustSynced();

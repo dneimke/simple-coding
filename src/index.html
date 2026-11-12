@@ -750,18 +750,23 @@
                 </div>
             </div>
 
-            <div class="mb-4">
-                <label for="cloudSyncClientIdInput" class="field-label">Google Client ID</label>
-                <input id="cloudSyncClientIdInput" type="text" autocomplete="off" class="field mb-1" placeholder="e.g. 123456789-abcdefg.apps.googleusercontent.com">
-                <p class="help-text text-xs">
-                    OAuth Client ID for your Google Cloud project. Matches are saved in a private <code>SimpleCoding/</code> folder on your Google Drive.
-                </p>
-            </div>
-
             <div class="surface-muted card-body text-xs mb-4">
                 <div class="font-bold text-ink mb-1">Zero-Server Security</div>
-                <p class="text-muted">Sync connects directly from your browser to Google Drive. The app cannot access any other files or folders in your account.</p>
+                <p class="text-muted">Sync connects directly from your browser to Google Drive via matchlib.com. Your matches are stored in a private <code>SimpleCoding/</code> folder and the app cannot access any other files in your account.</p>
             </div>
+
+            <details class="text-xs mb-4 text-muted">
+                <summary class="cursor-pointer hover:text-ink font-medium select-none text-[11px]">
+                    Advanced: Custom Client ID
+                </summary>
+                <div class="mt-2 pl-2 border-l-2 border-slate-200">
+                    <label for="cloudSyncClientIdInput" class="field-label text-[11px]">Google Client ID</label>
+                    <input id="cloudSyncClientIdInput" type="text" autocomplete="off" class="field mb-1 text-xs" placeholder="Leave empty to use matchlib.com default">
+                    <p class="help-text text-[11px]">
+                        Only needed if you self-host or use your own Google Cloud project.
+                    </p>
+                </div>
+            </details>
 
             <div class="modal-actions">
                 <button id="cloudSyncDisconnectButton" type="button" class="btn btn-secondary text-red-600 hover:text-red-700 hidden mr-auto">
