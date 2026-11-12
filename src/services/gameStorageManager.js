@@ -84,6 +84,15 @@ function buildMergedGame(existing, gameId, standardEvents, metadata) {
     return mergedGame;
 }
 
+function mergeUpdatedGameRecord(existing, updatedData) {
+    const base = existing || {};
+    const extraMeta = updatedData && updatedData.metadata ? updatedData.metadata : {};
+    const nextMeta = Object.assign({}, base.metadata, extraMeta, {
+        lastUpdated: new Date().toISOString()
+    });
+    return Object.assign({}, base, updatedData, { metadata: nextMeta });
+}
+
 export class GameStorageManager {
     /**
      * Initialize the GameStorageManager
@@ -278,8 +287,7 @@ export class GameStorageManager {
         try {
             const games = this.getAllGames();
             if (index >= 0 && index < games.length) {
-                // Update only the specified properties while preserving the rest
-                games[index] = { ...games[index], ...updatedData };
+                games[index] = mergeUpdatedGameRecord(games[index], updatedData);
 
                 const result = storageService.setItem(this.STORAGE_KEY, games);
 

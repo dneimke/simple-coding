@@ -55,7 +55,9 @@ const METADATA_ATTR_MAPPERS = [
     ['team_meta', m => formatTeamMeta(m.teamMeta)],
     ['elapsed_time', m => (Number.isFinite(Number(m.elapsedTime)) && m.elapsedTime !== null ? String(Number(m.elapsedTime)) : null)],
     ['timestamp', m => m.timestamp],
-    ['video_offset', m => (Number.isFinite(Number(m.videoOffsetMs)) && m.videoOffsetMs !== null ? String(Number(m.videoOffsetMs)) : null)]
+    ['video_offset', m => (Number.isFinite(Number(m.videoOffsetMs)) && m.videoOffsetMs !== null ? String(Number(m.videoOffsetMs)) : null)],
+    ['video_url', m => (typeof m.videoUrl === 'string' && m.videoUrl.trim() ? m.videoUrl.trim() : null)],
+    ['last_updated', m => (typeof m.lastUpdated === 'string' && m.lastUpdated.trim() ? m.lastUpdated.trim() : null)]
 ];
 
 const formatFileOpeningTag = (metadata) => {
@@ -326,6 +328,9 @@ const extractGameMetadataFromXmlDoc = (xmlDoc) => {
     const videoOffsetStr = getAttr('video_offset', 'videoOffset');
     const videoOffsetMs = videoOffsetStr !== null && !isNaN(Number(videoOffsetStr)) ? Number(videoOffsetStr) : null;
 
+    const videoUrl = getAttr('video_url', 'videoUrl');
+    const lastUpdated = getAttr('last_updated', 'lastUpdated');
+
     // Check legacy <game teams="..."> format
     const legacyGame = xmlDoc.querySelector('game');
     const legacyTeams = legacyGame?.getAttribute('teams') || null;
@@ -337,7 +342,9 @@ const extractGameMetadataFromXmlDoc = (xmlDoc) => {
         teamMeta,
         elapsedTime,
         timestamp,
-        videoOffsetMs
+        videoOffsetMs,
+        ...(videoUrl ? { videoUrl } : {}),
+        ...(lastUpdated ? { lastUpdated } : {})
     };
 };
 
@@ -503,6 +510,26 @@ export const validateXmlStructure = (xmlContent) => {
     return xmlDoc;
 };
 
+const pickFirstDefined = (...vals) => {
+    for (const v of vals) {
+        if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return null;
+};
+
+const extractGameMetadataForExport = (game) => ({
+    app: 'simple-coding',
+    gameId: pickFirstDefined(game.id),
+    teams: pickFirstDefined(game.teams),
+    teamCodes: pickFirstDefined(game.teamCodes),
+    teamMeta: pickFirstDefined(game.teamMeta, game.metadata?.teamMeta, Array.isArray(game.teams) ? game.teams : null),
+    elapsedTime: game.elapsedTime !== undefined ? game.elapsedTime : null,
+    timestamp: pickFirstDefined(game.timestamp, game.metadata?.timestamp),
+    videoOffsetMs: game.videoOffsetMs ?? game.metadata?.videoOffsetMs ?? null,
+    videoUrl: pickFirstDefined(game.videoUrl, game.metadata?.videoUrl),
+    lastUpdated: pickFirstDefined(game.lastUpdated, game.metadata?.lastUpdated)
+});
+
 /**
  * Generate Sportscode XML for a complete game suitable for export, embedding lossless metadata on the root element.
  * @param {Object} game - Game data object containing events and metadata
@@ -511,17 +538,7 @@ export const validateXmlStructure = (xmlContent) => {
  */
 export const generateGameXml = (game, gameTitle) => {
     if (!game) return generateSportscodeXml([]);
-    const metadata = {
-        app: 'simple-coding',
-        gameId: game.id || null,
-        teams: game.teams || null,
-        teamCodes: game.teamCodes || null,
-        teamMeta: game.teamMeta || game.metadata?.teamMeta || (Array.isArray(game.teams) ? game.teams : null),
-        elapsedTime: game.elapsedTime !== undefined ? game.elapsedTime : null,
-        timestamp: game.timestamp || game.metadata?.timestamp || null,
-        videoOffsetMs: game.videoOffsetMs ?? game.metadata?.videoOffsetMs ?? null
-    };
-    return generateSportscodeXml(game.events, metadata);
+    return generateSportscodeXml(game.events, extractGameMetadataForExport(game));
 };
 
 const enrichDuplicateEvent = (target, source) => {

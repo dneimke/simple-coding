@@ -13,6 +13,7 @@ import { appendZoneSuffix, stripTrailingZoneDigit, zoneForTeam } from '../utils/
 import { setupMobileMenu } from '../utils/domUtils.js';
 import { PresentationController } from './presentationController.js';
 import { openMatchReport } from '../utils/matchReportGenerator.js';
+import { cloudSyncService } from '../services/cloudSyncService.js';
 
 import {
     validateVideoUrl,
@@ -283,6 +284,18 @@ function updateSaveStatusUI() {
     }
 }
 
+let timelineCloudSyncTimer = null;
+
+function scheduleTimelineCloudSync(gameId) {
+    if (!gameId) return;
+    cloudSyncService.markGameDirty(gameId);
+    if (timelineCloudSyncTimer) clearTimeout(timelineCloudSyncTimer);
+    timelineCloudSyncTimer = setTimeout(() => {
+        timelineCloudSyncTimer = null;
+        cloudSyncService.syncIfConnected().catch(() => {});
+    }, 3000);
+}
+
 // Commit draft game session to persistent storage (prevents saved game spam)
 function commitDraftGame() {
     if (currentDraftGame && currentDraftGame.id === currentGameId) {
@@ -299,6 +312,7 @@ function commitDraftGame() {
         invalidateSavedGamesCache();
         const committed = currentDraftGame;
         currentDraftGame = null;
+        scheduleTimelineCloudSync(committed.id);
         updateSaveStatusUI();
         showNotification('Match saved to Matches');
         return committed;
@@ -381,6 +395,10 @@ function shouldCommitDraftOnExit(draft, activeGameId) {
 function saveAndExit() {
     if (shouldCommitDraftOnExit(currentDraftGame, currentGameId)) {
         commitDraftGame();
+    }
+    if (timelineCloudSyncTimer) {
+        clearTimeout(timelineCloudSyncTimer);
+        timelineCloudSyncTimer = null;
     }
     if (typeof window !== 'undefined') {
         window.location.href = 'index.html#saved-games';
@@ -1869,6 +1887,7 @@ function saveGame(gameId, events, metadata = {}) {
     }
     cachedSavedGamesRaw = gameStorageManager._cachedRaw;
     cachedSavedGamesList = gameStorageManager._cachedGames ? [...gameStorageManager._cachedGames] : null;
+    scheduleTimelineCloudSync(gameId);
     return true;
 }
 
@@ -1908,9 +1927,11 @@ function persistAttachedVideoUrl(game, cleanUrl) {
         existing.videoUrl = cleanUrl;
         if (!existing.metadata) existing.metadata = {};
         existing.metadata.videoUrl = cleanUrl;
+        existing.metadata.lastUpdated = new Date().toISOString();
         savedGames[index] = existing;
         storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
         invalidateSavedGamesCache();
+        scheduleTimelineCloudSync(game.id);
     }
 }
 
@@ -1958,10 +1979,14 @@ function detachVideo() {
         const { game: existing, index } = findGameById(savedGames, game.id);
         if (existing) {
             delete existing.videoUrl;
-            if (existing.metadata) delete existing.metadata.videoUrl;
+            if (existing.metadata) {
+                delete existing.metadata.videoUrl;
+                existing.metadata.lastUpdated = new Date().toISOString();
+            }
             savedGames[index] = existing;
             storageService.setItem(LOCAL_STORAGE_KEY_GAMES, savedGames);
             invalidateSavedGamesCache();
+            scheduleTimelineCloudSync(game.id);
         }
     }
 
