@@ -1160,6 +1160,7 @@ function handleInitialNavigation() {
         showConfigView();
     } else if (!KNOWN_INITIAL_ROUTES.has(hash) && !hash.startsWith('help-')) {
         renderSavedGames();
+        cloudSyncService.syncIfConnected().catch(() => {});
     }
 
     // Initialize mobile menu functionality

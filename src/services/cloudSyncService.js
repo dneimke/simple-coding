@@ -133,6 +133,14 @@ function capReconciledGames(sortedGames, maxGames, dirtyToUpload) {
     return sortedGames.filter((g, idx) => idx < maxGames || dirtyToUpload.has(g.id));
 }
 
+function shouldKeepLocalGameBeforePull(game, deletedSet, dirtySet, previouslySyncedSet, activeRemoteSet) {
+    if (!game || !game.id || deletedSet.has(game.id)) return false;
+    if (activeRemoteSet && previouslySyncedSet.has(game.id) && !activeRemoteSet.has(game.id) && !dirtySet.has(game.id)) {
+        return false;
+    }
+    return true;
+}
+
 /**
  * Pure deterministic reconciliation between local games and remote XML files.
  * Follows docs/feat/cloud-sync/spec.md Reconciliation Authority Matrix.
@@ -143,23 +151,31 @@ function capReconciledGames(sortedGames, maxGames, dirtyToUpload) {
  * @param {Array<string>} [options.dirtyGameIds]
  * @param {Array<string>} [options.deletedGameIds]
  * @param {Object} [options.remoteFileMeta]
+ * @param {Array<string>} [options.activeRemoteIds]
  * @param {number} [options.maxGames]
- * @returns {{ updatedLocalGames: Array<Object>, dirtyGameIdsToUpload: Array<string>, pulledCount: number }}
+ * @returns {{ updatedLocalGames: Array<Object>, dirtyGameIdsToUpload: Array<string>, pulledCount: number, remotelyDeletedCount: number }}
  */
 export function reconcileCloudGames(localGames = [], remoteEntries = [], options = {}) {
     const dirtySet = new Set(options.dirtyGameIds || []);
     const deletedSet = new Set(options.deletedGameIds || []);
     const knownRemoteMeta = options.remoteFileMeta || {};
+    const previouslySyncedSet = new Set(Object.keys(knownRemoteMeta));
+    const activeRemoteSet = Array.isArray(options.activeRemoteIds) ? new Set(options.activeRemoteIds) : null;
     const maxGames = Number(options.maxGames) > 0 ? Number(options.maxGames) : 0;
 
     const localMap = new Map();
+    let remotelyDeletedCount = 0;
+
     (localGames || []).forEach(g => {
-        if (g && g.id && !deletedSet.has(g.id)) {
-            localMap.set(g.id, { ...g });
+        if (!g || !g.id || deletedSet.has(g.id)) return;
+        if (!shouldKeepLocalGameBeforePull(g, deletedSet, dirtySet, previouslySyncedSet, activeRemoteSet)) {
+            remotelyDeletedCount++;
+            return;
         }
+        localMap.set(g.id, { ...g });
     });
 
-    const remoteProcessedIds = new Set(Object.keys(knownRemoteMeta));
+    const remoteProcessedIds = new Set(activeRemoteSet || previouslySyncedSet);
     const dirtyToUpload = new Set();
     let pulledCount = 0;
 
@@ -203,7 +219,7 @@ export function reconcileCloudGames(localGames = [], remoteEntries = [], options
     });
 
     (localGames || []).forEach(g => {
-        if (g && g.id && !deletedSet.has(g.id) && !remoteProcessedIds.has(g.id)) {
+        if (g && g.id && localMap.has(g.id) && !remoteProcessedIds.has(g.id)) {
             dirtyToUpload.add(g.id);
         }
     });
@@ -212,7 +228,8 @@ export function reconcileCloudGames(localGames = [], remoteEntries = [], options
     return {
         updatedLocalGames: capReconciledGames(sorted, maxGames, dirtyToUpload),
         dirtyGameIdsToUpload: Array.from(dirtyToUpload),
-        pulledCount
+        pulledCount,
+        remotelyDeletedCount
     };
 }
 
@@ -254,7 +271,7 @@ function buildMultipartXmlPayload(metadata, xmlContent) {
 
 async function safeParseJson(res) {
     try {
-        return await res.json();
+        return (await res.json()) || {};
     } catch {
         return {};
     }
@@ -264,20 +281,22 @@ async function patchExistingRemoteFile(token, existing, fileName, xmlContent) {
     if (existing.name !== fileName) {
         const { body, boundary } = buildMultipartXmlPayload({ name: fileName }, xmlContent);
         const uploadUrl = `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=multipart&fields=id,name,modifiedTime`;
-        await fetchDriveApi(uploadUrl, {
+        const res = await fetchDriveApi(uploadUrl, {
             method: 'PATCH',
             headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
             body
         }, token);
-        return existing.id;
+        const data = await safeParseJson(res);
+        return { id: existing.id, modifiedTime: data.modifiedTime };
     }
     const uploadUrl = `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=media&fields=id,name,modifiedTime`;
-    await fetchDriveApi(uploadUrl, {
+    const res = await fetchDriveApi(uploadUrl, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/xml; charset=utf-8' },
         body: xmlContent
     }, token);
-    return existing.id;
+    const data = await safeParseJson(res);
+    return { id: existing.id, modifiedTime: data.modifiedTime };
 }
 
 async function uploadGameFile(token, folderId, game, existingRemoteFiles = []) {
@@ -301,7 +320,7 @@ async function uploadGameFile(token, folderId, game, existingRemoteFiles = []) {
     }, token);
 
     const data = await safeParseJson(res);
-    return data.id;
+    return { id: data.id, modifiedTime: data.modifiedTime };
 }
 
 function shouldDownloadRemoteFile(file, localIds, deletedSet, remoteFileMeta) {
@@ -376,13 +395,13 @@ async function trashDeletedGamesOnDrive(token, remoteFiles, deletedIds = [], rem
 
 async function uploadSingleDirtyGame(token, folderId, gameToUpload, remoteFiles, remaining, updatedMeta) {
     try {
-        const fileId = await uploadGameFile(token, folderId, gameToUpload, remoteFiles);
+        const uploaded = await uploadGameFile(token, folderId, gameToUpload, remoteFiles);
         remaining.delete(gameToUpload.id);
-        if (fileId) {
+        if (uploaded && uploaded.id) {
             updatedMeta[gameToUpload.id] = {
-                fileId,
+                fileId: uploaded.id,
                 name: buildRemoteFileName(gameToUpload),
-                modifiedTime: new Date().toISOString()
+                modifiedTime: uploaded.modifiedTime || new Date().toISOString()
             };
         }
     } catch (uploadErr) {
@@ -449,6 +468,17 @@ function deriveConnectedFlag(stored) {
     if (!stored) return false;
     if (stored.connected !== undefined) return Boolean(stored.connected);
     return Boolean(stored.lastSyncedAt || stored.folderId);
+}
+
+function buildActiveRemoteMetaMap(activeRemoteFiles) {
+    const activeMeta = {};
+    activeRemoteFiles.forEach(f => {
+        const gId = extractGameIdFromRemoteFileName(f.name);
+        if (gId) {
+            activeMeta[gId] = { fileId: f.id, name: f.name, modifiedTime: f.modifiedTime };
+        }
+    });
+    return activeMeta;
 }
 
 export class CloudSyncService {
@@ -693,6 +723,8 @@ export class CloudSyncService {
 
             const deletedSet = new Set(config.deletedGameIds);
             const activeRemoteFiles = remoteFiles.filter(f => !deletedSet.has(extractGameIdFromRemoteFileName(f.name)));
+            const activeRemoteMeta = buildActiveRemoteMetaMap(activeRemoteFiles);
+            const activeRemoteIds = Object.keys(activeRemoteMeta);
 
             const localGames = gameStorageManager.getAllGames();
             const remoteEntries = await fetchRemoteEntries(token, activeRemoteFiles, {
@@ -701,18 +733,11 @@ export class CloudSyncService {
                 remoteFileMeta: metaAfterTrash
             });
 
-            const reconciledMeta = { ...metaAfterTrash };
-            activeRemoteFiles.forEach(f => {
-                const gId = extractGameIdFromRemoteFileName(f.name);
-                if (gId) {
-                    reconciledMeta[gId] = { fileId: f.id, name: f.name, modifiedTime: f.modifiedTime };
-                }
-            });
-
-            const { updatedLocalGames, dirtyGameIdsToUpload, pulledCount } = reconcileCloudGames(localGames, remoteEntries, {
+            const { updatedLocalGames, dirtyGameIdsToUpload, pulledCount, remotelyDeletedCount } = reconcileCloudGames(localGames, remoteEntries, {
                 dirtyGameIds: config.dirtyGameIds,
                 deletedGameIds: config.deletedGameIds,
-                remoteFileMeta: reconciledMeta,
+                remoteFileMeta: metaAfterTrash,
+                activeRemoteIds,
                 maxGames: gameStorageManager.MAX_GAMES || 20
             });
 
@@ -727,7 +752,7 @@ export class CloudSyncService {
                 updatedLocalGames,
                 activeRemoteFiles,
                 dirtyGameIdsToUpload,
-                reconciledMeta
+                activeRemoteMeta
             );
 
             this.saveConfig({
@@ -738,7 +763,8 @@ export class CloudSyncService {
             });
 
             const uploadedCount = dirtyGameIdsToUpload.length - remainingDirtyIds.length;
-            const deletedCount = config.deletedGameIds.length - remainingDeletedIds.length;
+            const localTrashCount = config.deletedGameIds.length - remainingDeletedIds.length;
+            const deletedCount = localTrashCount + (remotelyDeletedCount || 0);
             this._syncing = false;
             this._notifyListeners('success');
             return { success: true, pulledCount, uploadedCount, deletedCount };
