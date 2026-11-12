@@ -29,37 +29,75 @@ export function formatLastSyncedTime(isoString) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function updateStatusDotAndText(elements, isConnected) {
+function getBannerClass(isConnected, isSyncing) {
+    if (isSyncing) return 'banner banner-info mb-4';
+    return isConnected ? 'banner banner-success mb-4' : 'banner banner-info mb-4';
+}
+
+function getStatusHtml(isConnected, isSyncing, isJustSynced) {
+    if (isSyncing) {
+        return '<i class="fas fa-rotate fa-spin mr-1.5" aria-hidden="true"></i>Syncing with Google Drive...';
+    }
+    if (isJustSynced) {
+        return '<i class="fas fa-check-circle mr-1.5" aria-hidden="true"></i>Sync Complete';
+    }
+    return isConnected ? 'Connected to Google Drive' : 'Not Connected';
+}
+
+function updateStatusDotAndText(elements, isConnected, isSyncing, isJustSynced) {
     if (elements.statusBanner) {
-        elements.statusBanner.className = isConnected
-            ? 'banner banner-success mb-4'
-            : 'banner banner-info mb-4';
+        elements.statusBanner.className = getBannerClass(isConnected || isJustSynced, isSyncing);
     }
     if (elements.statusText) {
-        elements.statusText.textContent = isConnected
-            ? 'Connected to Google Drive'
-            : 'Not Connected';
+        elements.statusText.innerHTML = getStatusHtml(isConnected, isSyncing, isJustSynced);
     }
 }
 
-function updateSyncActivityView(elements, isSyncing, lastSyncedAt) {
+function getLastSyncedDisplay(isSyncing, isJustSynced, lastSyncedAt) {
+    if (isSyncing) return 'Syncing matches...';
+    if (isJustSynced) return 'Matches are up to date (just now)';
+    return `Last synced: ${formatLastSyncedTime(lastSyncedAt)}`;
+}
+
+function getHeaderSyncIconClass(isSyncing, isJustSynced) {
+    if (isSyncing) return 'fas fa-rotate fa-spin text-xs';
+    if (isJustSynced) return 'fas fa-check text-xs text-emerald-500';
+    return 'fas fa-cloud text-xs';
+}
+
+function getHeaderSyncLabel(isSyncing, isJustSynced) {
+    if (isSyncing) return 'Syncing...';
+    if (isJustSynced) return '✓ Synced';
+    return 'Cloud Sync';
+}
+
+function updateSyncActivityView(elements, isSyncing, lastSyncedAt, isJustSynced) {
     if (elements.lastSyncedText) {
-        elements.lastSyncedText.textContent = isSyncing
-            ? 'Syncing matches...'
-            : `Last synced: ${formatLastSyncedTime(lastSyncedAt)}`;
+        elements.lastSyncedText.textContent = getLastSyncedDisplay(isSyncing, isJustSynced, lastSyncedAt);
     }
     if (elements.cloudSyncButtonLabel) {
-        elements.cloudSyncButtonLabel.textContent = isSyncing ? 'Syncing...' : 'Cloud Sync';
+        elements.cloudSyncButtonLabel.textContent = getHeaderSyncLabel(isSyncing, isJustSynced);
     }
     if (elements.cloudSyncIcon) {
-        elements.cloudSyncIcon.classList.toggle('fa-spin', isSyncing);
+        elements.cloudSyncIcon.className = getHeaderSyncIconClass(isSyncing, isJustSynced);
     }
 }
 
-function updateControlButtons(elements, isConnected, isSyncing) {
+function getSyncNowButtonContent(isSyncing, isJustSynced) {
+    if (isSyncing) {
+        return '<i class="fas fa-rotate fa-spin mr-1.5 text-xs" aria-hidden="true"></i>Syncing...';
+    }
+    if (isJustSynced) {
+        return '<i class="fas fa-check mr-1.5 text-xs text-emerald-400" aria-hidden="true"></i>Synced';
+    }
+    return '<i class="fas fa-rotate mr-1.5 text-xs" aria-hidden="true"></i>Sync Now';
+}
+
+function updateControlButtons(elements, isConnected, isSyncing, isJustSynced) {
     if (elements.connectButton) {
         elements.connectButton.classList.toggle('hidden', isConnected);
         elements.connectButton.disabled = isSyncing;
+        if (!isSyncing) elements.connectButton.textContent = 'Connect Google Drive';
     }
     if (elements.disconnectButton) {
         elements.disconnectButton.classList.toggle('hidden', !isConnected);
@@ -67,22 +105,134 @@ function updateControlButtons(elements, isConnected, isSyncing) {
     }
     if (elements.syncNowButton) {
         elements.syncNowButton.classList.toggle('hidden', !isConnected);
-        elements.syncNowButton.disabled = isSyncing;
+        elements.syncNowButton.disabled = isSyncing || isJustSynced;
+        elements.syncNowButton.innerHTML = getSyncNowButtonContent(isSyncing, isJustSynced);
     }
 }
 
-function updateSyncStatusView(elements, state, config) {
+function updateSyncStatusView(elements, state, config, isJustSynced = false) {
     const isConnected = Boolean(state?.isConnected ?? cloudSyncService.isConnected());
     const isSyncing = Boolean(state?.isSyncing ?? cloudSyncService.isSyncing());
     const lastSyncedAt = state?.lastSyncedAt ?? config.lastSyncedAt;
 
-    updateStatusDotAndText(elements, isConnected);
-    updateSyncActivityView(elements, isSyncing, lastSyncedAt);
-    updateControlButtons(elements, isConnected, isSyncing);
+    updateStatusDotAndText(elements, isConnected, isSyncing, isJustSynced);
+    updateSyncActivityView(elements, isSyncing, lastSyncedAt, isJustSynced);
+    updateControlButtons(elements, isConnected, isSyncing, isJustSynced);
 
     if (elements.clientIdInput && !elements.clientIdInput.value && config.clientId) {
         elements.clientIdInput.value = config.clientId;
     }
+}
+
+function queryCloudSyncElements(doc = document) {
+    return {
+        cloudSyncButton: doc.getElementById('cloudSyncButton'),
+        cloudSyncIcon: doc.getElementById('cloudSyncIcon'),
+        cloudSyncButtonLabel: doc.getElementById('cloudSyncButtonLabel'),
+        cloudSyncModal: doc.getElementById('cloudSyncModal'),
+        closeModalButton: doc.getElementById('closeCloudSyncModalButton'),
+        cancelModalButton: doc.getElementById('cloudSyncCancelButton'),
+        statusBanner: doc.getElementById('cloudSyncStatusBanner'),
+        statusDot: doc.getElementById('cloudSyncStatusDot'),
+        statusText: doc.getElementById('cloudSyncStatusText'),
+        lastSyncedText: doc.getElementById('cloudSyncLastSyncedText'),
+        clientIdInput: doc.getElementById('cloudSyncClientIdInput'),
+        connectButton: doc.getElementById('cloudSyncConnectButton'),
+        syncNowButton: doc.getElementById('cloudSyncNowButton'),
+        disconnectButton: doc.getElementById('cloudSyncDisconnectButton')
+    };
+}
+
+function bindCloudSyncEvents(elements, handlers) {
+    elements.cloudSyncButton?.addEventListener('click', handlers.openModal);
+    elements.closeModalButton?.addEventListener('click', handlers.closeModal);
+    elements.cancelModalButton?.addEventListener('click', handlers.closeModal);
+    elements.connectButton?.addEventListener('click', handlers.handleConnect);
+    elements.syncNowButton?.addEventListener('click', handlers.handleSyncNow);
+    elements.disconnectButton?.addEventListener('click', handlers.handleDisconnect);
+}
+
+function unbindCloudSyncEvents(elements, handlers) {
+    elements.cloudSyncButton?.removeEventListener('click', handlers.openModal);
+    elements.closeModalButton?.removeEventListener('click', handlers.closeModal);
+    elements.cancelModalButton?.removeEventListener('click', handlers.closeModal);
+    elements.connectButton?.removeEventListener('click', handlers.handleConnect);
+    elements.syncNowButton?.removeEventListener('click', handlers.handleSyncNow);
+    elements.disconnectButton?.removeEventListener('click', handlers.handleDisconnect);
+}
+
+/**
+ * Initializes Cloud Sync UI elements and binds lifecycle hooks.
+ * @param {Object} [options]
+ * @returns {Function} Unsubscribe and cleanup function
+ */
+function createSyncHandlers(elements, onSyncCompleted, triggerJustSynced, render) {
+    return {
+        openModal: () => {
+            if (elements.cloudSyncModal) {
+                elements.cloudSyncModal.classList.remove('hidden');
+                const config = cloudSyncService.getConfig();
+                if (elements.clientIdInput && !elements.clientIdInput.value) {
+                    elements.clientIdInput.value = config.clientId || '';
+                }
+            }
+        },
+        closeModal: () => {
+            if (elements.cloudSyncModal) elements.cloudSyncModal.classList.add('hidden');
+        },
+        handleConnect: async () => {
+            const rawClientId = elements.clientIdInput?.value?.trim() || '';
+            if (!rawClientId) {
+                notificationService.notify('Please enter your Google Client ID to connect.', 'warn');
+                return;
+            }
+            try {
+                if (elements.connectButton) {
+                    elements.connectButton.disabled = true;
+                    elements.connectButton.innerHTML = '<i class="fas fa-rotate fa-spin mr-1.5" aria-hidden="true"></i>Connecting...';
+                }
+                cloudSyncService.saveConfig({ clientId: rawClientId });
+                await cloudSyncService.requestToken(rawClientId);
+                notificationService.notify('Connected to Google Drive! Syncing matches...', 'success');
+                const result = await cloudSyncService.syncNow();
+                triggerJustSynced();
+                onSyncCompleted(result);
+            } catch (error) {
+                logger.error('Failed to connect Google Drive:', error);
+                notificationService.notify(`Failed to connect Google Drive: ${error.message}`, 'error');
+                render();
+            }
+        },
+        handleSyncNow: async () => {
+            try {
+                const result = await cloudSyncService.syncNow();
+                if (result && result.success !== false && !result.error) {
+                    triggerJustSynced();
+                    const hasCounts = (result.pulledCount > 0 || result.uploadedCount > 0);
+                    const detailMsg = hasCounts
+                        ? `✓ Matches synced with Google Drive (${result.pulledCount} pulled, ${result.uploadedCount || 0} uploaded).`
+                        : '✓ Matches synced with Google Drive. Everything is up to date.';
+                    notificationService.notify(detailMsg, 'success');
+                    onSyncCompleted(result);
+                } else if (result?.reason === 'offline') {
+                    notificationService.notify('Cannot sync while offline. Changes saved locally.', 'warn');
+                }
+            } catch (error) {
+                logger.error('Sync failed:', error);
+                notificationService.notify(`Cloud sync failed: ${error.message}`, 'error');
+                render();
+            }
+        },
+        handleDisconnect: () => {
+            const confirmed = notificationService.confirm(
+                'Disconnect Google Drive sync? Your local matches will remain safe.'
+            );
+            if (!confirmed) return;
+            cloudSyncService.clearConfig();
+            if (elements.clientIdInput) elements.clientIdInput.value = '';
+            notificationService.notify('Disconnected from Google Drive.', 'info');
+        }
+    };
 }
 
 /**
@@ -92,98 +242,37 @@ function updateSyncStatusView(elements, state, config) {
  */
 export function initCloudSyncController(options = {}) {
     const onSyncCompleted = options.onSyncCompleted || (() => {});
+    let justSyncedTimer = null;
+    let isJustSynced = false;
 
-    const elements = {
-        cloudSyncButton: document.getElementById('cloudSyncButton'),
-        cloudSyncIcon: document.getElementById('cloudSyncIcon'),
-        cloudSyncButtonLabel: document.getElementById('cloudSyncButtonLabel'),
-        cloudSyncModal: document.getElementById('cloudSyncModal'),
-        closeModalButton: document.getElementById('closeCloudSyncModalButton'),
-        cancelModalButton: document.getElementById('cloudSyncCancelButton'),
-        statusBanner: document.getElementById('cloudSyncStatusBanner'),
-        statusDot: document.getElementById('cloudSyncStatusDot'),
-        statusText: document.getElementById('cloudSyncStatusText'),
-        lastSyncedText: document.getElementById('cloudSyncLastSyncedText'),
-        clientIdInput: document.getElementById('cloudSyncClientIdInput'),
-        connectButton: document.getElementById('cloudSyncConnectButton'),
-        syncNowButton: document.getElementById('cloudSyncNowButton'),
-        disconnectButton: document.getElementById('cloudSyncDisconnectButton')
-    };
+    const elements = queryCloudSyncElements(document);
 
     const render = (state) => {
         const config = cloudSyncService.getConfig();
-        updateSyncStatusView(elements, state, config);
+        updateSyncStatusView(elements, state, config, isJustSynced);
     };
 
-    const openModal = () => {
-        if (elements.cloudSyncModal) {
-            elements.cloudSyncModal.classList.remove('hidden');
-            const config = cloudSyncService.getConfig();
-            if (elements.clientIdInput && !elements.clientIdInput.value) {
-                elements.clientIdInput.value = config.clientId || '';
-            }
+    const triggerJustSynced = () => {
+        isJustSynced = true;
+        if (justSyncedTimer) clearTimeout(justSyncedTimer);
+        render();
+        justSyncedTimer = setTimeout(() => {
+            isJustSynced = false;
+            render();
+        }, 2500);
+    };
+
+    const handlers = createSyncHandlers(elements, onSyncCompleted, triggerJustSynced, render);
+    bindCloudSyncEvents(elements, handlers);
+
+    const unsubscribeCloudSync = cloudSyncService.subscribe((state) => {
+        if (state?.status === 'success') {
+            triggerJustSynced();
+        } else {
+            render(state);
         }
-    };
+    });
 
-    const closeModal = () => {
-        if (elements.cloudSyncModal) {
-            elements.cloudSyncModal.classList.add('hidden');
-        }
-    };
-
-    const handleConnect = async () => {
-        const rawClientId = elements.clientIdInput?.value?.trim() || '';
-        if (!rawClientId) {
-            notificationService.notify('Please enter your Google Client ID to connect.', 'warn');
-            return;
-        }
-
-        try {
-            cloudSyncService.saveConfig({ clientId: rawClientId });
-            await cloudSyncService.requestToken(rawClientId);
-            notificationService.notify('Connected to Google Drive! Syncing matches...', 'success');
-            const result = await cloudSyncService.syncNow();
-            onSyncCompleted(result);
-        } catch (error) {
-            logger.error('Failed to connect Google Drive:', error);
-            notificationService.notify(`Failed to connect Google Drive: ${error.message}`, 'error');
-        }
-    };
-
-    const handleSyncNow = async () => {
-        try {
-            const result = await cloudSyncService.syncNow();
-            notificationService.notify('Matches synced with Google Drive.', 'success');
-            onSyncCompleted(result);
-        } catch (error) {
-            logger.error('Sync failed:', error);
-            notificationService.notify(`Cloud sync failed: ${error.message}`, 'error');
-        }
-    };
-
-    const handleDisconnect = () => {
-        const confirmed = notificationService.confirm(
-            'Disconnect Google Drive sync? Your local matches will remain safe.'
-        );
-        if (!confirmed) return;
-
-        cloudSyncService.clearConfig();
-        if (elements.clientIdInput) elements.clientIdInput.value = '';
-        notificationService.notify('Disconnected from Google Drive.', 'info');
-    };
-
-    // DOM event listeners
-    elements.cloudSyncButton?.addEventListener('click', openModal);
-    elements.closeModalButton?.addEventListener('click', closeModal);
-    elements.cancelModalButton?.addEventListener('click', closeModal);
-    elements.connectButton?.addEventListener('click', handleConnect);
-    elements.syncNowButton?.addEventListener('click', handleSyncNow);
-    elements.disconnectButton?.addEventListener('click', handleDisconnect);
-
-    // Subscribe to cloud sync service updates
-    const unsubscribeCloudSync = cloudSyncService.subscribe(render);
-
-    // Subscribe to storage changes to mark games dirty and auto-sync
     const unsubscribeGameChanges = gameStorageManager.addChangeListener(({ gameId, action }) => {
         if (action === 'save' || action === 'upsert' || action === 'update') {
             cloudSyncService.markGameDirty(gameId);
@@ -195,16 +284,11 @@ export function initCloudSyncController(options = {}) {
         }
     });
 
-    // Initial render
     render();
 
     return () => {
-        elements.cloudSyncButton?.removeEventListener('click', openModal);
-        elements.closeModalButton?.removeEventListener('click', closeModal);
-        elements.cancelModalButton?.removeEventListener('click', closeModal);
-        elements.connectButton?.removeEventListener('click', handleConnect);
-        elements.syncNowButton?.removeEventListener('click', handleSyncNow);
-        elements.disconnectButton?.removeEventListener('click', handleDisconnect);
+        if (justSyncedTimer) clearTimeout(justSyncedTimer);
+        unbindCloudSyncEvents(elements, handlers);
         unsubscribeCloudSync();
         unsubscribeGameChanges();
     };

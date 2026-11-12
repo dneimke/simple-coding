@@ -190,5 +190,35 @@ describe('CloudSyncController', () => {
         expect(elements.cloudSyncButtonLabel.textContent).toBe('Syncing...');
         expect(elements.cloudSyncIcon.classList.contains('fa-spin')).toBe(true);
         expect(elements.lastSyncedText.textContent).toBe('Syncing matches...');
+        expect(elements.syncNowButton.disabled).toBe(true);
+        expect(elements.syncNowButton.textContent).toBe('Syncing...');
+    });
+
+    test('shows completed confirmation state when sync succeeds', () => {
+        jest.useFakeTimers();
+        initCloudSyncController();
+
+        cloudSyncService._emit({
+            isConnected: true,
+            isSyncing: false,
+            lastSyncedAt: new Date().toISOString(),
+            status: 'success'
+        });
+
+        expect(elements.cloudSyncButtonLabel.textContent).toBe('✓ Synced');
+        expect(elements.statusText.textContent).toBe('Sync Complete');
+        expect(elements.lastSyncedText.textContent).toBe('Matches are up to date (just now)');
+        expect(elements.syncNowButton.textContent).toBe('Synced');
+        expect(elements.syncNowButton.disabled).toBe(true);
+
+        // After 2.5 seconds, resets to idle connected state
+        jest.advanceTimersByTime(2500);
+
+        expect(elements.cloudSyncButtonLabel.textContent).toBe('Cloud Sync');
+        expect(elements.syncNowButton.textContent).toBe('Sync Now');
+        expect(elements.syncNowButton.disabled).toBe(false);
+
+        jest.useRealTimers();
     });
 });
+

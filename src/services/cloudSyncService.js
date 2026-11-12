@@ -434,9 +434,10 @@ export class CloudSyncService {
                 lastSyncedAt: new Date().toISOString()
             });
 
+            const uploadedCount = combinedDirty.length - nextDirty.length;
             this._syncing = false;
             this._notifyListeners('success');
-            return { success: true, pulledCount: remoteEntries.length };
+            return { success: true, pulledCount: remoteEntries.length, uploadedCount };
         } catch (error) {
             logger.error('Cloud sync error:', error);
             this._syncing = false;
