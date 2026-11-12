@@ -32,6 +32,42 @@ const FAVORITE_GROUPS = new Set(['favorite', 'favourite', 'starred', 'fav']);
 
 const formatSeconds = (seconds) => seconds.toFixed(2);
 
+function formatTeamMeta(teamMeta) {
+    if (!teamMeta) return null;
+    try {
+        return typeof teamMeta === 'string' ? teamMeta : JSON.stringify(teamMeta);
+    } catch {
+        return null;
+    }
+}
+
+function formatTeamCodes(codes) {
+    if (Array.isArray(codes) && codes.length > 0) return codes.join(',');
+    if (typeof codes === 'string' && codes.trim()) return codes.trim();
+    return null;
+}
+
+const METADATA_ATTR_MAPPERS = [
+    ['app', m => m.app],
+    ['game_id', m => m.gameId],
+    ['teams', m => m.teams],
+    ['team_codes', m => formatTeamCodes(m.teamCodes)],
+    ['team_meta', m => formatTeamMeta(m.teamMeta)],
+    ['elapsed_time', m => (Number.isFinite(Number(m.elapsedTime)) && m.elapsedTime !== null ? String(Number(m.elapsedTime)) : null)],
+    ['timestamp', m => m.timestamp],
+    ['video_offset', m => (Number.isFinite(Number(m.videoOffsetMs)) && m.videoOffsetMs !== null ? String(Number(m.videoOffsetMs)) : null)]
+];
+
+const formatFileOpeningTag = (metadata) => {
+    if (!metadata || typeof metadata !== 'object') return '<file>';
+    const attrs = [];
+    for (const [attrName, extractor] of METADATA_ATTR_MAPPERS) {
+        const val = extractor(metadata);
+        if (val) attrs.push(`${attrName}="${escapeXml(val)}"`);
+    }
+    return attrs.length > 0 ? `<file ${attrs.join(' ')}>` : '<file>';
+};
+
 /**
  * Builds a complete Sportscode XML document from event data.
  * Each event becomes an instance with a clip window around the event time,
@@ -40,9 +76,10 @@ const formatSeconds = (seconds) => seconds.toFixed(2);
  * otherwise CLIP_LEAD_SECONDS and CLIP_LAG_SECONDS.
  * Event labels and derived origin labels (Counter vs Build-Up) are emitted as <label> tags.
  * @param {Array} events - Array of event objects ({ event, timeMs, lead?, lag?, labels? })
+ * @param {Object} [metadata=null] - Optional game-level metadata serialized as root <file> attributes
  * @returns {string} Sportscode XML document
  */
-export const generateSportscodeXml = (events) => {
+export const generateSportscodeXml = (events, metadata = null) => {
     const validEvents = (Array.isArray(events) ? events : []).filter(isValidEvent);
     const rowIds = new Map();
 
@@ -115,7 +152,7 @@ export const generateSportscodeXml = (events) => {
 
     return [
         '<?xml version="1.0" encoding="utf-8"?>',
-        '<file>',
+        formatFileOpeningTag(metadata),
         section('ALL_INSTANCES', instances),
         section('ROWS', rows),
         '</file>'
@@ -254,6 +291,56 @@ const instanceToEvent = (code, start, end, labels) => {
     return evt;
 };
 
+const extractGameMetadataFromXmlDoc = (xmlDoc) => {
+    const root = xmlDoc?.documentElement;
+    if (!root) return {};
+
+    const getAttr = (...names) => {
+        for (const name of names) {
+            const val = root.getAttribute(name);
+            if (val !== null && val !== undefined && val !== '') return val;
+        }
+        return null;
+    };
+
+    const gameId = getAttr('game_id', 'gameId');
+    const teams = getAttr('teams');
+    const teamCodesStr = getAttr('team_codes', 'teamCodes');
+    const teamCodes = teamCodesStr ? teamCodesStr.split(',').map(s => s.trim()).filter(Boolean) : null;
+
+    let teamMeta = null;
+    const teamMetaStr = getAttr('team_meta', 'teamMeta');
+    if (teamMetaStr) {
+        try {
+            teamMeta = JSON.parse(teamMetaStr);
+        } catch {
+            teamMeta = null;
+        }
+    }
+
+    const elapsedTimeStr = getAttr('elapsed_time', 'elapsedTime');
+    const elapsedTime = elapsedTimeStr !== null && !isNaN(Number(elapsedTimeStr)) ? Number(elapsedTimeStr) : null;
+
+    const timestamp = getAttr('timestamp');
+
+    const videoOffsetStr = getAttr('video_offset', 'videoOffset');
+    const videoOffsetMs = videoOffsetStr !== null && !isNaN(Number(videoOffsetStr)) ? Number(videoOffsetStr) : null;
+
+    // Check legacy <game teams="..."> format
+    const legacyGame = xmlDoc.querySelector('game');
+    const legacyTeams = legacyGame?.getAttribute('teams') || null;
+
+    return {
+        gameId,
+        teams: teams || legacyTeams,
+        teamCodes,
+        teamMeta,
+        elapsedTime,
+        timestamp,
+        videoOffsetMs
+    };
+};
+
 /**
  * Parses XML content to extract event data
  * @param {string} xmlContent - XML content to parse
@@ -264,56 +351,55 @@ export const parseXmlToEvents = (xmlContent) => {
     const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
 
     const instancesElement = getSportscodeInstancesElement(xmlDoc);
+    let events = [];
+
     if (instancesElement) {
-        return childElements(instancesElement, 'instance')
+        events = childElements(instancesElement, 'instance')
             .map(readSportscodeInstance)
             .filter(({ code, start, end }) => code && isFinite(start) && isFinite(end))
             .map(({ code, start, end, labels }) => instanceToEvent(code, start, end, labels));
-    }
-
-    // Legacy custom export format: <game teams=".."><events><event event=".." timeMs=".." /></events></game>
-    let teamsAttribute = null;
-    const gameElement = xmlDoc.querySelector('game');
-    if (gameElement && gameElement.hasAttribute('teams')) {
-        teamsAttribute = gameElement.getAttribute('teams');
-    }
-
-    let events = [];
-
-    const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
-
-    if (eventNodes.length > 0) {
-        events = eventNodes.map(node => {
-            const eventName = node.getAttribute('event');
-            const timeMs = node.getAttribute('timeMs');
-            const favouriteAttr = node.getAttribute('favourite');
-            if (eventName && timeMs) {
-                const eventObj = {
-                    event: eventName,
-                    timeMs: parseInt(timeMs, 10)
-                };
-                if (favouriteAttr === 'true') {
-                    eventObj.favourite = true;
-                }
-                return eventObj;
-            }
-            return null;
-        }).filter(Boolean);
     } else {
-        // Loose <instance> elements without a <file> root
-        const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
+        // Legacy custom export format: <game teams=".."><events><event event=".." timeMs=".." /></events></game>
+        const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
 
-        events = instanceNodes.map(node => {
-            const parsed = readSportscodeInstance(node);
-            if (parsed.code && isFinite(parsed.start) && isFinite(parsed.end)) {
-                return instanceToEvent(parsed.code, parsed.start, parsed.end, parsed.labels);
-            }
-            return null;
-        }).filter(Boolean);
+        if (eventNodes.length > 0) {
+            events = eventNodes.map(node => {
+                const eventName = node.getAttribute('event');
+                const timeMs = node.getAttribute('timeMs');
+                const favouriteAttr = node.getAttribute('favourite');
+                if (eventName && timeMs) {
+                    const eventObj = {
+                        event: eventName,
+                        timeMs: parseInt(timeMs, 10)
+                    };
+                    if (favouriteAttr === 'true') {
+                        eventObj.favourite = true;
+                    }
+                    return eventObj;
+                }
+                return null;
+            }).filter(Boolean);
+        } else {
+            // Loose <instance> elements without a <file> root
+            const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
+
+            events = instanceNodes.map(node => {
+                const parsed = readSportscodeInstance(node);
+                if (parsed.code && isFinite(parsed.start) && isFinite(parsed.end)) {
+                    return instanceToEvent(parsed.code, parsed.start, parsed.end, parsed.labels);
+                }
+                return null;
+            }).filter(Boolean);
+        }
     }
 
-    if (teamsAttribute) {
-        events.teamsAttribute = teamsAttribute;
+    const gameMetadata = extractGameMetadataFromXmlDoc(xmlDoc);
+    const hasAnyMeta = Object.values(gameMetadata).some(v => v !== null && v !== undefined);
+    if (hasAnyMeta) {
+        events.gameMetadata = gameMetadata;
+        if (gameMetadata.teams) {
+            events.teamsAttribute = gameMetadata.teams;
+        }
     }
 
     return events;
@@ -418,13 +504,25 @@ export const validateXmlStructure = (xmlContent) => {
 };
 
 /**
- * Generate Sportscode XML for a complete game suitable for export.
- * Game-level metadata (teams, date) and favourites are not part of the Sportscode format.
- * @param {Object} game - Game data object containing events
+ * Generate Sportscode XML for a complete game suitable for export, embedding lossless metadata on the root element.
+ * @param {Object} game - Game data object containing events and metadata
  * @param {string|number} [gameTitle] - Display name or index of the game (unused)
  * @returns {string} Sportscode XML document for the game
  */
-export const generateGameXml = (game, gameTitle) => generateSportscodeXml(game?.events);
+export const generateGameXml = (game, gameTitle) => {
+    if (!game) return generateSportscodeXml([]);
+    const metadata = {
+        app: 'simple-coding',
+        gameId: game.id || null,
+        teams: game.teams || null,
+        teamCodes: game.teamCodes || null,
+        teamMeta: game.teamMeta || game.metadata?.teamMeta || (Array.isArray(game.teams) ? game.teams : null),
+        elapsedTime: game.elapsedTime !== undefined ? game.elapsedTime : null,
+        timestamp: game.timestamp || game.metadata?.timestamp || null,
+        videoOffsetMs: game.videoOffsetMs ?? game.metadata?.videoOffsetMs ?? null
+    };
+    return generateSportscodeXml(game.events, metadata);
+};
 
 const enrichDuplicateEvent = (target, source) => {
     if (!target.note && source.note) {

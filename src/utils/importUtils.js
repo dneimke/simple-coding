@@ -5,6 +5,7 @@ import { storageService } from '../services/storageService.js';
 import { checkStorageQuota } from './storageWarningUtils.js';
 import { logger, formatTime, escapeXml } from './formatUtils.js';
 import { mergeXmlEventStreams } from './xmlUtils.js';
+import { saveLastTeams, validateTeams, normalizeTeams } from '../components/teamSetupDialog.js';
 
 function findGameIndex(games, idOrIndex) {
     if (typeof idOrIndex === 'number') return idOrIndex;
@@ -49,6 +50,50 @@ export function appendEventsToGame(idOrIndex, newEvents, options = {}) {
     }
 }
 
+function resolveImportTeams(meta, fallbackTeamsAttr) {
+    const known = meta.teams || (fallbackTeamsAttr ? fallbackTeamsAttr.trim() : null);
+    if (known) return known;
+    const prompted = notificationService.prompt(
+        'Enter teams for this game (e.g., "Team A vs Team B"):',
+        ''
+    );
+    return prompted ? prompted.trim() : null;
+}
+
+function resolveImportElapsedTime(meta, parsedEvents) {
+    const maxTimeMs = parsedEvents.reduce((max, event) => Math.max(max, event.timeMs || 0), 0);
+    return meta.elapsedTime !== null && meta.elapsedTime !== undefined
+        ? Math.max(meta.elapsedTime, maxTimeMs)
+        : maxTimeMs;
+}
+
+function buildImportGameData(parsedEvents, teamsAttribute) {
+    const meta = parsedEvents?.gameMetadata || {};
+    const teamsName = resolveImportTeams(meta, teamsAttribute);
+    const elapsedTime = resolveImportElapsedTime(meta, parsedEvents);
+
+    const gameData = {
+        events: parsedEvents,
+        elapsedTime,
+        timestamp: meta.timestamp || new Date().toISOString(),
+        teams: teamsName
+    };
+
+    if (meta.gameId) gameData.id = meta.gameId;
+    if (meta.teamCodes) gameData.teamCodes = meta.teamCodes;
+    if (meta.teamMeta) {
+        gameData.teamMeta = meta.teamMeta;
+        if (validateTeams(normalizeTeams(meta.teamMeta)) === null) {
+            saveLastTeams(meta.teamMeta);
+        }
+    }
+    if (meta.videoOffsetMs !== null && meta.videoOffsetMs !== undefined) {
+        gameData.videoOffsetMs = meta.videoOffsetMs;
+    }
+
+    return gameData;
+}
+
 const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = null, callback = null) => {
     const confirmButton = document.getElementById('confirmImportButton');
     const cancelButton = document.getElementById('cancelImportButton');
@@ -69,27 +114,14 @@ const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = null, cal
 
     if (confirmButton) {
         confirmButton.onclick = () => {
-            const teamsName = notificationService.prompt(
-                'Enter teams for this game (e.g., "Team A vs Team B"):',
-                teamsAttribute || ''
-            );
-            const maxTimeMs = parsedEvents.reduce((max, event) => Math.max(max, event.timeMs || 0), 0);
-
             try {
-                const gameData = {
-                    events: parsedEvents,
-                    elapsedTime: maxTimeMs,
-                    timestamp: new Date().toISOString(),
-                    teams: teamsName ? teamsName.trim() : null
-                };
-
+                const gameData = buildImportGameData(parsedEvents, teamsAttribute);
                 const result = gameStorageManager.saveGame(gameData);
 
                 if (result !== true) {
-                    const errorMsg = result.message || 'Unknown error';
+                    const errorMsg = (result && result.message) || 'Unknown error';
                     logger.error('Failed to import game:', errorMsg);
                     notificationService.notify(`Failed to import game: ${errorMsg}`, 'error');
-
                     document.getElementById('previewModal').classList.add('hidden');
                     resetModalChrome();
                     if (callback) callback({ importedFileCount: 0 });
@@ -100,7 +132,6 @@ const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = null, cal
             } catch (error) {
                 logger.error('Error importing game:', error);
                 notificationService.notify(`Error importing game: ${error.message}`, 'error');
-
                 document.getElementById('previewModal').classList.add('hidden');
                 resetModalChrome();
                 if (callback) callback({ importedFileCount: 0 });
@@ -132,7 +163,16 @@ const setupImportButtons = (parsedEvents, storageKey, teamsAttribute = null, cal
  * @param {Function} [callback=null] - Optional callback function
  */
 export const showPreview = (previewContainer, events, storageKey, callback = null) => {
-    const teamsAttribute = events.teamsAttribute || null;
+    const meta = events?.gameMetadata || {};
+    if (meta.gameId) {
+        const existingGame = gameStorageManager.getGameById(meta.gameId);
+        if (existingGame) {
+            showAppendPreview(previewContainer, existingGame, events, callback);
+            return;
+        }
+    }
+
+    const teamsAttribute = meta.teams || events.teamsAttribute || null;
 
     setupImportButtons(events, storageKey, teamsAttribute, callback);
 
