@@ -52,6 +52,19 @@ describe('matchReportGenerator', () => {
             expect(inferTeamsFromEvents(events, 'FIRE vs TIGERS')).toEqual(['FIRE', 'TIGERS']);
             expect(inferTeamsFromEvents(events, '')).toEqual(['Team 1', 'Team 2']);
         });
+
+        test('respects fixture title team order even when the second-named team has more events', () => {
+            const events = [
+                { event: 'MATCH START', timeMs: 5000 },
+                { event: 'PRIDE BS2', timeMs: 10000 },
+                { event: 'PRIDE A25E', timeMs: 20000 },
+                { event: 'PRIDE CE', timeMs: 30000 },
+                { event: 'HCM BS2', timeMs: 40000 },
+                { event: 'MATCH END', timeMs: 50000 }
+            ];
+
+            expect(inferTeamsFromEvents(events, 'h1m 20261113 hcm v pride')).toEqual(['HCM', 'PRIDE']);
+        });
     });
 
     describe('parseMatchReportData', () => {
@@ -92,6 +105,44 @@ describe('matchReportGenerator', () => {
             expect(data.kpis.team1.SHOT).toBe(1);
             expect(data.kpis.team2.SHOT).toBe(1);
             expect(data.quarters.Q1.kpis.team1.SHOT).toBe(1);
+        });
+
+        test('counts zone-qualified ball wins (BW1-BW4) and GREEN/YELLOW cards, and infers quarters from MATCH START', () => {
+            const events = [
+                { event: 'MATCH START', timeMs: 5000 },
+                { event: 'PRIDE BW2', timeMs: 28000 },
+                { event: 'HCM BW1', timeMs: 42000 },
+                { event: 'HCM RED', timeMs: 112000 },
+                { event: 'HCM GOAL', timeMs: 589000 },
+                { event: 'MATCH END', timeMs: 1086000 },
+                { event: 'MATCH START', timeMs: 1212000 },
+                { event: 'PRIDE BW3', timeMs: 1250000 },
+                { event: 'HCM SHOT', timeMs: 1300000 },
+                { event: 'MATCH END', timeMs: 2286000 },
+                { event: 'MATCH START', timeMs: 2740000 },
+                { event: 'PRIDE BW4', timeMs: 2800000 },
+                { event: 'HCM GREEN', timeMs: 3663000 },
+                { event: 'MATCH END', timeMs: 3816000 },
+                { event: 'MATCH START', timeMs: 3935000 },
+                { event: 'PRIDE YELLOW', timeMs: 4000000 },
+                { event: 'PRIDE GOAL', timeMs: 4770000 },
+                { event: 'MATCH END', timeMs: 5184000 }
+            ];
+
+            const data = parseMatchReportData({ events, title: 'h1m 20261113 hcm v pride' });
+
+            expect(data.teams).toEqual(['HCM', 'PRIDE']);
+            expect(data.kpis.team1.BW).toBe(1);
+            expect(data.kpis.team2.BW).toBe(3);
+            expect(data.kpis.team1.CARD).toBe(1);
+            expect(data.kpis.team2.CARD).toBe(1);
+
+            expect(data.quarters.Q1.score).toEqual({ team1: 1, team2: 0 });
+            expect(data.quarters.Q2.kpis.team1.SHOT).toBe(1);
+            expect(data.quarters.Q2.kpis.team2.BW).toBe(1);
+            expect(data.quarters.Q3.kpis.team1.CARD).toBe(1);
+            expect(data.quarters.Q4.kpis.team2.GOAL).toBe(1);
+            expect(data.quarters.Q4.kpis.team2.CARD).toBe(1);
         });
     });
 
@@ -134,7 +185,7 @@ describe('matchReportGenerator', () => {
             const xmlContent = fs.readFileSync(fixturePath, 'utf8');
             const { data, html } = buildMatchReportFromXml(xmlContent, { title: 'Thunder vs Blaze' });
 
-            expect(data.teams).toEqual(['BLAZE', 'THUNDER']);
+            expect(data.teams).toEqual(['THUNDER', 'BLAZE']);
             // Thunder scored 1 goal
             const thunderKey = data.teams[1] === 'THUNDER' ? 'team2' : 'team1';
             const blazeKey = data.teams[0] === 'BLAZE' ? 'team1' : 'team2';

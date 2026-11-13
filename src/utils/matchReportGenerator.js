@@ -6,9 +6,49 @@
 
 import { parseXmlToEvents } from './xmlUtils.js';
 
-const STRUCTURAL_CODES = new Set(['Q1', 'Q2', 'Q3', 'Q4', 'PERIOD1', 'PERIOD2', 'UMP', 'UMPIRE', 'TIMEOUT', 'HALF', 'HALFTIME']);
+const STRUCTURAL_CODES = new Set(['Q1', 'Q2', 'Q3', 'Q4', 'PERIOD1', 'PERIOD2', 'UMP', 'UMPIRE', 'TIMEOUT', 'HALF', 'HALFTIME', 'MATCH']);
 
 const KPI_TYPES = ['GOAL', 'SHOT', 'PC', 'CE', 'A25E', 'BW', 'BS1', 'BS4', 'CARD'];
+
+function extractFallbackTeamCodes(fallbackTeams) {
+    if (Array.isArray(fallbackTeams) && fallbackTeams.length >= 2) {
+        return fallbackTeams
+            .slice(0, 2)
+            .map(t => (typeof t === 'object' ? t.code : String(t)).trim().toUpperCase())
+            .filter(Boolean);
+    }
+    if (typeof fallbackTeams === 'string' && fallbackTeams.trim()) {
+        const split = fallbackTeams.split(/\s+(?:vs\.?|v|-)\s+/i);
+        if (split.length >= 2) {
+            return [split[0].trim(), split[1].trim()];
+        }
+    }
+    return [];
+}
+
+function orderTeamsByFallback(detectedTeams, fallbackTeams) {
+    if (Array.isArray(fallbackTeams) && fallbackTeams.length >= 2) {
+        const codes = extractFallbackTeamCodes(fallbackTeams);
+        if (codes.length === 2 && detectedTeams.includes(codes[0]) && detectedTeams.includes(codes[1])) {
+            return codes;
+        }
+    } else if (typeof fallbackTeams === 'string' && fallbackTeams.trim()) {
+        const upper = fallbackTeams.toUpperCase();
+        const positioned = detectedTeams
+            .map(code => {
+                const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const match = new RegExp(`\\b${escaped}\\b`).exec(upper);
+                return match ? { code, index: match.index } : null;
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.index - b.index);
+
+        if (positioned.length >= 2) {
+            return [positioned[0].code, positioned[1].code];
+        }
+    }
+    return [detectedTeams[0], detectedTeams[1]];
+}
 
 /**
  * Infers the two competing team codes from the event stream.
@@ -37,19 +77,12 @@ export function inferTeamsFromEvents(events = [], fallbackTeams = '') {
         .map(entry => entry[0]);
 
     if (sorted.length >= 2) {
-        return [sorted[0], sorted[1]];
+        return orderTeamsByFallback(sorted, fallbackTeams);
     }
 
-    if (typeof fallbackTeams === 'string' && fallbackTeams.trim()) {
-        const split = fallbackTeams.split(/\s+(?:vs\.?|v|-)\s+/i);
-        if (split.length >= 2) {
-            return [split[0].trim(), split[1].trim()];
-        }
-    } else if (Array.isArray(fallbackTeams) && fallbackTeams.length >= 2) {
-        return [
-            typeof fallbackTeams[0] === 'object' ? fallbackTeams[0].code : String(fallbackTeams[0]),
-            typeof fallbackTeams[1] === 'object' ? fallbackTeams[1].code : String(fallbackTeams[1])
-        ];
+    const fallbackCodes = extractFallbackTeamCodes(fallbackTeams);
+    if (fallbackCodes.length >= 2) {
+        return [fallbackCodes[0], fallbackCodes[1]];
     }
 
     return [sorted[0] || 'Team 1', sorted[1] || 'Team 2'];
@@ -111,22 +144,31 @@ function classifyEventTeam(rawCode, team1, team2) {
     return { team: 'MATCH', type: rawCode };
 }
 
+function normalizeKpiType(type) {
+    const upper = (type || '').trim().toUpperCase();
+    if (/^BW\d*$/.test(upper)) return 'BW';
+    if (upper === 'GREEN' || upper === 'YELLOW' || upper === 'CARD') return 'CARD';
+    return upper;
+}
+
 function getEventWeight(type) {
-    if (type === 'GOAL') return 8;
-    if (type === 'SHOT') return 4;
-    if (type === 'PC') return 3.5;
-    if (type === 'CE') return 2.5;
-    if (type === 'A25E') return 1.5;
-    if (type === 'BW') return 1.2;
+    const kpiType = normalizeKpiType(type);
+    if (kpiType === 'GOAL') return 8;
+    if (kpiType === 'SHOT') return 4;
+    if (kpiType === 'PC') return 3.5;
+    if (kpiType === 'CE') return 2.5;
+    if (kpiType === 'A25E') return 1.5;
+    if (kpiType === 'BW') return 1.2;
     return 1;
 }
 
 function recordEventKpi(team, type, quarter, kpis, quarters) {
-    if (kpis[team] && kpis[team][type] !== undefined) {
-        kpis[team][type]++;
-        kpis.total[type]++;
-        quarters[quarter].kpis[team][type]++;
-        if (type === 'GOAL') {
+    const kpiType = normalizeKpiType(type);
+    if (kpis[team] && kpis[team][kpiType] !== undefined) {
+        kpis[team][kpiType]++;
+        kpis.total[kpiType]++;
+        quarters[quarter].kpis[team][kpiType]++;
+        if (kpiType === 'GOAL') {
             quarters[quarter].score[team]++;
         }
     }
@@ -136,6 +178,33 @@ function formatTimestampSeconds(startSec) {
     const min = Math.floor(startSec / 60);
     const sec = Math.floor(startSec % 60);
     return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+function buildQuarterResolver(events) {
+    const explicitMarkers = events
+        .filter(e => /^Q[1-4]$/i.test((e.event || '').trim()))
+        .sort((a, b) => a.timeMs - b.timeMs)
+        .map(e => ({ timeMs: e.timeMs, quarter: e.event.trim().toUpperCase() }));
+
+    const markers = explicitMarkers.length > 0
+        ? explicitMarkers
+        : events
+            .filter(e => /^(?:MATCH\s+)?START$/i.test((e.event || '').trim()))
+            .sort((a, b) => a.timeMs - b.timeMs)
+            .map((e, idx) => ({ timeMs: e.timeMs, quarter: `Q${Math.min(idx + 1, 4)}` }));
+
+    return function getQuarter(timeMs) {
+        if (markers.length === 0) return 'Q1';
+        let currentQ = 'Q1';
+        for (const marker of markers) {
+            if (timeMs >= marker.timeMs) {
+                currentQ = marker.quarter;
+            } else {
+                break;
+            }
+        }
+        return currentQ;
+    };
 }
 
 /**
@@ -159,26 +228,7 @@ export function parseMatchReportData({ events = [], xmlContent = '', title = '' 
     const teams = inferTeamsFromEvents(safeEvents, title);
     const [team1, team2] = teams;
 
-    // Detect quarters
-    const quarterMarkers = safeEvents
-        .filter(e => /^Q[1-4]$/i.test(e.event || ''))
-        .sort((a, b) => a.timeMs - b.timeMs);
-
-    function getQuarter(timeMs) {
-        if (quarterMarkers.length === 0) return 'Q1';
-        let currentQ = 'Q1';
-        for (const marker of quarterMarkers) {
-            if (timeMs >= marker.timeMs) {
-                const code = (marker.event || '').toUpperCase();
-                if (/^Q[1-4]$/.test(code)) {
-                    currentQ = code;
-                }
-            } else {
-                break;
-            }
-        }
-        return currentQ;
-    }
+    const getQuarter = buildQuarterResolver(safeEvents);
 
     function createKpiStore() {
         const store = {};
