@@ -49,6 +49,9 @@ docs/myva-lead-lag-times.md
 # Generated Match Reports
 reports/
 
+# Exported video clips and highlight reels
+out/
+
 
 # Generated sequence spike outputs
 spikes/sequences/out/*
