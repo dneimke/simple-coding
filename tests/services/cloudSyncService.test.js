@@ -99,6 +99,51 @@ describe('CloudSyncService', () => {
             );
             expect(parsed[0].isFavorite).toBe(true);
         });
+
+        test('reconcileCloudGames rehydrates custom playlists from Google Drive XML and propagates playlist deletions', () => {
+            const remoteXmlWithPlaylists = generateGameXml({
+                id: 'game-pl-sync',
+                teams: 'NSW vs QLD',
+                timestamp: '2026-11-12T08:00:00.000Z',
+                events: [
+                    { id: 'evt-a', event: 'FIRE BS1', timeMs: 15000 },
+                    { id: 'evt-b', event: 'FIRE CE', timeMs: 45000 }
+                ],
+                metadata: {
+                    playlists: [
+                        { id: 'pl-1', name: 'NSW Press', eventIds: ['evt-a', 'evt-b'] }
+                    ]
+                }
+            });
+
+            // Device B pulls from Google Drive
+            const pulled = reconcileCloudGames([], [
+                { id: 'f-pl', name: 'nsw-vs-qld_game-pl-sync.xml', xmlContent: remoteXmlWithPlaylists, modifiedTime: '2026-11-12T09:00:00.000Z' }
+            ]);
+
+            const syncedGame = pulled.updatedLocalGames[0];
+            expect(syncedGame.metadata.playlists).toHaveLength(1);
+            expect(syncedGame.metadata.playlists[0].name).toBe('NSW Press');
+            expect(syncedGame.metadata.playlists[0].eventIds).toEqual([
+                syncedGame.events[0].id,
+                syncedGame.events[1].id
+            ]);
+
+            // Device A deletes the playlist and uploads a newer snapshot
+            const remoteXmlNoPlaylists = generateGameXml({
+                id: 'game-pl-sync',
+                teams: 'NSW vs QLD',
+                timestamp: '2026-11-12T08:00:00.000Z',
+                events: syncedGame.events,
+                metadata: {}
+            });
+
+            const afterDelete = reconcileCloudGames([syncedGame], [
+                { id: 'f-pl', name: 'nsw-vs-qld_game-pl-sync.xml', xmlContent: remoteXmlNoPlaylists, modifiedTime: '2026-11-12T10:00:00.000Z' }
+            ], { dirtyGameIds: [] });
+
+            expect(afterDelete.updatedLocalGames[0].metadata?.playlists).toBeUndefined();
+        });
     });
 
     describe('reconcileCloudGames (Authoritative Matrix & Zero-Zombie)', () => {

@@ -34,6 +34,7 @@ Every synced XML file must round-trip both `<ALL_INSTANCES>` / `<ROWS>` and the 
 | `video_offset` | `game.videoOffsetMs` | Kick-off alignment offset in milliseconds |
 | `video_url` | `game.videoUrl` | Direct MP4/WebM URL attached for Match Review |
 | `last_updated` | `game.metadata.lastUpdated` | ISO timestamp of most recent local edit/save |
+| `playlists` | `game.metadata.playlists` | JSON-serialized custom playlist definitions (`id`, `name`); clip memberships also round-trip as `<label><group>Playlist</group></label>` |
 
 ---
 
