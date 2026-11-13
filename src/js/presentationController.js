@@ -66,6 +66,7 @@ export class PresentationController {
         this.deps = deps; // { formatEventTypeName, setFavoritesOnly, showNotification, highlightTimelineEvent }
         this.isActive = false;
         this.favoriteEvents = [];
+        this.activePlaylistName = 'Favorites';
         this.currentIndex = 0;
         this.currentClipEnd = null;
         this.boundOnTimeUpdate = this._onTimeUpdate.bind(this);
@@ -108,19 +109,32 @@ export class PresentationController {
     }
 
     /**
-     * Activates presentation view layout and jumps to the first favorite.
+     * Activates presentation view layout and jumps to the first clip in the active playlist.
+     * @param {Array} timelineEvents
+     * @param {Object} [options] - { events?: Array, playlistName?: string, skipFilterSync?: boolean }
      */
-    _enterPresentation(timelineEvents) {
-        const sourceEvents = Array.isArray(timelineEvents) && timelineEvents.length > 0
-            ? timelineEvents
-            : (this.deps.getTimelineEvents?.() || []);
+    _enterPresentation(timelineEvents, options = {}) {
+        const hasExplicitEvents = Array.isArray(options?.events);
+        const sourceEvents = hasExplicitEvents
+            ? options.events
+            : (Array.isArray(timelineEvents) && timelineEvents.length > 0
+                ? timelineEvents
+                : (this.deps.getTimelineEvents?.() || []));
 
-        this.favoriteEvents = sourceEvents
-            .filter(e => Boolean(e.isFavorite || e.favorite))
+        this.activePlaylistName = options?.playlistName || 'Favorites';
+
+        const selectedEvents = hasExplicitEvents
+            ? sourceEvents
+            : sourceEvents.filter(e => Boolean(e.isFavorite || e.favorite));
+
+        this.favoriteEvents = selectedEvents
             .map((evt, idx) => evt.id ? evt : { ...evt, id: `event-fav-${idx}` });
 
         if (this.favoriteEvents.length === 0) {
-            this.deps.showNotification?.('Add some favorites first to start a presentation', 'warning');
+            const msg = options?.playlistName && options.playlistName !== 'Favorites'
+                ? `Add clips to "${options.playlistName}" first to start a presentation`
+                : 'Add some favorites first to start a presentation';
+            this.deps.showNotification?.(msg, 'warning');
             this.isActive = false;
             return;
         }
@@ -134,7 +148,9 @@ export class PresentationController {
 
         this.currentIndex = 0;
         this.updateCounter();
-        this.deps.setFavoritesOnly?.(true);
+        if (!options?.skipFilterSync) {
+            this.deps.setFavoritesOnly?.(true);
+        }
         this.jumpToEvent(this.favoriteEvents[0]);
     }
 
@@ -162,11 +178,12 @@ export class PresentationController {
     /**
      * Toggles between presentation mode and normal editing mode.
      * @param {Array} timelineEvents - Current full event list
+     * @param {Object} [options] - Optional { events, playlistName, skipFilterSync }
      */
-    toggle(timelineEvents = []) {
+    toggle(timelineEvents = [], options = {}) {
         this.isActive = !this.isActive;
         if (this.isActive) {
-            this._enterPresentation(timelineEvents);
+            this._enterPresentation(timelineEvents, options);
         } else {
             this._exitPresentation();
         }
@@ -190,12 +207,15 @@ export class PresentationController {
     }
 
     /**
-     * Updates the counter text (e.g. "1/8").
+     * Updates the counter text (e.g. "1/8" or "NSW Press · 1/3").
      */
     updateCounter() {
         const counter = document.getElementById('playlist-counter');
         if (counter && this.favoriteEvents.length > 0) {
-            counter.textContent = `${this.currentIndex + 1}/${this.favoriteEvents.length}`;
+            const ratio = `${this.currentIndex + 1}/${this.favoriteEvents.length}`;
+            counter.textContent = this.activePlaylistName && this.activePlaylistName !== 'Favorites'
+                ? `${this.activePlaylistName} · ${ratio}`
+                : ratio;
         }
     }
 

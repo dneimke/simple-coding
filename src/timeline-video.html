@@ -142,12 +142,12 @@
                             <p class="help-text">This game has no recorded events yet</p>
                         </div>
 
-                        <!-- Empty state message for when favorites mode is active but no favorites exist -->
+                        <!-- Empty state message for when a playlist is active but has no clips -->
                         <div id="favorites-empty-state"
                             class="hidden flex flex-col items-center justify-center py-6 my-3 text-center surface-muted border-dashed">
-                            <i class="far fa-star text-3xl text-slate-300 mb-3" aria-hidden="true"></i>
-                            <p class="font-semibold text-slate-700 mb-2">No favorites added yet</p>
-                            <p class="help-text">Mark key moments as favorites to create a playlist</p>
+                            <i class="far fa-bookmark text-3xl text-slate-300 mb-3" aria-hidden="true"></i>
+                            <p id="playlist-empty-title" class="font-semibold text-slate-700 mb-2">No clips in this playlist yet</p>
+                            <p id="playlist-empty-subtitle" class="help-text">Tap the bookmark icon on any event to save it to a playlist</p>
                         </div>
 
                         <!-- Timeline filters - multi-select dropdown -->
@@ -155,15 +155,18 @@
                             <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
                                 <label for="filter-dropdown-button" class="field-label mb-0">Filter events</label>
 
-                                <!-- Favorites & Unlabelled toggle -->
-                                <div class="segmented segmented-compact" role="group" aria-label="Show events">
-                                    <button id="show-all-events" type="button" class="is-active">All</button>
-                                    <button id="show-favorites" type="button">
-                                        <i class="far fa-star mr-1" aria-hidden="true"></i>Favorites
-                                    </button>
-                                    <button id="show-unlabelled" type="button">
-                                        <i class="fas fa-tag mr-1 text-xs" aria-hidden="true"></i>Unlabelled
-                                    </button>
+                                <!-- All / Playlists dropdown / Unlabelled toggle -->
+                                <div class="playlist-filter-bar relative flex items-center">
+                                    <div class="segmented segmented-compact" role="group" aria-label="Show events">
+                                        <button id="show-all-events" type="button" class="is-active">All</button>
+                                        <button id="show-favorites" type="button" aria-haspopup="true" aria-expanded="false">
+                                            <i class="far fa-bookmark mr-1" aria-hidden="true"></i><span id="playlists-filter-label">Playlists</span> <i class="fas fa-chevron-down ml-1 text-[10px]" aria-hidden="true"></i>
+                                        </button>
+                                        <button id="show-unlabelled" type="button">
+                                            <i class="fas fa-tag mr-1 text-xs" aria-hidden="true"></i>Unlabelled
+                                        </button>
+                                    </div>
+                                    <div id="playlists-dropdown-menu" class="playlist-dropdown-menu hidden" role="menu" aria-label="Playlists"></div>
                                 </div>
                             </div>
 
