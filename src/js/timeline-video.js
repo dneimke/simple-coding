@@ -26,6 +26,10 @@ import {
     getPlaylistEvents,
     pruneDeletedEventFromPlaylists
 } from './playlistManager.js';
+import {
+    buildPlaylistCutlist,
+    buildCutlistDownloadFilename
+} from './playlistCutlist.js';
 
 import {
     validateVideoUrl,
@@ -1414,10 +1418,47 @@ function createPlaylistDropdownRow(game, pl) {
     });
     row.appendChild(btn);
 
+    row.appendChild(createPlaylistExportButton(game, pl));
     if (!pl.isBuiltIn) {
         row.appendChild(createPlaylistDeleteButton(game, pl));
     }
     return row;
+}
+
+function exportPlaylistCutlist(game, playlistId) {
+    const targetGame = game || getCurrentGame() || { events: timelineEvents, metadata: {} };
+    const cutlist = buildPlaylistCutlist(targetGame, playlistId);
+    if (cutlist.clipCount === 0) {
+        showNotification(`"${cutlist.playlistName}" has no clips to export yet`, 'warning');
+        return;
+    }
+
+    const blob = new Blob([JSON.stringify(cutlist, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = buildCutlistDownloadFilename(cutlist);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    showNotification(`Exported ${cutlist.clipCount} clip${cutlist.clipCount === 1 ? '' : 's'} for "${cutlist.playlistName}"`, 'success');
+}
+
+function createPlaylistExportButton(game, pl) {
+    const expBtn = document.createElement('button');
+    expBtn.type = 'button';
+    expBtn.className = 'playlist-dropdown-action';
+    expBtn.title = `Export clip cutlist for ${pl.name}`;
+    expBtn.setAttribute('aria-label', `Export clip cutlist for ${pl.name}`);
+    expBtn.innerHTML = '<i class="fas fa-download text-xs" aria-hidden="true"></i>';
+    expBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closePlaylistsDropdown();
+        exportPlaylistCutlist(game, pl.id);
+    });
+    return expBtn;
 }
 
 function renderPlaylistsDropdown() {
@@ -2339,6 +2380,11 @@ function updateFilterToggleUI() {
         } else {
             playlistsLabel.textContent = 'Playlists';
         }
+    }
+
+    const exportCutlistBtn = document.getElementById('export-cutlist-btn');
+    if (exportCutlistBtn) {
+        exportCutlistBtn.classList.toggle('hidden', filterViewMode !== 'favorites');
     }
 
     const buttons = [
