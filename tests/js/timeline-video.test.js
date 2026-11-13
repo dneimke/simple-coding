@@ -347,8 +347,11 @@ describe('video coding workflow', () => {
         <div id="favorites-empty-state" class="hidden"></div>
         <div id="timeline-filters" class="hidden">
             <button id="show-all-events" class="bg-blue-500 text-white"></button>
-            <button id="show-favorites" class="bg-gray-200 text-gray-700"></button>
+            <button id="show-favorites" class="bg-gray-200 text-gray-700"><span id="playlists-filter-label">Playlists</span></button>
+            <div id="playlists-dropdown-menu" class="hidden"></div>
             <button id="show-unlabelled"></button>
+            <button id="presentation-mode"></button>
+            <div id="playlist-controls" class="hidden"><span id="playlist-counter">0/0</span></div>
             <button id="filter-dropdown-button" aria-expanded="false"><span id="selected-filters-text">All events</span></button>
             <div id="filter-dropdown-panel" class="hidden">
                 <input id="filter-option-all" type="checkbox" data-filter="all" checked>
@@ -1308,6 +1311,51 @@ describe('video coding workflow', () => {
             expect(() => {
                 mod.handleVideoFileSelection(file);
             }).not.toThrow();
+        });
+
+        it('saves a clip to a new named playlist via popover, filters via Playlists dropdown, and launches Presentation Mode', () => {
+            document.getElementById('video-player').play = jest.fn().mockResolvedValue(undefined);
+            mod.initFavoritesUI();
+            mod.initPresentationMode();
+            const plGameId = 'playlist-ui-game';
+            const stored = JSON.parse(localStorage.getItem('fieldHockeyGames_v1') || '[]');
+            stored.push({
+                id: plGameId,
+                teams: 'NSW vs VIC',
+                events: [
+                    { id: 'ev-p1', event: 'FIRE BS1', timeMs: 30000, isFavorite: false },
+                    { id: 'ev-p2', event: 'FIRE CE', timeMs: 60000, isFavorite: true }
+                ],
+                metadata: {}
+            });
+            localStorage.setItem('fieldHockeyGames_v1', JSON.stringify(stored));
+            mod.loadGame(plGameId);
+
+            // Open Save to Playlist popover on first card and create "NSW Press"
+            const firstCard = document.querySelector('#timeline-events .timeline-event[data-event-id="ev-p1"]');
+            firstCard.querySelector('.favorite-toggle').click();
+            const popover = firstCard.querySelector('.playlist-popover');
+            expect(popover.classList.contains('hidden')).toBe(false);
+
+            popover.querySelector('.playlist-popover-footer button').click();
+            const input = popover.querySelector('.playlist-popover-footer input');
+            input.value = 'NSW Press';
+            popover.querySelector('.playlist-popover-footer form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+            // Open Playlists dropdown and select "NSW Press"
+            document.getElementById('show-favorites').click();
+            const menu = document.getElementById('playlists-dropdown-menu');
+            expect(menu.classList.contains('hidden')).toBe(false);
+            const nswBtn = Array.from(menu.querySelectorAll('.playlist-dropdown-item')).find(b => b.textContent.includes('NSW Press'));
+            expect(nswBtn).toBeDefined();
+            nswBtn.click();
+
+            expect(mod.getVisibleEvents().map(e => e.id)).toEqual(['ev-p1']);
+            expect(document.getElementById('playlists-filter-label').textContent).toBe('NSW Press (1)');
+
+            // Trigger Presentation Mode for active playlist
+            document.getElementById('presentation-mode').click();
+            expect(document.getElementById('playlist-counter').textContent).toBe('NSW Press · 1/1');
         });
     });
 });

@@ -1360,8 +1360,64 @@ function selectPlaylist(playlistId) {
 
 function persistCurrentGamePlaylists(game) {
     if (!game || !currentGameId) return;
-    const metadata = { ...(game.metadata || {}), ...(game.teams && { teams: game.teams }) };
+    const baseMeta = game.metadata || {};
+    const metadata = game.teams ? { ...baseMeta, teams: game.teams } : { ...baseMeta };
     saveGame(currentGameId, game.events || timelineEvents, metadata);
+}
+
+function createPlaylistDeleteButton(game, pl) {
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'playlist-dropdown-delete';
+    delBtn.title = `Delete playlist ${pl.name}`;
+    delBtn.setAttribute('aria-label', `Delete playlist ${pl.name}`);
+    delBtn.innerHTML = '<i class="fas fa-trash-alt text-xs" aria-hidden="true"></i>';
+    delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!deletePlaylist(game, pl.id)) return;
+        persistCurrentGamePlaylists(game);
+        if (activePlaylistId === pl.id) {
+            activePlaylistId = FAVORITES_PLAYLIST_ID;
+            setFilterViewMode('all');
+        }
+        renderPlaylistsDropdown();
+        renderTimelineEvents();
+        showNotification(`Deleted playlist "${pl.name}"`, 'info');
+    });
+    return delBtn;
+}
+
+function createPlaylistDropdownRow(game, pl) {
+    const row = document.createElement('div');
+    row.className = 'playlist-dropdown-row';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isSelected = filterViewMode === 'favorites' && activePlaylistId === pl.id;
+    btn.className = `playlist-dropdown-item${isSelected ? ' is-selected' : ''}`;
+    btn.setAttribute('role', 'menuitem');
+    btn.dataset.playlistId = pl.id;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'truncate flex items-center gap-1.5';
+    nameSpan.innerHTML = `<i class="${pl.isBuiltIn ? 'fas fa-star text-amber-500' : 'fas fa-list text-slate-400'} text-xs" aria-hidden="true"></i><span class="truncate"></span>`;
+    nameSpan.querySelector('span').textContent = pl.name;
+
+    const countSpan = document.createElement('span');
+    countSpan.className = 'text-xs text-slate-400 tabular-nums flex-shrink-0';
+    countSpan.textContent = String(pl.count);
+
+    btn.append(nameSpan, countSpan);
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectPlaylist(pl.id);
+    });
+    row.appendChild(btn);
+
+    if (!pl.isBuiltIn) {
+        row.appendChild(createPlaylistDeleteButton(game, pl));
+    }
+    return row;
 }
 
 function renderPlaylistsDropdown() {
@@ -1371,58 +1427,7 @@ function renderPlaylistsDropdown() {
     const playlists = getGamePlaylists(game);
 
     menu.innerHTML = '';
-
-    playlists.forEach((pl) => {
-        const row = document.createElement('div');
-        row.className = 'playlist-dropdown-row';
-
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        const isSelected = filterViewMode === 'favorites' && activePlaylistId === pl.id;
-        btn.className = `playlist-dropdown-item${isSelected ? ' is-selected' : ''}`;
-        btn.setAttribute('role', 'menuitem');
-        btn.dataset.playlistId = pl.id;
-
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'truncate flex items-center gap-1.5';
-        nameSpan.innerHTML = `<i class="${pl.isBuiltIn ? 'fas fa-star text-amber-500' : 'fas fa-list text-slate-400'} text-xs" aria-hidden="true"></i><span class="truncate"></span>`;
-        nameSpan.querySelector('span').textContent = pl.name;
-
-        const countSpan = document.createElement('span');
-        countSpan.className = 'text-xs text-slate-400 tabular-nums flex-shrink-0';
-        countSpan.textContent = String(pl.count);
-
-        btn.append(nameSpan, countSpan);
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectPlaylist(pl.id);
-        });
-        row.appendChild(btn);
-
-        if (!pl.isBuiltIn) {
-            const delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.className = 'playlist-dropdown-delete';
-            delBtn.title = `Delete playlist ${pl.name}`;
-            delBtn.setAttribute('aria-label', `Delete playlist ${pl.name}`);
-            delBtn.innerHTML = '<i class="fas fa-trash-alt text-xs" aria-hidden="true"></i>';
-            delBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!deletePlaylist(game, pl.id)) return;
-                persistCurrentGamePlaylists(game);
-                if (activePlaylistId === pl.id) {
-                    activePlaylistId = FAVORITES_PLAYLIST_ID;
-                    setFilterViewMode('all');
-                }
-                renderPlaylistsDropdown();
-                renderTimelineEvents();
-                showNotification(`Deleted playlist "${pl.name}"`, 'info');
-            });
-            row.appendChild(delBtn);
-        }
-
-        menu.appendChild(row);
-    });
+    playlists.forEach((pl) => menu.appendChild(createPlaylistDropdownRow(game, pl)));
 
     const divider = document.createElement('div');
     divider.className = 'border-t border-slate-200 my-1';
@@ -1516,18 +1521,24 @@ function initPresentationMode() {
     });
 }
 
+function resolveActivePresentationTarget(game) {
+    const targetId = filterViewMode === 'favorites' ? activePlaylistId : FAVORITES_PLAYLIST_ID;
+    const playlists = getGamePlaylists(game);
+    const active = playlists.find((p) => p.id === targetId) || playlists[0];
+    const id = active ? active.id : FAVORITES_PLAYLIST_ID;
+    const name = active ? active.name : FAVORITES_PLAYLIST_NAME;
+    return { events: getPlaylistEvents(game, id), playlistName: name };
+}
+
 // Presentation mode delegates to PresentationController
 function togglePresentationMode() {
     const ctrl = presentationController;
     const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
-    const targetPlaylistId = filterViewMode === 'favorites' ? activePlaylistId : FAVORITES_PLAYLIST_ID;
-    const playlists = getGamePlaylists(game);
-    const activePlaylist = playlists.find((p) => p.id === targetPlaylistId) || playlists[0];
-    const playlistEvents = getPlaylistEvents(game, activePlaylist ? activePlaylist.id : FAVORITES_PLAYLIST_ID);
+    const { events, playlistName } = resolveActivePresentationTarget(game);
 
     ctrl.toggle(timelineEvents, {
-        events: playlistEvents,
-        playlistName: activePlaylist ? activePlaylist.name : FAVORITES_PLAYLIST_NAME,
+        events,
+        playlistName,
         skipFilterSync: true
     });
     presentationModeActive = ctrl.isActive;
@@ -3697,5 +3708,7 @@ export {
     getDefaultClipTimings,
     jumpToEventTime,
     jumpToVideoTime,
-    buildAlignmentPreviewState
+    buildAlignmentPreviewState,
+    initFavoritesUI,
+    initPresentationMode
 };
