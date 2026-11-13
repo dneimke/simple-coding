@@ -1232,12 +1232,13 @@ describe('video coding workflow', () => {
             expect(card.className).toContain('timeline-event');
             expect(card.dataset.eventId).toBe('ev-card-1');
 
-            // Favorite button
+            // Save to playlist button + popover
             const favBtn = card.querySelector('.favorite-toggle');
             expect(favBtn).not.toBeNull();
             expect(favBtn.classList.contains('is-favorite')).toBe(true);
-            expect(favBtn.getAttribute('aria-pressed')).toBe('true');
-            expect(favBtn.getAttribute('aria-label')).toBe('Remove from favorites');
+            expect(favBtn.getAttribute('aria-haspopup')).toBe('true');
+            expect(favBtn.getAttribute('aria-label')).toBe('Saved in playlists');
+            expect(card.querySelector('.playlist-popover')).not.toBeNull();
 
             // More options dropdown
             const moreBtn = card.querySelector('.timeline-event-more-btn');

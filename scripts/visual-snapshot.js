@@ -825,6 +825,57 @@ async function capturePresentationSnapshots(browser, baseUrl, results) {
     }
 }
 
+async function capturePlaylistSnapshots(browser, baseUrl, results) {
+    for (const vp of VIEWPORTS) {
+        const plCtx = await browser.newContext({
+            viewport: { width: vp.width, height: vp.height },
+            deviceScaleFactor: 2
+        });
+        const plPage = await plCtx.newPage();
+        await plPage.goto(`${baseUrl}/timeline-video.html?game=sample-game&mock=sample`, { waitUntil: 'domcontentloaded' });
+        await plPage.waitForSelector('#timeline-events .timeline-event');
+
+        // Step 1: Open YouTube-style Save to Playlist popover on first event & create "NSW Press"
+        await plPage.click('.timeline-event .favorite-toggle');
+        await plPage.waitForSelector('.playlist-popover:not(.hidden)');
+        await plPage.click('.playlist-popover .playlist-popover-footer button');
+        await plPage.fill('.playlist-popover .playlist-popover-footer input', 'NSW Press');
+        await plPage.click('.playlist-popover .playlist-popover-footer button[type="submit"]');
+        await plPage.waitForTimeout(250);
+
+        const popoverPath = path.join(OUTPUT_DIR, `playlist-save-popover-${vp.name}.png`);
+        await plPage.screenshot({ path: popoverPath, fullPage: false });
+        results.push({
+            name: 'playlist-save-popover',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `playlist-save-popover-${vp.name}.png`,
+            bytes: fs.statSync(popoverPath).size
+        });
+
+        // Step 2: Open Playlists dropdown and select "NSW Press"
+        await plPage.click('#show-favorites');
+        await plPage.waitForSelector('#playlists-dropdown-menu:not(.hidden)');
+        const nswItem = await plPage.$('#playlists-dropdown-menu .playlist-dropdown-item:has-text("NSW Press")');
+        if (nswItem) {
+            await nswItem.click();
+        }
+        await plPage.waitForTimeout(250);
+
+        const filteredPath = path.join(OUTPUT_DIR, `playlist-dropdown-filtered-${vp.name}.png`);
+        await plPage.screenshot({ path: filteredPath, fullPage: false });
+        results.push({
+            name: 'playlist-dropdown-filtered',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `playlist-dropdown-filtered-${vp.name}.png`,
+            bytes: fs.statSync(filteredPath).size
+        });
+
+        await plCtx.close();
+    }
+}
+
 async function captureSequenceSpikeSnapshots(browser, baseUrl, results) {
     for (const vp of VIEWPORTS) {
         const context = await browser.newContext({
@@ -1018,6 +1069,7 @@ async function runSnapshots() {
         await captureCompoundChordSnapshots(browser, baseUrl, results);
         await captureVideoAlignmentSnapshots(browser, baseUrl, results);
         await capturePresentationSnapshots(browser, baseUrl, results);
+        await capturePlaylistSnapshots(browser, baseUrl, results);
         await captureSequenceSpikeSnapshots(browser, baseUrl, results);
         await captureSequenceSavedGameSnapshots(browser, baseUrl, results);
         await captureNavMenuSnapshots(browser, baseUrl, results);

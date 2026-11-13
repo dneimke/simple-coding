@@ -14,6 +14,18 @@ import { setupMobileMenu } from '../utils/domUtils.js';
 import { PresentationController } from './presentationController.js';
 import { openMatchReport } from '../utils/matchReportGenerator.js';
 import { cloudSyncService } from '../services/cloudSyncService.js';
+import {
+    FAVORITES_PLAYLIST_ID,
+    FAVORITES_PLAYLIST_NAME,
+    getGamePlaylists,
+    createPlaylist,
+    deletePlaylist,
+    toggleEventInPlaylist,
+    isEventInPlaylist,
+    isEventInAnyPlaylist,
+    getPlaylistEvents,
+    pruneDeletedEventFromPlaylists
+} from './playlistManager.js';
 
 import {
     validateVideoUrl,
@@ -148,6 +160,7 @@ let timelineEvents = [];
 let activeTypeFilters = new Set();
 let favoritesOnly = false;
 let filterViewMode = 'all'; // 'all' | 'favorites' | 'unlabelled'
+let activePlaylistId = FAVORITES_PLAYLIST_ID;
 let presentationModeActive = false;
 const presentationController = new PresentationController();
 
@@ -1214,7 +1227,10 @@ function findEventInCurrentGame(eventId) {
 function isEventVisibleInCurrentFilter(event) {
     const matchesType = activeTypeFilters.size === 0 || activeTypeFilters.has(event.event);
     if (!matchesType) return false;
-    if (filterViewMode === 'favorites') return !!event.isFavorite;
+    if (filterViewMode === 'favorites') {
+        const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
+        return isEventInPlaylist(game, activePlaylistId, event);
+    }
     if (filterViewMode === 'unlabelled') {
         const schema = getLabelSchemaForEvent(event);
         if (!schema) return false;
@@ -1329,26 +1345,159 @@ function initMobileMenu() {
     setupMobileMenu('#mobileMenuButton', '#mainMenu');
 }
 
+function closePlaylistsDropdown() {
+    const menu = document.getElementById('playlists-dropdown-menu');
+    const trigger = document.getElementById('show-favorites');
+    if (menu) menu.classList.add('hidden');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+function selectPlaylist(playlistId) {
+    activePlaylistId = playlistId || FAVORITES_PLAYLIST_ID;
+    closePlaylistsDropdown();
+    setFilterViewMode('favorites');
+}
+
+function persistCurrentGamePlaylists(game) {
+    if (!game || !currentGameId) return;
+    const metadata = { ...(game.metadata || {}), ...(game.teams && { teams: game.teams }) };
+    saveGame(currentGameId, game.events || timelineEvents, metadata);
+}
+
+function renderPlaylistsDropdown() {
+    const menu = document.getElementById('playlists-dropdown-menu');
+    if (!menu) return;
+    const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
+    const playlists = getGamePlaylists(game);
+
+    menu.innerHTML = '';
+
+    playlists.forEach((pl) => {
+        const row = document.createElement('div');
+        row.className = 'playlist-dropdown-row';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const isSelected = filterViewMode === 'favorites' && activePlaylistId === pl.id;
+        btn.className = `playlist-dropdown-item${isSelected ? ' is-selected' : ''}`;
+        btn.setAttribute('role', 'menuitem');
+        btn.dataset.playlistId = pl.id;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'truncate flex items-center gap-1.5';
+        nameSpan.innerHTML = `<i class="${pl.isBuiltIn ? 'fas fa-star text-amber-500' : 'fas fa-list text-slate-400'} text-xs" aria-hidden="true"></i><span class="truncate"></span>`;
+        nameSpan.querySelector('span').textContent = pl.name;
+
+        const countSpan = document.createElement('span');
+        countSpan.className = 'text-xs text-slate-400 tabular-nums flex-shrink-0';
+        countSpan.textContent = String(pl.count);
+
+        btn.append(nameSpan, countSpan);
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectPlaylist(pl.id);
+        });
+        row.appendChild(btn);
+
+        if (!pl.isBuiltIn) {
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'playlist-dropdown-delete';
+            delBtn.title = `Delete playlist ${pl.name}`;
+            delBtn.setAttribute('aria-label', `Delete playlist ${pl.name}`);
+            delBtn.innerHTML = '<i class="fas fa-trash-alt text-xs" aria-hidden="true"></i>';
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!deletePlaylist(game, pl.id)) return;
+                persistCurrentGamePlaylists(game);
+                if (activePlaylistId === pl.id) {
+                    activePlaylistId = FAVORITES_PLAYLIST_ID;
+                    setFilterViewMode('all');
+                }
+                renderPlaylistsDropdown();
+                renderTimelineEvents();
+                showNotification(`Deleted playlist "${pl.name}"`, 'info');
+            });
+            row.appendChild(delBtn);
+        }
+
+        menu.appendChild(row);
+    });
+
+    const divider = document.createElement('div');
+    divider.className = 'border-t border-slate-200 my-1';
+    menu.appendChild(divider);
+
+    const newBtn = document.createElement('button');
+    newBtn.type = 'button';
+    newBtn.className = 'playlist-dropdown-item text-blue-600 font-semibold';
+    newBtn.innerHTML = '<span><i class="fas fa-plus text-xs mr-1.5" aria-hidden="true"></i>New playlist...</span>';
+    newBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const form = document.createElement('form');
+        form.className = 'flex items-center gap-1 p-1';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'field text-xs py-1 px-2 flex-1 min-w-0';
+        input.placeholder = 'Playlist name...';
+        input.maxLength = 40;
+        const createBtn = document.createElement('button');
+        createBtn.type = 'submit';
+        createBtn.className = 'btn btn-primary btn-compact text-xs';
+        createBtn.textContent = 'Create';
+        form.append(input, createBtn);
+        newBtn.replaceWith(form);
+        input.focus();
+        form.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const res = createPlaylist(game, input.value);
+            if (!res.playlist) {
+                showNotification(res.error || 'Please enter a playlist name', 'warning');
+                return;
+            }
+            persistCurrentGamePlaylists(game);
+            selectPlaylist(res.playlist.id);
+        });
+    });
+    menu.appendChild(newBtn);
+}
+
 // Initialize favorites UI and handlers
 function initFavoritesUI() {
     const showAllBtn = document.getElementById('show-all-events');
     const showFavoritesBtn = document.getElementById('show-favorites');
     const showUnlabelledBtn = document.getElementById('show-unlabelled');
+    const playlistsMenu = document.getElementById('playlists-dropdown-menu');
 
     if (showAllBtn) {
         showAllBtn.addEventListener('click', () => {
+            closePlaylistsDropdown();
             showAllEvents();
         });
     }
 
     if (showFavoritesBtn) {
-        showFavoritesBtn.addEventListener('click', () => {
-            showFavoritesOnly();
+        showFavoritesBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!playlistsMenu) {
+                showFavoritesOnly();
+                return;
+            }
+            const isHidden = playlistsMenu.classList.contains('hidden');
+            if (isHidden) {
+                renderPlaylistsDropdown();
+                playlistsMenu.classList.remove('hidden');
+                showFavoritesBtn.setAttribute('aria-expanded', 'true');
+            } else {
+                closePlaylistsDropdown();
+            }
         });
     }
 
     if (showUnlabelledBtn) {
         showUnlabelledBtn.addEventListener('click', () => {
+            closePlaylistsDropdown();
             setFilterViewMode('unlabelled');
         });
     }
@@ -1358,7 +1507,8 @@ function initPresentationMode() {
     presentationController.deps = {
         ...presentationController.deps,
         getTimelineEvents: () => timelineEvents,
-        highlightTimelineEvent: (id) => highlightTimelineEvent(id)
+        highlightTimelineEvent: (id) => highlightTimelineEvent(id),
+        showNotification: (msg, type) => showNotification(msg, type)
     };
     presentationController.init({
         onToggle: () => togglePresentationMode(),
@@ -1369,7 +1519,17 @@ function initPresentationMode() {
 // Presentation mode delegates to PresentationController
 function togglePresentationMode() {
     const ctrl = presentationController;
-    ctrl.toggle(timelineEvents);
+    const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
+    const targetPlaylistId = filterViewMode === 'favorites' ? activePlaylistId : FAVORITES_PLAYLIST_ID;
+    const playlists = getGamePlaylists(game);
+    const activePlaylist = playlists.find((p) => p.id === targetPlaylistId) || playlists[0];
+    const playlistEvents = getPlaylistEvents(game, activePlaylist ? activePlaylist.id : FAVORITES_PLAYLIST_ID);
+
+    ctrl.toggle(timelineEvents, {
+        events: playlistEvents,
+        playlistName: activePlaylist ? activePlaylist.name : FAVORITES_PLAYLIST_NAME,
+        skipFilterSync: true
+    });
     presentationModeActive = ctrl.isActive;
     favoriteEvents = ctrl.favoriteEvents;
     currentPlaylistIndex = ctrl.currentIndex;
@@ -2149,12 +2309,24 @@ function updateFilterToggleUI() {
     const showAllBtn = document.getElementById('show-all-events');
     const showFavoritesBtn = document.getElementById('show-favorites');
     const showUnlabelledBtn = document.getElementById('show-unlabelled');
+    const playlistsLabel = document.getElementById('playlists-filter-label');
 
     const unlabelledCount = getUnlabelledEventsCount();
     if (showUnlabelledBtn) {
         const nextHtml = `<i class="fas fa-tag mr-1 text-xs" aria-hidden="true"></i>Unlabelled${unlabelledCount > 0 ? ` (${unlabelledCount})` : ''}`;
         if (showUnlabelledBtn.innerHTML !== nextHtml) {
             showUnlabelledBtn.innerHTML = nextHtml;
+        }
+    }
+
+    if (playlistsLabel) {
+        if (filterViewMode === 'favorites') {
+            const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
+            const playlists = getGamePlaylists(game);
+            const activePl = playlists.find((p) => p.id === activePlaylistId) || playlists[0];
+            playlistsLabel.textContent = activePl ? `${activePl.name} (${activePl.count})` : 'Playlists';
+        } else {
+            playlistsLabel.textContent = 'Playlists';
         }
     }
 
@@ -2188,6 +2360,7 @@ function deleteEvent(eventId) {
     if (idx === -1) return;
     if (!window.confirm('Are you sure you want to delete this event? This cannot be undone.')) return;
     game.events.splice(idx, 1);
+    pruneDeletedEventFromPlaylists(game, eventId);
     persistGameEventsAndRefresh(game);
     updateQuickTagTicker();
     showNotification('Event deleted', 'info');
@@ -2359,17 +2532,142 @@ function createTimelineEventSeekButton(event, eventName, timeFormatted) {
     return seekButton;
 }
 
-function createTimelineEventActions(eventElementId, note, isFavorite) {
+function closeAllSavePopovers() {
+    document.querySelectorAll('.playlist-popover:not(.hidden)').forEach((pop) => pop.classList.add('hidden'));
+    document.querySelectorAll('.favorite-toggle[aria-expanded="true"]').forEach((btn) => btn.setAttribute('aria-expanded', 'false'));
+}
+
+function syncSaveButtonState(favoriteBtn, favoriteIcon, isSaved) {
+    favoriteBtn.classList.toggle('is-favorite', isSaved);
+    favoriteBtn.setAttribute('aria-label', isSaved ? 'Saved in playlists' : 'Save to playlist');
+    favoriteIcon.className = isSaved ? 'fas fa-bookmark' : 'far fa-bookmark';
+}
+
+function renderSavePopoverContent(popover, event, favoriteBtn, favoriteIcon) {
+    const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
+    const playlists = getGamePlaylists(game);
+    popover.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'playlist-popover-header';
+    const title = document.createElement('span');
+    title.textContent = 'Save clip to...';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn btn-ghost btn-icon btn-compact text-slate-400 hover:text-slate-700';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.innerHTML = '<i class="fas fa-xmark text-xs" aria-hidden="true"></i>';
+    closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllSavePopovers();
+    });
+    header.append(title, closeBtn);
+    popover.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'playlist-popover-list';
+
+    playlists.forEach((pl) => {
+        const item = document.createElement('label');
+        item.className = 'playlist-popover-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = isEventInPlaylist(game, pl.id, event);
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', () => {
+            toggleEventInPlaylist(game, pl.id, event.id);
+            persistCurrentGamePlaylists(game);
+            const inMemory = timelineEvents.find((e) => e.id === event.id);
+            if (inMemory && pl.id === FAVORITES_PLAYLIST_ID) {
+                inMemory.isFavorite = event.isFavorite;
+            }
+            syncSaveButtonState(favoriteBtn, favoriteIcon, isEventInAnyPlaylist(game, event));
+            updateFilterToggleUI();
+            if (filterViewMode === 'favorites') {
+                renderTimelineEvents();
+            } else {
+                renderSavePopoverContent(popover, event, favoriteBtn, favoriteIcon);
+            }
+        });
+
+        const labelText = document.createElement('span');
+        labelText.className = 'flex-1 truncate';
+        labelText.textContent = pl.isBuiltIn ? `★ ${pl.name}` : pl.name;
+
+        const countText = document.createElement('span');
+        countText.className = 'text-xs text-slate-400 tabular-nums';
+        countText.textContent = String(pl.count);
+
+        item.append(cb, labelText, countText);
+        list.appendChild(item);
+    });
+    popover.appendChild(list);
+
+    const footer = document.createElement('div');
+    footer.className = 'playlist-popover-footer';
+    const newPlBtn = document.createElement('button');
+    newPlBtn.type = 'button';
+    newPlBtn.className = 'playlist-dropdown-item text-blue-600 font-semibold w-full';
+    newPlBtn.innerHTML = '<span><i class="fas fa-plus text-xs mr-1.5" aria-hidden="true"></i>New playlist...</span>';
+    newPlBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const form = document.createElement('form');
+        form.className = 'flex items-center gap-1';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'field text-xs py-1 px-2 flex-1 min-w-0';
+        input.placeholder = 'Name (e.g. NSW Press)';
+        input.maxLength = 40;
+        const addBtn = document.createElement('button');
+        addBtn.type = 'submit';
+        addBtn.className = 'btn btn-primary btn-compact text-xs';
+        addBtn.textContent = 'Create';
+        form.append(input, addBtn);
+        newPlBtn.replaceWith(form);
+        input.focus();
+        form.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const res = createPlaylist(game, input.value, event.id);
+            if (!res.playlist) {
+                showNotification(res.error || 'Please enter a playlist name', 'warning');
+                return;
+            }
+            persistCurrentGamePlaylists(game);
+            syncSaveButtonState(favoriteBtn, favoriteIcon, isEventInAnyPlaylist(game, event));
+            updateFilterToggleUI();
+            renderSavePopoverContent(popover, event, favoriteBtn, favoriteIcon);
+            showNotification(`Saved to "${res.playlist.name}"`, 'success');
+        });
+    });
+    footer.appendChild(newPlBtn);
+    popover.appendChild(footer);
+}
+
+function createTimelineEventActions(eventElementId, note, isSaved) {
+    const saveWrapper = document.createElement('div');
+    saveWrapper.className = 'timeline-event-save-wrapper';
+
     const favoriteBtn = document.createElement('button');
     favoriteBtn.type = 'button';
-    favoriteBtn.className = `favorite-toggle timeline-event-action${isFavorite ? ' is-favorite' : ''}`;
+    favoriteBtn.className = `favorite-toggle timeline-event-action${isSaved ? ' is-favorite' : ''}`;
     favoriteBtn.dataset.eventId = eventElementId;
-    favoriteBtn.setAttribute('aria-label', isFavorite ? 'Remove from favorites' : 'Add to favorites');
-    favoriteBtn.setAttribute('aria-pressed', isFavorite ? 'true' : 'false');
+    favoriteBtn.setAttribute('aria-label', isSaved ? 'Saved in playlists' : 'Save to playlist');
+    favoriteBtn.setAttribute('aria-haspopup', 'true');
+    favoriteBtn.setAttribute('aria-expanded', 'false');
+    favoriteBtn.title = 'Save to playlist';
     const favoriteIcon = document.createElement('i');
-    favoriteIcon.className = isFavorite ? 'fas fa-star' : 'far fa-star';
+    favoriteIcon.className = isSaved ? 'fas fa-bookmark' : 'far fa-bookmark';
     favoriteIcon.setAttribute('aria-hidden', 'true');
     favoriteBtn.appendChild(favoriteIcon);
+
+    const playlistPopover = document.createElement('div');
+    playlistPopover.className = 'playlist-popover hidden';
+    playlistPopover.setAttribute('role', 'dialog');
+    playlistPopover.setAttribute('aria-label', 'Save clip to playlist');
+    playlistPopover.addEventListener('click', (e) => e.stopPropagation());
+
+    saveWrapper.append(favoriteBtn, playlistPopover);
 
     const moreWrapper = document.createElement('div');
     moreWrapper.className = 'timeline-event-more-wrapper';
@@ -2410,7 +2708,7 @@ function createTimelineEventActions(eventElementId, note, isFavorite) {
     moreMenu.append(noteBtn, deleteBtn);
     moreWrapper.append(moreBtn, moreMenu);
 
-    return { favoriteBtn, moreWrapper, moreBtn, moreMenu, noteBtn, deleteBtn };
+    return { saveWrapper, favoriteBtn, favoriteIcon, playlistPopover, moreWrapper, moreBtn, moreMenu, noteBtn, deleteBtn };
 }
 
 function renderEventLabelRow(event) {
@@ -2520,6 +2818,11 @@ function createTimelineEventEditor(event, note) {
     return editorEl;
 }
 
+function closeAllMoreMenus() {
+    document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
+    document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+}
+
 function createTimelineEventCard(event, index) {
     const eventElement = document.createElement('div');
     eventElement.className = 'timeline-event';
@@ -2529,15 +2832,16 @@ function createTimelineEventCard(event, index) {
 
     const timeFormatted = formatTime(event.timeMs);
     const eventName = formatEventTypeName(event.event);
-    const isFavorite = !!event.isFavorite;
+    const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
+    const isSaved = isEventInAnyPlaylist(game, event);
     const note = event.note ? String(event.note) : '';
     eventElement.title = note ? `${eventName} — ${note}` : eventName;
 
     const seekButton = createTimelineEventSeekButton(event, eventName, timeFormatted);
-    const { favoriteBtn, moreWrapper, moreBtn, moreMenu, noteBtn, deleteBtn } =
-        createTimelineEventActions(eventElementId, note, isFavorite);
+    const { saveWrapper, favoriteBtn, favoriteIcon, playlistPopover, moreWrapper, moreBtn, moreMenu, noteBtn, deleteBtn } =
+        createTimelineEventActions(eventElementId, note, isSaved);
 
-    eventElement.append(seekButton, favoriteBtn, moreWrapper);
+    eventElement.append(seekButton, saveWrapper, moreWrapper);
 
     if (activeEditingEventId === event.id) {
         eventElement.classList.add('has-editor');
@@ -2545,7 +2849,7 @@ function createTimelineEventCard(event, index) {
     }
 
     eventElement.addEventListener('click', (e) => {
-        if (!e.target.closest('.timeline-event-action') && !e.target.closest('.timeline-event-editor')) {
+        if (!e.target.closest('.timeline-event-action') && !e.target.closest('.timeline-event-editor') && !e.target.closest('.playlist-popover')) {
             jumpToEventTime(event);
             highlightTimelineEvent(eventElement.dataset.eventId);
         }
@@ -2553,9 +2857,10 @@ function createTimelineEventCard(event, index) {
 
     moreBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeAllSavePopovers();
+        closePlaylistsDropdown();
         const isHidden = moreMenu.classList.contains('hidden');
-        document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
-        document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+        closeAllMoreMenus();
         if (isHidden) {
             moreMenu.classList.remove('hidden');
             moreBtn.setAttribute('aria-expanded', 'true');
@@ -2572,7 +2877,15 @@ function createTimelineEventCard(event, index) {
 
     favoriteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        toggleFavorite(eventElement.dataset.eventId);
+        const isHidden = playlistPopover.classList.contains('hidden');
+        closeAllSavePopovers();
+        closePlaylistsDropdown();
+        closeAllMoreMenus();
+        if (isHidden) {
+            renderSavePopoverContent(playlistPopover, event, favoriteBtn, favoriteIcon);
+            playlistPopover.classList.remove('hidden');
+            favoriteBtn.setAttribute('aria-expanded', 'true');
+        }
     });
 
     deleteBtn.addEventListener('click', (e) => {
@@ -2582,6 +2895,16 @@ function createTimelineEventCard(event, index) {
     });
 
     return eventElement;
+}
+
+function updateEmptyPlaylistTitle() {
+    const titleEl = document.getElementById('playlist-empty-title');
+    if (!titleEl) return;
+    const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
+    const activePl = getGamePlaylists(game).find((p) => p.id === activePlaylistId);
+    titleEl.textContent = activePl
+        ? `No clips in "${activePl.name}" yet`
+        : 'No clips in this playlist yet';
 }
 
 function updateTimelineEmptyStateUI(timelineContainer, timelineEvents, eventsToRender, favoritesOnly) {
@@ -2601,6 +2924,7 @@ function updateTimelineEmptyStateUI(timelineContainer, timelineEvents, eventsToR
 
     if (favoritesOnly && eventsToRender.length === 0) {
         if (favoritesEmptyState) {
+            updateEmptyPlaylistTitle();
             favoritesEmptyState.classList.remove('hidden');
             if (filterContainer && filterContainer.nextElementSibling !== favoritesEmptyState) {
                 filterContainer.parentNode.insertBefore(favoritesEmptyState, filterContainer.nextSibling);
@@ -2876,6 +3200,12 @@ function initOutsideClickDismissal() {
             document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
             document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
         }
+        if (!e.target.closest('.timeline-event-save-wrapper')) {
+            closeAllSavePopovers();
+        }
+        if (!e.target.closest('.playlist-filter-bar')) {
+            closePlaylistsDropdown();
+        }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -2886,6 +3216,8 @@ function initOutsideClickDismissal() {
             }
             document.querySelectorAll('.timeline-event-more-menu:not(.hidden)').forEach(m => m.classList.add('hidden'));
             document.querySelectorAll('.timeline-event-more-btn[aria-expanded="true"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+            closeAllSavePopovers();
+            closePlaylistsDropdown();
         }
     });
 }

@@ -276,5 +276,29 @@ describe('PresentationController & Playlist Continuous Seeking (Friction 3)', ()
             videoPlayer.dispatchEvent(new Event('timeupdate'));
             expect(controller.currentIndex).toBe(0);
         });
+
+        test('GIVEN a custom named playlist WHEN toggled on THEN plays those clips and shows playlist name in counter', () => {
+            const controller = new PresentationController();
+            controller.init();
+
+            const pressEvents = [
+                { id: 'p1', event: 'FIRE BS1', timeMs: 60000, lead: 5, lag: 5 },
+                { id: 'p2', event: 'FIRE BS2', timeMs: 120000, lead: 5, lag: 5 }
+            ];
+
+            controller.toggle([], {
+                events: pressEvents,
+                playlistName: 'NSW Press',
+                skipFilterSync: true
+            });
+
+            expect(controller.isActive).toBe(true);
+            expect(playlistCounter.textContent).toBe('NSW Press · 1/2');
+            expect(videoPlayer.currentTime).toBe(55);
+
+            controller.navigate('next');
+            expect(playlistCounter.textContent).toBe('NSW Press · 2/2');
+            expect(videoPlayer.currentTime).toBe(115);
+        });
     });
 });
