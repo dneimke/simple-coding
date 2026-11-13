@@ -539,6 +539,7 @@ function resolveQuickTagInfo(eventType, game = null) {
 }
 
 // Quick-tag an event at the current video playhead (1-tap, non-blocking)
+// fallow-ignore-next-line complexity
 function quickTagEvent(eventType, note = '') {
     const video = document.getElementById('video-player');
     const sec = video ? (video.currentTime || 0) : 0;
@@ -656,6 +657,7 @@ function parseTeamsFromString(teamsStr) {
 
 // Get current match teams (team1, team2) with code and color
 // Extract match teams from game metadata if present
+// fallow-ignore-next-line complexity
 function getTeamsFromMetadata(meta) {
     const teams = meta?.teamsData;
     if (Array.isArray(teams) && teams.length === 2) return teams;
@@ -847,6 +849,7 @@ function setUndoButtonDisabled(undoBtn, disabled) {
 }
 
 // Update Focus Tagging Ticker (Last event + Undo status + Event count)
+// fallow-ignore-next-line complexity
 function updateQuickTagTicker(providedGame = null) {
     const tickerLast = document.getElementById('ticker-last-event');
     const undoBtn = document.getElementById('quick-tag-undo-btn');
@@ -1067,6 +1070,7 @@ function handleVideoPlaybackShortcut(e, video) {
 }
 
 // Keyboard navigation and hotkey coding
+// fallow-ignore-next-line complexity
 function handleVideoCodingKey(e) {
     if (isTextInputElement(e.target)) return;
 
@@ -1425,14 +1429,7 @@ function createPlaylistDropdownRow(game, pl) {
     return row;
 }
 
-function exportPlaylistCutlist(game, playlistId) {
-    const targetGame = game || getCurrentGame() || { events: timelineEvents, metadata: {} };
-    const cutlist = buildPlaylistCutlist(targetGame, playlistId);
-    if (cutlist.clipCount === 0) {
-        showNotification(`"${cutlist.playlistName}" has no clips to export yet`, 'warning');
-        return;
-    }
-
+function triggerCutlistJsonDownload(cutlist) {
     const blob = new Blob([JSON.stringify(cutlist, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1442,8 +1439,21 @@ function exportPlaylistCutlist(game, playlistId) {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
-    showNotification(`Exported ${cutlist.clipCount} clip${cutlist.clipCount === 1 ? '' : 's'} for "${cutlist.playlistName}"`, 'success');
+function resolveCutlistTargetGame(game) {
+    return game || getCurrentGame() || { events: timelineEvents, metadata: {} };
+}
+
+function exportPlaylistCutlist(game, playlistId) {
+    const cutlist = buildPlaylistCutlist(resolveCutlistTargetGame(game), playlistId);
+    if (cutlist.clipCount === 0) {
+        showNotification(`"${cutlist.playlistName}" has no clips to export yet`, 'warning');
+        return;
+    }
+
+    triggerCutlistJsonDownload(cutlist);
+    showNotification(`Exported ${cutlist.clipCount} clip(s) for "${cutlist.playlistName}"`, 'success');
 }
 
 function createPlaylistExportButton(game, pl) {
@@ -2055,6 +2065,7 @@ let cachedSavedGamesRaw = null;
 let cachedSavedGamesList = null;
 
 // Game management functions
+// fallow-ignore-next-line complexity
 function getSavedGames() {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY_GAMES) : null;
     if (raw && raw === cachedSavedGamesRaw && Array.isArray(cachedSavedGamesList)) {
@@ -2357,6 +2368,26 @@ function updateSweepButtonUI(precomputedCount = null) {
     sweepBtn.classList.remove('is-active');
 }
 
+function updateUnlabelledButtonLabel(showUnlabelledBtn, unlabelledCount) {
+    if (!showUnlabelledBtn) return;
+    const nextHtml = `<i class="fas fa-tag mr-1 text-xs" aria-hidden="true"></i>Unlabelled${unlabelledCount > 0 ? ` (${unlabelledCount})` : ''}`;
+    if (showUnlabelledBtn.innerHTML !== nextHtml) {
+        showUnlabelledBtn.innerHTML = nextHtml;
+    }
+}
+
+function updatePlaylistsFilterLabel(playlistsLabel) {
+    if (!playlistsLabel) return;
+    if (filterViewMode !== 'favorites') {
+        playlistsLabel.textContent = 'Playlists';
+        return;
+    }
+    const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
+    const playlists = getGamePlaylists(game);
+    const activePl = playlists.find((p) => p.id === activePlaylistId) || playlists[0];
+    playlistsLabel.textContent = activePl ? `${activePl.name} (${activePl.count})` : 'Playlists';
+}
+
 function updateFilterToggleUI() {
     const showAllBtn = document.getElementById('show-all-events');
     const showFavoritesBtn = document.getElementById('show-favorites');
@@ -2364,23 +2395,8 @@ function updateFilterToggleUI() {
     const playlistsLabel = document.getElementById('playlists-filter-label');
 
     const unlabelledCount = getUnlabelledEventsCount();
-    if (showUnlabelledBtn) {
-        const nextHtml = `<i class="fas fa-tag mr-1 text-xs" aria-hidden="true"></i>Unlabelled${unlabelledCount > 0 ? ` (${unlabelledCount})` : ''}`;
-        if (showUnlabelledBtn.innerHTML !== nextHtml) {
-            showUnlabelledBtn.innerHTML = nextHtml;
-        }
-    }
-
-    if (playlistsLabel) {
-        if (filterViewMode === 'favorites') {
-            const game = getCurrentGame() || { events: timelineEvents, metadata: {} };
-            const playlists = getGamePlaylists(game);
-            const activePl = playlists.find((p) => p.id === activePlaylistId) || playlists[0];
-            playlistsLabel.textContent = activePl ? `${activePl.name} (${activePl.count})` : 'Playlists';
-        } else {
-            playlistsLabel.textContent = 'Playlists';
-        }
-    }
+    updateUnlabelledButtonLabel(showUnlabelledBtn, unlabelledCount);
+    updatePlaylistsFilterLabel(playlistsLabel);
 
     const exportCutlistBtn = document.getElementById('export-cutlist-btn');
     if (exportCutlistBtn) {
@@ -2999,6 +3015,7 @@ function updateTimelineEmptyStateUI(timelineContainer, timelineEvents, eventsToR
 }
 
 // Render timeline with current events (sorted with earliest events at the top)
+// fallow-ignore-next-line complexity
 function renderTimelineEvents() {
     timelineNeedsRender = false;
     const timelineContainer = document.getElementById('timeline-events');

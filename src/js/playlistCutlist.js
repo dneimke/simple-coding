@@ -156,21 +156,27 @@ function buildCutlistClip(evt, idx) {
  *   clips: Array<Object>
  * }}
  */
-export function buildPlaylistCutlist(game, playlistId = FAVORITES_PLAYLIST_ID, options = {}) {
+function resolvePlaylist(game, playlistId) {
     const targetId = playlistId || FAVORITES_PLAYLIST_ID;
     const playlists = getGamePlaylists(game);
-    const playlist = playlists.find((pl) => pl.id === targetId) || playlists[0] || {
+    return playlists.find((pl) => pl.id === targetId) || playlists[0] || {
         id: targetId,
         name: 'Favorites'
     };
+}
 
+function collectSortedPlaylistEvents(game, playlistId) {
     const events = Array.isArray(game?.events) ? game.events : [];
-    const matchingEvents = events
-        .filter((evt) => isEventInPlaylist(game, playlist.id, evt))
+    return events
+        .filter((evt) => isEventInPlaylist(game, playlistId, evt))
         .slice()
         .sort((a, b) => (a?.timeMs || 0) - (b?.timeMs || 0));
+}
 
-    const clips = matchingEvents.map((evt, idx) => buildCutlistClip(evt, idx));
+export function buildPlaylistCutlist(game, playlistId = FAVORITES_PLAYLIST_ID, options = {}) {
+    const playlist = resolvePlaylist(game, playlistId);
+    const clips = collectSortedPlaylistEvents(game, playlist.id)
+        .map((evt, idx) => buildCutlistClip(evt, idx));
 
     return {
         version: 1,

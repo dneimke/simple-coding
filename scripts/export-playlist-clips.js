@@ -62,6 +62,17 @@ function parseHeightFlag(val) {
  *   dryRun: boolean
  * }}
  */
+const VALUE_FLAG_HANDLERS = {
+    '--mode': (state, val) => { state.mode = parseModeFlag(val); },
+    '--out-dir': (state, val) => { state.outDir = path.resolve(val || ''); },
+    '--height': (state, val) => { state.height = parseHeightFlag(val); }
+};
+
+const BOOL_FLAG_HANDLERS = {
+    '--no-overlay': (state) => { state.overlay = false; },
+    '--dry-run': (state) => { state.dryRun = true; }
+};
+
 export function parseArgs(argv) {
     const positional = [];
     const state = {
@@ -74,12 +85,13 @@ export function parseArgs(argv) {
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
-        if (arg === '--mode') state.mode = parseModeFlag(argv[++i]);
-        else if (arg === '--out-dir') state.outDir = path.resolve(argv[++i] || '');
-        else if (arg === '--height') state.height = parseHeightFlag(argv[++i]);
-        else if (arg === '--no-overlay') state.overlay = false;
-        else if (arg === '--dry-run') state.dryRun = true;
-        else if (!arg.startsWith('--')) positional.push(arg);
+        if (VALUE_FLAG_HANDLERS[arg]) {
+            VALUE_FLAG_HANDLERS[arg](state, argv[++i]);
+        } else if (BOOL_FLAG_HANDLERS[arg]) {
+            BOOL_FLAG_HANDLERS[arg](state);
+        } else if (!arg.startsWith('--')) {
+            positional.push(arg);
+        }
     }
 
     return {
@@ -149,13 +161,15 @@ export function buildReelFilename(cutlist) {
     return `${slugify(cutlist?.gameTitle, 'match')}-${slugify(cutlist?.playlistName, 'playlist')}-reel.mp4`;
 }
 
+function assertFileExists(filePath, label) {
+    if (!filePath || !fs.existsSync(filePath)) {
+        throw new Error(`${label} not found: ${filePath || '(missing)'}`);
+    }
+}
+
 function loadValidatedCutlist(cutlistPath, videoPath) {
-    if (!cutlistPath || !fs.existsSync(cutlistPath)) {
-        throw new Error(`Cutlist JSON not found: ${cutlistPath || '(missing)'}`);
-    }
-    if (!videoPath || !fs.existsSync(videoPath)) {
-        throw new Error(`Source video not found: ${videoPath || '(missing)'}`);
-    }
+    assertFileExists(cutlistPath, 'Cutlist JSON');
+    assertFileExists(videoPath, 'Source video');
     const cutlist = JSON.parse(fs.readFileSync(cutlistPath, 'utf8'));
     const clips = Array.isArray(cutlist?.clips) ? cutlist.clips : [];
     if (clips.length === 0) {
