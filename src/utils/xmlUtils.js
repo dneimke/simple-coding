@@ -29,8 +29,22 @@ const CLIP_LAG_SECONDS = 5;
 
 const NOTE_GROUPS = new Set(['notes', 'note', 'comment', 'comments']);
 const FAVORITE_GROUPS = new Set(['favorite', 'favourite', 'starred', 'fav']);
+const PLAYLIST_GROUPS = new Set(['playlist', 'playlists']);
 
 const formatSeconds = (seconds) => seconds.toFixed(2);
+
+function formatPlaylistsMeta(playlists) {
+    if (!Array.isArray(playlists) || playlists.length === 0) return null;
+    const compact = playlists
+        .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name.trim())
+        .map(p => ({ id: p.id, name: p.name.trim() }));
+    if (compact.length === 0) return null;
+    try {
+        return JSON.stringify(compact);
+    } catch {
+        return null;
+    }
+}
 
 function formatTeamMeta(teamMeta) {
     if (!teamMeta) return null;
@@ -57,7 +71,8 @@ const METADATA_ATTR_MAPPERS = [
     ['timestamp', m => m.timestamp],
     ['video_offset', m => (Number.isFinite(Number(m.videoOffsetMs)) && m.videoOffsetMs !== null ? String(Number(m.videoOffsetMs)) : null)],
     ['video_url', m => (typeof m.videoUrl === 'string' && m.videoUrl.trim() ? m.videoUrl.trim() : null)],
-    ['last_updated', m => (typeof m.lastUpdated === 'string' && m.lastUpdated.trim() ? m.lastUpdated.trim() : null)]
+    ['last_updated', m => (typeof m.lastUpdated === 'string' && m.lastUpdated.trim() ? m.lastUpdated.trim() : null)],
+    ['playlists', m => formatPlaylistsMeta(m.playlists)]
 ];
 
 const formatFileOpeningTag = (metadata) => {
@@ -81,9 +96,38 @@ const formatFileOpeningTag = (metadata) => {
  * @param {Object} [metadata=null] - Optional game-level metadata serialized as root <file> attributes
  * @returns {string} Sportscode XML document
  */
+function buildEventPlaylistMap(playlists) {
+    const map = new Map();
+    if (!Array.isArray(playlists)) return map;
+    playlists.forEach(pl => {
+        if (!pl || typeof pl.name !== 'string' || !pl.name.trim() || !Array.isArray(pl.eventIds)) return;
+        const name = pl.name.trim();
+        pl.eventIds.forEach(eventId => {
+            if (!eventId) return;
+            const list = map.get(eventId) || [];
+            if (!list.includes(name)) list.push(name);
+            map.set(eventId, list);
+        });
+    });
+    return map;
+}
+
+function appendPlaylistLabels(combinedLabels, eventId, eventPlaylistMap) {
+    if (!eventId || !eventPlaylistMap.has(eventId)) return;
+    eventPlaylistMap.get(eventId).forEach(name => {
+        const exists = combinedLabels.some(
+            l => l && l.group && PLAYLIST_GROUPS.has(l.group.trim().toLowerCase()) && l.text === name
+        );
+        if (!exists) {
+            combinedLabels.push({ group: 'Playlist', text: name });
+        }
+    });
+}
+
 export const generateSportscodeXml = (events, metadata = null) => {
     const validEvents = (Array.isArray(events) ? events : []).filter(isValidEvent);
     const rowIds = new Map();
+    const eventPlaylistMap = buildEventPlaylistMap(metadata?.playlists);
 
     const instances = validEvents.map((logEntry, index) => {
         const code = logEntry.event;
@@ -118,6 +162,8 @@ export const generateSportscodeXml = (events, metadata = null) => {
                 combinedLabels.push({ group: 'Favorite', text: 'Yes' });
             }
         }
+
+        appendPlaylistLabels(combinedLabels, logEntry.id, eventPlaylistMap);
 
         const labelXml = combinedLabels
             .filter(l => l && l.text)
@@ -240,31 +286,35 @@ const calculateEventTiming = (code, start, end) => {
     return { event: code, timeMs, lead, lag };
 };
 
+function classifyReservedLabel(lbl, state) {
+    if (!lbl || !lbl.text) return;
+    const groupNorm = (lbl.group || '').trim().toLowerCase();
+    const textTrimmed = lbl.text.trim();
+    const textNorm = textTrimmed.toLowerCase();
+
+    if (NOTE_GROUPS.has(groupNorm)) {
+        state.note = textTrimmed;
+    } else if (FAVORITE_GROUPS.has(groupNorm)) {
+        if (textNorm !== 'no' && textNorm !== 'false') state.isFavorite = true;
+    } else if (PLAYLIST_GROUPS.has(groupNorm)) {
+        if (!state.playlistNames.includes(textTrimmed)) state.playlistNames.push(textTrimmed);
+    } else {
+        state.domainLabels.push(lbl);
+    }
+}
+
 const extractReservedLabels = (labels) => {
     if (!Array.isArray(labels) || labels.length === 0) {
-        return { note: undefined, isFavorite: false, domainLabels: undefined };
+        return { note: undefined, isFavorite: false, playlistNames: undefined, domainLabels: undefined };
     }
-    const domainLabels = [];
-    let note;
-    let isFavorite = false;
-
-    for (const lbl of labels) {
-        if (!lbl || !lbl.text) continue;
-        const groupNorm = (lbl.group || '').trim().toLowerCase();
-        const textNorm = lbl.text.trim().toLowerCase();
-        if (NOTE_GROUPS.has(groupNorm)) {
-            note = lbl.text.trim();
-        } else if (FAVORITE_GROUPS.has(groupNorm) && textNorm !== 'no' && textNorm !== 'false') {
-            isFavorite = true;
-        } else {
-            domainLabels.push(lbl);
-        }
-    }
+    const state = { note: undefined, isFavorite: false, playlistNames: [], domainLabels: [] };
+    labels.forEach(lbl => classifyReservedLabel(lbl, state));
 
     return {
-        note,
-        isFavorite,
-        domainLabels: domainLabels.length > 0 ? domainLabels : undefined
+        note: state.note,
+        isFavorite: state.isFavorite,
+        playlistNames: state.playlistNames.length > 0 ? state.playlistNames : undefined,
+        domainLabels: state.domainLabels.length > 0 ? state.domainLabels : undefined
     };
 };
 
@@ -281,16 +331,34 @@ const extractReservedLabels = (labels) => {
  * @param {Array<Object>} [labels] - Optional instance labels
  * @returns {Object} Event object ({ event, timeMs, lead?, lag?, labels? })
  */
-const instanceToEvent = (code, start, end, labels) => {
+const instanceToEventWithPlaylists = (code, start, end, labels) => {
     const evt = calculateEventTiming(code, start, end);
-    const { note, isFavorite, domainLabels } = extractReservedLabels(labels);
+    const { note, isFavorite, playlistNames, domainLabels } = extractReservedLabels(labels);
     if (domainLabels) evt.labels = domainLabels;
     if (note) evt.note = note;
     if (isFavorite) {
         evt.isFavorite = true;
         evt.favorite = true;
     }
-    return evt;
+    return { evt, playlistNames };
+};
+
+const parseJsonAttribute = (raw) => {
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+};
+
+const parsePlaylistsAttribute = (raw) => {
+    const parsed = parseJsonAttribute(raw);
+    if (!Array.isArray(parsed)) return null;
+    const valid = parsed
+        .filter(p => p && typeof p.id === 'string' && typeof p.name === 'string' && p.name.trim())
+        .map(p => ({ id: p.id, name: p.name.trim() }));
+    return valid.length > 0 ? valid : null;
 };
 
 const extractGameMetadataFromXmlDoc = (xmlDoc) => {
@@ -309,16 +377,7 @@ const extractGameMetadataFromXmlDoc = (xmlDoc) => {
     const teams = getAttr('teams');
     const teamCodesStr = getAttr('team_codes', 'teamCodes');
     const teamCodes = teamCodesStr ? teamCodesStr.split(',').map(s => s.trim()).filter(Boolean) : null;
-
-    let teamMeta = null;
-    const teamMetaStr = getAttr('team_meta', 'teamMeta');
-    if (teamMetaStr) {
-        try {
-            teamMeta = JSON.parse(teamMetaStr);
-        } catch {
-            teamMeta = null;
-        }
-    }
+    const teamMeta = parseJsonAttribute(getAttr('team_meta', 'teamMeta'));
 
     const elapsedTimeStr = getAttr('elapsed_time', 'elapsedTime');
     const elapsedTime = elapsedTimeStr !== null && !isNaN(Number(elapsedTimeStr)) ? Number(elapsedTimeStr) : null;
@@ -330,6 +389,7 @@ const extractGameMetadataFromXmlDoc = (xmlDoc) => {
 
     const videoUrl = getAttr('video_url', 'videoUrl');
     const lastUpdated = getAttr('last_updated', 'lastUpdated');
+    const playlists = parsePlaylistsAttribute(getAttr('playlists'));
 
     // Check legacy <game teams="..."> format
     const legacyGame = xmlDoc.querySelector('game');
@@ -344,9 +404,43 @@ const extractGameMetadataFromXmlDoc = (xmlDoc) => {
         timestamp,
         videoOffsetMs,
         ...(videoUrl ? { videoUrl } : {}),
-        ...(lastUpdated ? { lastUpdated } : {})
+        ...(lastUpdated ? { lastUpdated } : {}),
+        ...(playlists ? { playlists } : {})
     };
 };
+
+function rehydratePlaylistsFromXml(events, eventPlaylistNames, metaPlaylists) {
+    const byKey = new Map();
+    if (Array.isArray(metaPlaylists)) {
+        metaPlaylists.forEach(pl => {
+            const key = pl.name.trim().toLowerCase();
+            if (!byKey.has(key)) {
+                byKey.set(key, { id: pl.id, name: pl.name.trim(), eventIds: [] });
+            }
+        });
+    }
+
+    events.forEach((evt, idx) => {
+        if (!evt.id) {
+            evt.id = `evt-xml-${idx + 1}-${evt.timeMs || 0}`;
+        }
+        const names = eventPlaylistNames[idx];
+        if (!Array.isArray(names)) return;
+        names.forEach(name => {
+            const key = name.trim().toLowerCase();
+            let target = byKey.get(key);
+            if (!target) {
+                target = { id: `pl-xml-${byKey.size + 1}`, name: name.trim(), eventIds: [] };
+                byKey.set(key, target);
+            }
+            if (!target.eventIds.includes(evt.id)) {
+                target.eventIds.push(evt.id);
+            }
+        });
+    });
+
+    return Array.from(byKey.values());
+}
 
 /**
  * Parses XML content to extract event data
@@ -359,12 +453,17 @@ export const parseXmlToEvents = (xmlContent) => {
 
     const instancesElement = getSportscodeInstancesElement(xmlDoc);
     let events = [];
+    const eventPlaylistNames = [];
 
     if (instancesElement) {
-        events = childElements(instancesElement, 'instance')
+        childElements(instancesElement, 'instance')
             .map(readSportscodeInstance)
             .filter(({ code, start, end }) => code && isFinite(start) && isFinite(end))
-            .map(({ code, start, end, labels }) => instanceToEvent(code, start, end, labels));
+            .forEach(({ code, start, end, labels }) => {
+                const { evt, playlistNames } = instanceToEventWithPlaylists(code, start, end, labels);
+                events.push(evt);
+                eventPlaylistNames.push(playlistNames);
+            });
     } else {
         // Legacy custom export format: <game teams=".."><events><event event=".." timeMs=".." /></events></game>
         const eventNodes = Array.from(xmlDoc.getElementsByTagName('event'));
@@ -388,19 +487,23 @@ export const parseXmlToEvents = (xmlContent) => {
             }).filter(Boolean);
         } else {
             // Loose <instance> elements without a <file> root
-            const instanceNodes = Array.from(xmlDoc.getElementsByTagName('instance'));
-
-            events = instanceNodes.map(node => {
+            Array.from(xmlDoc.getElementsByTagName('instance')).forEach(node => {
                 const parsed = readSportscodeInstance(node);
                 if (parsed.code && isFinite(parsed.start) && isFinite(parsed.end)) {
-                    return instanceToEvent(parsed.code, parsed.start, parsed.end, parsed.labels);
+                    const { evt, playlistNames } = instanceToEventWithPlaylists(parsed.code, parsed.start, parsed.end, parsed.labels);
+                    events.push(evt);
+                    eventPlaylistNames.push(playlistNames);
                 }
-                return null;
-            }).filter(Boolean);
+            });
         }
     }
 
     const gameMetadata = extractGameMetadataFromXmlDoc(xmlDoc);
+    const hasEventPlaylists = eventPlaylistNames.some(list => Array.isArray(list) && list.length > 0);
+    if (hasEventPlaylists || (Array.isArray(gameMetadata.playlists) && gameMetadata.playlists.length > 0)) {
+        gameMetadata.playlists = rehydratePlaylistsFromXml(events, eventPlaylistNames, gameMetadata.playlists);
+    }
+
     const hasAnyMeta = Object.values(gameMetadata).some(v => v !== null && v !== undefined);
     if (hasAnyMeta) {
         events.gameMetadata = gameMetadata;
@@ -527,7 +630,8 @@ const extractGameMetadataForExport = (game) => ({
     timestamp: pickFirstDefined(game.timestamp, game.metadata?.timestamp),
     videoOffsetMs: game.videoOffsetMs ?? game.metadata?.videoOffsetMs ?? null,
     videoUrl: pickFirstDefined(game.videoUrl, game.metadata?.videoUrl),
-    lastUpdated: pickFirstDefined(game.lastUpdated, game.metadata?.lastUpdated)
+    lastUpdated: pickFirstDefined(game.lastUpdated, game.metadata?.lastUpdated),
+    playlists: pickFirstDefined(game.metadata?.playlists, game.playlists)
 });
 
 /**

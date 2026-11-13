@@ -90,6 +90,9 @@ function buildImportGameData(parsedEvents, teamsAttribute) {
     if (meta.videoOffsetMs !== null && meta.videoOffsetMs !== undefined) {
         gameData.videoOffsetMs = meta.videoOffsetMs;
     }
+    if (Array.isArray(meta.playlists) && meta.playlists.length > 0) {
+        gameData.metadata = { ...(gameData.metadata || {}), playlists: meta.playlists };
+    }
 
     return gameData;
 }

@@ -199,6 +199,53 @@ describe('XML Utils', () => {
             expect(doc.documentElement.getAttribute('app')).toBe('simple-coding');
             expect(doc.documentElement.getAttribute('game_id')).toBeNull();
         });
+
+        test('round-trips custom playlists and empty playlists through Sportscode XML', () => {
+            const game = {
+                id: 'game-pl-1',
+                teams: 'NSW vs VIC',
+                events: [
+                    { id: 'e1', event: 'FIRE BS1', timeMs: 12000, isFavorite: true },
+                    { id: 'e2', event: 'FIRE CE', timeMs: 35000 }
+                ],
+                metadata: {
+                    playlists: [
+                        { id: 'pl-press', name: 'NSW Press', eventIds: ['e2'] },
+                        { id: 'pl-empty', name: 'Corners', eventIds: [] }
+                    ]
+                }
+            };
+
+            const xml = generateGameXml(game);
+            expect(xml).toContain('<group>Playlist</group>');
+            expect(xml).toContain('<text>NSW Press</text>');
+
+            const parsed = parseXmlToEvents(xml);
+            expect(parsed).toHaveLength(2);
+            // Playlist labels should be extracted as reserved metadata, not card tactical pills
+            expect((parsed[1].labels || []).some(l => l.group === 'Playlist')).toBe(false);
+            expect(parsed.gameMetadata.playlists).toEqual([
+                { id: 'pl-press', name: 'NSW Press', eventIds: [parsed[1].id] },
+                { id: 'pl-empty', name: 'Corners', eventIds: [] }
+            ]);
+        });
+
+        test('rehydrates playlists from third-party Sportscode Playlist labels without root attribute', () => {
+            const xml = sportscodeWithInstance(`
+                <instance>
+                    <ID>1</ID>
+                    <start>10.00</start>
+                    <end>20.00</end>
+                    <code_id>1</code_id>
+                    <code>GOAL_FOR</code>
+                    <label><group>Playlist</group><text>High Press</text></label>
+                </instance>
+            `);
+            const parsed = parseXmlToEvents(xml);
+            expect(parsed.gameMetadata.playlists).toHaveLength(1);
+            expect(parsed.gameMetadata.playlists[0].name).toBe('High Press');
+            expect(parsed.gameMetadata.playlists[0].eventIds).toEqual([parsed[0].id]);
+        });
     });
 
     describe('parseXmlToEvents', () => {

@@ -61,10 +61,15 @@ function computeSnapshotElapsedTime(meta, parsedEvents) {
     return Math.max(remoteElapsed, maxEventMs);
 }
 
-function buildSnapshotMetadata(existing, videoUrl, lastUpdated) {
+function buildSnapshotMetadata(existing, videoUrl, lastUpdated, playlists) {
     const baseMeta = (existing && existing.metadata) ? { ...existing.metadata } : {};
     if (videoUrl) baseMeta.videoUrl = videoUrl;
     if (lastUpdated) baseMeta.lastUpdated = lastUpdated;
+    if (Array.isArray(playlists)) {
+        baseMeta.playlists = playlists;
+    } else if ('playlists' in baseMeta) {
+        delete baseMeta.playlists;
+    }
     return Object.keys(baseMeta).length > 0 ? baseMeta : undefined;
 }
 
@@ -73,7 +78,7 @@ function buildRemoteSnapshotGame(gameId, meta, parsedEvents, existing = null, re
     const baseMeta = base.metadata || {};
     const videoUrl = firstDefined(meta.videoUrl, base.videoUrl, baseMeta.videoUrl);
     const lastUpdated = firstDefined(meta.lastUpdated, remoteModifiedTime, baseMeta.lastUpdated);
-    const metadata = buildSnapshotMetadata(base, videoUrl, lastUpdated);
+    const metadata = buildSnapshotMetadata(base, videoUrl, lastUpdated, meta.playlists);
 
     const snapshot = {
         ...base,
