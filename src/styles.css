@@ -2667,6 +2667,7 @@ code {
     font-weight: 600;
 }
 
+.playlist-dropdown-action,
 .playlist-dropdown-delete {
     display: inline-flex;
     align-items: center;
@@ -2679,6 +2680,11 @@ code {
     color: var(--color-muted);
     cursor: pointer;
     flex-shrink: 0;
+}
+
+.playlist-dropdown-action:hover {
+    color: var(--color-primary);
+    background-color: var(--color-primary-soft);
 }
 
 .playlist-dropdown-delete:hover {
