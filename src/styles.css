@@ -1305,6 +1305,99 @@ code {
 }
 
 /* ===== Saved games ===== */
+.matches-header {
+    align-items: center;
+}
+
+.matches-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+}
+
+.matches-search {
+    position: relative;
+    flex: 1 1 100%;
+    min-width: 0;
+}
+
+.matches-search-icon {
+    position: absolute;
+    left: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-muted);
+    font-size: 0.875rem;
+    pointer-events: none;
+}
+
+.matches-search-input {
+    min-height: 2.5rem;
+    padding-left: 2.25rem;
+    padding-right: 2.25rem;
+}
+
+.matches-search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+@media (pointer: coarse) {
+    .matches-search-input {
+        min-height: var(--touch-min);
+    }
+}
+
+.matches-search-clear {
+    position: absolute;
+    right: var(--space-1);
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: color 150ms ease, background-color 150ms ease;
+}
+
+.matches-search-clear:hover {
+    color: var(--color-ink);
+    background-color: var(--color-surface-muted);
+}
+
+.matches-search-clear:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+@media (max-width: 640px) {
+    .matches-toolbar > #cloudSyncButton,
+    .matches-toolbar > .create-match-dropdown {
+        flex: 1 1 auto;
+        width: auto;
+    }
+}
+
+@media (min-width: 768px) {
+    .matches-toolbar {
+        width: auto;
+        flex-wrap: nowrap;
+    }
+
+    .matches-search {
+        flex: 0 1 auto;
+        width: 15rem;
+    }
+}
+
 .saved-games-list {
     display: flex;
     flex-direction: column;

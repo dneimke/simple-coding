@@ -237,12 +237,18 @@
                         </a>
                     </div>
 
-                    <header class="page-header">
-                        <div>
-                            <h1 class="page-title">Matches</h1>
-                            <p class="page-subtitle">Record a live match, code from video, or import Sportscode XML. <a href="#help" id="matchesCodingModesHelpLink" class="text-brand font-medium hover:underline inline-flex items-center gap-1 ml-1"><i class="fas fa-circle-question text-xs" aria-hidden="true"></i>How the 3 modes work</a></p>
-                        </div>
-                        <div class="flex items-center gap-2">
+                    <header class="page-header matches-header">
+                        <h1 class="page-title">Matches</h1>
+                        <div class="matches-toolbar">
+                            <div class="matches-search">
+                                <i class="fas fa-magnifying-glass matches-search-icon" aria-hidden="true"></i>
+                                <input id="savedGamesSearchInput" type="search" class="field matches-search-input"
+                                    placeholder="Search matches..." aria-label="Search matches" autocomplete="off">
+                                <button id="savedGamesSearchClear" type="button" class="matches-search-clear hidden"
+                                    aria-label="Clear search" title="Clear search">
+                                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                                </button>
+                            </div>
                             <button id="cloudSyncButton" type="button" class="btn btn-secondary" title="Connect Google Drive to sync matches across devices" aria-haspopup="dialog" aria-expanded="false" aria-controls="cloudSyncModal">
                                 <i id="cloudSyncIcon" class="fas fa-cloud text-xs" aria-hidden="true"></i>
                                 <span id="cloudSyncButtonLabel">Cloud Sync</span>

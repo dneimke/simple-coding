@@ -19,6 +19,7 @@ import { resolveInitialView, parseHelpJumpTargetId } from './utils/navigationUti
 import { logger, formatTime } from './utils/formatUtils.js';
 import { validateXmlStructure, parseXmlToEvents, copyXmlToClipboard, mergeXmlEventStreams } from './utils/xmlUtils.js';
 import { showPreview, showAppendPreview, appendEventsToGame } from './utils/importUtils.js';
+import { filterSavedGames } from './utils/savedGamesFilter.js';
 function showMessage(element, message, isError = false) {
     notificationService.showMessage(element, message, isError);
 }
@@ -235,9 +236,72 @@ function handleRenameSavedGame(game, index) {
     notifyRenameResult(result, trimmed);
 }
 
+function createFilteredEmptyState(query, onClear) {
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'surface empty-state flex flex-col items-center gap-3';
+
+    const message = document.createElement('p');
+    message.textContent = `No matches found for "${query.trim()}".`;
+
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'btn btn-secondary';
+    clearBtn.textContent = 'Clear search';
+    clearBtn.addEventListener('click', onClear);
+
+    emptyDiv.append(message, clearBtn);
+    return emptyDiv;
+}
+
+function getSavedGamesSearchElements() {
+    const searchInput = /** @type {HTMLInputElement | null} */ (document.getElementById('savedGamesSearchInput'));
+    const searchClear = document.getElementById('savedGamesSearchClear');
+    const searchQuery = searchInput ? searchInput.value : '';
+    if (searchClear) {
+        searchClear.classList.toggle('hidden', searchQuery.trim().length === 0);
+    }
+    return { searchInput, searchQuery };
+}
+
+function buildSavedGameCard(game, index) {
+    return createGameCard({
+        game,
+        index,
+        onSelect: () => {
+            window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}`;
+        },
+        onMatchReport: () => {
+            openMatchReport(game);
+        },
+        onContinueCoding: () => {
+            window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}&mode=tag`;
+        },
+        onSequenceTrial: () => {
+            window.location.href = `spike/sequences/?game=${encodeURIComponent(game.id)}`;
+        },
+        onViewLog: () => {
+            window.location.hash = `log/${encodeURIComponent(game.id)}`;
+        },
+        onAppendXml: () => {
+            pendingAppendGame = game;
+            if (appendXmlFileInput) {
+                appendXmlFileInput.click();
+            }
+        },
+        onRename: () => handleRenameSavedGame(game, index),
+        onDelete: () => {
+            if (notificationService.confirm('Are you sure you want to delete this saved game?')) {
+                gameStorageManager.removeGame(index);
+                renderSavedGames();
+            }
+        },
+    });
+}
+
 function renderSavedGames() {
     renderActiveMatchBanner();
     const savedGamesList = document.getElementById('savedGamesList');
+    const { searchInput, searchQuery } = getSavedGamesSearchElements();
     savedGamesList.innerHTML = '';
 
     try {
@@ -245,53 +309,30 @@ function renderSavedGames() {
         const savedGames = gameStorageManager.ensureGameIds();
         checkStorageQuota(80);
 
-        // Add export all button if there are games
-        const exportAllButton = document.getElementById('exportAllGamesButton');
-        if (!exportAllButton && savedGames.length > 0) {
+        if (!document.getElementById('exportAllGamesButton') && savedGames.length > 0) {
             createExportButton();
         }
 
-        if (savedGames.length > 0) {
-            savedGames.forEach((game, index) => {
-                const gameCard = createGameCard({
-                    game,
-                    index,
-                    onSelect: () => {
-                        window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}`;
-                    },
-                    onMatchReport: () => {
-                        openMatchReport(game);
-                    },
-                    onContinueCoding: () => {
-                        window.location.href = `timeline-video.html?game=${encodeURIComponent(game.id)}&mode=tag`;
-                    },
-                    onSequenceTrial: () => {
-                        window.location.href = `spike/sequences/?game=${encodeURIComponent(game.id)}`;
-                    },
-                    onViewLog: () => {
-                        window.location.hash = `log/${encodeURIComponent(game.id)}`;
-                    },
-                    onAppendXml: () => {
-                        pendingAppendGame = game;
-                        if (appendXmlFileInput) {
-                            appendXmlFileInput.click();
-                        }
-                    },
-                    onRename: () => handleRenameSavedGame(game, index),
-                    onDelete: () => {
-                        if (notificationService.confirm('Are you sure you want to delete this saved game?')) {
-                            // Use gameStorageManager to remove game
-                            gameStorageManager.removeGame(index);
-                            renderSavedGames();
-                        }
-                    },
-                });
-
-                savedGamesList.appendChild(gameCard);
-            });
-        } else {
+        if (savedGames.length === 0) {
             savedGamesList.innerHTML = '<div class="surface empty-state">No saved games yet. Complete a game on Event Capture or import an XML file.</div>';
+            return;
         }
+
+        const filteredGames = filterSavedGames(savedGames, searchQuery);
+        if (filteredGames.length === 0) {
+            savedGamesList.appendChild(createFilteredEmptyState(searchQuery, () => {
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchInput.focus();
+                }
+                renderSavedGames();
+            }));
+            return;
+        }
+
+        filteredGames.forEach(({ game, index }) => {
+            savedGamesList.appendChild(buildSavedGameCard(game, index));
+        });
     } catch (error) {
         logger.error('Error loading games from localStorage:', error);
         savedGamesList.innerHTML = '<div class="banner banner-error">Failed to load saved games.</div>';
@@ -1152,9 +1193,35 @@ stateService.subscribe('game', syncChrome);
 
 const KNOWN_INITIAL_ROUTES = new Set(['help', 'event-capture', 'log']);
 
+function initSavedGamesSearch() {
+    const searchInput = /** @type {HTMLInputElement | null} */ (document.getElementById('savedGamesSearchInput'));
+    const searchClear = document.getElementById('savedGamesSearchClear');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', () => {
+        renderSavedGames();
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && searchInput.value) {
+            searchInput.value = '';
+            renderSavedGames();
+        }
+    });
+
+    if (searchClear) {
+        searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            searchInput.focus();
+            renderSavedGames();
+        });
+    }
+}
+
 // Initial navigation based on URL hash or defaults to SavedGames (Matches Hub)
 function handleInitialNavigation() {
     initLiveChordEngine();
+    initSavedGamesSearch();
     const [hash] = window.location.hash.substring(1).split('?')[0].split('/');
     if (hash === 'configure') {
         showConfigView();
