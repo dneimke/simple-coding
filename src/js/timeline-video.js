@@ -28,7 +28,7 @@ import {
 } from './playlistManager.js';
 import {
     buildPlaylistCutlist,
-    buildCutlistDownloadFilename
+    downloadCutlistFile
 } from './playlistCutlist.js';
 
 import {
@@ -1429,18 +1429,6 @@ function createPlaylistDropdownRow(game, pl) {
     return row;
 }
 
-function triggerCutlistJsonDownload(cutlist) {
-    const blob = new Blob([JSON.stringify(cutlist, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = buildCutlistDownloadFilename(cutlist);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 function resolveCutlistTargetGame(game) {
     return game || getCurrentGame() || { events: timelineEvents, metadata: {} };
 }
@@ -1452,7 +1440,7 @@ function exportPlaylistCutlist(game, playlistId) {
         return;
     }
 
-    triggerCutlistJsonDownload(cutlist);
+    downloadCutlistFile(cutlist);
     showNotification(`Exported ${cutlist.clipCount} clip(s) for "${cutlist.playlistName}"`, 'success');
 }
 

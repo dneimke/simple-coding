@@ -884,7 +884,7 @@ async function captureSequenceSpikeSnapshots(browser, baseUrl, results) {
         });
         const page = await context.newPage();
         await page.goto(`${baseUrl}/spike/sequences/`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('#sequence-video-card, .entry-row', { timeout: 10000 });
+        await page.waitForSelector('#export-sequences-btn', { timeout: 10000 });
         await page.waitForTimeout(300);
 
         const reportPath = path.join(OUTPUT_DIR, `sequence-spike-sample-${vp.name}.png`);
@@ -895,6 +895,32 @@ async function captureSequenceSpikeSnapshots(browser, baseUrl, results) {
             size: `${vp.width}x${vp.height}`,
             file: `sequence-spike-sample-${vp.name}.png`,
             bytes: fs.statSync(reportPath).size
+        });
+
+        const shownPath = path.join(OUTPUT_DIR, `sequence-spike-export-shown-${vp.name}.png`);
+        await page.screenshot({ path: shownPath, fullPage: true });
+        results.push({
+            name: 'sequence-spike-export-shown',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `sequence-spike-export-shown-${vp.name}.png`,
+            bytes: fs.statSync(shownPath).size
+        });
+
+        await page.click('.sequence-export-toggle');
+        await page.waitForFunction(() => {
+            const button = document.getElementById('export-sequences-btn');
+            return button && button.textContent.includes('Export selected (1)');
+        });
+
+        const selectedPath = path.join(OUTPUT_DIR, `sequence-spike-export-selected-${vp.name}.png`);
+        await page.screenshot({ path: selectedPath, fullPage: true });
+        results.push({
+            name: 'sequence-spike-export-selected',
+            viewport: vp.name,
+            size: `${vp.width}x${vp.height}`,
+            file: `sequence-spike-export-selected-${vp.name}.png`,
+            bytes: fs.statSync(selectedPath).size
         });
 
         await context.close();

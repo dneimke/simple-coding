@@ -1708,6 +1708,47 @@ code {
     max-width: none;
 }
 
+#sequence-export-bar:empty {
+    display: none;
+}
+
+.sequence-export-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--touch-min);
+    height: var(--touch-min);
+    min-width: var(--touch-min);
+    min-height: var(--touch-min);
+    flex-shrink: 0;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: transparent;
+    cursor: pointer;
+}
+
+.sequence-export-toggle[aria-pressed="true"] {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+}
+
+.sequence-export-toggle:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.sequence-export-status:empty {
+    display: none;
+}
+
+.sequence-export-status {
+    color: var(--color-success-ink);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
 .review-page .page {
     display: flex;
     flex-direction: column;

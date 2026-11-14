@@ -64,21 +64,24 @@
 
         <main class="app-main">
             <div class="page max-w-full px-4 lg:px-8 mx-auto" id="sequence-spike">
-                <header class="py-2 mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <h1 class="text-base font-bold text-slate-900 tracking-tight">Sequence trial</h1>
-                        <span class="text-xs text-slate-400 hidden sm:inline">|</span>
-                        <span id="current-match-badge" class="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[220px]">Sample match</span>
+                <header class="py-2 mb-2 flex flex-col gap-2 border-b border-slate-200">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <h1 class="text-base font-bold text-slate-900 tracking-tight">Sequence trial</h1>
+                            <span class="text-xs text-slate-400 hidden sm:inline">|</span>
+                            <span id="current-match-badge" class="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[220px]">Sample match</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="feedback-badge-btn" class="hidden btn btn-compact text-xs bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-semibold flex items-center gap-1.5 shadow-sm transition-all" title="View flagged clips">
+                                <i class="fas fa-flag text-amber-600 text-[11px]" aria-hidden="true"></i>
+                                <span id="feedback-badge-count">0 Flagged</span>
+                            </button>
+                            <button type="button" id="matches-button" class="btn btn-secondary btn-compact text-xs flex items-center gap-1.5" title="Switch match or upload">
+                                <i class="fas fa-folder-open text-slate-500" aria-hidden="true"></i>Matches
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" id="feedback-badge-btn" class="hidden btn btn-compact text-xs bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-semibold flex items-center gap-1.5 shadow-sm transition-all" title="View flagged clips">
-                            <i class="fas fa-flag text-amber-600 text-[11px]" aria-hidden="true"></i>
-                            <span id="feedback-badge-count">0 Flagged</span>
-                        </button>
-                        <button type="button" id="matches-button" class="btn btn-secondary btn-compact text-xs flex items-center gap-1.5" title="Switch match or upload">
-                            <i class="fas fa-folder-open text-slate-500" aria-hidden="true"></i>Matches
-                        </button>
-                    </div>
+                    <div id="sequence-export-bar" class="flex flex-wrap items-center gap-2"></div>
                 </header>
 
                 <!-- Analysis Workspace: Video (sticky) + Filtered Entries -->

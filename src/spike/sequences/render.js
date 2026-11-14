@@ -3,7 +3,9 @@
  * with a Coach Match Scoreboard, integrated 1-click filter lenses, and compact seekable rows.
  */
 
+import { downloadCutlistFile } from '../../js/playlistCutlist.js';
 import { entryCodes, formatClock } from './copy.js';
+import { buildSequenceCutlist } from './cutlist.js';
 import { createFeedbackStore, openFeedbackModal, wireFeedbackHeader } from './feedback.js';
 
 /**
@@ -29,7 +31,9 @@ export function renderReport(container, game, result, meta = {}) {
         team: 'all',
         entryType: 'all',
         originType: 'all',
-        activeEntryId: allEntries[0]?.id || null
+        activeEntryId: allEntries[0]?.id || null,
+        selectedIds: new Set(),
+        exportStatus: ''
     };
 
     container.replaceChildren();
@@ -76,11 +80,41 @@ export function renderReport(container, game, result, meta = {}) {
         renderEntryList(listContainer, allEntries, state, {
             feedbackStore,
             videoEl: videoCard.videoEl,
+            exportBar: (container.ownerDocument || document).getElementById('sequence-export-bar'),
             onSelect: (entry) => {
                 state.activeEntryId = entry.id;
                 update();
                 videoCard.seekTo(entry.seekSeconds, entry);
                 if (meta.onSeek) meta.onSeek(entry.seekSeconds, entry);
+            },
+            onToggleExport: (entry) => {
+                if (state.selectedIds.has(entry.id)) state.selectedIds.delete(entry.id);
+                else state.selectedIds.add(entry.id);
+                state.exportStatus = '';
+                update();
+            },
+            onExport: () => {
+                const selectedIds = [...state.selectedIds];
+                const cutlist = buildSequenceCutlist(game, allEntries, selectedIds.length
+                    ? { selectedIds }
+                    : {
+                        filter: {
+                            team: state.team,
+                            entryType: state.entryType,
+                            originType: state.originType
+                        }
+                    });
+                if (!cutlist.clipCount) return;
+                downloadCutlistFile(cutlist);
+                state.exportStatus = cutlist.clipCount === 1
+                    ? 'Exported 1 clip'
+                    : `Exported ${cutlist.clipCount} clips`;
+                update();
+            },
+            onClearExport: () => {
+                state.selectedIds.clear();
+                state.exportStatus = '';
+                update();
             }
         });
     }
@@ -567,6 +601,7 @@ function renderEntryList(container, allEntries, state, options = {}) {
     const onSelect = typeof options === 'function' ? options : options.onSelect;
     const feedbackStore = options?.feedbackStore;
     const videoEl = options?.videoEl;
+    const exportBar = options.exportBar || null;
     container.replaceChildren();
 
     const filtered = allEntries.filter(entry => {
@@ -577,6 +612,7 @@ function renderEntryList(container, allEntries, state, options = {}) {
     });
 
     if (!filtered.length) {
+        if (exportBar) exportBar.replaceChildren();
         const empty = document.createElement('div');
         empty.className = 'surface surface-padded text-center py-8 text-muted border rounded-lg';
         empty.innerHTML = allEntries.length
@@ -593,16 +629,47 @@ function renderEntryList(container, allEntries, state, options = {}) {
         return;
     }
 
+    const selectedCount = allEntries.filter((entry) => state.selectedIds?.has(entry.id)).length;
+    const exportLabel = selectedCount > 0
+        ? `Export selected (${selectedCount})`
+        : `Export shown (${filtered.length})`;
+
     const header = document.createElement('div');
     header.className = 'flex items-center justify-between text-xs text-slate-500 px-1';
     header.innerHTML = `
         <span class="font-semibold uppercase tracking-wider">Showing ${filtered.length} of ${allEntries.length} entries</span>
         <span>Click row to seek video</span>
     `;
-    container.append(header);
+
+    const actions = document.createElement('div');
+    actions.className = 'flex flex-wrap items-center gap-2 w-full';
+    actions.innerHTML = `
+        <button type="button" id="export-sequences-btn" class="btn btn-secondary flex-1 sm:flex-none">${exportLabel}</button>
+        <button type="button" id="clear-sequence-selection" class="btn btn-ghost${selectedCount > 0 ? '' : ' hidden'}">Clear</button>
+        <span id="sequence-export-status" class="sequence-export-status" role="status">${escapeHtml(state.exportStatus || '')}</span>
+    `;
+    actions.querySelector('#export-sequences-btn').addEventListener('click', () => {
+        if (options.onExport) options.onExport();
+    });
+    actions.querySelector('#clear-sequence-selection').addEventListener('click', () => {
+        if (options.onClearExport) options.onClearExport();
+    });
+
+    if (exportBar) {
+        exportBar.replaceChildren(actions);
+        container.append(header);
+    } else {
+        container.append(header, actions);
+    }
 
     filtered.forEach(entry => {
-        container.append(createEntryRow(entry, state, { onSelect, feedbackStore, videoEl }));
+        container.append(createEntryRow(entry, state, {
+            onSelect,
+            feedbackStore,
+            videoEl,
+            isExportSelected: Boolean(state.selectedIds?.has(entry.id)),
+            onToggleExport: options.onToggleExport
+        }));
     });
 }
 
@@ -613,13 +680,21 @@ function createEntryRow(entry, state, options) {
 
     const row = document.createElement('div');
     row.className = `entry-row surface px-3 py-2 border rounded-lg cursor-pointer transition-all ${getEntryRowBorder(isSelected)}`;
-    row.innerHTML = getEntryRowHtml(entry, isCounter, isFlagged);
+    row.innerHTML = getEntryRowHtml(entry, isCounter, isFlagged, options.isExportSelected);
 
     const flagBtn = row.querySelector('.btn-flag');
     if (flagBtn && options.feedbackStore) {
         flagBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             openFeedbackModal(row.ownerDocument || document, entry, options.videoEl, options.feedbackStore);
+        });
+    }
+
+    const exportToggle = row.querySelector('.sequence-export-toggle');
+    if (exportToggle) {
+        exportToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (options.onToggleExport) options.onToggleExport(entry);
         });
     }
 
@@ -633,7 +708,7 @@ function getEntryRowBorder(isSelected) {
     return isSelected ? 'ring-2 ring-blue-500 bg-blue-50/40' : 'hover:border-slate-300 hover:bg-slate-50/70';
 }
 
-function getEntryRowHtml(entry, isCounter, isFlagged) {
+function getEntryRowHtml(entry, isCounter, isFlagged, isExportSelected) {
     const badgeClass = isCounter ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-blue-100 text-blue-900 border-blue-300';
     const badgeIcon = isCounter ? '⚡ Counter' : '🛡️ Build-Up';
     const clockText = entry.quarter ? `${entry.quarter} ${entry.matchClock}` : `match ${entry.matchClock}`;
@@ -645,10 +720,14 @@ function getEntryRowHtml(entry, isCounter, isFlagged) {
     const eventSeconds = Math.round(entry.timeMs / 1000);
     const leadDiff = eventSeconds - entry.seekSeconds;
     const leadText = leadDiff > 0 ? `Starts ${seekTime} (-${leadDiff}s)` : `Starts ${seekTime}`;
+    const includeLabel = escapeHtml(`Include ${entry.team} ${entry.entryType} at ${clockText} in clip export`);
 
     return `
-        <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 min-w-0">
+        <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
+                <button type="button" class="sequence-export-toggle" aria-pressed="${isExportSelected ? 'true' : 'false'}" aria-label="${includeLabel}">
+                    <i class="fas fa-check text-[11px]" aria-hidden="true"></i>
+                </button>
                 <span class="px-2 py-0.5 rounded text-[11px] font-bold border ${badgeClass}">
                     ${badgeIcon}
                 </span>
@@ -672,4 +751,12 @@ function getEntryRowHtml(entry, isCounter, isFlagged) {
             </div>
         </div>
     `;
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
