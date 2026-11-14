@@ -48,17 +48,17 @@ node scripts/convert-sportscode-xml.js "path/to/h1m-cobras-v-fire.xml" --name "h
 | Raw Code / Pattern | Normalized Event | Heuristics & Handling |
 | :--- | :--- | :--- |
 | **`Q1`–`Q4`**, `QUARTER 1`–`4`, `START` | `Q1`–`Q4` | Quarter markers with 1s lead/lag. |
-| **`QTR WHISTLE`** (6 whistles) | `Q1`–`Q4` | Pushback whistles extracted at indices `[0, 1, 3, 4]` (skipping halftime whistle at `[2]` and match end whistle at `[5]`). |
+| **`QTR WHISTLE`** (6 whistles) | `Q1`–`Q4` | Pushback whistles extracted at indices `[0, 1, 3, 4]` (skipping halftime whistle at `[2]` and match end whistle at `[5]`). Four plain `Whistle` marks are the four period starts. Five plain `Whistle` marks are four period starts plus full time: `Q1`–`Q4` from the first four, and the last whistle stays an umpire mark. Eight plain `Whistle` marks in four tight pairs (each pair within 5 seconds, pairs more than a minute apart) are the same four period starts, taking the first whistle of each pair. UTF-16 exports are decoded before parsing. |
 | **`CIRCLE ENTRY`**, `CE`, `AC Entry` | `[TEAM] CE` | Channel direction (`Left`, `Center`, `Right`) extracted from instance labels or nearby short codes (`LF`/`LFE`, `CT`/`CTE`, `RT`/`RTE`). Sized with 10s lead / 10s lag. |
 | **`A25 ENTRY`**, `A25E`, `25yd Entry` | `[TEAM] A25E` | Attacking 25m entry. Sized with 10s lead / 10s lag. |
 | **`GAINED POS`**, `BW`, `REGAIN`, `Steal` | `[TEAM] BW[1-4]` | Turnovers mapped using first zone label present (`D30`/`D25` $\rightarrow$ `1`, `D50` $\rightarrow$ `2`, `A50` $\rightarrow$ `3`, `A25` $\rightarrow$ `4`). For Hudl `GAINED POS`, a 6.0s lead compensation is added to pin the exact moment possession was won. Sized with 5s lead / 5s lag. |
-| **`FREE HIT`**, `OUTLET`, `LONG CORNER`, `BS` | `[TEAM] BS` | Restarts and controlled build-up restarts. Sized with 10s lead / 10s lag. |
+| **`FREE HIT`**, `OUTLET`, `Outlet - TEAM`, `LONG CORNER`, `LC`, `BS` | `[TEAM] BS` | Restarts and controlled build-up restarts. The team may be named after the hyphen. Sized with 10s lead / 10s lag. |
 | **`OVERHEAD BP`**, `OH`, `Overhead` | `[TEAM] OH` | Aerial overheads. Sized with 10s lead / 10s lag. |
 | **`PC WON`**, `PCA WON`, `PCA`, `PC`, `ASC` | `[TEAM] PC` | Penalty corners won. Deduplicated within 3 seconds. Sized with 10s lead / 10s lag. |
 | **`PS WON`**, `PS` | `[TEAM] PS` | Penalty stroke awards. Sized with 10s lead / 10s lag. |
-| **`SHOTS`**, `GSO`, `Field Shot`, `PCA Shot` | `[TEAM] SHOT` | Goal-scoring opportunities and shots on goal. Deduplicated within 2.5 seconds. Sized with 10s lead / 10s lag. |
-| **`GOAL`** | `[TEAM] GOAL` | Labeled with `{ group: 'Type', text: 'Field Goal' | 'Penalty Corner' | 'Shootout' }`. Sized with 10s lead / 10s lag. |
-| **`SHOOTOUT`**, `1v1`, `SO` | `[TEAM] SO` | Shootout / 1v1 contests. Sized with 10s lead / 10s lag. |
+| **`SHOTS`**, `GSO`, `Field Shot`, `PCA Shot`, `Shootout-Shot` | `[TEAM] SHOT` | Goal-scoring opportunities and shots on goal. Deduplicated within 2.5 seconds. Sized with 10s lead / 10s lag. |
+| **`GOAL`**, `Shootout-Goal` | `[TEAM] GOAL` | Labeled with `{ group: 'Type', text: 'Field Goal' | 'Penalty Corner' | 'Shootout' }`. A `SHOOTOUT` row whose label says Goal also records a Shootout goal. Sized with 10s lead / 10s lag. |
+| **`SHOOTOUT`**, `Shoot Out`, `1v1`, `SO` | `[TEAM] SO` | Shootout / 1v1 contests. A `Shoot Out Against` row is the other side's mirror and is skipped. Sized with 10s lead / 10s lag. |
 | **`CARD`**, `GREEN`, `YELLOW`, `RED` | `[TEAM] CARD` | Disciplinary cards. Sized with 10s lead / 10s lag. |
 
 ### Excluded Administrative Noise
