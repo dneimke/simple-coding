@@ -1,4 +1,4 @@
-import { convertSportscodeXml } from '../../scripts/convert-sportscode-xml.js';
+import { convertSportscodeXml, decodeSportscodeXml } from '../../scripts/convert-sportscode-xml.js';
 
 const createSampleXml = (instances) => {
     const instanceXml = instances.map((inst, idx) => `
@@ -58,6 +58,106 @@ describe('convertSportscodeXml - quarters and team detection', () => {
         expect(quarterEvents[1].timeMs).toBe(100000);
         expect(quarterEvents[2].timeMs).toBe(220000);
         expect(quarterEvents[3].timeMs).toBe(310000);
+    });
+
+    test('extracts quarters from five plain whistles and keeps full time as an umpire mark', () => {
+        const xml = createSampleXml([
+            { code: 'Whistle', start: 10, end: 12 },
+            { code: 'Whistle', start: 100, end: 102 },
+            { code: 'Whistle', start: 900, end: 902 },
+            { code: 'Whistle', start: 1200, end: 1202 },
+            { code: 'Whistle', start: 1600, end: 1602 },
+            { code: 'CHILL AC Entry', start: 30, end: 40 },
+            { code: 'NSW Shot', start: 110, end: 120 }
+        ]);
+
+        const result = convertSportscodeXml(xml, { mapTeam: { NSW: 'PRIDE' } });
+        const quarterEvents = result.game.events.filter(e => /^Q[1-4]$/.test(e.event));
+        expect(quarterEvents.map(e => e.event)).toEqual(['Q1', 'Q2', 'Q3', 'Q4']);
+        expect(quarterEvents.map(e => e.timeMs)).toEqual([10000, 100000, 900000, 1200000]);
+        const umps = result.game.events.filter(e => e.event === 'UMP');
+        expect(umps).toHaveLength(1);
+        expect(umps[0].timeMs).toBe(1601000);
+    });
+
+    test('extracts four quarters from eight paired period whistles', () => {
+        const xml = createSampleXml([
+            { code: 'Whistle', start: 175.4, end: 176.4 },
+            { code: 'Whistle', start: 176.9, end: 177.9 },
+            { code: 'Whistle', start: 1280.7, end: 1281.7 },
+            { code: 'Whistle', start: 1282.3, end: 1283.3 },
+            { code: 'Whistle', start: 3023.1, end: 3024.1 },
+            { code: 'Whistle', start: 3024.7, end: 3025.7 },
+            { code: 'Whistle', start: 4113.7, end: 4114.7 },
+            { code: 'Whistle', start: 4115.4, end: 4116.4 },
+            { code: 'THUNDER Shoot Out', start: 4678.3, end: 4688.3 },
+            { code: 'FIRE Shoot Out Against', start: 4686.3, end: 4696.3 }
+        ]);
+
+        const result = convertSportscodeXml(xml);
+        expect(result.game.events.filter(e => /^Q[1-4]$/.test(e.event)).map(e => e.timeMs))
+            .toEqual([175400, 1280700, 3023100, 4113700]);
+        expect(result.game.events.filter(e => e.event === 'UMP')).toHaveLength(4);
+        expect(result.game.events.filter(e => e.event === 'THUNDER SO')).toHaveLength(1);
+        expect(result.game.events.some(e => e.event.includes('Against'))).toBe(false);
+    });
+
+    test('leaves eight evenly spaced whistles as umpire marks', () => {
+        const xml = createSampleXml([
+            { code: 'Whistle', start: 10, end: 12 },
+            { code: 'Whistle', start: 20, end: 22 },
+            { code: 'Whistle', start: 30, end: 32 },
+            { code: 'Whistle', start: 40, end: 42 },
+            { code: 'Whistle', start: 50, end: 52 },
+            { code: 'Whistle', start: 60, end: 62 },
+            { code: 'Whistle', start: 70, end: 72 },
+            { code: 'Whistle', start: 80, end: 82 },
+            { code: 'THUNDER CE', start: 15, end: 25 }
+        ]);
+
+        const result = convertSportscodeXml(xml);
+        expect(result.game.events.some(e => /^Q[1-4]$/.test(e.event))).toBe(false);
+        expect(result.game.events.filter(e => e.event === 'UMP')).toHaveLength(8);
+    });
+
+    test('maps a hyphenated outlet to the team named after the hyphen', () => {
+        const xml = createSampleXml([
+            { code: 'Q1', start: 1, end: 2 },
+            { code: 'PTX CE', start: 10, end: 20 },
+            { code: 'Outlet - OPP', start: 30, end: 40 },
+            { code: 'Outlet - PTX', start: 50, end: 60 }
+        ]);
+
+        const result = convertSportscodeXml(xml, { mapTeam: { OPP: 'FIRE' } });
+        expect(result.game.teams).toEqual(['THUNDER', 'FIRE']);
+        expect(result.game.events.filter(e => e.event === 'FIRE BS')).toHaveLength(1);
+        expect(result.game.events.filter(e => e.event === 'THUNDER BS')).toHaveLength(1);
+    });
+
+    test('extracts four quarters from four plain whistles', () => {
+        const xml = createSampleXml([
+            { code: 'Whistle', start: 10, end: 12 },
+            { code: 'Whistle', start: 900, end: 902 },
+            { code: 'Whistle', start: 1800, end: 1802 },
+            { code: 'Whistle', start: 2700, end: 2702 },
+            { code: 'THUNDER CE', start: 30, end: 40 }
+        ]);
+
+        const result = convertSportscodeXml(xml);
+        expect(result.game.events.filter(e => /^Q[1-4]$/.test(e.event)).map(e => e.timeMs))
+            .toEqual([10000, 900000, 1800000, 2700000]);
+        expect(result.game.events.some(e => e.event === 'UMP')).toBe(false);
+    });
+
+    test('decodes UTF-16 LE Sportscode exports', () => {
+        const xml = createSampleXml([
+            { code: 'Q1', start: 1, end: 2 },
+            { code: 'PTX CE', start: 10, end: 20 }
+        ]);
+        const encoded = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(xml, 'utf16le')]);
+        const result = convertSportscodeXml(decodeSportscodeXml(encoded));
+        expect(result.game.teams).toEqual(['THUNDER', 'BLAZE']);
+        expect(result.game.events.some(e => e.event === 'THUNDER CE')).toBe(true);
     });
 });
 
@@ -142,6 +242,29 @@ describe('convertSportscodeXml - noise filtering and set pieces', () => {
         expect(goals[0].labels).toEqual([{ group: 'Type', text: 'Field Goal' }]);
         expect(goals[1].labels).toEqual([{ group: 'Type', text: 'Shootout' }]);
         expect(goals[2].labels).toEqual([{ group: 'Type', text: 'Penalty Corner' }]);
+    });
+
+    test('maps long corners and hyphenated shootout rows', () => {
+        const xml = createSampleXml([
+            { code: 'Q1', start: 1, end: 2 },
+            { code: 'PRIDE LC', start: 20, end: 26 },
+            { code: 'CHILL LONG CORNER', start: 40, end: 46 },
+            { code: 'PRIDE Shootout-Goal', start: 80, end: 88 },
+            { code: 'CHILL Shootout-Shot', start: 100, end: 108 },
+            { code: 'PRIDE SHOOTOUT', start: 120, end: 130, labels: ['SHOOTOUT GOAL'] }
+        ]);
+
+        const result = convertSportscodeXml(xml, { teams: ['PRIDE', 'CHILL'] });
+        const restarts = result.game.events.filter(e => e.event.endsWith(' BS'));
+        expect(restarts.map(e => e.event)).toEqual(['PRIDE BS', 'CHILL BS']);
+
+        const shots = result.game.events.filter(e => e.event === 'CHILL SHOT');
+        expect(shots).toHaveLength(1);
+
+        const goals = result.game.events.filter(e => e.event.includes('GOAL'));
+        expect(goals.map(e => e.event)).toEqual(['PRIDE GOAL', 'PRIDE GOAL']);
+        expect(goals.every(e => e.labels[0].text === 'Shootout')).toBe(true);
+        expect(result.game.events.some(e => e.event === 'PRIDE SO')).toBe(true);
     });
 
     test('generates valid XML, sequence classification, and report', () => {

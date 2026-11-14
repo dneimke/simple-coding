@@ -21,6 +21,22 @@ const KNOWN_CODES = new Set([
     'GOAL', 'SO', 'OH', 'GREEN', 'YELLOW', 'RED', 'CARD', 'START', 'END', 'UMP', 'QTR', 'WHISTLE'
 ]);
 
+export function decodeSportscodeXml(buffer) {
+    const bytes = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+    if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+        return bytes.toString('utf16le').replace(/^\uFEFF/, '');
+    }
+    if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+        const swapped = Buffer.alloc(bytes.length - (bytes.length % 2));
+        for (let i = 0; i + 1 < bytes.length; i += 2) {
+            swapped[i] = bytes[i + 1];
+            swapped[i + 1] = bytes[i];
+        }
+        return swapped.toString('utf16le').replace(/^\uFEFF/, '');
+    }
+    return bytes.toString('utf8').replace(/^\uFEFF/, '');
+}
+
 export function convertSportscodeXml(xmlText, options = {}) {
     const rawInstances = extractInstances(xmlText);
     if (!rawInstances.length) {
@@ -65,6 +81,7 @@ function resolveDetectedTeams(teams) {
     if (teams.includes('HCM') && teams.includes('CHILL')) return ['CHILL', 'HCM'];
     if (teams.includes('HCM') && teams.includes('TIGERS')) return ['HCM', 'TIGERS'];
     if (teams.includes('COBRAS') && teams.includes('FIRE')) return ['COBRAS', 'FIRE'];
+    if (teams.includes('THUNDER') && teams.includes('FIRE')) return ['THUNDER', 'FIRE'];
     return [teams[0] || 'THUNDER', teams[1] || 'BLAZE'];
 }
 
@@ -96,10 +113,33 @@ function extractQuarters(rawInstances, events) {
         return;
     }
 
+    // Four plain whistles are the period starts. Five adds a full-time whistle.
+    // Eight whistles are the same four starts, each marked twice about a second apart.
+    const plainWhistles = rawInstances.filter(i => /^Whistle$/i.test(i.code));
+    const periodStarts = periodStartWhistles(plainWhistles);
+    if (periodStarts) {
+        periodStarts.forEach((inst, idx) => {
+            pushEvent(events, `Q${idx + 1}`, Math.round(inst.start * 1000), 1, 1);
+        });
+        return;
+    }
+
     const startInsts = rawInstances.filter(i => /^(Quarter Start|START)$/i.test(i.code));
     startInsts.slice(0, 4).forEach((inst, idx) => {
         pushEvent(events, `Q${idx + 1}`, Math.round(inst.start * 1000), 1, 1);
     });
+}
+
+function periodStartWhistles(whistles) {
+    if (whistles.length === 4 || whistles.length === 5) return whistles.slice(0, 4);
+    if (whistles.length !== 8) return null;
+    const pairs = [0, 2, 4, 6].map(index => [whistles[index], whistles[index + 1]]);
+    const pairedStarts = pairs.every(([first, second]) => {
+        const gap = second.start - first.start;
+        return gap >= 0 && gap <= 5;
+    });
+    const separated = pairs.slice(1).every((pair, index) => pair[0].start - pairs[index][1].start > 60);
+    return pairedStarts && separated ? pairs.map(([first]) => first) : null;
 }
 
 function parseChannelText(text) {
@@ -241,7 +281,7 @@ function matchSimpleAction(action) {
     if (/^A25\s*FH$/i.test(action)) return 'BS4';
     if (/^(?:A25E|25yd\s*Entry|A25\s*Entry)$/i.test(action)) return 'A25E';
     if (/^(?:OH|Overhead|Overhead\s*BP)$/i.test(action)) return 'OH';
-    if (/^(?:SO|1v1|Shootout)$/i.test(action) && !/Goal|Shot|Save/i.test(action)) return 'SO';
+    if (/^(?:SO|1v1|Shoot\s*out)$/i.test(action) && !/Goal|Shot|Save/i.test(action)) return 'SO';
     if (/^(?:CARD|Card|GREEN|YELLOW|RED)$/i.test(action)) return 'CARD';
     return null;
 }
@@ -257,7 +297,11 @@ function mapInstance(inst, context, events) {
 
     const timeMs = Math.round(((inst.start + inst.end) / 2) * 1000);
     if (/^(?:UMP|Whistle)$/i.test(code)) {
-        pushEvent(events, 'UMP', timeMs, 7, 7);
+        const startMs = Math.round(inst.start * 1000);
+        const marksQuarter = events.some(e =>
+            /^Q[1-4]$/.test(e.event) && Math.abs(e.timeMs - startMs) < 1500
+        );
+        if (!marksQuarter) pushEvent(events, 'UMP', timeMs, 7, 7);
         return;
     }
 
@@ -266,8 +310,21 @@ function mapInstance(inst, context, events) {
 
     const action = stripTeam(code, team);
     const simpleCode = matchSimpleAction(action);
+    if (simpleCode === 'SO' && inst.labels.some(l => /goal/i.test(l.text))) {
+        pushEvent(events, `${team} SO`, timeMs, 10, 10);
+        pushEvent(events, `${team} GOAL`, timeMs, 10, 10, [{ group: 'Type', text: 'Shootout' }]);
+        return;
+    }
     if (simpleCode) {
         pushEvent(events, `${team} ${simpleCode}`, timeMs, 10, 10);
+        return;
+    }
+    if (/^Shootout[- ]Goal$/i.test(action)) {
+        pushEvent(events, `${team} GOAL`, timeMs, 10, 10, [{ group: 'Type', text: 'Shootout' }]);
+        return;
+    }
+    if (/^Shootout[- ]Shot$/i.test(action)) {
+        mapShot(team, timeMs, events);
         return;
     }
 
@@ -293,7 +350,7 @@ function mapInstance(inst, context, events) {
         mapAttackingTransition(inst, team, timeMs, context.rawInstances, events);
         return;
     }
-    if (/^(?:BS|Outlet|Pushback|Long Corner|Free Hit(?: A25)?)$/i.test(action)) {
+    if (/^(?:BS|Outlet|Pushback|Long Corner|LC|Free Hit(?: A25)?)$/i.test(action)) {
         mapRestart(action, team, timeMs, events);
         return;
     }
@@ -322,8 +379,8 @@ function resolveTeam(code, team1, team2) {
 
 function stripTeam(raw, team) {
     if (!team) return raw;
-    let cleaned = raw.replace(new RegExp(`^${team}\\s+|\\s+${team}$`, 'i'), '');
-    cleaned = cleaned.replace(new RegExp(`\\s*-\\s*${team}\\b`, 'i'), '');
+    let cleaned = raw.replace(new RegExp(`\\s*-\\s*${team}\\b`, 'i'), '');
+    cleaned = cleaned.replace(new RegExp(`^${team}\\s+|\\s+${team}$`, 'i'), '');
     return cleaned.trim();
 }
 
@@ -393,7 +450,7 @@ function executeCli() {
         process.exit(1);
     }
 
-    const xmlSource = fs.readFileSync(inputPath, 'utf8');
+    const xmlSource = decodeSportscodeXml(fs.readFileSync(inputPath));
     const result = convertSportscodeXml(xmlSource, { mapTeam });
 
     if (!fs.existsSync(outDir)) {
