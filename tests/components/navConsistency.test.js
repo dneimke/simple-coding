@@ -77,13 +77,13 @@ describe('Navigation Menu Consistency Across Screens', () => {
         });
     });
 
-    test('Matches subtitle keeps How the 3 modes work and leaves Sequence trial to the nav', () => {
+    test('Matches header is simplified with search input and leaves Sequence trial to the nav', () => {
         const html = fs.readFileSync(path.resolve(process.cwd(), 'src/index.html'), 'utf8');
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const subtitle = doc.querySelector('#saved-games-view .page-subtitle');
-        expect(subtitle).not.toBeNull();
-        expect(subtitle.textContent).toContain('How the 3 modes work');
-        expect(subtitle.textContent).not.toContain('Sequence trial');
-        expect(subtitle.querySelector('a[href="spike/sequences/"]')).toBeNull();
+        const header = doc.querySelector('#saved-games-view .page-header');
+        expect(header).not.toBeNull();
+        expect(header.querySelector('.page-subtitle')).toBeNull();
+        expect(header.querySelector('#savedGamesSearchInput')).not.toBeNull();
+        expect(header.querySelector('a[href="spike/sequences/"]')).toBeNull();
     });
 });
