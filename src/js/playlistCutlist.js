@@ -190,3 +190,19 @@ export function buildPlaylistCutlist(game, playlistId = FAVORITES_PLAYLIST_ID, o
         clips
     };
 }
+
+/**
+ * Downloads a cutlist file in the browser. Revoke is delayed so the click can finish.
+ * @param {{ gameTitle?: string, playlistName?: string }} cutlist
+ */
+export function downloadCutlistFile(cutlist) {
+    const blob = new Blob([JSON.stringify(cutlist, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = buildCutlistDownloadFilename(cutlist);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
